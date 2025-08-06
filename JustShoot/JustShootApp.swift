@@ -1,10 +1,3 @@
-//
-//  JustShootApp.swift
-//  JustShoot
-//
-//  Created by LeaveStyle on 6/8/2025.
-//
-
 import SwiftUI
 import SwiftData
 
@@ -12,7 +5,7 @@ import SwiftData
 struct JustShootApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Photo.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -29,4 +22,4 @@ struct JustShootApp: App {
         }
         .modelContainer(sharedModelContainer)
     }
-}
+} 
