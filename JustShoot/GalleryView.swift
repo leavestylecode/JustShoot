@@ -78,7 +78,8 @@ class PhotoDetailViewModel: ObservableObject {
     }
     
     func loadImage(for photo: Photo) async {
-        guard loadedImages[photo.id] == nil else { return }
+        let photoId = photo.id
+        guard loadedImages[photoId] == nil else { return }
         
         await MainActor.run {
             isLoading = true
@@ -86,7 +87,6 @@ class PhotoDetailViewModel: ObservableObject {
         
         if let image = await imageLoader.loadImage(for: photo) {
             await MainActor.run {
-                let photoId = photo.id
                 loadedImages[photoId] = image
                 isLoading = false
             }
