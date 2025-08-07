@@ -35,10 +35,13 @@ struct GalleryView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    LazyVGrid(columns: gridColumns, spacing: 2) {
+                    LazyVGrid(columns: gridColumns, spacing: 4) {
                         ForEach(photos) { photo in
                             PhotoThumbnailView(photo: photo)
                                 .aspectRatio(1, contentMode: .fit)
+                                .cornerRadius(12)
+                                .clipped()
+                                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
                                 .onTapGesture {
                                     selectedPhoto = photo
                                     capturedPhoto = photo
@@ -46,7 +49,8 @@ struct GalleryView: View {
                                 }
                         }
                     }
-                    .padding(2)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
                 }
             }
             .navigationTitle("相册")
@@ -71,22 +75,27 @@ struct PhotoThumbnailView: View {
     let photo: Photo
     
     var body: some View {
-        Group {
-            if let image = photo.image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .clipped()
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.title2)
-                            .foregroundColor(.gray)
-                    )
+        GeometryReader { geometry in
+            Group {
+                if let image = photo.image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geometry.size.width, height: geometry.size.width)
+                        .clipped()
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: geometry.size.width, height: geometry.size.width)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .font(.title2)
+                                .foregroundColor(.gray)
+                        )
+                }
             }
         }
+        .aspectRatio(1, contentMode: .fit)
     }
 }
 
@@ -111,10 +120,42 @@ struct PhotoDetailView: View {
     }
     
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
+        VStack(spacing: 0) {
+            // 顶部导航栏
+            HStack {
+                Button("完成") {
+                    dismiss()
+                }
+                .foregroundColor(.white)
+                
+                Spacer()
+                
+                Text("\(currentIndex + 1) / \(allPhotos.count)")
+                    .foregroundColor(.white)
+                    .font(.caption)
+                
+                Spacer()
+                
+                // 下载按钮
+                Button(action: saveToPhotoLibrary) {
+                    HStack(spacing: 4) {
+                        Image(systemName: saveButtonIcon)
+                            .foregroundColor(.white)
+                        Text(saveButtonText)
+                            .font(.caption)
+                            .foregroundColor(.white)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.2))
+                    .cornerRadius(15)
+                }
+                .disabled(saveStatus == .saving)
+            }
+            .padding()
+            .background(Color.black)
             
-            // 全屏照片显示区域 - 支持左右滑动
+            // 照片显示区域
             if !allPhotos.isEmpty {
                 TabView(selection: $currentIndex) {
                     ForEach(Array(allPhotos.enumerated()), id: \.element.id) { index, photoItem in
@@ -156,8 +197,10 @@ struct PhotoDetailView: View {
                         currentPhoto = allPhotos[newIndex]
                     }
                 }
+                .background(Color.black)
             } else {
                 // 没有照片时的占位符
+                Spacer()
                 VStack {
                     Image(systemName: "photo")
                         .font(.system(size: 100))
@@ -167,129 +210,100 @@ struct PhotoDetailView: View {
                         .foregroundColor(.gray)
                         .padding(.top, 16)
                 }
-            }
-            
-            // 顶部工具栏（悬浮）
-            VStack {
-                if showingInfo {
-                    HStack {
-                        Button("完成") {
-                            dismiss()
-                        }
-                        .foregroundColor(.white)
-                        
-                        Spacer()
-                        
-                        Text("\(currentIndex + 1) / \(allPhotos.count)")
-                            .foregroundColor(.white)
-                            .font(.caption)
-                        
-                        Spacer()
-                        
-                        // 下载按钮
-                        Button(action: saveToPhotoLibrary) {
-                            HStack(spacing: 4) {
-                                Image(systemName: saveButtonIcon)
-                                    .foregroundColor(.white)
-                                Text(saveButtonText)
-                                    .font(.caption)
-                                    .foregroundColor(.white)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.white.opacity(0.2))
-                            .cornerRadius(15)
-                        }
-                        .disabled(saveStatus == .saving)
-                    }
-                    .padding()
-                    .background(LinearGradient(gradient: Gradient(colors: [Color.black.opacity(0.6), Color.clear]), startPoint: .top, endPoint: .bottom))
-                    .transition(.move(edge: .top))
-                }
                 Spacer()
             }
             
-            // 底部信息面板（悬浮，可滚动）
-            VStack {
-                Spacer()
-                if showingInfo {
-                    ScrollView {
-                        VStack(spacing: 15) {
-                            // 拍摄时间
-                            VStack(spacing: 4) {
-                                Text("拍摄时间")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                Text("\(currentPhoto.timestamp, formatter: detailDateFormatter)")
-                                    .font(.body)
-                                    .foregroundColor(.white)
-                            }
+            // 底部信息面板
+            if showingInfo {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // 拍摄时间
+                        VStack(spacing: 8) {
+                            Text("📅 拍摄时间")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                            Text("\(currentPhoto.timestamp, formatter: detailDateFormatter)")
+                                .font(.body)
+                                .foregroundColor(.gray)
+                        }
+                        
+                        Divider()
+                            .background(Color.gray.opacity(0.3))
+                        
+                        // 基本拍摄参数
+                        VStack(spacing: 12) {
+                            Text("📸 拍摄参数")
+                                .font(.headline)
+                                .foregroundColor(.white)
                             
-                            VStack(spacing: 15) {
-                                // 基本拍摄参数
+                            LazyVGrid(columns: [
+                                GridItem(.flexible()),
+                                GridItem(.flexible())
+                            ], spacing: 16) {
+                                ExifInfoView(title: "ISO", value: currentPhoto.iso)
+                                ExifInfoView(title: "快门", value: currentPhoto.shutterSpeed)
+                                ExifInfoView(title: "光圈", value: currentPhoto.aperture)
+                                ExifInfoView(title: "焦距", value: currentPhoto.focalLength)
+                                ExifInfoView(title: "曝光模式", value: currentPhoto.exposureMode)
+                                ExifInfoView(title: "闪光灯", value: currentPhoto.flashMode)
+                            }
+                        }
+                        
+                        // GPS位置信息
+                        if let gps = currentPhoto.gpsInfo {
+                            Divider()
+                                .background(Color.gray.opacity(0.3))
+                            
+                            VStack(spacing: 12) {
+                                Text("📍 位置信息")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
                                 LazyVGrid(columns: [
                                     GridItem(.flexible()),
+                                    GridItem(.flexible())
+                                ], spacing: 16) {
+                                    ExifInfoView(title: "纬度", value: gps.latitude)
+                                    ExifInfoView(title: "经度", value: gps.longitude)
+                                    ExifInfoView(title: "海拔", value: gps.altitude)
+                                    ExifInfoView(title: "镜头", value: currentPhoto.lensInfo)
+                                }
+                            }
+                        }
+                        
+                        // 设备信息
+                        if let device = currentPhoto.deviceInfo {
+                            Divider()
+                                .background(Color.gray.opacity(0.3))
+                            
+                            VStack(spacing: 12) {
+                                Text("📱 设备信息")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                LazyVGrid(columns: [
                                     GridItem(.flexible()),
                                     GridItem(.flexible())
-                                ], spacing: 12) {
-                                    ExifInfoView(title: "ISO", value: currentPhoto.iso)
-                                    ExifInfoView(title: "快门", value: currentPhoto.shutterSpeed)
-                                    ExifInfoView(title: "光圈", value: currentPhoto.aperture)
-                                    ExifInfoView(title: "焦距", value: currentPhoto.focalLength)
-                                    ExifInfoView(title: "曝光", value: currentPhoto.exposureMode)
-                                    ExifInfoView(title: "闪光灯", value: currentPhoto.flashMode)
-                                }
-                                
-                                // GPS位置信息
-                                if let gps = currentPhoto.gpsInfo {
-                                    VStack(spacing: 8) {
-                                        Text("📍 位置信息")
-                                            .font(.caption)
-                                            .foregroundColor(.gray)
-                                        
-                                        LazyVGrid(columns: [
-                                            GridItem(.flexible()),
-                                            GridItem(.flexible())
-                                        ], spacing: 10) {
-                                            ExifInfoView(title: "纬度", value: gps.latitude)
-                                            ExifInfoView(title: "经度", value: gps.longitude)
-                                            ExifInfoView(title: "海拔", value: gps.altitude)
-                                            ExifInfoView(title: "镜头", value: currentPhoto.lensInfo)
-                                        }
-                                    }
-                                }
-                                
-                                // 设备信息
-                                if let device = currentPhoto.deviceInfo {
-                                    VStack(spacing: 8) {
-                                        Text("📱 设备信息")
-                                            .font(.caption)
-                                            .foregroundColor(.gray)
-                                        
-                                        LazyVGrid(columns: [
-                                            GridItem(.flexible()),
-                                            GridItem(.flexible())
-                                        ], spacing: 10) {
-                                            ExifInfoView(title: "制造商", value: device.make)
-                                            ExifInfoView(title: "型号", value: device.model)
-                                            ExifInfoView(title: "软件", value: device.software)
-                                            if currentPhoto.gpsInfo == nil {
-                                                ExifInfoView(title: "镜头", value: currentPhoto.lensInfo)
-                                            }
-                                        }
+                                ], spacing: 16) {
+                                    ExifInfoView(title: "制造商", value: device.make)
+                                    ExifInfoView(title: "型号", value: device.model)
+                                    ExifInfoView(title: "软件", value: device.software)
+                                    if currentPhoto.gpsInfo == nil {
+                                        ExifInfoView(title: "镜头", value: currentPhoto.lensInfo)
                                     }
                                 }
                             }
-                            .padding(.horizontal)
                         }
-                        .padding(.vertical, 20)
                     }
-                    .frame(maxHeight: UIScreen.main.bounds.height * 0.4) // 最大占屏幕高度40%
-                    .background(LinearGradient(gradient: Gradient(colors: [Color.clear, Color.black.opacity(0.8)]), startPoint: .top, endPoint: .bottom))
-                    .transition(.move(edge: .bottom))
+                    .padding()
                 }
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.4)
+                .background(Color.black.opacity(0.95))
+                .cornerRadius(16)
+                .transition(.move(edge: .bottom))
             }
         }
+        .background(Color.black.ignoresSafeArea())
         .onAppear {
             initializeCurrentIndex()
         }
@@ -430,19 +444,27 @@ struct ExifInfoView: View {
     let value: String
     
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             Text(title)
                 .font(.caption)
                 .foregroundColor(.gray)
+                .fontWeight(.medium)
             Text(value)
-                .font(.caption)
+                .font(.body)
                 .foregroundColor(.white)
+                .fontWeight(.medium)
                 .multilineTextAlignment(.center)
+                .lineLimit(2)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(Color.white.opacity(0.1))
-        .cornerRadius(8)
+        .frame(maxWidth: .infinity, minHeight: 60)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.05))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        )
+        .cornerRadius(10)
     }
 }
 

@@ -2,6 +2,7 @@ import SwiftUI
 import AVFoundation
 import SwiftData
 import CoreLocation
+import UIKit
 
 struct CameraView: View {
     @Environment(\.dismiss) private var dismiss
@@ -176,9 +177,117 @@ class CameraManager: NSObject, ObservableObject {
     private let locationManager = CLLocationManager()
     private var currentLocation: CLLocation?
     
+    // 方向管理 - iOS 17新方式
+    @available(iOS 17.0, *)
+    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
+    
+    // 兼容旧版本的方向管理
+    private var currentDeviceOrientation: UIDeviceOrientation = .portrait
+    private var orientationObserver: NSObjectProtocol?
+    
     override init() {
         super.init()
         setupCamera()
+        setupOrientationMonitoring()
+    }
+    
+    deinit {
+        if let observer = orientationObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+    
+    // 设置设备方向监控
+    private func setupOrientationMonitoring() {
+        // 启用设备方向更新
+        UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+        
+        // 监听方向变化
+        orientationObserver = NotificationCenter.default.addObserver(
+            forName: UIDevice.orientationDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateDeviceOrientation()
+            }
+        }
+        
+        // 初始化当前方向
+        updateDeviceOrientation()
+    }
+    
+    // 更新设备方向
+    private func updateDeviceOrientation() {
+        let orientation = UIDevice.current.orientation
+        
+        // 只处理有效的方向
+        if orientation.isValidInterfaceOrientation {
+            currentDeviceOrientation = orientation
+            print("📱 设备方向更新: \(orientationDescription(orientation))")
+        }
+    }
+    
+    // 方向描述
+    private func orientationDescription(_ orientation: UIDeviceOrientation) -> String {
+        switch orientation {
+        case .portrait: return "Portrait"
+        case .portraitUpsideDown: return "Portrait Upside Down"
+        case .landscapeLeft: return "Landscape Left"
+        case .landscapeRight: return "Landscape Right"
+        default: return "Unknown"
+        }
+    }
+    
+    // 兼容旧版本：转换设备方向为AVCaptureVideoOrientation
+    @available(iOS, deprecated: 17.0, message: "Use AVCaptureDeviceRotationCoordinator instead")
+    private func videoOrientation(from deviceOrientation: UIDeviceOrientation) -> AVCaptureVideoOrientation {
+        switch deviceOrientation {
+        case .portrait:
+            return .portrait
+        case .portraitUpsideDown:
+            return .portraitUpsideDown
+        case .landscapeLeft:
+            return .landscapeRight  // 注意：设备向左转，视频方向向右
+        case .landscapeRight:
+            return .landscapeLeft   // 注意：设备向右转，视频方向向左
+        default:
+            return .portrait        // 默认为竖屏
+        }
+    }
+    
+    // iOS 17新方式：从旋转角度转换为EXIF方向值
+    @available(iOS 17.0, *)
+    private func exifOrientationFromRotationAngle(_ rotationAngle: CGFloat) -> Int {
+        let normalizedAngle = Int(rotationAngle) % 360
+        switch normalizedAngle {
+        case 0:
+            return 1    // 正常方向 0°
+        case 90, -270:
+            return 6    // 逆时针旋转90度
+        case 180, -180:
+            return 3    // 旋转180度
+        case 270, -90:
+            return 8    // 顺时针旋转90度
+        default:
+            return 1    // 默认为正常方向
+        }
+    }
+    
+    // 兼容旧版本：转换设备方向为EXIF方向值
+    private func exifOrientation(from deviceOrientation: UIDeviceOrientation) -> Int {
+        switch deviceOrientation {
+        case .portrait:
+            return 1    // 正常竖屏
+        case .landscapeLeft:
+            return 6    // 向左旋转90度
+        case .portraitUpsideDown:
+            return 3    // 旋转180度
+        case .landscapeRight:
+            return 8    // 向右旋转90度
+        default:
+            return 1    // 默认为正常方向
+        }
     }
     
     func requestCameraPermission() {
@@ -221,9 +330,13 @@ class CameraManager: NSObject, ObservableObject {
             if session.canAddOutput(photoOutput) {
                 session.addOutput(photoOutput)
                 
-                // iOS 17 新特性：启用高质量照片
+                // iOS 17 新特性：启用高质量照片和rotation coordinator
                 if #available(iOS 17.0, *) {
                     photoOutput.maxPhotoQualityPrioritization = .quality
+                    
+                    // 设置rotation coordinator
+                    rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: videoCaptureDevice, previewLayer: nil)
+                    print("📱 使用iOS 17 AVCaptureDevice.RotationCoordinator")
                 }
             }
         } catch {
@@ -265,6 +378,32 @@ class CameraManager: NSObject, ObservableObject {
             settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
         }
         
+        // 设置照片方向 - iOS 17新方式 vs 旧版本兼容
+        if #available(iOS 17.0, *) {
+            // 使用iOS 17的新API
+            if let coordinator = rotationCoordinator,
+               let connection = photoOutput.connection(with: .video) {
+                let rotationAngle = coordinator.videoRotationAngleForHorizonLevelCapture
+                if connection.isVideoRotationAngleSupported(rotationAngle) {
+                    connection.videoRotationAngle = rotationAngle
+                    print("📱 iOS 17设置照片旋转角度: \(rotationAngle)°")
+                } else {
+                    print("⚠️ 设备不支持该旋转角度: \(rotationAngle)°")
+                }
+            }
+        } else {
+            // 兼容iOS 16及以下版本
+            if let connection = photoOutput.connection(with: .video) {
+                if connection.isVideoOrientationSupported {
+                    let videoOrientation = videoOrientation(from: currentDeviceOrientation)
+                    connection.videoOrientation = videoOrientation
+                    print("📱 兼容模式设置照片方向: \(orientationDescription(currentDeviceOrientation)) -> \(videoOrientation)")
+                } else {
+                    print("⚠️ 设备不支持视频方向设置")
+                }
+            }
+        }
+        
         // 添加位置信息到照片设置中
         if let location = currentLocation {
             print("📍 添加GPS位置信息: \(location.coordinate)")
@@ -284,35 +423,74 @@ class CameraManager: NSObject, ObservableObject {
     // 启动位置服务（仅在拍摄页面）
     private func startLocationServices() {
         print("📍 启动GPS位置服务（拍摄模式）")
+        
+        // 配置位置管理器
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters // 降低精度以节省电量
         locationManager.distanceFilter = 50 // 移动50米才更新
         
-        // 检查当前权限状态
-        let authStatus = locationManager.authorizationStatus
-        switch authStatus {
+        // 在后台队列检查权限状态，避免阻塞主线程
+        Task.detached { [weak self] in
+            guard let self = self else { return }
+            
+            await MainActor.run {
+                let authStatus = self.locationManager.authorizationStatus
+                print("📍 当前位置权限状态: \(self.authorizationStatusDescription(authStatus))")
+                
+                switch authStatus {
+                case .notDetermined:
+                    print("📍 请求位置权限")
+                    self.locationManager.requestWhenInUseAuthorization()
+                    // 权限结果将在didChangeAuthorization回调中处理
+                case .authorizedWhenInUse, .authorizedAlways:
+                    print("📍 位置权限已授权，开始位置更新")
+                    self.startLocationUpdates()
+                case .denied, .restricted:
+                    print("📍 位置权限被拒绝或受限，无法获取位置信息")
+                @unknown default:
+                    print("📍 未知的位置权限状态")
+                }
+            }
+        }
+    }
+    
+    // 权限状态描述
+    private func authorizationStatusDescription(_ status: CLAuthorizationStatus) -> String {
+        switch status {
         case .notDetermined:
-            locationManager.requestWhenInUseAuthorization()
-            // 权限结果将在delegate回调中处理
-        case .authorizedWhenInUse, .authorizedAlways:
-            startLocationUpdates()
-        case .denied, .restricted:
-            print("📍 位置权限被拒绝或受限")
+            return "未确定"
+        case .denied:
+            return "已拒绝"
+        case .restricted:
+            return "受限制"
+        case .authorizedWhenInUse:
+            return "使用时授权"
+        case .authorizedAlways:
+            return "始终授权"
         @unknown default:
-            print("📍 未知的位置权限状态")
+            return "未知状态"
         }
     }
     
     // 实际启动位置更新
     private func startLocationUpdates() {
-        guard CLLocationManager.locationServicesEnabled() else {
-            print("📍 位置服务未启用")
-            return
+        // 在后台检查位置服务状态，避免主线程阻塞
+        Task.detached { [weak self] in
+            guard let self = self else { return }
+            
+            let locationServicesEnabled = CLLocationManager.locationServicesEnabled()
+            
+            await MainActor.run {
+                guard locationServicesEnabled else {
+                    print("📍 系统位置服务未启用，无法获取位置")
+                    return
+                }
+                
+                print("📍 开始位置更新")
+                self.locationManager.startUpdatingLocation()
+                self.startLocationTimer()
+            }
         }
-        
-        print("📍 开始位置更新")
-        locationManager.startUpdatingLocation()
-        startLocationTimer()
     }
     
     // 停止位置服务
@@ -392,10 +570,18 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
                 return
             }
             
-            // 如果有位置信息，手动添加GPS数据到EXIF
+            // 添加完整元数据（GPS + 方向信息）
             if let location = self.currentLocation {
+                // 有GPS位置时，添加GPS和方向信息
                 if let enhancedData = self.addGPSMetadataToImage(imageData: imageData, location: location) {
-                    print("✅ 成功添加GPS元数据到照片")
+                    print("✅ 成功添加GPS和方向元数据到照片")
+                    self.photoDataHandler?(enhancedData)
+                    return
+                }
+            } else {
+                // 没有GPS时，只添加方向信息
+                if let enhancedData = self.addOrientationMetadataToImage(imageData: imageData) {
+                    print("✅ 成功添加方向元数据到照片")
                     self.photoDataHandler?(enhancedData)
                     return
                 }
@@ -406,7 +592,7 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         }
     }
     
-    // 手动添加GPS元数据到图片
+    // 手动添加GPS元数据和方向信息到图片
     private func addGPSMetadataToImage(imageData: Data, location: CLLocation) -> Data? {
         guard let imageSource = CGImageSourceCreateWithData(imageData as CFData, nil),
               let imageType = CGImageSourceGetType(imageSource),
@@ -429,7 +615,6 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
             kCGImagePropertyGPSSpeed as String: location.speed >= 0 ? location.speed : 0,
             kCGImagePropertyGPSImgDirection as String: location.course >= 0 ? location.course : 0
         ]
-        
         metadata[kCGImagePropertyGPSDictionary as String] = gpsMetadata
         
         // 添加设备信息到TIFF字典
@@ -437,7 +622,30 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         tiffDict[kCGImagePropertyTIFFMake as String] = "Apple"
         tiffDict[kCGImagePropertyTIFFModel as String] = UIDevice.current.model
         tiffDict[kCGImagePropertyTIFFSoftware as String] = "JustShoot Camera"
+        
+        // 添加EXIF方向信息 - iOS 17新方式 vs 旧版本兼容
+        let orientationValue: Int
+        if #available(iOS 17.0, *), let coordinator = rotationCoordinator {
+            // 使用iOS 17的rotation coordinator获取方向
+            let rotationAngle = coordinator.videoRotationAngleForHorizonLevelCapture
+            orientationValue = exifOrientationFromRotationAngle(rotationAngle)
+            print("📱 iOS 17添加EXIF方向信息: 旋转角度\(rotationAngle)° = EXIF值\(orientationValue)")
+        } else {
+            // 兼容旧版本
+            orientationValue = exifOrientation(from: currentDeviceOrientation)
+            print("📱 兼容模式添加EXIF方向信息: \(orientationDescription(currentDeviceOrientation)) = EXIF值\(orientationValue)")
+        }
+        
+        tiffDict[kCGImagePropertyTIFFOrientation as String] = orientationValue
         metadata[kCGImagePropertyTIFFDictionary as String] = tiffDict
+        
+        // 确保EXIF字典也包含拍摄时间
+        var exifDict = metadata[kCGImagePropertyExifDictionary as String] as? [String: Any] ?? [:]
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy:MM:dd HH:mm:ss"
+        exifDict[kCGImagePropertyExifDateTimeOriginal as String] = formatter.string(from: Date())
+        exifDict[kCGImagePropertyExifDateTimeDigitized as String] = formatter.string(from: Date())
+        metadata[kCGImagePropertyExifDictionary as String] = exifDict
         
         // 保存带有新元数据的图片
         CGImageDestinationAddImageFromSource(destination, imageSource, 0, metadata as CFDictionary)
@@ -447,5 +655,69 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         }
         
         return nil
+    }
+    
+    // 仅添加方向元数据到图片（当没有GPS时）
+    private func addOrientationMetadataToImage(imageData: Data) -> Data? {
+        guard let imageSource = CGImageSourceCreateWithData(imageData as CFData, nil),
+              let imageType = CGImageSourceGetType(imageSource),
+              let mutableData = CFDataCreateMutable(nil, 0),
+              let destination = CGImageDestinationCreateWithData(mutableData, imageType, 1, nil) else {
+            return nil
+        }
+        
+        // 获取原始元数据
+        var metadata = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [String: Any] ?? [:]
+        
+        // 添加设备信息到TIFF字典
+        var tiffDict = metadata[kCGImagePropertyTIFFDictionary as String] as? [String: Any] ?? [:]
+        tiffDict[kCGImagePropertyTIFFMake as String] = "Apple"
+        tiffDict[kCGImagePropertyTIFFModel as String] = UIDevice.current.model
+        tiffDict[kCGImagePropertyTIFFSoftware as String] = "JustShoot Camera"
+        
+        // 添加EXIF方向信息 - iOS 17新方式 vs 旧版本兼容
+        let orientationValue: Int
+        if #available(iOS 17.0, *), let coordinator = rotationCoordinator {
+            // 使用iOS 17的rotation coordinator获取方向
+            let rotationAngle = coordinator.videoRotationAngleForHorizonLevelCapture
+            orientationValue = exifOrientationFromRotationAngle(rotationAngle)
+            print("📱 iOS 17添加EXIF方向信息: 旋转角度\(rotationAngle)° = EXIF值\(orientationValue)")
+        } else {
+            // 兼容旧版本
+            orientationValue = exifOrientation(from: currentDeviceOrientation)
+            print("📱 兼容模式添加EXIF方向信息: \(orientationDescription(currentDeviceOrientation)) = EXIF值\(orientationValue)")
+        }
+        
+        tiffDict[kCGImagePropertyTIFFOrientation as String] = orientationValue
+        metadata[kCGImagePropertyTIFFDictionary as String] = tiffDict
+        
+        // 确保EXIF字典也包含拍摄时间
+        var exifDict = metadata[kCGImagePropertyExifDictionary as String] as? [String: Any] ?? [:]
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy:MM:dd HH:mm:ss"
+        exifDict[kCGImagePropertyExifDateTimeOriginal as String] = formatter.string(from: Date())
+        exifDict[kCGImagePropertyExifDateTimeDigitized as String] = formatter.string(from: Date())
+        metadata[kCGImagePropertyExifDictionary as String] = exifDict
+        
+        // 保存带有新元数据的图片
+        CGImageDestinationAddImageFromSource(destination, imageSource, 0, metadata as CFDictionary)
+        
+        if CGImageDestinationFinalize(destination) {
+            return mutableData as Data
+        }
+        
+        return nil
+    }
+}
+
+// MARK: - UIDeviceOrientation Extension
+extension UIDeviceOrientation {
+    var isValidInterfaceOrientation: Bool {
+        switch self {
+        case .portrait, .portraitUpsideDown, .landscapeLeft, .landscapeRight:
+            return true
+        default:
+            return false
+        }
     }
 } 
