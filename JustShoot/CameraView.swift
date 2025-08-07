@@ -14,10 +14,7 @@ struct CameraView: View {
         ZStack {
             // 相机预览
             CameraPreviewView(session: cameraManager.session)
-                .ignoresSafeArea()
-            
-            // 预览框遮罩
-            PreviewFrameOverlay()
+                    .ignoresSafeArea()
             
             // 控制界面
             VStack {
@@ -40,13 +37,13 @@ struct CameraView: View {
                     Button(action: {
                         cameraManager.toggleFlashMode()
                     }) {
-                        VStack(spacing: 4) {
+                    VStack(spacing: 4) {
                             Image(systemName: cameraManager.flashMode.iconName)
-                                .font(.title2)
+                            .font(.title2)
                                 .foregroundColor(.white)
                             Text(cameraManager.flashMode.displayName)
                                 .font(.caption2)
-                                .foregroundColor(.white)
+                            .foregroundColor(.white)
                         }
                         .padding()
                         .background(Color.black.opacity(0.5))
@@ -62,16 +59,16 @@ struct CameraView: View {
                     Spacer()
                     
                     // 拍照按钮
-                    Button(action: {
+                        Button(action: {
                         capturePhoto()
-                    }) {
-                        ZStack {
-                            Circle()
+                        }) {
+                            ZStack {
+                                Circle()
                                 .fill(Color.white)
-                                .frame(width: 80, height: 80)
-                            Circle()
+                                    .frame(width: 80, height: 80)
+                                Circle()
                                 .stroke(Color.black, lineWidth: 2)
-                                .frame(width: 70, height: 70)
+                                    .frame(width: 70, height: 70)
                         }
                     }
                     
@@ -115,97 +112,6 @@ struct CameraView: View {
                 
                 showFlash = false
                 // 移除自动返回，让用户自己决定何时返回
-            }
-        }
-    }
-}
-
-// 预览框遮罩视图
-struct PreviewFrameOverlay: View {
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // 半透明遮罩
-                Color.black.opacity(0.6)
-                    .ignoresSafeArea()
-                
-                // 预览框
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.white, lineWidth: 2)
-                    .frame(
-                        width: geometry.size.width * 0.85,
-                        height: geometry.size.width * 0.85 * 4/3 // 4:3比例
-                    )
-                    .overlay(
-                        // 四角指示器
-                        ZStack {
-                            // 左上角
-                            VStack {
-                                HStack {
-                                    Rectangle()
-                                        .fill(Color.white)
-                                        .frame(width: 20, height: 3)
-                                    Spacer()
-                                }
-                                HStack {
-                                    Rectangle()
-                                        .fill(Color.white)
-                                        .frame(width: 3, height: 20)
-                                    Spacer()
-                                }
-                            }
-                            
-                            // 右上角
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    Rectangle()
-                                        .fill(Color.white)
-                                        .frame(width: 20, height: 3)
-                                }
-                                HStack {
-                                    Spacer()
-                                    Rectangle()
-                                        .fill(Color.white)
-                                        .frame(width: 3, height: 20)
-                                }
-                            }
-                            
-                            // 左下角
-                            VStack {
-                                Spacer()
-                                HStack {
-                                    Rectangle()
-                                        .fill(Color.white)
-                                        .frame(width: 20, height: 3)
-                                    Spacer()
-                                }
-                                HStack {
-                                    Rectangle()
-                                        .fill(Color.white)
-                                        .frame(width: 3, height: 20)
-                                    Spacer()
-                                }
-                            }
-                            
-                            // 右下角
-                            VStack {
-                                Spacer()
-                                HStack {
-                                    Spacer()
-                                    Rectangle()
-                                        .fill(Color.white)
-                                        .frame(width: 20, height: 3)
-                                }
-                                HStack {
-                                    Spacer()
-                                    Rectangle()
-                                        .fill(Color.white)
-                                        .frame(width: 3, height: 20)
-                                }
-                            }
-                        }
-                    )
             }
         }
     }
@@ -271,9 +177,117 @@ class CameraManager: NSObject, ObservableObject {
     private let locationManager = CLLocationManager()
     private var currentLocation: CLLocation?
     
+    // 方向管理 - iOS 17新方式
+    @available(iOS 17.0, *)
+    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
+    
+    // 兼容旧版本的方向管理
+    private var currentDeviceOrientation: UIDeviceOrientation = .portrait
+    private var orientationObserver: NSObjectProtocol?
+    
     override init() {
         super.init()
         setupCamera()
+        setupOrientationMonitoring()
+    }
+    
+    deinit {
+        if let observer = orientationObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+    
+    // 设置设备方向监控
+    private func setupOrientationMonitoring() {
+        // 启用设备方向更新
+        UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+        
+        // 监听方向变化
+        orientationObserver = NotificationCenter.default.addObserver(
+            forName: UIDevice.orientationDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateDeviceOrientation()
+            }
+        }
+        
+        // 初始化当前方向
+        updateDeviceOrientation()
+    }
+    
+    // 更新设备方向
+    private func updateDeviceOrientation() {
+        let orientation = UIDevice.current.orientation
+        
+        // 只处理有效的方向
+        if orientation.isValidInterfaceOrientation {
+            currentDeviceOrientation = orientation
+            print("📱 设备方向更新: \(orientationDescription(orientation))")
+        }
+    }
+    
+    // 方向描述
+    private func orientationDescription(_ orientation: UIDeviceOrientation) -> String {
+        switch orientation {
+        case .portrait: return "Portrait"
+        case .portraitUpsideDown: return "Portrait Upside Down"
+        case .landscapeLeft: return "Landscape Left"
+        case .landscapeRight: return "Landscape Right"
+        default: return "Unknown"
+        }
+    }
+    
+    // 兼容旧版本：转换设备方向为AVCaptureVideoOrientation
+    @available(iOS, deprecated: 17.0, message: "Use AVCaptureDeviceRotationCoordinator instead")
+    private func videoOrientation(from deviceOrientation: UIDeviceOrientation) -> AVCaptureVideoOrientation {
+        switch deviceOrientation {
+        case .portrait:
+            return .portrait
+        case .portraitUpsideDown:
+            return .portraitUpsideDown
+        case .landscapeLeft:
+            return .landscapeRight  // 注意：设备向左转，视频方向向右
+        case .landscapeRight:
+            return .landscapeLeft   // 注意：设备向右转，视频方向向左
+        default:
+            return .portrait        // 默认为竖屏
+        }
+    }
+    
+    // iOS 17新方式：从旋转角度转换为EXIF方向值
+    @available(iOS 17.0, *)
+    private func exifOrientationFromRotationAngle(_ rotationAngle: CGFloat) -> Int {
+        let normalizedAngle = Int(rotationAngle) % 360
+        switch normalizedAngle {
+        case 0:
+            return 1    // 正常方向 0°
+        case 90, -270:
+            return 6    // 逆时针旋转90度
+        case 180, -180:
+            return 3    // 旋转180度
+        case 270, -90:
+            return 8    // 顺时针旋转90度
+        default:
+            return 1    // 默认为正常方向
+        }
+    }
+    
+    // 兼容旧版本：转换设备方向为EXIF方向值
+    private func exifOrientation(from deviceOrientation: UIDeviceOrientation) -> Int {
+        switch deviceOrientation {
+        case .portrait:
+            return 1    // 正常竖屏
+        case .landscapeLeft:
+            return 6    // 向左旋转90度
+        case .portraitUpsideDown:
+            return 3    // 旋转180度
+        case .landscapeRight:
+            return 8    // 向右旋转90度
+        default:
+            return 1    // 默认为正常方向
+        }
     }
     
     func requestCameraPermission() {
@@ -299,16 +313,12 @@ class CameraManager: NSObject, ObservableObject {
     private func setupCamera() {
         session.sessionPreset = .photo
         
-        // 获取主摄像头（广角镜头）
         guard let videoCaptureDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
             print("Failed to get camera device")
             return
         }
         
         self.videoCaptureDevice = videoCaptureDevice
-        
-        // 配置35mm焦距
-        configure35mmFocalLength(for: videoCaptureDevice)
         
         do {
             let videoInput = try AVCaptureDeviceInput(device: videoCaptureDevice)
@@ -320,45 +330,17 @@ class CameraManager: NSObject, ObservableObject {
             if session.canAddOutput(photoOutput) {
                 session.addOutput(photoOutput)
                 
-                // iOS 17 新特性：启用高质量照片
+                // iOS 17 新特性：启用高质量照片和rotation coordinator
                 if #available(iOS 17.0, *) {
                     photoOutput.maxPhotoQualityPrioritization = .quality
-                    print("📱 启用iOS 17高质量照片")
+                    
+                    // 设置rotation coordinator
+                    rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: videoCaptureDevice, previewLayer: nil)
+                    print("📱 使用iOS 17 AVCaptureDevice.RotationCoordinator")
                 }
             }
         } catch {
             print("Error setting up camera: \(error)")
-        }
-    }
-    
-    // 配置35mm焦距
-    private func configure35mmFocalLength(for device: AVCaptureDevice) {
-        do {
-            try device.lockForConfiguration()
-            
-            // 检查设备是否支持变焦
-            if device.isFocusModeSupported(.locked) {
-                device.focusMode = .locked
-            }
-            
-            // 设置35mm等效焦距
-            // 主摄像头通常是26mm，我们需要通过变焦来实现35mm效果
-            let targetFocalLength: Float = 35.0
-            let currentFocalLength: Float = 26.0 // 主摄像头焦距
-            let zoomFactor = targetFocalLength / currentFocalLength
-            
-            // 限制变焦范围在设备支持的范围内
-            let maxZoomFactor = Float(device.activeFormat.videoMaxZoomFactor)
-            let minZoomFactor: Float = 1.0
-            let clampedZoomFactor = max(minZoomFactor, min(zoomFactor, maxZoomFactor))
-            
-            device.videoZoomFactor = CGFloat(clampedZoomFactor)
-            
-            print("📷 设置35mm焦距: 变焦因子 \(clampedZoomFactor)x (目标: \(zoomFactor)x)")
-            
-            device.unlockForConfiguration()
-        } catch {
-            print("❌ 配置35mm焦距失败: \(error)")
         }
     }
     
@@ -396,17 +378,28 @@ class CameraManager: NSObject, ObservableObject {
             settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
         }
         
-        // 固定照片方向为竖屏，确保与预览框一致
-        if let connection = photoOutput.connection(with: .video) {
-            if #available(iOS 17.0, *) {
-                if connection.isVideoRotationAngleSupported(0) {
-                    connection.videoRotationAngle = 0
-                    print("📱 iOS 17固定照片方向为竖屏")
+        // 设置照片方向 - iOS 17新方式 vs 旧版本兼容
+        if #available(iOS 17.0, *) {
+            // 使用iOS 17的新API
+            if let coordinator = rotationCoordinator,
+               let connection = photoOutput.connection(with: .video) {
+                let rotationAngle = coordinator.videoRotationAngleForHorizonLevelCapture
+                if connection.isVideoRotationAngleSupported(rotationAngle) {
+                    connection.videoRotationAngle = rotationAngle
+                    print("📱 iOS 17设置照片旋转角度: \(rotationAngle)°")
+                } else {
+                    print("⚠️ 设备不支持该旋转角度: \(rotationAngle)°")
                 }
-            } else {
+            }
+        } else {
+            // 兼容iOS 16及以下版本
+            if let connection = photoOutput.connection(with: .video) {
                 if connection.isVideoOrientationSupported {
-                    connection.videoOrientation = .portrait
-                    print("📱 兼容模式固定照片方向为竖屏")
+                    let videoOrientation = videoOrientation(from: currentDeviceOrientation)
+                    connection.videoOrientation = videoOrientation
+                    print("📱 兼容模式设置照片方向: \(orientationDescription(currentDeviceOrientation)) -> \(videoOrientation)")
+                } else {
+                    print("⚠️ 设备不支持视频方向设置")
                 }
             }
         }
@@ -630,9 +623,18 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         tiffDict[kCGImagePropertyTIFFModel as String] = UIDevice.current.model
         tiffDict[kCGImagePropertyTIFFSoftware as String] = "JustShoot Camera"
         
-        // 添加EXIF方向信息 - 固定为竖屏
-        let orientationValue: Int = 1 // 固定为正常方向
-        print("📱 添加EXIF方向信息: 固定竖屏 = EXIF值\(orientationValue)")
+        // 添加EXIF方向信息 - iOS 17新方式 vs 旧版本兼容
+        let orientationValue: Int
+        if #available(iOS 17.0, *), let coordinator = rotationCoordinator {
+            // 使用iOS 17的rotation coordinator获取方向
+            let rotationAngle = coordinator.videoRotationAngleForHorizonLevelCapture
+            orientationValue = exifOrientationFromRotationAngle(rotationAngle)
+            print("📱 iOS 17添加EXIF方向信息: 旋转角度\(rotationAngle)° = EXIF值\(orientationValue)")
+        } else {
+            // 兼容旧版本
+            orientationValue = exifOrientation(from: currentDeviceOrientation)
+            print("📱 兼容模式添加EXIF方向信息: \(orientationDescription(currentDeviceOrientation)) = EXIF值\(orientationValue)")
+        }
         
         tiffDict[kCGImagePropertyTIFFOrientation as String] = orientationValue
         metadata[kCGImagePropertyTIFFDictionary as String] = tiffDict
@@ -673,9 +675,18 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         tiffDict[kCGImagePropertyTIFFModel as String] = UIDevice.current.model
         tiffDict[kCGImagePropertyTIFFSoftware as String] = "JustShoot Camera"
         
-        // 添加EXIF方向信息 - 固定为竖屏
-        let orientationValue: Int = 1 // 固定为正常方向
-        print("📱 添加EXIF方向信息: 固定竖屏 = EXIF值\(orientationValue)")
+        // 添加EXIF方向信息 - iOS 17新方式 vs 旧版本兼容
+        let orientationValue: Int
+        if #available(iOS 17.0, *), let coordinator = rotationCoordinator {
+            // 使用iOS 17的rotation coordinator获取方向
+            let rotationAngle = coordinator.videoRotationAngleForHorizonLevelCapture
+            orientationValue = exifOrientationFromRotationAngle(rotationAngle)
+            print("📱 iOS 17添加EXIF方向信息: 旋转角度\(rotationAngle)° = EXIF值\(orientationValue)")
+        } else {
+            // 兼容旧版本
+            orientationValue = exifOrientation(from: currentDeviceOrientation)
+            print("📱 兼容模式添加EXIF方向信息: \(orientationDescription(currentDeviceOrientation)) = EXIF值\(orientationValue)")
+        }
         
         tiffDict[kCGImagePropertyTIFFOrientation as String] = orientationValue
         metadata[kCGImagePropertyTIFFDictionary as String] = tiffDict
@@ -696,5 +707,17 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         }
         
         return nil
+    }
+}
+
+// MARK: - UIDeviceOrientation Extension
+extension UIDeviceOrientation {
+    var isValidInterfaceOrientation: Bool {
+        switch self {
+        case .portrait, .portraitUpsideDown, .landscapeLeft, .landscapeRight:
+            return true
+        default:
+            return false
+        }
     }
 } 
