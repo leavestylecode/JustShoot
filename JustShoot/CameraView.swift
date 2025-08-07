@@ -12,9 +12,45 @@ struct CameraView: View {
     
     var body: some View {
         ZStack {
-            // 相机预览
-            CameraPreviewView(session: cameraManager.session)
-                    .ignoresSafeArea()
+            // 黑色背景
+            Color.black.ignoresSafeArea()
+            
+            // 相机预览（居中显示，固定比例，向上偏移）
+            VStack {
+                Spacer()
+                    .frame(height: 80) // 向上偏移80点
+                
+                CameraPreviewView(session: cameraManager.session)
+                    .aspectRatio(3/4, contentMode: .fit) // 固定4:3比例
+                    .clipped()
+                    .cornerRadius(12)
+                    .overlay(
+                        // 取景框边框
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.white.opacity(0.5), lineWidth: 2)
+                    )
+                    .overlay(
+                        // 取景框提示
+                        VStack {
+                            HStack {
+                                Text("拍摄区域")
+                                    .font(.caption2)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.black.opacity(0.6))
+                                    .cornerRadius(6)
+                                Spacer()
+                            }
+                            Spacer()
+                        }
+                        .padding(16)
+                    )
+                    .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                
+                Spacer()
+                    .frame(height: 120) // 为底部控制区域留出更多空间
+            }
             
             // 控制界面
             VStack {
@@ -122,15 +158,28 @@ struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
     
     func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: UIScreen.main.bounds)
+        let view = UIView()
+        view.backgroundColor = UIColor.black
+        
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
-        previewLayer.frame = view.frame
-        previewLayer.videoGravity = .resizeAspectFill
+        previewLayer.videoGravity = .resizeAspectFill // 保持比例填充
+        
         view.layer.addSublayer(previewLayer)
+        
+        // 存储预览层以便后续更新
+        view.layer.setValue(previewLayer, forKey: "previewLayer")
+        
         return view
     }
     
-    func updateUIView(_ uiView: UIView, context: Context) {}
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // 更新预览层的frame以匹配视图的边界
+        if let previewLayer = uiView.layer.value(forKey: "previewLayer") as? AVCaptureVideoPreviewLayer {
+            DispatchQueue.main.async {
+                previewLayer.frame = uiView.bounds
+            }
+        }
+    }
 }
 
 // 相机管理器
@@ -311,6 +360,7 @@ class CameraManager: NSObject, ObservableObject {
     }
     
     private func setupCamera() {
+        // 设置为4:3比例的高质量照片
         session.sessionPreset = .photo
         
         guard let videoCaptureDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
@@ -373,9 +423,14 @@ class CameraManager: NSObject, ObservableObject {
         settings.embedsPortraitEffectsMatteInPhoto = false
         settings.embedsSemanticSegmentationMattesInPhoto = false
         
-        // 确保保留EXIF数据
+        // 设置照片尺寸为4:3比例
         if #available(iOS 16.0, *) {
-            settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
+            // 获取支持的最大尺寸并调整为4:3比例
+            let maxDimensions = photoOutput.maxPhotoDimensions
+            let targetWidth = min(maxDimensions.width, maxDimensions.height * 4 / 3)
+            let targetHeight = targetWidth * 3 / 4
+            settings.maxPhotoDimensions = CMVideoDimensions(width: targetWidth, height: targetHeight)
+            print("📸 设置照片尺寸为4:3比例: \(targetWidth)x\(targetHeight)")
         }
         
         // 设置照片方向 - iOS 17新方式 vs 旧版本兼容
@@ -429,28 +484,28 @@ class CameraManager: NSObject, ObservableObject {
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters // 降低精度以节省电量
         locationManager.distanceFilter = 50 // 移动50米才更新
         
-        // 在后台队列检查权限状态，避免阻塞主线程
-        Task.detached { [weak self] in
-            guard let self = self else { return }
-            
-            await MainActor.run {
-                let authStatus = self.locationManager.authorizationStatus
-                print("📍 当前位置权限状态: \(self.authorizationStatusDescription(authStatus))")
-                
-                switch authStatus {
-                case .notDetermined:
-                    print("📍 请求位置权限")
+        // 检查当前权限状态
+        let authStatus = locationManager.authorizationStatus
+        print("📍 当前位置权限状态: \(authorizationStatusDescription(authStatus))")
+        
+        switch authStatus {
+        case .notDetermined:
+            print("📍 权限未确定，请求位置权限")
+            // 异步请求权限，避免阻塞主线程
+            Task.detached { [weak self] in
+                guard let self = self else { return }
+                await MainActor.run {
                     self.locationManager.requestWhenInUseAuthorization()
-                    // 权限结果将在didChangeAuthorization回调中处理
-                case .authorizedWhenInUse, .authorizedAlways:
-                    print("📍 位置权限已授权，开始位置更新")
-                    self.startLocationUpdates()
-                case .denied, .restricted:
-                    print("📍 位置权限被拒绝或受限，无法获取位置信息")
-                @unknown default:
-                    print("📍 未知的位置权限状态")
                 }
             }
+            // 权限结果将在didChangeAuthorization回调中处理
+        case .authorizedWhenInUse, .authorizedAlways:
+            print("📍 位置权限已授权，开始位置更新")
+            startLocationUpdates()
+        case .denied, .restricted:
+            print("📍 位置权限被拒绝或受限，无法获取位置信息")
+        @unknown default:
+            print("📍 未知的位置权限状态")
         }
     }
     
@@ -537,17 +592,19 @@ extension CameraManager: CLLocationManagerDelegate {
     
     nonisolated func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         Task { @MainActor in
-            print("📍 位置权限状态变化: \(status.rawValue)")
+            print("📍 位置权限状态变化: \(self.authorizationStatusDescription(status))")
+            
             switch status {
             case .authorizedWhenInUse, .authorizedAlways:
                 print("📍 位置权限获得，开始位置更新")
                 self.startLocationUpdates()
             case .denied, .restricted:
-                print("📍 位置权限被拒绝或受限")
+                print("📍 位置权限被拒绝或受限，停止位置服务")
+                self.stopLocationServices()
             case .notDetermined:
-                print("📍 位置权限未确定")
+                print("📍 位置权限仍未确定，等待用户选择")
             @unknown default:
-                print("📍 未知的位置权限状态")
+                print("📍 未知的位置权限状态: \(status.rawValue)")
             }
         }
     }

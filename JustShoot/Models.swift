@@ -60,11 +60,21 @@ final class Photo: Identifiable {
     }
     
     var focalLength: String {
-        guard let exif = exifData?[kCGImagePropertyExifDictionary as String] as? [String: Any],
-              let focal = exif[kCGImagePropertyExifFocalLength as String] as? Double else {
+        guard let exif = exifData?[kCGImagePropertyExifDictionary as String] as? [String: Any] else {
             return "未知"
         }
-        return String(format: "%.0fmm", focal)
+        
+        // 优先使用35mm等效焦距
+        if let focalLength35mm = exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] as? Int {
+            return "\(focalLength35mm)mm"
+        }
+        
+        // 如果没有35mm等效焦距，使用实际物理焦距
+        if let focal = exif[kCGImagePropertyExifFocalLength as String] as? Double {
+            return String(format: "%.0fmm", focal)
+        }
+        
+        return "未知"
     }
     
     var exposureMode: String {
