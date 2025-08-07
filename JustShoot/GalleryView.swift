@@ -216,88 +216,37 @@ struct PhotoDetailView: View {
             // 底部信息面板
             if showingInfo {
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 12) {
                         // 拍摄时间
-                        VStack(spacing: 8) {
-                            Text("📅 拍摄时间")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            Text("\(currentPhoto.timestamp, formatter: detailDateFormatter)")
-                                .font(.body)
-                                .foregroundColor(.gray)
-                        }
+                        Text("\(currentPhoto.timestamp, formatter: detailDateFormatter)")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .padding(.bottom, 4)
                         
-                        Divider()
-                            .background(Color.gray.opacity(0.3))
-                        
-                        // 基本拍摄参数
-                        VStack(spacing: 12) {
-                            Text("📸 拍摄参数")
-                                .font(.headline)
-                                .foregroundColor(.white)
+                        // 拍摄参数和设备信息合并显示
+                        LazyVGrid(columns: [
+                            GridItem(.flexible()),
+                            GridItem(.flexible()),
+                            GridItem(.flexible())
+                        ], spacing: 8) {
+                            ExifInfoView(title: "ISO", value: currentPhoto.iso)
+                            ExifInfoView(title: "快门", value: currentPhoto.shutterSpeed)
+                            ExifInfoView(title: "光圈", value: currentPhoto.aperture)
+                            ExifInfoView(title: "焦距", value: currentPhoto.focalLength)
+                            ExifInfoView(title: "曝光", value: currentPhoto.exposureMode)
+                            ExifInfoView(title: "闪光灯", value: currentPhoto.flashMode)
                             
-                            LazyVGrid(columns: [
-                                GridItem(.flexible()),
-                                GridItem(.flexible())
-                            ], spacing: 16) {
-                                ExifInfoView(title: "ISO", value: currentPhoto.iso)
-                                ExifInfoView(title: "快门", value: currentPhoto.shutterSpeed)
-                                ExifInfoView(title: "光圈", value: currentPhoto.aperture)
-                                ExifInfoView(title: "焦距", value: currentPhoto.focalLength)
-                                ExifInfoView(title: "曝光模式", value: currentPhoto.exposureMode)
-                                ExifInfoView(title: "闪光灯", value: currentPhoto.flashMode)
-                            }
-                        }
-                        
-                        // GPS位置信息
-                        if let gps = currentPhoto.gpsInfo {
-                            Divider()
-                                .background(Color.gray.opacity(0.3))
-                            
-                            VStack(spacing: 12) {
-                                Text("📍 位置信息")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                
-                                LazyVGrid(columns: [
-                                    GridItem(.flexible()),
-                                    GridItem(.flexible())
-                                ], spacing: 16) {
-                                    ExifInfoView(title: "纬度", value: gps.latitude)
-                                    ExifInfoView(title: "经度", value: gps.longitude)
-                                    ExifInfoView(title: "海拔", value: gps.altitude)
-                                    ExifInfoView(title: "镜头", value: currentPhoto.lensInfo)
-                                }
-                            }
-                        }
-                        
-                        // 设备信息
-                        if let device = currentPhoto.deviceInfo {
-                            Divider()
-                                .background(Color.gray.opacity(0.3))
-                            
-                            VStack(spacing: 12) {
-                                Text("📱 设备信息")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                
-                                LazyVGrid(columns: [
-                                    GridItem(.flexible()),
-                                    GridItem(.flexible())
-                                ], spacing: 16) {
-                                    ExifInfoView(title: "制造商", value: device.make)
-                                    ExifInfoView(title: "型号", value: device.model)
-                                    ExifInfoView(title: "软件", value: device.software)
-                                    if currentPhoto.gpsInfo == nil {
-                                        ExifInfoView(title: "镜头", value: currentPhoto.lensInfo)
-                                    }
-                                }
+                            if let device = currentPhoto.deviceInfo {
+                                ExifInfoView(title: "制造商", value: device.make)
+                                ExifInfoView(title: "型号", value: device.model)
+                                ExifInfoView(title: "镜头", value: currentPhoto.lensInfo)
                             }
                         }
                     }
-                    .padding()
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
-                .frame(maxHeight: UIScreen.main.bounds.height * 0.4)
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.35)
                 .background(Color.black.opacity(0.95))
                 .cornerRadius(16)
                 .transition(.move(edge: .bottom))
@@ -444,27 +393,27 @@ struct ExifInfoView: View {
     let value: String
     
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             Text(title)
-                .font(.caption)
+                .font(.caption2)
                 .foregroundColor(.gray)
                 .fontWeight(.medium)
             Text(value)
-                .font(.body)
+                .font(.caption)
                 .foregroundColor(.white)
                 .fontWeight(.medium)
                 .multilineTextAlignment(.center)
-                .lineLimit(2)
+                .lineLimit(1)
         }
-        .frame(maxWidth: .infinity, minHeight: 60)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, minHeight: 45)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
         .background(Color.white.opacity(0.05))
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
         )
-        .cornerRadius(10)
+        .cornerRadius(8)
     }
 }
 
