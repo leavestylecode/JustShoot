@@ -237,32 +237,37 @@ struct PhotoDetailView: View {
         VStack(spacing: 0) {
             // 顶部导航栏
             HStack {
-                Button("完成") {
-                    dismiss()
+                // 关闭按钮 - 圆形设计
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(Color.black.opacity(0.6))
+                        .clipShape(Circle())
                 }
-                .foregroundColor(.white)
                 
                 Spacer()
                 
+                // 照片计数 - 居中显示
                 Text("\(currentIndex + 1) / \(allPhotos.count)")
                     .foregroundColor(.white)
-                    .font(.caption)
+                    .font(.system(size: 16, weight: .medium))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(Capsule())
                 
                 Spacer()
                 
-                // 下载按钮
+                // 保存按钮 - 圆形设计
                 Button(action: saveToPhotoLibrary) {
-                    HStack(spacing: 4) {
-                        Image(systemName: saveButtonIcon)
-                            .foregroundColor(.white)
-                        Text(saveButtonText)
-                            .font(.caption)
-                            .foregroundColor(.white)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.2))
-                    .cornerRadius(15)
+                    Image(systemName: saveButtonIcon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(saveButtonBackgroundColor)
+                        .clipShape(Circle())
                 }
                 .disabled(saveStatus == .saving)
             }
@@ -386,9 +391,18 @@ struct PhotoDetailView: View {
     private var saveButtonIcon: String {
         switch saveStatus {
         case .none: return "square.and.arrow.down"
-        case .saving: return "square.and.arrow.down"
-        case .success: return "checkmark.circle.fill"
-        case .failed: return "xmark.circle.fill"
+        case .saving: return "arrow.triangle.2.circlepath"
+        case .success: return "checkmark"
+        case .failed: return "exclamationmark.triangle"
+        }
+    }
+    
+    private var saveButtonBackgroundColor: Color {
+        switch saveStatus {
+        case .none: return Color.black.opacity(0.6)
+        case .saving: return Color.blue.opacity(0.8)
+        case .success: return Color.green.opacity(0.8)
+        case .failed: return Color.red.opacity(0.8)
         }
     }
     
