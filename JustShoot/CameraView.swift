@@ -465,7 +465,10 @@ class CameraManager: NSObject, ObservableObject {
         await Task.detached { [weak self] in
             await self?.session.startRunning()
         }.value
-        // 自动ISO：不强制重设 ISO
+        // 会话启动后再次应用 35mm 等效变焦，确保生效
+        await MainActor.run {
+            self.calculateZoomFactorFor35mm()
+        }
     }
     
     func capturePhoto(completion: @escaping (Data?) -> Void) {
@@ -564,18 +567,17 @@ class CameraManager: NSObject, ObservableObject {
     
     // 估算设备的35mm等效焦距
     private func estimate35mmEquivalentFocalLength() -> Float {
-        let modelIdentifier = getModelIdentifier()
-        print("📱 设备标识符: \(modelIdentifier)")
-        
-        // 简化的设备检测
-        if modelIdentifier == "Simulator" {
-            print("📱 检测到模拟器，使用默认焦距")
-            return 26.0
-        }
-        
-        // 对于实际设备，使用系统默认值
-        // 大多数现代iPhone的主摄都是26mm等效焦距
-        print("📱 iPhone设备，使用26mm焦距")
+        let modelName = getModelIdentifier()
+        print("📱 设备标识符/名称: \(modelName)")
+
+        // 基于机型的主摄等效焦距近似（不足以严谨，但足够用于设定目标视角）
+        // 15 Pro 系列主摄 24mm；大多数 12/13/14/15 非 Pro 为 26mm；更老设备多为 28mm
+        let name = modelName
+        if name.contains("15 Pro") { return 24.0 }
+        if name.contains("15") { return 26.0 }
+        if name.contains("14") || name.contains("13") || name.contains("12") || name.contains("11") || name.contains("XS") || name.contains("XR") || name.contains(" iPhone X") { return 26.0 }
+        if name.contains("8") || name.contains("7") || name.contains("6") { return 28.0 }
+        // 模拟器或未知机型
         return 26.0
     }
     
