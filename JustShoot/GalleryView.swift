@@ -246,6 +246,11 @@ struct GalleryView: View {
             }
             .navigationTitle("相册")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("完成") { dismiss() }
+                }
+            }
         }
         .sheet(item: $detailPayload) { payload in
             PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos)

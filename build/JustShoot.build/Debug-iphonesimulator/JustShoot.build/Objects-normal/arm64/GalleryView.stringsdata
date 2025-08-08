@@ -36,10 +36,18 @@
       },
       {
         "comment": "",
+        "key": "完成",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 251
+        }
+      },
+      {
+        "comment": "",
         "key": "%lld/%lld",
         "location": {
           "startingColumn": 22,
-          "startingLine": 274
+          "startingLine": 279
         }
       },
       {
@@ -47,7 +55,7 @@
         "key": "已完成",
         "location": {
           "startingColumn": 26,
-          "startingLine": 278
+          "startingLine": 283
         }
       },
       {
@@ -55,7 +63,7 @@
         "key": "%lld / %lld",
         "location": {
           "startingColumn": 22,
-          "startingLine": 415
+          "startingLine": 420
         }
       },
       {
@@ -63,7 +71,7 @@
         "key": "没有照片",
         "location": {
           "startingColumn": 26,
-          "startingLine": 475
+          "startingLine": 480
         }
       },
       {
@@ -71,7 +79,7 @@
         "key": "%@",
         "location": {
           "startingColumn": 30,
-          "startingLine": 488
+          "startingLine": 493
         }
       },
       {
@@ -79,7 +87,7 @@
         "key": "胶片",
         "location": {
           "startingColumn": 34,
-          "startingLine": 495
+          "startingLine": 500
         }
       },
       {
@@ -87,7 +95,7 @@
         "key": "加载中...",
         "location": {
           "startingColumn": 30,
-          "startingLine": 695
+          "startingLine": 700
         }
       }
     ]
