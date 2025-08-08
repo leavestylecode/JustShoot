@@ -138,6 +138,10 @@ struct CameraView: View {
         cameraManager.capturePhoto { imageData in
             DispatchQueue.main.async {
                 if let data = imageData {
+                    // 立即结束快门动画
+                    showFlash = false
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    
                     // 后台应用 LUT 并保存，提升响应
                     Task.detached(priority: .userInitiated) { [imageData = data, preset = preset] in
                         let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(imageData: imageData, preset: preset) ?? imageData
@@ -154,9 +158,6 @@ struct CameraView: View {
                         }
                     }
                 }
-                
-                showFlash = false
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 // 移除自动返回，让用户自己决定何时返回
             }
         }
@@ -197,13 +198,11 @@ struct CameraPreviewView: UIViewRepresentable {
 // 相机管理器
 // 闪光灯模式枚举
 enum FlashMode: String, CaseIterable {
-    case auto = "auto"
     case on = "on" 
     case off = "off"
     
     var displayName: String {
         switch self {
-        case .auto: return "自动"
         case .on: return "开启"
         case .off: return "关闭"
         }
@@ -211,7 +210,6 @@ enum FlashMode: String, CaseIterable {
     
     var iconName: String {
         switch self {
-        case .auto: return "bolt.badge.a"
         case .on: return "bolt.fill"
         case .off: return "bolt.slash.fill"
         }
@@ -219,7 +217,6 @@ enum FlashMode: String, CaseIterable {
     
     var avFlashMode: AVCaptureDevice.FlashMode {
         switch self {
-        case .auto: return .auto
         case .on: return .on
         case .off: return .off
         }
@@ -233,7 +230,7 @@ class CameraManager: NSObject, ObservableObject {
     private var photoOutput = AVCapturePhotoOutput()
     private var videoCaptureDevice: AVCaptureDevice?
     private var photoDataHandler: ((Data?) -> Void)?
-    @Published var flashMode: FlashMode = .auto
+    @Published var flashMode: FlashMode = .off
     
     // 35mm等效焦距相关属性
     private var devicePhysicalFocalLength: Float = 0.0 // 设备物理焦距
@@ -415,8 +412,8 @@ class CameraManager: NSObject, ObservableObject {
         // 读取设备焦距信息
         readCameraSpecs(device: videoCaptureDevice)
         
-        // 固定 35mm 等效焦距
-        calculateZoomFactorFor35mm()
+            // 固定 35mm 等效焦距
+            calculateZoomFactorFor35mm()
         
         do {
             let videoInput = try AVCaptureDeviceInput(device: videoCaptureDevice)
@@ -428,13 +425,15 @@ class CameraManager: NSObject, ObservableObject {
             if session.canAddOutput(photoOutput) {
                 session.addOutput(photoOutput)
                 
-                // iOS 17 新特性：启用高质量照片和rotation coordinator
+                // iOS 17 新特性：优先速度；设置 rotation coordinator
                 if #available(iOS 17.0, *) {
-                    photoOutput.maxPhotoQualityPrioritization = .quality
-                    
-                    // 设置rotation coordinator
+                    photoOutput.maxPhotoQualityPrioritization = .speed
                     rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: videoCaptureDevice, previewLayer: nil)
                     print("📱 使用iOS 17 AVCaptureDevice.RotationCoordinator")
+                }
+                // 关闭高分辨率拍照（iOS 16以下可用），iOS16+ 使用 maxPhotoDimensions 策略
+                if #unavailable(iOS 16.0) {
+                    photoOutput.isHighResolutionCaptureEnabled = false
                 }
             }
 
@@ -474,9 +473,13 @@ class CameraManager: NSObject, ObservableObject {
         
         let settings = AVCapturePhotoSettings()
         
-        // iOS 17 优化：启用高质量优先级
+        // iOS 17 优化：优先速度
         if #available(iOS 17.0, *) {
-            settings.photoQualityPrioritization = .quality
+            settings.photoQualityPrioritization = .speed
+        }
+        // 关闭高分辨率拍照（iOS 16以下可用），iOS16+ 使用 maxPhotoDimensions 策略
+        if #unavailable(iOS 16.0) {
+            settings.isHighResolutionPhotoEnabled = false
         }
         
         // 设置闪光灯模式
@@ -489,25 +492,7 @@ class CameraManager: NSObject, ObservableObject {
         settings.embedsPortraitEffectsMatteInPhoto = false
         settings.embedsSemanticSegmentationMattesInPhoto = false
         
-        // 设置照片尺寸为3:4比例（竖幅）
-        if #available(iOS 16.0, *) {
-            // 安全匹配 activeFormat 的 supportedMaxPhotoDimensions，选择3:4比例
-            if let device = videoCaptureDevice {
-                let supported = device.activeFormat.supportedMaxPhotoDimensions
-                let candidates = supported.filter { dim in
-                    // 竖幅3:4 或 横幅4:3（考虑传感器方向），统一转成 3:4 判断
-                    let w = Int(dim.width)
-                    let h = Int(dim.height)
-                    return w * 4 == h * 3 || h * 4 == w * 3
-                }
-                if let best = candidates.max(by: { Int($0.width) * Int($0.height) < Int($1.width) * Int($1.height) }) {
-                    settings.maxPhotoDimensions = best
-                    print("📸 使用设备支持的3:4尺寸: \(best.width)x\(best.height)")
-                } else {
-                    print("⚠️ 未找到3:4支持尺寸，使用默认maxPhotoDimensions: \(photoOutput.maxPhotoDimensions.width)x\(photoOutput.maxPhotoDimensions.height)")
-                }
-            }
-        }
+        // 让系统自动选择最合适尺寸以获得更好的响应速度
         
         // 设置照片方向 - iOS 17新方式 vs 旧版本兼容
         if #available(iOS 17.0, *) {
@@ -676,26 +661,16 @@ class CameraManager: NSObject, ObservableObject {
     
     // 计算达到35mm等效焦距所需的变焦系数
     private func calculateZoomFactorFor35mm() {
-        if device35mmEquivalentFocalLength > 0 {
-            requiredZoomFactor = CGFloat(targetFocalLength / device35mmEquivalentFocalLength)
-            
-            // 确保变焦系数在设备支持的范围内
-            if let device = videoCaptureDevice {
-                let maxZoom = device.activeFormat.videoMaxZoomFactor
-                let minZoom = device.minAvailableVideoZoomFactor
-                
-                requiredZoomFactor = max(minZoom, min(maxZoom, requiredZoomFactor))
-                
-                print("📐 计算变焦系数:")
-                print("   - 设备当前等效焦距: \(device35mmEquivalentFocalLength)mm")
-                print("   - 目标等效焦距: \(targetFocalLength)mm")
-                print("   - 需要变焦系数: \(String(format: "%.2f", requiredZoomFactor))x")
-                print("   - 设备变焦范围: \(String(format: "%.1f", minZoom))x - \(String(format: "%.1f", maxZoom))x")
-                
-                // 应用变焦
-                applyZoomFactor(requiredZoomFactor)
-            }
-        }
+        guard let device = videoCaptureDevice else { return }
+        // 尽可能用设备提供的 35mm 等效信息，回退 26mm
+        let baseEquivalent: Float = device35mmEquivalentFocalLength > 0 ? device35mmEquivalentFocalLength : 26.0
+        requiredZoomFactor = CGFloat(targetFocalLength / baseEquivalent)
+
+        let maxZoom = device.activeFormat.videoMaxZoomFactor
+        let minZoom = device.minAvailableVideoZoomFactor
+        requiredZoomFactor = max(minZoom, min(maxZoom, requiredZoomFactor))
+
+        applyZoomFactor(requiredZoomFactor)
     }
     
     // 应用变焦系数
@@ -708,12 +683,7 @@ class CameraManager: NSObject, ObservableObject {
             currentZoomFactor = zoomFactor
             device.unlockForConfiguration()
             
-            print("✅ 成功应用变焦系数: \(String(format: "%.2f", zoomFactor))x")
-            print("🎯 当前模拟35mm等效焦距: \(String(format: "%.1f", Float(zoomFactor) * device35mmEquivalentFocalLength))mm")
-            // 变焦变化后稍后再尝试重新锁定 ISO，避免立即打断预览
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                self.scheduleReapplyFixedISO()
-            }
+            print("✅ 固定35mm等效焦距，变焦系数: \(String(format: "%.2f", zoomFactor))x")
         } catch {
             print("❌ 应用变焦失败: \(error)")
         }
@@ -887,40 +857,19 @@ extension CameraManager: CLLocationManagerDelegate {
 // MARK: - AVCapturePhotoCaptureDelegate
 extension CameraManager: AVCapturePhotoCaptureDelegate {
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
-        Task { @MainActor in
-            if let error = error {
-                print("Photo capture error: \(error)")
-                self.photoDataHandler?(nil)
-                return
-            }
-            
-            // 获取带有完整元数据的图片数据
-            guard let imageData = photo.fileDataRepresentation() else {
-                print("Could not get photo data")
-                self.photoDataHandler?(nil)
-                return
-            }
-            
-            // 添加完整元数据（GPS + 方向信息）
-            if let location = self.currentLocation {
-                // 有GPS位置时，添加GPS和方向信息
-                if let enhancedData = self.addGPSMetadataToImage(imageData: imageData, location: location) {
-                    print("✅ 成功添加GPS和方向元数据到照片")
-                    self.photoDataHandler?(enhancedData)
-                    return
-                }
-            } else {
-                // 没有GPS时，只添加方向信息
-                if let enhancedData = self.addOrientationMetadataToImage(imageData: imageData) {
-                    print("✅ 成功添加方向元数据到照片")
-                    self.photoDataHandler?(enhancedData)
-                    return
-                }
-            }
-            
-            print("📷 保存照片（原始元数据）")
-            self.photoDataHandler?(imageData)
+        // 将重活从主线程移走：不在此处做元数据重写，加快回调速度
+        if let error = error {
+            Task { @MainActor in self.photoDataHandler?(nil) }
+            print("Photo capture error: \(error)")
+            return
         }
+        guard let imageData = photo.fileDataRepresentation() else {
+            Task { @MainActor in self.photoDataHandler?(nil) }
+            print("Could not get photo data")
+            return
+        }
+        // 直接回调原始数据；后续在调用方应用 LUT 并在后台复制元数据
+        Task { @MainActor in self.photoDataHandler?(imageData) }
     }
     
     // 手动添加GPS元数据和方向信息到图片

@@ -331,7 +331,7 @@ final class FilmProcessor {
             options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
         ) else { return nil }
 
-        // 原图元数据
+        // 原图元数据（延迟到后台做，不阻塞快门返回）
         guard let originalSource = CGImageSourceCreateWithData(imageData as CFData, nil) else { return nil }
         let originalMetadata = CGImageSourceCopyPropertiesAtIndex(originalSource, 0, nil) as? [String: Any] ?? [:]
 
