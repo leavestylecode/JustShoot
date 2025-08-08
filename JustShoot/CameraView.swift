@@ -4,14 +4,22 @@ import SwiftData
 import CoreLocation
 import UIKit
 import Foundation
+import CoreImage
+import CoreImage.CIFilterBuiltins
 
 struct CameraView: View {
+    let preset: FilmPreset
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var cameraManager = CameraManager()
+    @StateObject private var cameraManager: CameraManager
     @State private var showFlash = false
     @State private var exposuresRemaining: Int = 27
     
+    init(preset: FilmPreset) {
+        self.preset = preset
+        _cameraManager = StateObject(wrappedValue: CameraManager(preset: preset))
+    }
+
     var body: some View {
         ZStack {
             // 背景：质感黑色（多层渐变叠加）
@@ -57,6 +65,7 @@ struct CameraView: View {
 
                 // 中间预览区：3:4 固定取景框（红色边框）
                 ZStack {
+                    // 实时预览：先直接显示原始相机预览（后续可换为 Metal/CI 处理）
                     CameraPreviewView(session: cameraManager.session)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                         .overlay(
@@ -115,25 +124,34 @@ struct CameraView: View {
             }
         }
         .statusBarHidden(true)
-        .onAppear { cameraManager.requestCameraPermission() }
+        .onAppear {
+            // 预加载 LUT，提升首次拍摄速度
+            FilmProcessor.shared.preload(preset: preset)
+            cameraManager.requestCameraPermission()
+        }
         .onDisappear { cameraManager.stopLocationServices() }
     }
     
     private func capturePhoto() {
         showFlash = true
-        
+
         cameraManager.capturePhoto { imageData in
             DispatchQueue.main.async {
                 if let data = imageData {
-                    let photo = Photo(imageData: data)
-                    modelContext.insert(photo)
-                    
-                    do {
-                        try modelContext.save()
-                        print("Photo saved successfully")
-                        exposuresRemaining = max(0, exposuresRemaining - 1)
-                    } catch {
-                        print("Failed to save photo: \(error)")
+                    // 后台应用 LUT 并保存，提升响应
+                    Task.detached(priority: .userInitiated) { [imageData = data, preset = preset] in
+                        let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(imageData: imageData, preset: preset) ?? imageData
+                        await MainActor.run {
+                            let newPhoto = Photo(imageData: processedData, filmPresetName: preset.rawValue)
+                            modelContext.insert(newPhoto)
+                            do {
+                                try modelContext.save()
+                                print("Photo saved successfully")
+                                exposuresRemaining = max(0, exposuresRemaining - 1)
+                            } catch {
+                                print("Failed to save photo: \(error)")
+                            }
+                        }
                     }
                 }
                 
@@ -210,6 +228,7 @@ enum FlashMode: String, CaseIterable {
 
 @MainActor
 class CameraManager: NSObject, ObservableObject {
+    private let preset: FilmPreset
     let session = AVCaptureSession()
     private var photoOutput = AVCapturePhotoOutput()
     private var videoCaptureDevice: AVCaptureDevice?
@@ -240,16 +259,21 @@ class CameraManager: NSObject, ObservableObject {
     private var orientationObserver: NSObjectProtocol?
     private var subjectAreaObserver: NSObjectProtocol?
 
-    // 固定 ISO 配置
-    @Published var isISOLocked: Bool = true
-    private let fixedISOValue: Float = 400
+    // 固定 ISO 配置（随胶片预设）
+    @Published var isISOLocked: Bool = false
+    private var fixedISOValue: Float
     private var lastISOAdjustTime: Date = .distantPast
-    private let isoAdjustThrottle: TimeInterval = 0.35
+    private let isoAdjustThrottle: TimeInterval = 2.0
+    private var lastLogTime: Date = .distantPast
+    private var lastAppliedISO: Float?
+    private var lastAppliedExposureSeconds: Double?
 
     // 自动测光定时器（在固定 ISO 前提下，周期性基于测光调整快门）
     private var exposureMeterTimer: Timer?
     
-    override init() {
+    init(preset: FilmPreset) {
+        self.preset = preset
+        self.fixedISOValue = 0
         super.init()
         setupCamera()
         setupOrientationMonitoring()
@@ -429,11 +453,7 @@ class CameraManager: NSObject, ObservableObject {
                 forName: .AVCaptureDeviceSubjectAreaDidChange,
                 object: videoCaptureDevice,
                 queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor in
-                    self?.scheduleReapplyFixedISO()
-                }
-            }
+            ) { _ in }
         } catch {
             print("Error setting up camera: \(error)")
         }
@@ -446,11 +466,7 @@ class CameraManager: NSObject, ObservableObject {
         await Task.detached { [weak self] in
             await self?.session.startRunning()
         }.value
-        // 会话启动后稍等片刻再应用固定ISO（先让自动测光稳定）
-        await MainActor.run {
-            self.scheduleReapplyFixedISO(initial: true)
-            self.startExposureMeteringTimer()
-        }
+        // 自动ISO：不强制重设 ISO
     }
     
     func capturePhoto(completion: @escaping (Data?) -> Void) {
@@ -694,23 +710,17 @@ class CameraManager: NSObject, ObservableObject {
             
             print("✅ 成功应用变焦系数: \(String(format: "%.2f", zoomFactor))x")
             print("🎯 当前模拟35mm等效焦距: \(String(format: "%.1f", Float(zoomFactor) * device35mmEquivalentFocalLength))mm")
-            // 变焦变化后重新基于自动测光换算快门
-            scheduleReapplyFixedISO()
+            // 变焦变化后稍后再尝试重新锁定 ISO，避免立即打断预览
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                self.scheduleReapplyFixedISO()
+            }
         } catch {
             print("❌ 应用变焦失败: \(error)")
         }
     }
 
     // MARK: - 固定 ISO 400 逻辑
-    private func scheduleReapplyFixedISO(initial: Bool = false) {
-        guard isISOLocked else { return }
-        let now = Date()
-        if !initial, now.timeIntervalSince(lastISOAdjustTime) < isoAdjustThrottle { return }
-        lastISOAdjustTime = now
-        Task { @MainActor in
-            await self.applyFixedISOAfterAutoMetering()
-        }
-    }
+    private func scheduleReapplyFixedISO(initial: Bool = false) { }
 
     private func clamp<T: Comparable>(_ value: T, min minValue: T, max maxValue: T) -> T {
         return max(minValue, min(maxValue, value))
@@ -725,43 +735,10 @@ class CameraManager: NSObject, ObservableObject {
         return Double(time.value) / Double(time.timescale)
     }
 
-    private func applyFixedISOAfterAutoMetering() async {
-        guard let device = videoCaptureDevice else { return }
-        do {
-            // 1) 使用连续自动曝光让系统测光
-            try device.lockForConfiguration()
-            if device.isExposureModeSupported(.continuousAutoExposure) {
-                device.exposureMode = .continuousAutoExposure
-            }
-            device.unlockForConfiguration()
+    private func applyFixedISOAfterAutoMetering() async { }
 
-            // 2) 等待自动曝光稳定
-            try? await Task.sleep(nanoseconds: 220_000_000) // 220ms
-
-            // 3) 读取当前曝光参数
-            let currentISO = device.iso // Float
-            let currentSec = exposureSeconds(device.exposureDuration)
-            let minSec = exposureSeconds(device.activeFormat.minExposureDuration)
-            let maxSec = exposureSeconds(device.activeFormat.maxExposureDuration)
-
-            // 4) 计算在 ISO 400 下的目标快门时间（保持曝光量近似不变）
-            guard currentISO > 0 else { return }
-            let targetSecRaw = currentSec * Double(currentISO / fixedISOValue)
-            let targetSec = clamp(targetSecRaw, min: minSec, max: maxSec)
-            let targetTime = cmTime(fromSeconds: targetSec)
-
-            // 5) 切换到自定义曝光并锁定 ISO 400（自动曝光体现在动态调整快门）
-            try device.lockForConfiguration()
-            if device.isExposureModeSupported(.custom) {
-                device.setExposureModeCustom(duration: targetTime, iso: fixedISOValue, completionHandler: nil)
-            }
-            device.unlockForConfiguration()
-
-            print("🎚️ 固定ISO=\(Int(fixedISOValue))，快门=\(String(format: "%.5fs", targetSec)) (原: ISO=\(Int(currentISO)) · \(String(format: "%.5fs", currentSec)))")
-        } catch {
-            print("❌ 固定ISO失败: \(error)")
-        }
-    }
+    // 对外暴露一次性强制应用固定 ISO（拍照前调用）
+    func forceApplyFixedISO() async { }
     
     // 调整目标焦距
     func adjustTargetFocalLength(_ newFocalLength: Float) {
@@ -856,8 +833,9 @@ class CameraManager: NSObject, ObservableObject {
 
     // MARK: - 自动测光（固定ISO前提下）
     private func startExposureMeteringTimer() {
+        // 为避免频闪，不再高频打断预览去重设曝光
         exposureMeterTimer?.invalidate()
-        exposureMeterTimer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
+        exposureMeterTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             Task { @MainActor in
                 self.scheduleReapplyFixedISO()

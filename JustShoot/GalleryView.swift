@@ -1,10 +1,13 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import ImageIO
 
 // MARK: - 图片加载器
 class ImageLoader: ObservableObject {
+    static let shared = ImageLoader()
     private let cache = NSCache<NSString, UIImage>()
+    private let fileManager = FileManager.default
     
     init() {
         // 设置缓存限制
@@ -12,31 +15,100 @@ class ImageLoader: ObservableObject {
         cache.totalCostLimit = 50 * 1024 * 1024 // 50MB
     }
     
-    func loadImage(for photo: Photo) async -> UIImage? {
-        let key = photo.id.uuidString as NSString
-        
-        // 1. 检查内存缓存
-        if let cachedImage = cache.object(forKey: key) {
-            return cachedImage
+    // 详情页预览：按给定像素下采样，避免解码原图
+    func loadPreview(for photo: Photo, maxPixel: Int) async -> UIImage? {
+        let key = "preview_\(photo.id.uuidString)_\(maxPixel)" as NSString
+        if let cached = cache.object(forKey: key) { return cached }
+
+        // 磁盘缓存优先
+        if let url = previewURL(for: photo, maxPixel: maxPixel),
+           fileManager.fileExists(atPath: url.path),
+           let data = try? Data(contentsOf: url),
+           let img = UIImage(data: data) {
+            cache.setObject(img, forKey: key)
+            return img
         }
-        
-        // 2. 异步加载图片
+
         return await Task.detached(priority: .userInitiated) { [weak self] in
-            let imageData = photo.imageData
-            guard let image = UIImage(data: imageData) else {
-                return nil
+            guard let self = self else { return nil }
+            let options: [CFString: Any] = [
+                kCGImageSourceShouldCache: false,
+                kCGImageSourceShouldCacheImmediately: false
+            ]
+            guard let src = CGImageSourceCreateWithData(photo.imageData as CFData, options as CFDictionary) else { return nil }
+            let downOptions: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 256),
+                kCGImageSourceCreateThumbnailWithTransform: true
+            ]
+            guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
+            let image = UIImage(cgImage: cgThumb)
+            self.cache.setObject(image, forKey: key)
+            // 持久化至磁盘
+            if let url = self.previewURL(for: photo, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
+                try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try? jpeg.write(to: url, options: .atomic)
             }
-            
-            // 3. 压缩图片到合适尺寸
-            let optimizedImage = self?.optimizeImage(image, for: photo)
-            
-            // 4. 缓存图片
-            if let optimizedImage = optimizedImage {
-                self?.cache.setObject(optimizedImage, forKey: key)
-            }
-            
-            return optimizedImage
+            return image
         }.value
+    }
+
+    // 生成缩略图（使用 CGImageSource 硬件加速缩放，极快）
+    func loadThumbnail(for photo: Photo, maxPixel: Int) async -> UIImage? {
+        let key = "thumb_\(photo.id.uuidString)_\(maxPixel)" as NSString
+        if let cached = cache.object(forKey: key) { return cached }
+
+        // 磁盘缓存优先
+        if let url = thumbnailURL(for: photo, maxPixel: maxPixel),
+           fileManager.fileExists(atPath: url.path),
+           let data = try? Data(contentsOf: url),
+           let img = UIImage(data: data) {
+            cache.setObject(img, forKey: key)
+            return img
+        }
+
+        return await Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return nil }
+            let options: [CFString: Any] = [
+                kCGImageSourceShouldCache: false,
+                kCGImageSourceShouldCacheImmediately: false
+            ]
+            guard let src = CGImageSourceCreateWithData(photo.imageData as CFData, options as CFDictionary) else { return nil }
+            let thumbOptions: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 96),
+                kCGImageSourceCreateThumbnailWithTransform: true
+            ]
+            guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
+            let image = UIImage(cgImage: cgThumb)
+            self.cache.setObject(image, forKey: key)
+            // 持久化至磁盘
+            if let url = self.thumbnailURL(for: photo, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.85) {
+                try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try? jpeg.write(to: url, options: .atomic)
+            }
+            return image
+        }.value
+    }
+
+    private func thumbsDirectory() -> URL? {
+        guard let cacheDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
+        return cacheDir.appendingPathComponent("Thumbs", isDirectory: true)
+    }
+
+    private func thumbnailURL(for photo: Photo, maxPixel: Int) -> URL? {
+        guard let dir = thumbsDirectory() else { return nil }
+        return dir.appendingPathComponent("\(photo.id.uuidString)_t_\(maxPixel).jpg")
+    }
+
+    private func previewDirectory() -> URL? {
+        guard let cacheDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
+        return cacheDir.appendingPathComponent("Previews", isDirectory: true)
+    }
+
+    private func previewURL(for photo: Photo, maxPixel: Int) -> URL? {
+        guard let dir = previewDirectory() else { return nil }
+        return dir.appendingPathComponent("\(photo.id.uuidString)_p_\(maxPixel).jpg")
     }
     
     private func optimizeImage(_ image: UIImage, for photo: Photo) -> UIImage {
@@ -69,7 +141,7 @@ class PhotoDetailViewModel: ObservableObject {
     @Published var loadedImages: [UUID: UIImage] = [:]
     @Published var isLoading: Bool = false
     
-    let imageLoader = ImageLoader()
+    let imageLoader = ImageLoader.shared
     private let allPhotos: [Photo]
     
     init(photo: Photo, allPhotos: [Photo]) {
@@ -77,22 +149,23 @@ class PhotoDetailViewModel: ObservableObject {
         self.allPhotos = allPhotos
     }
     
-    func loadImage(for photo: Photo) async {
+    func loadImage(for photo: Photo) {
         let photoId = photo.id
-        guard loadedImages[photoId] == nil else { return }
-        
-        await MainActor.run {
+        if loadedImages[photoId] != nil { return }
+
+        Task { @MainActor in
             isLoading = true
         }
-        
-        if let image = await imageLoader.loadImage(for: photo) {
+
+        let maxPixel = Int(max(UIScreen.main.bounds.width, UIScreen.main.bounds.height) * UIScreen.main.scale)
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return }
+            let image = await self.imageLoader.loadPreview(for: photo, maxPixel: maxPixel)
             await MainActor.run {
-                loadedImages[photoId] = image
-                isLoading = false
-            }
-        } else {
-            await MainActor.run {
-                isLoading = false
+                if let image = image {
+                    self.loadedImages[photoId] = image
+                }
+                self.isLoading = false
             }
         }
     }
@@ -100,10 +173,10 @@ class PhotoDetailViewModel: ObservableObject {
     func preloadImages(around index: Int) {
         let range = max(0, index - 1)...min(allPhotos.count - 1, index + 1)
         
-        Task {
+        Task { @MainActor in
             for i in range {
                 let photo = allPhotos[i]
-                await loadImage(for: photo)
+                self.loadImage(for: photo)
             }
         }
     }
@@ -185,16 +258,31 @@ struct GalleryView: View {
 
 struct PhotoThumbnailView: View {
     let photo: Photo
+    @State private var thumb: UIImage?
     
     var body: some View {
         GeometryReader { geometry in
             Group {
-                if let image = photo.image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: geometry.size.width, height: geometry.size.width)
-                        .clipped()
+                if let image = thumb ?? photo.image {
+                    ZStack(alignment: .bottomLeading) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.width)
+                            .clipped()
+                        // 角标显示胶片名
+                        if let name = photo.filmPreset?.displayName {
+                            Text(name)
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 4)
+                                .background(Color.black.opacity(0.6))
+                                .foregroundColor(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                .padding(6)
+                        }
+                    }
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))
@@ -204,6 +292,12 @@ struct PhotoThumbnailView: View {
                                 .font(.title2)
                                 .foregroundColor(.gray)
                         )
+                }
+            }
+            .task {
+                if thumb == nil {
+                    let maxPixel = Int(UIScreen.main.bounds.width / 3.0 * UIScreen.main.scale)
+                    thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: maxPixel)
                 }
             }
         }
@@ -290,10 +384,7 @@ struct PhotoDetailView: View {
                             }
                         }
                         .onAppear {
-                            // 异步加载图片
-                            Task {
-                                await viewModel.loadImage(for: photoItem)
-                            }
+                            viewModel.loadImage(for: photoItem)
                         }
                     }
                 }
@@ -330,6 +421,22 @@ struct PhotoDetailView: View {
                             .font(.caption)
                             .foregroundColor(.gray)
                             .padding(.bottom, 4)
+
+                        // 胶片类型
+                        HStack(spacing: 8) {
+                            Text("胶片")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            Text(viewModel.currentPhoto.filmDisplayName)
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.white.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.bottom, 2)
                         
                         // 拍摄参数和设备信息合并显示
                         LazyVGrid(columns: [
@@ -538,19 +645,11 @@ struct OptimizedPhotoView: View {
                     .background(Color.black)
                 } else {
                     // 加载失败或占位符
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .overlay(
-                            VStack {
-                                Image(systemName: "photo")
-                                    .font(.system(size: 50))
-                                    .foregroundColor(.gray)
-                                Text("图片加载失败")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .padding(.top, 8)
-                            }
-                        )
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.1)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.black)
                 }
             }
         }

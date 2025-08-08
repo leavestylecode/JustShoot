@@ -2,17 +2,21 @@ import Foundation
 import SwiftData
 import UIKit
 import ImageIO
+import CoreImage
+import CoreImage.CIFilterBuiltins
 
 @Model
 final class Photo: Identifiable {
     var id: UUID
     var timestamp: Date
-    var imageData: Data
+    @Attribute(.externalStorage) var imageData: Data
+    var filmPresetName: String?
     
-    init(imageData: Data) {
+    init(imageData: Data, filmPresetName: String? = nil) {
         self.id = UUID()
         self.timestamp = Date()
         self.imageData = imageData
+        self.filmPresetName = filmPresetName
     }
     
     var image: UIImage? {
@@ -157,3 +161,192 @@ final class Photo: Identifiable {
         return "内置镜头"
     }
 } 
+
+// MARK: - 胶片预设与处理
+enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
+    case fujiC200
+    case fujiPro400H
+    case fujiProvia100F
+    case kodakPortra400
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .fujiC200: return "Fuji C200"
+        case .fujiPro400H: return "Fuji Pro 400H"
+        case .fujiProvia100F: return "Fuji Provia 100F"
+        case .kodakPortra400: return "Kodak Portra 400"
+        }
+    }
+
+    var iso: Float {
+        switch self {
+        case .fujiC200: return 200
+        case .fujiPro400H: return 400
+        case .fujiProvia100F: return 100
+        case .kodakPortra400: return 400
+        }
+    }
+
+    // 资源文件名（不含扩展名）
+    var lutResourceName: String {
+        switch self {
+        case .fujiC200: return "FujiC200"
+        case .fujiPro400H: return "FujiPro400H"
+        case .fujiProvia100F: return "FujiProvia100F"
+        case .kodakPortra400: return "KodakPortra400"
+        }
+    }
+}
+
+extension Photo {
+    var filmPreset: FilmPreset? {
+        guard let name = filmPresetName else { return nil }
+        return FilmPreset(rawValue: name)
+    }
+    
+    var filmDisplayName: String {
+        filmPreset?.displayName ?? "默认"
+    }
+}
+
+struct CubeLUT {
+    let data: Data
+    let dimension: Int
+}
+
+final class FilmProcessor {
+    static let shared = FilmProcessor()
+
+    private let ciContext: CIContext
+    private var lutCache: [String: CubeLUT] = [:]
+
+    private init() {
+        // 使用 Metal 后端的 CIContext 以获得更好性能
+        self.ciContext = CIContext(options: [CIContextOption.useSoftwareRenderer: false])
+    }
+
+    func loadCubeLUT(resourceName: String) throws -> CubeLUT {
+        if let cached = lutCache[resourceName] { return cached }
+
+        guard let url = Bundle.main.url(forResource: resourceName, withExtension: "cube") else {
+            throw NSError(domain: "FilmProcessor", code: -1, userInfo: [NSLocalizedDescriptionKey: "找不到 LUT 资源: \(resourceName).cube"])
+        }
+
+        let text = try String(contentsOf: url)
+        var lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+        lines.removeAll { $0.hasPrefix("#") || $0.isEmpty }
+
+        var size = 0
+        var values: [Float] = []
+
+        for line in lines {
+            if line.uppercased().hasPrefix("LUT_3D_SIZE") {
+                if let last = line.split(separator: " ").last, let dim = Int(last) {
+                    size = dim
+                }
+            } else {
+                // 粗略判断是否为数值行
+                let comps = line.split(separator: " ").compactMap { Float($0) }
+                if comps.count == 3 {
+                    values.append(contentsOf: comps)
+                }
+            }
+        }
+
+        guard size > 0, values.count == size * size * size * 3 else {
+            throw NSError(domain: "FilmProcessor", code: -2, userInfo: [NSLocalizedDescriptionKey: "LUT 解析失败或尺寸不匹配"])
+        }
+
+        var rgba: [Float] = []
+        rgba.reserveCapacity(size * size * size * 4)
+        for i in stride(from: 0, to: values.count, by: 3) {
+            rgba.append(values[i + 0])
+            rgba.append(values[i + 1])
+            rgba.append(values[i + 2])
+            rgba.append(1.0)
+        }
+
+        // 安全构造 Data，避免悬垂指针
+        let data: Data = rgba.withUnsafeBufferPointer { buffer in
+            return Data(buffer: buffer)
+        }
+        let cube = CubeLUT(
+            data: data,
+            dimension: size
+        )
+        lutCache[resourceName] = cube
+        return cube
+    }
+
+    // 预加载（放到缓存），减少首次拍摄开销
+    func preload(preset: FilmPreset) {
+        _ = try? loadCubeLUT(resourceName: preset.lutResourceName)
+    }
+
+    func applyLUT(to inputData: Data, preset: FilmPreset, outputQuality: CGFloat = 0.95) -> Data? {
+        guard let ciInput = CIImage(data: inputData) else { return nil }
+        guard let colorCube = CIFilter(name: "CIColorCube") else { return nil }
+
+        do {
+            let lut = try loadCubeLUT(resourceName: preset.lutResourceName)
+            colorCube.setValue(ciInput, forKey: kCIInputImageKey)
+            colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
+            colorCube.setValue(lut.data, forKey: "inputCubeData")
+        } catch {
+            return nil
+        }
+
+        guard let output = colorCube.outputImage else { return nil }
+
+        // 渲染为 JPEG 数据
+        let colorSpace = CGColorSpace(name: CGColorSpace.displayP3) ?? CGColorSpaceCreateDeviceRGB()
+        if let data = ciContext.jpegRepresentation(of: output, colorSpace: colorSpace, options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]) {
+            return data as Data
+        }
+        return nil
+    }
+
+    // 应用 LUT 并尽量保留原图元数据（EXIF/GPS/方向等）
+    func applyLUTPreservingMetadata(imageData: Data, preset: FilmPreset, outputQuality: CGFloat = 0.95) -> Data? {
+        guard let ciInput = CIImage(data: imageData) else { return nil }
+        guard let colorCube = CIFilter(name: "CIColorCube") else { return nil }
+        do {
+            let lut = try loadCubeLUT(resourceName: preset.lutResourceName)
+            colorCube.setValue(ciInput, forKey: kCIInputImageKey)
+            colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
+            colorCube.setValue(lut.data, forKey: "inputCubeData")
+        } catch {
+            return nil
+        }
+
+        guard let output = colorCube.outputImage else { return nil }
+
+        // 用 JPEG 表示以减少内存占用，然后用 CGImageDestination 复制元数据
+        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        guard let renderedJPEG = ciContext.jpegRepresentation(
+            of: output,
+            colorSpace: colorSpace,
+            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
+        ) else { return nil }
+
+        // 原图元数据
+        guard let originalSource = CGImageSourceCreateWithData(imageData as CFData, nil) else { return nil }
+        let originalMetadata = CGImageSourceCopyPropertiesAtIndex(originalSource, 0, nil) as? [String: Any] ?? [:]
+
+        // 将渲染后的 JPEG 作为 source，再写出附带原元数据
+        guard let renderedSource = CGImageSourceCreateWithData(renderedJPEG as CFData, nil) else { return nil }
+        guard let mutableData = CFDataCreateMutable(nil, 0) else { return nil }
+        let imageType = CGImageSourceGetType(renderedSource) ?? CGImageSourceGetType(originalSource)
+        guard let destination = CGImageDestinationCreateWithData(mutableData, imageType!, 1, nil) else { return nil }
+
+        let finalMetadata = originalMetadata
+        // 写入时同时传入压缩质量，避免后续修改目的地属性导致报错
+        var props = finalMetadata
+        props[kCGImageDestinationLossyCompressionQuality as String] = outputQuality
+        CGImageDestinationAddImageFromSource(destination, renderedSource, 0, props as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return mutableData as Data
+    }
+}
