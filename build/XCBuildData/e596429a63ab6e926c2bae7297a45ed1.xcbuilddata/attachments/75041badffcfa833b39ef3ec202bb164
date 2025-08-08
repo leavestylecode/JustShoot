@@ -1,0 +1,68 @@
+{
+  "" : {
+    "diagnostics" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/JustShoot-master.dia",
+    "emit-module-dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/JustShoot-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/JustShoot-master-emit-module.dia",
+    "swift-dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/JustShoot-master.swiftdeps"
+  },
+  "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/CameraView.swift" : {
+    "const-values" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/CameraView.swiftconstvalues",
+    "dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/CameraView.d",
+    "diagnostics" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/CameraView.dia",
+    "index-unit-output-path" : "/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/CameraView.o",
+    "llvm-bc" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/CameraView.bc",
+    "object" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/CameraView.o",
+    "swift-dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/CameraView.swiftdeps",
+    "swiftmodule" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/CameraView~partial.swiftmodule"
+  },
+  "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/ContentView.swift" : {
+    "const-values" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/ContentView.d",
+    "diagnostics" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/ContentView.dia",
+    "index-unit-output-path" : "/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/ContentView.o",
+    "swift-dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/ContentView~partial.swiftmodule"
+  },
+  "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/GalleryView.swift" : {
+    "const-values" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GalleryView.swiftconstvalues",
+    "dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GalleryView.d",
+    "diagnostics" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GalleryView.dia",
+    "index-unit-output-path" : "/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GalleryView.o",
+    "llvm-bc" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GalleryView.bc",
+    "object" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GalleryView.o",
+    "swift-dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GalleryView.swiftdeps",
+    "swiftmodule" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GalleryView~partial.swiftmodule"
+  },
+  "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/JustShootApp.swift" : {
+    "const-values" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/JustShootApp.swiftconstvalues",
+    "dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/JustShootApp.d",
+    "diagnostics" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/JustShootApp.dia",
+    "index-unit-output-path" : "/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/JustShootApp.o",
+    "llvm-bc" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/JustShootApp.bc",
+    "object" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/JustShootApp.o",
+    "swift-dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/JustShootApp.swiftdeps",
+    "swiftmodule" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/JustShootApp~partial.swiftmodule"
+  },
+  "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Models.swift" : {
+    "const-values" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/Models.swiftconstvalues",
+    "dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/Models.d",
+    "diagnostics" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/Models.dia",
+    "index-unit-output-path" : "/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/Models.o",
+    "llvm-bc" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/Models.bc",
+    "object" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/Models.o",
+    "swift-dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/Models.swiftdeps",
+    "swiftmodule" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/Models~partial.swiftmodule"
+  },
+  "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/leavestyle/Dev/ios/JustShoot/build/JustShoot.build/Debug-iphonesimulator/JustShoot.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}

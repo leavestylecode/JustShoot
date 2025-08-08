@@ -85,39 +85,90 @@ struct ContentView: View {
 struct FilmPresetGrid: View {
     let onSelect: (FilmPreset) -> Void
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
+    @Query(sort: \Roll.createdAt, order: .reverse) private var rolls: [Roll]
     
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 12) {
+        LazyVGrid(columns: columns, spacing: 16) {
             ForEach(FilmPreset.allCases) { preset in
                 Button {
                     onSelect(preset)
                 } label: {
-                    VStack(spacing: 8) {
-                        Image(systemName: "camera.filters")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundColor(.black)
-                            .frame(width: 44, height: 44)
-                            .background(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        Text(preset.displayName)
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-                        Text("ISO \(Int(preset.iso))")
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.8))
+                    ZStack(alignment: .topTrailing) {
+                        let active = rolls.first { $0.presetName == preset.rawValue && !$0.isCompleted }
+                        let isContinue = (active != nil)
+                        let remaining = active?.exposuresRemaining ?? 27
+                        let shots = (active?.shotsTaken ?? 0)
+                        let capacity = (active?.capacity ?? 27)
+                        let accent = accentColor(for: preset)
+
+                        VStack(spacing: 10) {
+                            Image(systemName: "camera.filters")
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 44, height: 44)
+                                .background(accent.opacity(0.9))
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            Text(preset.displayName)
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                            HStack(spacing: 6) {
+                                Text("ISO \(Int(preset.iso))")
+                                    .font(.caption2)
+                                    .foregroundColor(.white.opacity(0.8))
+                                if isContinue {
+                                    Text("剩余 \(remaining)")
+                                        .font(.caption2)
+                                        .foregroundColor(accent)
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            LinearGradient(
+                                colors: [accent.opacity(0.22), Color.white.opacity(0.08)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(alignment: .bottomLeading) {
+                            if isContinue {
+                                Capsule()
+                                    .fill(Color.white.opacity(0.12))
+                                    .frame(height: 6)
+                                    .overlay(alignment: .leading) {
+                                        Capsule()
+                                            .fill(accent.opacity(0.9))
+                                            .frame(width: max(6, CGFloat(shots) / CGFloat(max(1, capacity)) * UIScreen.main.bounds.width / 2.2), height: 6)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.bottom, 8)
+                            }
+                        }
+                        // 右上角状态圆点：黄=继续，绿=新建
+                        Circle()
+                            .fill((isContinue ? Color.yellow : Color.green).opacity(0.95))
+                            .frame(width: 10, height: 10)
+                            .padding(10)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.15))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.white.opacity(0.25), lineWidth: 1)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
             }
         }
         .padding(.horizontal, 8)
+    }
+
+    private func accentColor(for preset: FilmPreset) -> Color {
+        switch preset {
+        case .fujiC200: return Color.teal
+        case .fujiPro400H: return Color.orange
+        case .fujiProvia100F: return Color.blue
+        case .kodakPortra400: return Color.pink
+        }
     }
 }

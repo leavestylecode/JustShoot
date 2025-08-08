@@ -11,9 +11,11 @@ struct CameraView: View {
     let preset: FilmPreset
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Roll.createdAt, order: .reverse) private var rolls: [Roll]
     @StateObject private var cameraManager: CameraManager
     @State private var showFlash = false
     @State private var exposuresRemaining: Int = 27
+    @State private var currentRoll: Roll?
     
     init(preset: FilmPreset) {
         self.preset = preset
@@ -128,6 +130,8 @@ struct CameraView: View {
             // 预加载 LUT，提升首次拍摄速度
             FilmProcessor.shared.preload(preset: preset)
             cameraManager.requestCameraPermission()
+            prepareCurrentRoll()
+            updateExposuresRemaining()
         }
         .onDisappear { cameraManager.stopLocationServices() }
     }
@@ -146,12 +150,19 @@ struct CameraView: View {
                     Task.detached(priority: .userInitiated) { [imageData = data, preset = preset] in
                         let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(imageData: imageData, preset: preset) ?? imageData
                         await MainActor.run {
+                            if currentRoll == nil || (currentRoll?.isCompleted ?? true) {
+                                currentRoll = createOrFetchActiveRoll()
+                            }
                             let newPhoto = Photo(imageData: processedData, filmPresetName: preset.rawValue)
+                            newPhoto.roll = currentRoll
                             modelContext.insert(newPhoto)
                             do {
                                 try modelContext.save()
                                 print("Photo saved successfully")
-                                exposuresRemaining = max(0, exposuresRemaining - 1)
+                                updateExposuresRemaining()
+                                if currentRoll?.isCompleted == true {
+                                    print("🎞️ 胶卷已拍完 \(currentRoll?.capacity ?? 27) 张，自动完成")
+                                }
                             } catch {
                                 print("Failed to save photo: \(error)")
                             }
@@ -160,6 +171,38 @@ struct CameraView: View {
                 }
                 // 移除自动返回，让用户自己决定何时返回
             }
+        }
+    }
+
+    private func prepareCurrentRoll() {
+        if let active = rolls.first(where: { $0.presetName == preset.rawValue && !$0.isCompleted }) {
+            currentRoll = active
+        } else {
+            currentRoll = createOrFetchActiveRoll()
+        }
+    }
+
+    private func createOrFetchActiveRoll() -> Roll {
+        if let active = rolls.first(where: { $0.presetName == preset.rawValue && !$0.isCompleted }) {
+            return active
+        }
+        let newRoll = Roll(preset: preset, capacity: 27)
+        modelContext.insert(newRoll)
+        do { try modelContext.save() } catch { print("保存新胶卷失败: \(error)") }
+        return newRoll
+    }
+
+    private func updateExposuresRemaining() {
+        if let active = rolls.first(where: { $0.presetName == preset.rawValue && !$0.isCompleted }) {
+            exposuresRemaining = active.exposuresRemaining
+            currentRoll = active
+            if active.isCompleted && active.completedAt == nil {
+                active.completedAt = Date()
+            }
+        } else if let current = currentRoll {
+            exposuresRemaining = current.exposuresRemaining
+        } else {
+            exposuresRemaining = 27
         }
     }
     

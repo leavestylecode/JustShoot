@@ -1,0 +1,24 @@
+{
+  "source": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/CameraView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "EXP",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 50
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 53
+        }
+      }
+    ]
+  },
+  "version": 1
+}

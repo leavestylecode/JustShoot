@@ -1,0 +1,96 @@
+{
+  "source": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/GalleryView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "完成",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 142
+        }
+      },
+      {
+        "comment": "",
+        "key": "相册",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 247
+        }
+      },
+      {
+        "comment": "",
+        "key": "暂无照片",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 219
+        }
+      },
+      {
+        "comment": "",
+        "key": "前往拍摄页面开始拍照",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 223
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld/%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 274
+        }
+      },
+      {
+        "comment": "",
+        "key": "已完成",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 278
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld / %lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 415
+        }
+      },
+      {
+        "comment": "",
+        "key": "没有照片",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 475
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 488
+        }
+      },
+      {
+        "comment": "",
+        "key": "胶片",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 495
+        }
+      },
+      {
+        "comment": "",
+        "key": "加载中...",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 695
+        }
+      }
+    ]
+  },
+  "version": 1
+}

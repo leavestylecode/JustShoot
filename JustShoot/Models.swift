@@ -11,6 +11,7 @@ final class Photo: Identifiable {
     var timestamp: Date
     @Attribute(.externalStorage) var imageData: Data
     var filmPresetName: String?
+    @Relationship(inverse: \Roll.photos) var roll: Roll?
     
     init(imageData: Data, filmPresetName: String? = nil) {
         self.id = UUID()
@@ -214,6 +215,31 @@ extension Photo {
 struct CubeLUT {
     let data: Data
     let dimension: Int
+}
+
+// MARK: - 胶卷分组（27张一组）
+@Model
+final class Roll: Identifiable {
+    var id: UUID
+    var createdAt: Date
+    var completedAt: Date?
+    var presetName: String
+    var capacity: Int
+    @Relationship var photos: [Photo]
+
+    init(preset: FilmPreset, capacity: Int = 27) {
+        self.id = UUID()
+        self.createdAt = Date()
+        self.presetName = preset.rawValue
+        self.capacity = capacity
+        self.photos = []
+    }
+
+    var preset: FilmPreset? { FilmPreset(rawValue: presetName) }
+    var displayName: String { preset?.displayName ?? presetName }
+    var shotsTaken: Int { photos.count }
+    var exposuresRemaining: Int { max(0, capacity - shotsTaken) }
+    var isCompleted: Bool { completedAt != nil || shotsTaken >= capacity }
 }
 
 final class FilmProcessor {

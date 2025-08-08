@@ -1,0 +1,48 @@
+{
+  "source": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/ContentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "JustShoot",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 29
+        }
+      },
+      {
+        "comment": "",
+        "key": "简单 · 纯粹 · 专业",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 33
+        }
+      },
+      {
+        "comment": "",
+        "key": "相册 (%lld)",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 53
+        }
+      },
+      {
+        "comment": "",
+        "key": "ISO %lld",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 116
+        }
+      },
+      {
+        "comment": "",
+        "key": "剩余 %lld",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 120
+        }
+      }
+    ]
+  },
+  "version": 1
+}

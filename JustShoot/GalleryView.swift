@@ -24,7 +24,7 @@ class ImageLoader: ObservableObject {
         if let url = previewURL(for: photo, maxPixel: maxPixel),
            fileManager.fileExists(atPath: url.path),
            let data = try? Data(contentsOf: url),
-           let img = UIImage(data: data) {
+            let img = UIImage(data: data) {
             cache.setObject(img, forKey: key)
             return img
         }
@@ -62,7 +62,7 @@ class ImageLoader: ObservableObject {
         if let url = thumbnailURL(for: photo, maxPixel: maxPixel),
            fileManager.fileExists(atPath: url.path),
            let data = try? Data(contentsOf: url),
-           let img = UIImage(data: data) {
+            let img = UIImage(data: data) {
             cache.setObject(img, forKey: key)
             return img
         }
@@ -135,6 +135,15 @@ class ImageLoader: ObservableObject {
     }
 }
 
+private struct GalleryToolbar: ToolbarContent {
+    let dismiss: DismissAction
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            Button("完成") { dismiss() }
+        }
+    }
+}
+
 // MARK: - 照片详情视图模型
 class PhotoDetailViewModel: ObservableObject {
     @Published var currentPhoto: Photo
@@ -190,10 +199,8 @@ class PhotoDetailViewModel: ObservableObject {
 struct GalleryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Photo.timestamp, order: .reverse) private var photos: [Photo]
-    @State private var selectedPhoto: Photo?
-    @State private var capturedPhoto: Photo?
-    @State private var showingPhotoDetail = false
+    @Query(sort: \Roll.createdAt, order: .reverse) private var rolls: [Roll]
+    @State private var detailPayload: DetailPayload?
     
     private let gridColumns = [
         GridItem(.flexible()),
@@ -203,8 +210,8 @@ struct GalleryView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                if photos.isEmpty {
+            ScrollView(.vertical, showsIndicators: true) {
+                if rolls.isEmpty {
                     VStack {
                         Image(systemName: "photo")
                             .font(.system(size: 100))
@@ -220,40 +227,98 @@ struct GalleryView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    LazyVGrid(columns: gridColumns, spacing: 4) {
-                        ForEach(photos) { photo in
-                            PhotoThumbnailView(photo: photo)
-                                .aspectRatio(1, contentMode: .fit)
-                                .cornerRadius(12)
-                                .clipped()
-                                .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-                                .onTapGesture {
-                                    selectedPhoto = photo
-                                    capturedPhoto = photo
-                                    showingPhotoDetail = true
+                    // 分组显示：每个胶卷一个 Section
+                    LazyVStack(spacing: 18) {
+                        ForEach(rolls) { roll in
+                            RollSectionView(roll: roll, gridColumns: gridColumns) { startPhoto, groupPhotos in
+                                // 预热预览：在主线程读取屏幕尺寸，避免跨 actor 访问
+                                let screenBounds = UIScreen.main.bounds
+                                let maxPixel = Int(max(screenBounds.width, screenBounds.height) * UIScreen.main.scale)
+                                Task.detached(priority: .userInitiated) {
+                                    _ = await ImageLoader.shared.loadPreview(for: startPhoto, maxPixel: maxPixel)
                                 }
+                                detailPayload = DetailPayload(startPhoto: startPhoto, photos: groupPhotos)
+                            }
                         }
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .padding(.top, 8)
                 }
             }
             .navigationTitle("相册")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar(content: {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("完成") {
-                        dismiss()
-                    }
-                }
-            })
         }
-        .sheet(isPresented: $showingPhotoDetail) {
-            if let photoToShow = selectedPhoto ?? capturedPhoto ?? photos.first {
-                PhotoDetailView(photo: photoToShow, allPhotos: photos)
-            }
+        .sheet(item: $detailPayload) { payload in
+            PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos)
         }
     }
+
+    private var flattenedPhotos: [Photo] {
+        rolls.flatMap { $0.photos }.sorted(by: { $0.timestamp > $1.timestamp })
+    }
+}
+
+private struct RollSectionView: View {
+    let roll: Roll
+    let gridColumns: [GridItem]
+    let onSelect: (Photo, [Photo]) -> Void
+
+    var body: some View {
+        let progress = min(1.0, Double(roll.shotsTaken) / Double(max(1, roll.capacity)))
+        let groupPhotos = roll.photos.sorted(by: { $0.timestamp > $1.timestamp })
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(roll.displayName)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                Spacer()
+                Text("\(roll.shotsTaken)/\(roll.capacity)")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
+                if roll.isCompleted {
+                    Text("已完成")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.green.opacity(0.2))
+                        .foregroundColor(.green)
+                        .clipShape(Capsule())
+                }
+            }
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(height: 6)
+                Capsule()
+                    .fill(Color.accentColor.opacity(0.9))
+                    .frame(width: CGFloat(progress) * UIScreen.main.bounds.width * 0.86, height: 6)
+            }
+            LazyVGrid(columns: gridColumns, spacing: 8) {
+                ForEach(groupPhotos) { photo in
+                    PhotoThumbnailView(photo: photo)
+                        .aspectRatio(1, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .clipped()
+                        .shadow(color: .black.opacity(0.15), radius: 3, x: 0, y: 1)
+                        .onTapGesture { onSelect(photo, groupPhotos) }
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.06))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private struct DetailPayload: Identifiable, Equatable {
+    var id: UUID { startPhoto.id }
+    let startPhoto: Photo
+    let photos: [Photo]
+    static func == (lhs: DetailPayload, rhs: DetailPayload) -> Bool { lhs.startPhoto.id == rhs.startPhoto.id }
 }
 
 struct PhotoThumbnailView: View {
@@ -325,6 +390,9 @@ struct PhotoDetailView: View {
         self.photo = photo
         self.allPhotos = allPhotos
         self._viewModel = StateObject(wrappedValue: PhotoDetailViewModel(photo: photo, allPhotos: allPhotos))
+        let initialIndex = allPhotos.firstIndex(of: photo) ?? 0
+        self._currentIndex = State(initialValue: initialIndex)
+        // 初始索引在此设定，移除调试日志
     }
     
     var body: some View {
@@ -469,7 +537,10 @@ struct PhotoDetailView: View {
         }
         .background(Color.black.ignoresSafeArea())
         .onAppear {
-            initializeCurrentIndex()
+            if !allPhotos.isEmpty && currentIndex < allPhotos.count {
+                viewModel.updateCurrentPhoto(allPhotos[currentIndex])
+                viewModel.loadImage(for: allPhotos[currentIndex])
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             // 响应内存警告，清理缓存
@@ -477,22 +548,7 @@ struct PhotoDetailView: View {
         }
     }
     
-    private func initializeCurrentIndex() {
-        // 查找当前照片在数组中的索引
-        for (index, photoItem) in allPhotos.enumerated() {
-            if photoItem.id == photo.id {
-                currentIndex = index
-                viewModel.updateCurrentPhoto(photoItem)
-                return
-            }
-        }
-        
-        // 如果没找到，默认使用第一张
-        currentIndex = 0
-        if !allPhotos.isEmpty {
-            viewModel.updateCurrentPhoto(allPhotos[0])
-        }
-    }
+    // 移除初始化索引函数，改为在 init 中设定初始索引
     
     // 计算属性
     private var saveButtonIcon: String {
