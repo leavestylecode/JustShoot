@@ -10,145 +10,113 @@ struct CameraView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var cameraManager = CameraManager()
     @State private var showFlash = false
+    @State private var exposuresRemaining: Int = 27
     
     var body: some View {
         ZStack {
-            // 黑色背景
-            Color.black.ignoresSafeArea()
-            
-            // 相机预览（居中显示，固定比例，向上偏移）
-            VStack {
-                Spacer()
-                    .frame(height: 80) // 向上偏移80点
-                
-                CameraPreviewView(session: cameraManager.session)
-                    .aspectRatio(3/4, contentMode: .fit) // 固定4:3比例
-                    .clipped()
-                    .cornerRadius(12)
-                    .overlay(
-                        // 取景框边框
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.white.opacity(0.5), lineWidth: 2)
-                    )
-                    .overlay(
-                        // 取景框提示
-                        VStack {
-                            HStack {
-                                Text("拍摄区域")
-                                    .font(.caption2)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.black.opacity(0.6))
-                                    .cornerRadius(6)
-                                Spacer()
-                            }
-                            Spacer()
-                        }
-                        .padding(16)
-                    )
-                    .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-                
-                Spacer()
-                    .frame(height: 120) // 为底部控制区域留出更多空间
+            // 背景：质感黑色（多层渐变叠加）
+            ZStack {
+                LinearGradient(colors: [Color(red: 0.06, green: 0.06, blue: 0.06), Color.black], startPoint: .top, endPoint: .bottom)
+                RadialGradient(gradient: Gradient(colors: [Color.white.opacity(0.06), .clear]), center: .top, startRadius: 0, endRadius: 400)
+                LinearGradient(colors: [Color.clear, Color.white.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing)
             }
-            
-            // 控制界面
-            VStack {
-                // 顶部控制栏
-                HStack {
-                    Button(action: {
-                        dismiss()
-                    }) {
+            .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // 顶部：左上返回（放大） + 右上剩余次数
+                HStack(alignment: .center) {
+                    Button(action: { dismiss() }) {
                         Image(systemName: "xmark")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.5))
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 40, height: 40)
+                            .background(Color.white.opacity(0.10))
                             .clipShape(Circle())
                     }
-                    
+
                     Spacer()
-                    
-                    // 焦距显示（可点击调整）
-                    Button(action: {
-                        cycleFocalLength()
-                    }) {
-                        VStack(spacing: 4) {
-                            Image(systemName: "camera.macro")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                            Text("\(String(format: "%.0f", cameraManager.targetFocalLength))mm")
-                                .font(.caption2)
-                                .foregroundColor(.white)
-                                .fontWeight(.bold)
-                            Text("\(String(format: "%.1f", cameraManager.currentZoomFactor))x")
-                                .font(.caption2)
-                                .foregroundColor(.gray)
-                        }
-                        .padding()
-                        .background(Color.black.opacity(0.5))
-                        .cornerRadius(12)
+
+                    HStack(spacing: 6) {
+                        Text("EXP")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.85))
+                        Text("\(exposuresRemaining)")
+                            .font(.system(size: 18, weight: .heavy))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
                     }
-                    
-                    // 闪光灯控制按钮
-                    Button(action: {
-                        cameraManager.toggleFlashMode()
-                    }) {
-                    VStack(spacing: 4) {
-                            Image(systemName: cameraManager.flashMode.iconName)
-                            .font(.title2)
-                                .foregroundColor(.white)
-                            Text(cameraManager.flashMode.displayName)
-                                .font(.caption2)
-                            .foregroundColor(.white)
-                        }
-                        .padding()
-                        .background(Color.black.opacity(0.5))
-                        .cornerRadius(12)
-                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(Color.white.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
-                .padding()
-                
-                Spacer()
-                
-                // 底部控制栏
-                HStack {
-                    Spacer()
-                    
-                    // 拍照按钮
-                        Button(action: {
-                        capturePhoto()
-                        }) {
-                            ZStack {
-                                Circle()
-                                .fill(Color.white)
-                                    .frame(width: 80, height: 80)
-                                Circle()
-                                .stroke(Color.black, lineWidth: 2)
-                                    .frame(width: 70, height: 70)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+
+                Spacer(minLength: 8)
+
+                // 中间预览区：3:4 固定取景框（红色边框）
+                ZStack {
+                    CameraPreviewView(session: cameraManager.session)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color.red, lineWidth: 2)
+                        )
+                        .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 6)
+                }
+                .aspectRatio(3/4, contentMode: .fit)
+                .padding(.horizontal, 16)
+
+                Spacer(minLength: 8)
+
+                // 底部：左侧闪光 + 中间快门
+                ZStack {
+                    // 中间快门（绿色）
+                    Button(action: { capturePhoto() }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color(red: 0.18, green: 0.80, blue: 0.36))
+                                .frame(width: 82, height: 82)
+                                .shadow(color: .black.opacity(0.45), radius: 8, x: 0, y: 6)
+                            Circle()
+                                .stroke(Color.black.opacity(0.6), lineWidth: 3)
+                                .frame(width: 70, height: 70)
                         }
                     }
-                    
-                    Spacer()
+                    .buttonStyle(.plain)
+
+                    // 左侧闪光按钮
+                    HStack {
+                        Button(action: { cameraManager.toggleFlashMode() }) {
+                            let isOn = cameraManager.flashMode == .on
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundStyle(isOn ? Color.black : Color.white)
+                                .frame(width: 40, height: 40)
+                                .background(isOn ? Color.yellow : Color.white.opacity(0.10))
+                                .clipShape(Circle())
+                        }
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
                 }
-                .padding(.bottom, 50)
+                
+                Spacer(minLength: 8)
             }
-            
+
             // 闪光效果
             if showFlash {
                 Color.white
                     .ignoresSafeArea()
-                    .opacity(0.8)
+                    .opacity(0.85)
                     .animation(.easeInOut(duration: 0.1), value: showFlash)
             }
         }
-        .onAppear {
-            cameraManager.requestCameraPermission()
-        }
-        .onDisappear {
-            cameraManager.stopLocationServices() // 离开拍摄页面时停止GPS
-        }
+        .statusBarHidden(true)
+        .onAppear { cameraManager.requestCameraPermission() }
+        .onDisappear { cameraManager.stopLocationServices() }
     }
     
     private func capturePhoto() {
@@ -163,29 +131,20 @@ struct CameraView: View {
                     do {
                         try modelContext.save()
                         print("Photo saved successfully")
+                        exposuresRemaining = max(0, exposuresRemaining - 1)
                     } catch {
                         print("Failed to save photo: \(error)")
                     }
                 }
                 
                 showFlash = false
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 // 移除自动返回，让用户自己决定何时返回
             }
         }
     }
     
-    // 循环调整焦距
-    private func cycleFocalLength() {
-        let focalLengths: [Float] = [24, 28, 35, 50, 85] // 常用的35mm等效焦距
-        
-        if let currentIndex = focalLengths.firstIndex(of: cameraManager.targetFocalLength) {
-            let nextIndex = (currentIndex + 1) % focalLengths.count
-            cameraManager.adjustTargetFocalLength(focalLengths[nextIndex])
-        } else {
-            // 如果当前焦距不在预设列表中，设置为35mm
-            cameraManager.adjustTargetFocalLength(35.0)
-        }
-    }
+    // 固定焦距为 35mm，不提供 UI 调整
 }
 
 // 相机预览视图
@@ -197,7 +156,7 @@ struct CameraPreviewView: UIViewRepresentable {
         view.backgroundColor = UIColor.black
         
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
-        previewLayer.videoGravity = .resizeAspectFill // 保持比例填充
+        previewLayer.videoGravity = .resizeAspect // 与4:3容器保持一致不裁切
         
         view.layer.addSublayer(previewLayer)
         
@@ -279,6 +238,16 @@ class CameraManager: NSObject, ObservableObject {
     // 兼容旧版本的方向管理
     private var currentDeviceOrientation: UIDeviceOrientation = .portrait
     private var orientationObserver: NSObjectProtocol?
+    private var subjectAreaObserver: NSObjectProtocol?
+
+    // 固定 ISO 配置
+    @Published var isISOLocked: Bool = true
+    private let fixedISOValue: Float = 400
+    private var lastISOAdjustTime: Date = .distantPast
+    private let isoAdjustThrottle: TimeInterval = 0.35
+
+    // 自动测光定时器（在固定 ISO 前提下，周期性基于测光调整快门）
+    private var exposureMeterTimer: Timer?
     
     override init() {
         super.init()
@@ -289,6 +258,9 @@ class CameraManager: NSObject, ObservableObject {
     deinit {
         if let observer = orientationObserver {
             NotificationCenter.default.removeObserver(observer)
+        }
+        if let subjectObserver = subjectAreaObserver {
+            NotificationCenter.default.removeObserver(subjectObserver)
         }
     }
     
@@ -406,7 +378,7 @@ class CameraManager: NSObject, ObservableObject {
     }
     
     private func setupCamera() {
-        // 设置为4:3比例的高质量照片
+        // 设置为高质量照片（稍后在capture时指定3:4尺寸）
         session.sessionPreset = .photo
         
         guard let videoCaptureDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
@@ -419,7 +391,7 @@ class CameraManager: NSObject, ObservableObject {
         // 读取设备焦距信息
         readCameraSpecs(device: videoCaptureDevice)
         
-        // 计算达到35mm等效焦距所需的变焦系数
+        // 固定 35mm 等效焦距
         calculateZoomFactorFor35mm()
         
         do {
@@ -441,6 +413,27 @@ class CameraManager: NSObject, ObservableObject {
                     print("📱 使用iOS 17 AVCaptureDevice.RotationCoordinator")
                 }
             }
+
+            // 启用主体区域变化监控（用于在场景变化时重新应用固定ISO逻辑）
+            try videoCaptureDevice.lockForConfiguration()
+            if videoCaptureDevice.isSubjectAreaChangeMonitoringEnabled == false {
+                videoCaptureDevice.isSubjectAreaChangeMonitoringEnabled = true
+            }
+            // 初始使用连续自动曝光以便测光
+            if videoCaptureDevice.isExposureModeSupported(.continuousAutoExposure) {
+                videoCaptureDevice.exposureMode = .continuousAutoExposure
+            }
+            videoCaptureDevice.unlockForConfiguration()
+            
+            subjectAreaObserver = NotificationCenter.default.addObserver(
+                forName: .AVCaptureDeviceSubjectAreaDidChange,
+                object: videoCaptureDevice,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.scheduleReapplyFixedISO()
+                }
+            }
         } catch {
             print("Error setting up camera: \(error)")
         }
@@ -453,6 +446,11 @@ class CameraManager: NSObject, ObservableObject {
         await Task.detached { [weak self] in
             await self?.session.startRunning()
         }.value
+        // 会话启动后稍等片刻再应用固定ISO（先让自动测光稳定）
+        await MainActor.run {
+            self.scheduleReapplyFixedISO(initial: true)
+            self.startExposureMeteringTimer()
+        }
     }
     
     func capturePhoto(completion: @escaping (Data?) -> Void) {
@@ -475,14 +473,24 @@ class CameraManager: NSObject, ObservableObject {
         settings.embedsPortraitEffectsMatteInPhoto = false
         settings.embedsSemanticSegmentationMattesInPhoto = false
         
-        // 设置照片尺寸为4:3比例
+        // 设置照片尺寸为3:4比例（竖幅）
         if #available(iOS 16.0, *) {
-            // 获取支持的最大尺寸并调整为4:3比例
-            let maxDimensions = photoOutput.maxPhotoDimensions
-            let targetWidth = min(maxDimensions.width, maxDimensions.height * 4 / 3)
-            let targetHeight = targetWidth * 3 / 4
-            settings.maxPhotoDimensions = CMVideoDimensions(width: targetWidth, height: targetHeight)
-            print("📸 设置照片尺寸为4:3比例: \(targetWidth)x\(targetHeight)")
+            // 安全匹配 activeFormat 的 supportedMaxPhotoDimensions，选择3:4比例
+            if let device = videoCaptureDevice {
+                let supported = device.activeFormat.supportedMaxPhotoDimensions
+                let candidates = supported.filter { dim in
+                    // 竖幅3:4 或 横幅4:3（考虑传感器方向），统一转成 3:4 判断
+                    let w = Int(dim.width)
+                    let h = Int(dim.height)
+                    return w * 4 == h * 3 || h * 4 == w * 3
+                }
+                if let best = candidates.max(by: { Int($0.width) * Int($0.height) < Int($1.width) * Int($1.height) }) {
+                    settings.maxPhotoDimensions = best
+                    print("📸 使用设备支持的3:4尺寸: \(best.width)x\(best.height)")
+                } else {
+                    print("⚠️ 未找到3:4支持尺寸，使用默认maxPhotoDimensions: \(photoOutput.maxPhotoDimensions.width)x\(photoOutput.maxPhotoDimensions.height)")
+                }
+            }
         }
         
         // 设置照片方向 - iOS 17新方式 vs 旧版本兼容
@@ -686,8 +694,72 @@ class CameraManager: NSObject, ObservableObject {
             
             print("✅ 成功应用变焦系数: \(String(format: "%.2f", zoomFactor))x")
             print("🎯 当前模拟35mm等效焦距: \(String(format: "%.1f", Float(zoomFactor) * device35mmEquivalentFocalLength))mm")
+            // 变焦变化后重新基于自动测光换算快门
+            scheduleReapplyFixedISO()
         } catch {
             print("❌ 应用变焦失败: \(error)")
+        }
+    }
+
+    // MARK: - 固定 ISO 400 逻辑
+    private func scheduleReapplyFixedISO(initial: Bool = false) {
+        guard isISOLocked else { return }
+        let now = Date()
+        if !initial, now.timeIntervalSince(lastISOAdjustTime) < isoAdjustThrottle { return }
+        lastISOAdjustTime = now
+        Task { @MainActor in
+            await self.applyFixedISOAfterAutoMetering()
+        }
+    }
+
+    private func clamp<T: Comparable>(_ value: T, min minValue: T, max maxValue: T) -> T {
+        return max(minValue, min(maxValue, value))
+    }
+
+    private func cmTime(fromSeconds seconds: Double) -> CMTime {
+        return CMTimeMakeWithSeconds(seconds, preferredTimescale: 1_000_000_000)
+    }
+
+    private func exposureSeconds(_ time: CMTime) -> Double {
+        guard time.timescale != 0 else { return 0 }
+        return Double(time.value) / Double(time.timescale)
+    }
+
+    private func applyFixedISOAfterAutoMetering() async {
+        guard let device = videoCaptureDevice else { return }
+        do {
+            // 1) 使用连续自动曝光让系统测光
+            try device.lockForConfiguration()
+            if device.isExposureModeSupported(.continuousAutoExposure) {
+                device.exposureMode = .continuousAutoExposure
+            }
+            device.unlockForConfiguration()
+
+            // 2) 等待自动曝光稳定
+            try? await Task.sleep(nanoseconds: 220_000_000) // 220ms
+
+            // 3) 读取当前曝光参数
+            let currentISO = device.iso // Float
+            let currentSec = exposureSeconds(device.exposureDuration)
+            let minSec = exposureSeconds(device.activeFormat.minExposureDuration)
+            let maxSec = exposureSeconds(device.activeFormat.maxExposureDuration)
+
+            // 4) 计算在 ISO 400 下的目标快门时间（保持曝光量近似不变）
+            guard currentISO > 0 else { return }
+            let targetSecRaw = currentSec * Double(currentISO / fixedISOValue)
+            let targetSec = clamp(targetSecRaw, min: minSec, max: maxSec)
+            let targetTime = cmTime(fromSeconds: targetSec)
+
+            // 5) 切换到自定义曝光并锁定 ISO 400（自动曝光体现在动态调整快门）
+            try device.lockForConfiguration()
+            if device.isExposureModeSupported(.custom) {
+                device.setExposureModeCustom(duration: targetTime, iso: fixedISOValue, completionHandler: nil)
+            }
+            device.unlockForConfiguration()
+
+            print("🎚️ 固定ISO=\(Int(fixedISOValue))，快门=\(String(format: "%.5fs", targetSec)) (原: ISO=\(Int(currentISO)) · \(String(format: "%.5fs", currentSec)))")
+        } catch {
+            print("❌ 固定ISO失败: \(error)")
         }
     }
     
@@ -712,29 +784,8 @@ class CameraManager: NSObject, ObservableObject {
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters // 降低精度以节省电量
         locationManager.distanceFilter = 50 // 移动50米才更新
         
-        // 检查当前权限状态
-        let authStatus = locationManager.authorizationStatus
-        print("📍 当前位置权限状态: \(authorizationStatusDescription(authStatus))")
-        
-        switch authStatus {
-        case .notDetermined:
-            print("📍 权限未确定，请求位置权限")
-            // 异步请求权限，避免阻塞主线程
-            Task.detached { [weak self] in
-                guard let self = self else { return }
-                await MainActor.run {
-                    self.locationManager.requestWhenInUseAuthorization()
-                }
-            }
-            // 权限结果将在didChangeAuthorization回调中处理
-        case .authorizedWhenInUse, .authorizedAlways:
-            print("📍 位置权限已授权，开始位置更新")
-            startLocationUpdates()
-        case .denied, .restricted:
-            print("📍 位置权限被拒绝或受限，无法获取位置信息")
-        @unknown default:
-            print("📍 未知的位置权限状态")
-        }
+        // 不主动拉取授权状态，直接请求授权，等回调中处理，避免主线程卡顿警告
+        locationManager.requestWhenInUseAuthorization()
     }
     
     // 权限状态描述
@@ -782,6 +833,7 @@ class CameraManager: NSObject, ObservableObject {
         locationManager.stopUpdatingLocation()
         locationTimer?.invalidate()
         locationTimer = nil
+        stopExposureMeteringTimer()
     }
     
     // 位置更新定时器
@@ -800,6 +852,22 @@ class CameraManager: NSObject, ObservableObject {
                 }
             }
         }
+    }
+
+    // MARK: - 自动测光（固定ISO前提下）
+    private func startExposureMeteringTimer() {
+        exposureMeterTimer?.invalidate()
+        exposureMeterTimer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            Task { @MainActor in
+                self.scheduleReapplyFixedISO()
+            }
+        }
+    }
+
+    private func stopExposureMeteringTimer() {
+        exposureMeterTimer?.invalidate()
+        exposureMeterTimer = nil
     }
 }
 
@@ -1020,3 +1088,4 @@ extension UIDeviceOrientation {
         }
     }
 } 
+
