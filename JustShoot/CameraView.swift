@@ -149,13 +149,28 @@ struct CameraView: View {
                     
                     // 后台应用 LUT 并保存，提升响应
                     Task.detached(priority: .userInitiated) { [imageData = data, preset = preset] in
-                        let location = await cameraManager.currentLocationSnapshot()
-                        let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(imageData: imageData, preset: preset, outputQuality: 0.95, location: location) ?? imageData
+                        // 若定位为空，主动等待一条新鲜定位（最多1.5s）
+                        var tmpLoc = await cameraManager.fetchFreshLocation()
+                        // 日志精简：不再打印 snapshot 细节
+                        // 再尝试一次，保证覆盖首次回调之后的场景
+                        if tmpLoc == nil { tmpLoc = await cameraManager.fetchFreshLocation(timeout: 1.0) }
+                        let finalLocation = tmpLoc
+                        let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(imageData: imageData, preset: preset, outputQuality: 0.95, location: finalLocation) ?? imageData
+                        // 打印处理后 JPEG 的 EXIF/GPS
+                        // 生产环境不再打印 EXIF GPS
                         await MainActor.run {
                             if currentRoll == nil || (currentRoll?.isCompleted ?? true) {
                                 currentRoll = createOrFetchActiveRoll()
                             }
                             let newPhoto = Photo(imageData: processedData, filmPresetName: preset.rawValue)
+                            if let loc = finalLocation {
+                                newPhoto.latitude = loc.coordinate.latitude
+                                newPhoto.longitude = loc.coordinate.longitude
+                                newPhoto.altitude = loc.altitude
+                                newPhoto.locationTimestamp = loc.timestamp
+                            } else {
+                                // 无可用位置则跳过
+                            }
                             newPhoto.roll = currentRoll
                             modelContext.insert(newPhoto)
                             do {
@@ -307,8 +322,26 @@ class CameraManager: NSObject, ObservableObject {
     // 位置管理器
     private let locationManager = CLLocationManager()
     private var currentLocation: CLLocation?
+    // 等待一次新定位的挂起请求
+    private var pendingLocationRequests: [UUID: CheckedContinuation<CLLocation?, Never>] = [:]
     @MainActor
     func currentLocationSnapshot() -> CLLocation? {
+        return currentLocation
+    }
+
+    // 等待一条新鲜定位（若已有较新的，直接返回），带超时（轮询实现，避免并发警告）
+    func fetchFreshLocation(timeout: TimeInterval = 1.5, freshness: TimeInterval = 10.0) async -> CLLocation? {
+        if let loc = currentLocation, Date().timeIntervalSince(loc.timestamp) < freshness {
+            return loc
+        }
+        locationManager.requestLocation()
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let loc = currentLocation, Date().timeIntervalSince(loc.timestamp) < freshness {
+                return loc
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+        }
         return currentLocation
     }
     
@@ -918,8 +951,33 @@ class CameraManager: NSObject, ObservableObject {
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
         locationManager.distanceFilter = 5
         
-        // 不主动拉取授权状态，直接请求授权，等回调中处理，避免主线程卡顿警告
+        // 请求授权；若已授权，立即启动更新与一次性请求
         locationManager.requestWhenInUseAuthorization()
+        if #available(iOS 14.0, *) {
+            let status = locationManager.authorizationStatus
+            print("📍 当前定位授权状态: \(authorizationStatusDescription(status))")
+            switch status {
+            case .authorizedAlways, .authorizedWhenInUse:
+                startLocationUpdates()
+                Task { @MainActor in self.locationManager.requestLocation() }
+            case .notDetermined, .denied, .restricted:
+                break
+            @unknown default:
+                break
+            }
+        } else {
+            let status = CLLocationManager.authorizationStatus()
+            print("📍 当前定位授权状态(legacy): \(authorizationStatusDescription(status))")
+            switch status {
+            case .authorizedAlways, .authorizedWhenInUse:
+                startLocationUpdates()
+                Task { @MainActor in self.locationManager.requestLocation() }
+            case .notDetermined, .denied, .restricted:
+                break
+            @unknown default:
+                break
+            }
+        }
     }
     
     // 权限状态描述
@@ -1013,7 +1071,14 @@ extension CameraManager: CLLocationManagerDelegate {
         Task { @MainActor in
             if let location = locations.last {
                 self.currentLocation = location
-                print("📍 位置更新: \(location.coordinate.latitude), \(location.coordinate.longitude)")
+                let age = Date().timeIntervalSince(location.timestamp)
+                print(String(format: "📍 位置更新 lat=%.6f lon=%.6f alt=%.1f acc=%.1f age=%.2fs",
+                              location.coordinate.latitude, location.coordinate.longitude,
+                              location.altitude, location.horizontalAccuracy, age))
+                // 唤醒等待中的请求
+                if !self.pendingLocationRequests.isEmpty {
+                    for (id, cont) in self.pendingLocationRequests { cont.resume(returning: location); self.pendingLocationRequests.removeValue(forKey: id) }
+                }
             }
         }
     }

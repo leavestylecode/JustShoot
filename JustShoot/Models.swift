@@ -13,6 +13,11 @@ final class Photo: Identifiable {
     @Attribute(.externalStorage) var imageData: Data
     var filmPresetName: String?
     @Relationship(inverse: \Roll.photos) var roll: Roll?
+    // 位置信息（用于相册保存时同步到 PHAsset.location）
+    var latitude: Double?
+    var longitude: Double?
+    var altitude: Double?
+    var locationTimestamp: Date?
     
     init(imageData: Data, filmPresetName: String? = nil) {
         self.id = UUID()
@@ -371,14 +376,31 @@ final class FilmProcessor {
         // 合并 GPS 信息（如有需要始终写入）
         if let loc = location {
             var gps: [String: Any] = originalMetadata[kCGImagePropertyGPSDictionary as String] as? [String: Any] ?? [:]
+            // 坐标与参考方向
             gps[kCGImagePropertyGPSLatitude as String] = abs(loc.coordinate.latitude)
             gps[kCGImagePropertyGPSLongitude as String] = abs(loc.coordinate.longitude)
             gps[kCGImagePropertyGPSLatitudeRef as String] = loc.coordinate.latitude >= 0 ? "N" : "S"
             gps[kCGImagePropertyGPSLongitudeRef as String] = loc.coordinate.longitude >= 0 ? "E" : "W"
-            gps[kCGImagePropertyGPSAltitude as String] = loc.altitude
-            gps[kCGImagePropertyGPSTimeStamp as String] = ISO8601DateFormatter().string(from: loc.timestamp)
-            if loc.speed >= 0 { gps[kCGImagePropertyGPSSpeed as String] = loc.speed }
-            if loc.course >= 0 { gps[kCGImagePropertyGPSImgDirection as String] = loc.course }
+            // 海拔与参考（0=海平面以上，1=以下）
+            gps[kCGImagePropertyGPSAltitude as String] = abs(loc.altitude)
+            gps[kCGImagePropertyGPSAltitudeRef as String] = loc.altitude >= 0 ? 0 : 1
+            // 时间（UTC）：分别提供 DateStamp 与 TimeStamp，兼容 Photos/EXIF 读取
+            let utc = TimeZone(secondsFromGMT: 0)
+            let dateFmt = DateFormatter(); dateFmt.dateFormat = "yyyy:MM:dd"; dateFmt.timeZone = utc
+            let timeFmt = DateFormatter(); timeFmt.dateFormat = "HH:mm:ss.SS"; timeFmt.timeZone = utc
+            gps[kCGImagePropertyGPSDateStamp as String] = dateFmt.string(from: loc.timestamp)
+            gps[kCGImagePropertyGPSTimeStamp as String] = timeFmt.string(from: loc.timestamp)
+            // 速度（转换为 km/h）与参考单位
+            if loc.speed >= 0 {
+                let kmh = loc.speed * 3.6
+                gps[kCGImagePropertyGPSSpeed as String] = kmh
+                gps[kCGImagePropertyGPSSpeedRef as String] = "K" // km/h
+            }
+            // 航向与参考（真北）
+            if loc.course >= 0 {
+                gps[kCGImagePropertyGPSImgDirection as String] = loc.course
+                gps[kCGImagePropertyGPSImgDirectionRef as String] = "T"
+            }
             originalMetadata[kCGImagePropertyGPSDictionary as String] = gps
         }
 

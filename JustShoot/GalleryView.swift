@@ -631,13 +631,29 @@ struct PhotoDetailView: View {
     private func saveImageToPhotoLibrary(_ image: UIImage) {
         // 使用原始数据保存以保留完整元数据
         let imageData = viewModel.currentPhoto.imageData
+        let lat = viewModel.currentPhoto.latitude
+        let lon = viewModel.currentPhoto.longitude
+        let alt = viewModel.currentPhoto.altitude
+        let locTime = viewModel.currentPhoto.locationTimestamp
+        let assetLocation: CLLocation? = {
+            if let lat = lat, let lon = lon {
+                let altitude = alt ?? 0
+                let timestamp = locTime ?? viewModel.currentPhoto.timestamp
+                return CLLocation(coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), altitude: altitude, horizontalAccuracy: 10, verticalAccuracy: 10, timestamp: timestamp)
+            }
+            return nil
+        }()
         
         print("📱 使用原始数据保存照片以保留完整元数据")
         
         PHPhotoLibrary.shared().performChanges({
-            // 使用原始数据创建照片请求，这样会保留所有元数据
             let creationRequest = PHAssetCreationRequest.forAsset()
-            creationRequest.addResource(with: .photo, data: imageData, options: nil)
+            creationRequest.creationDate = viewModel.currentPhoto.timestamp
+            if let loc = assetLocation { creationRequest.location = loc }
+            let options = PHAssetResourceCreationOptions()
+            options.uniformTypeIdentifier = "public.jpeg"
+            creationRequest.addResource(with: .photo, data: imageData, options: options)
+            // 精简日志：不输出 PHAsset 位置信息
         }) { success, error in
             DispatchQueue.main.async {
                 if success {
