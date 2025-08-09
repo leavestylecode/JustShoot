@@ -17,7 +17,6 @@ struct CameraView: View {
     @State private var showFlash = false
     @State private var exposuresRemaining: Int = 27
     @State private var currentRoll: Roll?
-    @State private var isProcessingCapture: Bool = false
     
     init(preset: FilmPreset) {
         self.preset = preset
@@ -25,10 +24,12 @@ struct CameraView: View {
     }
 
     var body: some View {
-            ZStack {
+        ZStack {
             // 背景：质感黑色（多层渐变叠加）
             ZStack {
-                Color.black
+                LinearGradient(colors: [Color(red: 0.06, green: 0.06, blue: 0.06), Color.black], startPoint: .top, endPoint: .bottom)
+                RadialGradient(gradient: Gradient(colors: [Color.white.opacity(0.06), .clear]), center: .top, startRadius: 0, endRadius: 400)
+                LinearGradient(colors: [Color.clear, Color.white.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing)
             }
             .ignoresSafeArea()
 
@@ -69,10 +70,15 @@ struct CameraView: View {
                 GeometryReader { _ in
                     // 实时预览（应用 LUT）
                     RealtimePreviewView(manager: cameraManager, preset: preset)
-                        // 去掉外层边框/描边/阴影
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color.red, lineWidth: 2)
+                        )
+                        .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 6)
                 }
                 .aspectRatio(3/4, contentMode: .fit)
-                // 取消左右留白，保证预览填满可用宽度，与成片观感一致
+                .padding(.horizontal, 16)
 
                 Spacer(minLength: 8)
 
@@ -91,8 +97,6 @@ struct CameraView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .disabled(isProcessingCapture)
-                    .opacity(isProcessingCapture ? 0.5 : 1.0)
 
                     // 左侧闪光按钮
                     HStack {
@@ -134,54 +138,29 @@ struct CameraView: View {
     }
     
     private func capturePhoto() {
-        // 若正在处理上一张，则不允许继续拍摄
-        if isProcessingCapture {
-            print("⏳ [Capture] 上一次照片仍在处理，忽略本次快门")
-            return
-        }
-        print("📸 [Capture] 请求拍照，设置处理锁 isProcessingCapture=true")
-        isProcessingCapture = true
         showFlash = true
 
         cameraManager.capturePhoto { imageData in
             DispatchQueue.main.async {
-                print("📸 [Capture] didFinishProcessingPhoto 回调")
                 if let data = imageData {
                     // 立即结束快门动画
                     showFlash = false
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    print("📦 [Capture] 获取到照片数据 bytes=\(data.count)")
                     
-                    // 后台应用 LUT 并保存，提升响应（降低优先级，减少与预览争用）
-                    Task.detached(priority: .utility) { [imageData = data, preset = preset] in
-                        print("🧪 [Process] 开始后台处理(LUT+元数据+保存)...")
+                    // 后台应用 LUT 并保存，提升响应
+                    Task.detached(priority: .userInitiated) { [imageData = data, preset = preset] in
                         // 若定位为空，主动等待一条新鲜定位（最多1.5s）
-                        print("📍 [GPS] 请求新定位(<=1.5s)...")
                         var tmpLoc = await cameraManager.fetchFreshLocation()
                         // 日志精简：不再打印 snapshot 细节
                         // 再尝试一次，保证覆盖首次回调之后的场景
-                        if tmpLoc == nil {
-                            print("📍 [GPS] 首次定位为空，继续短轮询(<=1.0s)...")
-                            tmpLoc = await cameraManager.fetchFreshLocation(timeout: 1.0)
-                        }
+                        if tmpLoc == nil { tmpLoc = await cameraManager.fetchFreshLocation(timeout: 1.0) }
                         let finalLocation = tmpLoc
-                        if let loc = finalLocation {
-                            print(String(format: "📍 [GPS] 获取到定位 lat=%.6f lon=%.6f", loc.coordinate.latitude, loc.coordinate.longitude))
-                        } else {
-                            print("📍 [GPS] 未获取到有效定位，将不写入GPS")
-                        }
-                        print("🎨 [Process] 开始渲染与写入元数据...")
-                        let processedData: Data = autoreleasepool {
-                            FilmProcessor.shared.applyLUTPreservingMetadata(imageData: imageData, preset: preset, outputQuality: 0.90, location: finalLocation) ?? imageData
-                        }
-                        print("🎨 [Process] 渲染完成，输出 bytes=\(processedData.count)")
+                        let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(imageData: imageData, preset: preset, outputQuality: 0.95, location: finalLocation) ?? imageData
                         // 打印处理后 JPEG 的 EXIF/GPS
                         // 生产环境不再打印 EXIF GPS
                         await MainActor.run {
-                            print("💾 [DB] 准备写入 SwiftData 模型...")
                             if currentRoll == nil || (currentRoll?.isCompleted ?? true) {
                                 currentRoll = createOrFetchActiveRoll()
-                                print("🎞️ [Roll] 使用活动胶卷 id=\(currentRoll?.id.uuidString ?? "nil")")
                             }
                             let newPhoto = Photo(imageData: processedData, filmPresetName: preset.rawValue)
                             if let loc = finalLocation {
@@ -196,24 +175,16 @@ struct CameraView: View {
                             modelContext.insert(newPhoto)
                             do {
                                 try modelContext.save()
-                                print("✅ [DB] Photo saved successfully")
+                                print("Photo saved successfully")
                                 updateExposuresRemaining()
                                 if currentRoll?.isCompleted == true {
                                     print("🎞️ 胶卷已拍完 \(currentRoll?.capacity ?? 27) 张，自动完成")
                                 }
                             } catch {
-                                print("❌ [DB] Failed to save photo: \(error)")
+                                print("Failed to save photo: \(error)")
                             }
-                            // 完整处理与保存结束，解除拍摄锁
-                            print("🔓 [Lock] 解除处理锁 isProcessingCapture=false")
-                            isProcessingCapture = false
                         }
                     }
-                } else {
-                    // 获取图像数据失败，解除拍摄锁与闪光覆盖
-                    showFlash = false
-                    print("❌ [Capture] 未获取到照片数据，解除处理锁")
-                    isProcessingCapture = false
                 }
                 // 移除自动返回，让用户自己决定何时返回
             }
@@ -391,9 +362,6 @@ class CameraManager: NSObject, ObservableObject {
     private var lastLogTime: Date = .distantPast
     private var lastAppliedISO: Float?
     private var lastAppliedExposureSeconds: Double?
-    // 位置日志节流
-    private var lastLocationLogTime: Date = .distantPast
-    private var lastLoggedLocation: CLLocation?
 
     // 自动测光定时器（在固定 ISO 前提下，周期性基于测光调整快门）
     private var exposureMeterTimer: Timer?
@@ -476,15 +444,10 @@ class CameraManager: NSObject, ObservableObject {
                 let angle = coordinator.videoRotationAngleForHorizonLevelCapture
                 // 仅为拍照输出设置角度，避免实时预览重复旋转
                 if let pconn = photoOutput.connection(with: .video), pconn.isVideoRotationAngleSupported(angle) {
-                    // 仅在不同才设置，避免无意义调用
-                    if abs(pconn.videoRotationAngle - angle) > 0.5 {
-                        pconn.videoRotationAngle = angle
-                    }
+                    pconn.videoRotationAngle = angle
                 }
                 if let lconn = conversionPreviewLayer?.connection, lconn.isVideoRotationAngleSupported(angle) {
-                    if abs(lconn.videoRotationAngle - angle) > 0.5 {
-                        lconn.videoRotationAngle = angle
-                    }
+                    lconn.videoRotationAngle = angle
                 }
                 // 缓存给渲染线程使用
                 self.previewRotationAngle = angle
@@ -608,9 +571,6 @@ class CameraManager: NSObject, ObservableObject {
         // 读取设备焦距信息
         readCameraSpecs(device: videoCaptureDevice)
         
-        // 优先选择 4:3 的 activeFormat，确保视频帧与成片一致的视角/FOV
-        setDeviceToBest4by3Format(videoCaptureDevice)
-
             // 固定 35mm 等效焦距
             calculateZoomFactorFor35mm()
         
@@ -676,42 +636,6 @@ class CameraManager: NSObject, ObservableObject {
             ) { _ in }
         } catch {
             print("Error setting up camera: \(error)")
-        }
-    }
-
-    // 选择并设置 4:3 的最高分辨率格式，保证预览帧比例与成片一致
-    private func setDeviceToBest4by3Format(_ device: AVCaptureDevice) {
-        var bestFormat: AVCaptureDevice.Format?
-        var bestArea: Int32 = 0
-        for format in device.formats {
-            let desc = format.formatDescription
-            let dims = CMVideoFormatDescriptionGetDimensions(desc)
-            let w = Int32(dims.width)
-            let h = Int32(dims.height)
-            guard w > 0 && h > 0 else { continue }
-            let ratio = Double(w) / Double(h)
-            // 容差 1% 认为是 4:3
-            if abs(ratio - (4.0/3.0)) > 0.01 { continue }
-            // 需支持至少 30fps
-            let supports30fps = format.videoSupportedFrameRateRanges.contains { $0.maxFrameRate >= 30.0 }
-            guard supports30fps else { continue }
-            let area = w * h
-            if area > bestArea { bestArea = area; bestFormat = format }
-        }
-        guard let best = bestFormat else { return }
-        do {
-            try device.lockForConfiguration()
-            device.activeFormat = best
-            if let range = best.videoSupportedFrameRateRanges.first {
-                let desired = min(30.0, range.maxFrameRate)
-                device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(desired))
-                device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(desired))
-            }
-            device.unlockForConfiguration()
-            let dims = CMVideoFormatDescriptionGetDimensions(best.formatDescription)
-            print("📸 设定4:3 activeFormat: \(dims.width)x\(dims.height)")
-        } catch {
-            print("⚠️ 设置4:3 activeFormat失败: \(error)")
         }
     }
     
@@ -798,9 +722,7 @@ class CameraManager: NSObject, ObservableObject {
                let connection = photoOutput.connection(with: .video) {
                 let rotationAngle = coordinator.videoRotationAngleForHorizonLevelCapture
                 if connection.isVideoRotationAngleSupported(rotationAngle) {
-                    if connection.videoRotationAngle != rotationAngle {
-                        connection.videoRotationAngle = rotationAngle
-                    }
+                    connection.videoRotationAngle = rotationAngle
                     print("📱 iOS 17设置照片旋转角度: \(rotationAngle)°")
                 } else {
                     print("⚠️ 设备不支持该旋转角度: \(rotationAngle)°")
@@ -1158,24 +1080,10 @@ extension CameraManager: CLLocationManagerDelegate {
         Task { @MainActor in
             if let location = locations.last {
                 self.currentLocation = location
-                // 节流日志：仅在时间>1s或位置变化>10m时输出一条
-                let now = Date()
-                let shouldLog: Bool = {
-                    let timeOk = now.timeIntervalSince(self.lastLocationLogTime) > 1.0
-                    if let last = self.lastLoggedLocation {
-                        let dist = location.distance(from: last)
-                        return timeOk || dist > 10
-                    }
-                    return timeOk
-                }()
-                if shouldLog {
-                    self.lastLocationLogTime = now
-                    self.lastLoggedLocation = location
-                    let age = now.timeIntervalSince(location.timestamp)
-                    print(String(format: "📍 位置更新 lat=%.6f lon=%.6f alt=%.1f acc=%.1f age=%.2fs",
-                                  location.coordinate.latitude, location.coordinate.longitude,
-                                  location.altitude, location.horizontalAccuracy, age))
-                }
+                let age = Date().timeIntervalSince(location.timestamp)
+                print(String(format: "📍 位置更新 lat=%.6f lon=%.6f alt=%.1f acc=%.1f age=%.2fs",
+                              location.coordinate.latitude, location.coordinate.longitude,
+                              location.altitude, location.horizontalAccuracy, age))
                 // 唤醒等待中的请求
                 if !self.pendingLocationRequests.isEmpty {
                     for (id, cont) in self.pendingLocationRequests { cont.resume(returning: location); self.pendingLocationRequests.removeValue(forKey: id) }
@@ -1429,26 +1337,20 @@ struct RealtimePreviewView: UIViewRepresentable {
                   let commandBuffer = commandQueue.makeCommandBuffer() else { return }
 
             var ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-            // 预览始终保持竖屏：若帧为横向（宽>高），统一旋转90°到竖向
-            if ciImage.extent.width > ciImage.extent.height {
-                ciImage = ciImage.oriented(.right)
-            }
-            // 中心裁剪为 3:4，确保预览取景与成片一致（避免拉伸/挤压）
-            do {
-                let targetAspect: CGFloat = 3.0 / 4.0
-                let e = ciImage.extent
-                let aspect = e.width / e.height
-                if abs(aspect - targetAspect) > 0.001 {
-                    if aspect > targetAspect {
-                        // 过宽，裁左右
-                        let newW = e.height * targetAspect
-                        let x = e.origin.x + (e.width - newW) / 2.0
-                        ciImage = ciImage.cropped(to: CGRect(x: x, y: e.origin.y, width: newW, height: e.height))
-                    } else {
-                        // 过高，裁上下
-                        let newH = e.width / targetAspect
-                        let y = e.origin.y + (e.height - newH) / 2.0
-                        ciImage = ciImage.cropped(to: CGRect(x: e.origin.x, y: y, width: e.width, height: newH))
+            // 根据输出连接方向对预览做旋转以匹配界面（使用缓存，避免在渲染线程里 async）
+            if let manager = manager {
+                if #available(iOS 17.0, *), let angle = manager.previewRotationAngle {
+                    if angle == 90 { ciImage = ciImage.oriented(.right) }
+                    else if angle == 180 { ciImage = ciImage.oriented(.down) }
+                    else if angle == 270 { ciImage = ciImage.oriented(.left) }
+                } else if #unavailable(iOS 17.0), let dev = manager.previewDeviceOrientation {
+                    switch dev {
+                    case .portrait: break
+                    case .portraitUpsideDown: ciImage = ciImage.oriented(.down)
+                    case .landscapeLeft: ciImage = ciImage.oriented(.left)
+                    case .landscapeRight: ciImage = ciImage.oriented(.right)
+                    case .faceUp, .faceDown, .unknown: break
+                    @unknown default: break
                     }
                 }
             }

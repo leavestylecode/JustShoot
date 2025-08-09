@@ -229,7 +229,7 @@ struct GalleryView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     // 分组显示：每个胶卷一个 Section
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 18) {
                         ForEach(rolls) { roll in
                             RollSectionView(roll: roll, gridColumns: gridColumns) { startPhoto, groupPhotos in
                                 // 预热预览：在主线程读取屏幕尺寸，避免跨 actor 访问
@@ -282,7 +282,11 @@ private struct RollSectionView: View {
                 if roll.isCompleted {
                     Text("已完成")
                         .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.green.opacity(0.2))
                         .foregroundColor(.green)
+                        .clipShape(Capsule())
                 }
             }
             // 移除分组进度条
@@ -290,12 +294,21 @@ private struct RollSectionView: View {
                 ForEach(groupPhotos) { photo in
                     PhotoThumbnailView(photo: photo)
                         .aspectRatio(1, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .clipped()
+                        .shadow(color: .black.opacity(0.15), radius: 3, x: 0, y: 1)
                         .onTapGesture { onSelect(photo, groupPhotos) }
                 }
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.06))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
@@ -314,11 +327,15 @@ struct PhotoThumbnailView: View {
         GeometryReader { geometry in
             Group {
                 if let image = thumb ?? photo.image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: geometry.size.width, height: geometry.size.width)
-                        .clipped()
+                    ZStack(alignment: .bottomLeading) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: geometry.size.width)
+                            .clipped()
+                        // 角标显示胶片名
+                        // 去掉胶片说明角标
+                    }
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))
