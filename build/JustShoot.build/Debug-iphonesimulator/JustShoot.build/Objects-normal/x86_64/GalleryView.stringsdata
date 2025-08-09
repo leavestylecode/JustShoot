@@ -47,7 +47,7 @@
         "key": "%lld/%lld",
         "location": {
           "startingColumn": 22,
-          "startingLine": 280
+          "startingLine": 279
         }
       },
       {
@@ -55,7 +55,7 @@
         "key": "已完成",
         "location": {
           "startingColumn": 26,
-          "startingLine": 284
+          "startingLine": 283
         }
       },
       {
@@ -63,7 +63,7 @@
         "key": "%lld / %lld",
         "location": {
           "startingColumn": 22,
-          "startingLine": 404
+          "startingLine": 403
         }
       },
       {
@@ -71,7 +71,7 @@
         "key": "没有照片",
         "location": {
           "startingColumn": 26,
-          "startingLine": 464
+          "startingLine": 463
         }
       },
       {
@@ -79,7 +79,7 @@
         "key": "%@",
         "location": {
           "startingColumn": 30,
-          "startingLine": 477
+          "startingLine": 476
         }
       },
       {
@@ -87,7 +87,7 @@
         "key": "胶片",
         "location": {
           "startingColumn": 34,
-          "startingLine": 484
+          "startingLine": 483
         }
       },
       {
@@ -95,7 +95,7 @@
         "key": "加载中...",
         "location": {
           "startingColumn": 30,
-          "startingLine": 684
+          "startingLine": 683
         }
       }
     ]

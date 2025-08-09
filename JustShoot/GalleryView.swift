@@ -269,7 +269,6 @@ private struct RollSectionView: View {
     let onSelect: (Photo, [Photo]) -> Void
 
     var body: some View {
-        let progress = min(1.0, Double(roll.shotsTaken) / Double(max(1, roll.capacity)))
         let groupPhotos = roll.photos.sorted(by: { $0.timestamp > $1.timestamp })
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
