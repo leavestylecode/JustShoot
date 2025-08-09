@@ -1369,22 +1369,9 @@ struct RealtimePreviewView: UIViewRepresentable {
                   let commandBuffer = commandQueue.makeCommandBuffer() else { return }
 
             var ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-            // 根据输出连接方向对预览做旋转以匹配界面（使用缓存，避免在渲染线程里 async）
-            if let manager = manager {
-                if #available(iOS 17.0, *), let angle = manager.previewRotationAngle {
-                    if angle == 90 { ciImage = ciImage.oriented(.right) }
-                    else if angle == 180 { ciImage = ciImage.oriented(.down) }
-                    else if angle == 270 { ciImage = ciImage.oriented(.left) }
-                } else if #unavailable(iOS 17.0), let dev = manager.previewDeviceOrientation {
-                    switch dev {
-                    case .portrait: break
-                    case .portraitUpsideDown: ciImage = ciImage.oriented(.down)
-                    case .landscapeLeft: ciImage = ciImage.oriented(.left)
-                    case .landscapeRight: ciImage = ciImage.oriented(.right)
-                    case .faceUp, .faceDown, .unknown: break
-                    @unknown default: break
-                    }
-                }
+            // 预览始终保持竖屏：若帧为横向（宽>高），统一旋转90°到竖向
+            if ciImage.extent.width > ciImage.extent.height {
+                ciImage = ciImage.oriented(.right)
             }
             // 中心裁剪为 3:4，确保预览取景与成片一致（避免拉伸/挤压）
             do {
