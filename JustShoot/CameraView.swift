@@ -409,6 +409,8 @@ class CameraManager: NSObject, ObservableObject {
         
         // 初始化当前方向
         updateDeviceOrientation()
+        // 若初始读取到无效方向（如横屏进入时常见的 .unknown/.faceUp），用界面方向回填
+        bootstrapInitialOrientationIfNeeded()
     }
     
     // 更新设备方向
@@ -418,6 +420,8 @@ class CameraManager: NSObject, ObservableObject {
         // 只处理有效的方向
         if orientation.isValidInterfaceOrientation {
             currentDeviceOrientation = orientation
+            // 同步缓存，供预览渲染在角度不可用时回退使用
+            self.previewDeviceOrientation = orientation
             print("📱 设备方向更新: \(orientationDescription(orientation))")
             applyVideoOrientationToOutputs()
         }
@@ -431,6 +435,27 @@ class CameraManager: NSObject, ObservableObject {
         case .landscapeLeft: return "Landscape Left"
         case .landscapeRight: return "Landscape Right"
         default: return "Unknown"
+        }
+    }
+
+    // 当 UIDeviceOrientation 初始无效时，从窗口场景的界面方向推断一次，修正横屏进入的初始状态
+    private func bootstrapInitialOrientationIfNeeded() {
+        // 仅当尚未缓存有效的预览方向时回填
+        if previewDeviceOrientation == nil || previewDeviceOrientation == .unknown {
+            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                let io = scene.interfaceOrientation
+                let dev: UIDeviceOrientation
+                switch io {
+                case .portrait: dev = .portrait
+                case .portraitUpsideDown: dev = .portraitUpsideDown
+                case .landscapeLeft: dev = .landscapeRight // 窗口方向与设备方向在横屏上相反
+                case .landscapeRight: dev = .landscapeLeft
+                default: dev = .portrait
+                }
+                self.previewDeviceOrientation = dev
+                self.currentDeviceOrientation = dev
+                applyVideoOrientationToOutputs()
+            }
         }
     }
     
@@ -1337,22 +1362,9 @@ struct RealtimePreviewView: UIViewRepresentable {
                   let commandBuffer = commandQueue.makeCommandBuffer() else { return }
 
             var ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-            // 根据输出连接方向对预览做旋转以匹配界面（使用缓存，避免在渲染线程里 async）
-            if let manager = manager {
-                if #available(iOS 17.0, *), let angle = manager.previewRotationAngle {
-                    if angle == 90 { ciImage = ciImage.oriented(.right) }
-                    else if angle == 180 { ciImage = ciImage.oriented(.down) }
-                    else if angle == 270 { ciImage = ciImage.oriented(.left) }
-                } else if #unavailable(iOS 17.0), let dev = manager.previewDeviceOrientation {
-                    switch dev {
-                    case .portrait: break
-                    case .portraitUpsideDown: ciImage = ciImage.oriented(.down)
-                    case .landscapeLeft: ciImage = ciImage.oriented(.left)
-                    case .landscapeRight: ciImage = ciImage.oriented(.right)
-                    case .faceUp, .faceDown, .unknown: break
-                    @unknown default: break
-                    }
-                }
+            // 预览固定为竖屏显示：若缓冲为横向，则统一顺时针旋转 90°
+            if ciImage.extent.width > ciImage.extent.height {
+                ciImage = ciImage.oriented(.right)
             }
             let outputImage = FilmProcessor.shared.applyLUT(to: ciImage, preset: preset) ?? ciImage
 
