@@ -4,6 +4,7 @@ import UIKit
 import ImageIO
 import CoreImage
 import CoreImage.CIFilterBuiltins
+import CoreLocation
 
 @Model
 final class Photo: Identifiable {
@@ -335,7 +336,7 @@ final class FilmProcessor {
     }
 
     // 应用 LUT 并尽量保留原图元数据（EXIF/GPS/方向等）
-    func applyLUTPreservingMetadata(imageData: Data, preset: FilmPreset, outputQuality: CGFloat = 0.95) -> Data? {
+    func applyLUTPreservingMetadata(imageData: Data, preset: FilmPreset, outputQuality: CGFloat = 0.95, location: CLLocation? = nil) -> Data? {
         guard let ciInput = CIImage(data: imageData) else { return nil }
         guard let colorCube = CIFilter(name: "CIColorCube") else { return nil }
         do {
@@ -359,13 +360,27 @@ final class FilmProcessor {
 
         // 原图元数据（延迟到后台做，不阻塞快门返回）
         guard let originalSource = CGImageSourceCreateWithData(imageData as CFData, nil) else { return nil }
-        let originalMetadata = CGImageSourceCopyPropertiesAtIndex(originalSource, 0, nil) as? [String: Any] ?? [:]
+        var originalMetadata = CGImageSourceCopyPropertiesAtIndex(originalSource, 0, nil) as? [String: Any] ?? [:]
 
         // 将渲染后的 JPEG 作为 source，再写出附带原元数据
         guard let renderedSource = CGImageSourceCreateWithData(renderedJPEG as CFData, nil) else { return nil }
         guard let mutableData = CFDataCreateMutable(nil, 0) else { return nil }
         let imageType = CGImageSourceGetType(renderedSource) ?? CGImageSourceGetType(originalSource)
         guard let destination = CGImageDestinationCreateWithData(mutableData, imageType!, 1, nil) else { return nil }
+
+        // 合并 GPS 信息（如有需要始终写入）
+        if let loc = location {
+            var gps: [String: Any] = originalMetadata[kCGImagePropertyGPSDictionary as String] as? [String: Any] ?? [:]
+            gps[kCGImagePropertyGPSLatitude as String] = abs(loc.coordinate.latitude)
+            gps[kCGImagePropertyGPSLongitude as String] = abs(loc.coordinate.longitude)
+            gps[kCGImagePropertyGPSLatitudeRef as String] = loc.coordinate.latitude >= 0 ? "N" : "S"
+            gps[kCGImagePropertyGPSLongitudeRef as String] = loc.coordinate.longitude >= 0 ? "E" : "W"
+            gps[kCGImagePropertyGPSAltitude as String] = loc.altitude
+            gps[kCGImagePropertyGPSTimeStamp as String] = ISO8601DateFormatter().string(from: loc.timestamp)
+            if loc.speed >= 0 { gps[kCGImagePropertyGPSSpeed as String] = loc.speed }
+            if loc.course >= 0 { gps[kCGImagePropertyGPSImgDirection as String] = loc.course }
+            originalMetadata[kCGImagePropertyGPSDictionary as String] = gps
+        }
 
         let finalMetadata = originalMetadata
         // 写入时同时传入压缩质量，避免后续修改目的地属性导致报错
@@ -374,5 +389,19 @@ final class FilmProcessor {
         CGImageDestinationAddImageFromSource(destination, renderedSource, 0, props as CFDictionary)
         guard CGImageDestinationFinalize(destination) else { return nil }
         return mutableData as Data
+    }
+
+    // 实时预览：对 CIImage 直接应用 LUT，返回 CIImage（用于 GPU 管线）
+    func applyLUT(to image: CIImage, preset: FilmPreset) -> CIImage? {
+        guard let colorCube = CIFilter(name: "CIColorCube") else { return nil }
+        do {
+            let lut = try loadCubeLUT(resourceName: preset.lutResourceName)
+            colorCube.setValue(image, forKey: kCIInputImageKey)
+            colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
+            colorCube.setValue(lut.data, forKey: "inputCubeData")
+            return colorCube.outputImage
+        } catch {
+            return nil
+        }
     }
 }

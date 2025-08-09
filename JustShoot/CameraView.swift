@@ -6,6 +6,7 @@ import UIKit
 import Foundation
 import CoreImage
 import CoreImage.CIFilterBuiltins
+import MetalKit
 
 struct CameraView: View {
     let preset: FilmPreset
@@ -66,9 +67,9 @@ struct CameraView: View {
                 Spacer(minLength: 8)
 
                 // 中间预览区：3:4 固定取景框（红色边框）
-                ZStack {
-                    // 实时预览：先直接显示原始相机预览（后续可换为 Metal/CI 处理）
-                    CameraPreviewView(session: cameraManager.session)
+                GeometryReader { _ in
+                    // 实时预览（应用 LUT）
+                    RealtimePreviewView(manager: cameraManager, preset: preset)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
@@ -148,7 +149,8 @@ struct CameraView: View {
                     
                     // 后台应用 LUT 并保存，提升响应
                     Task.detached(priority: .userInitiated) { [imageData = data, preset = preset] in
-                        let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(imageData: imageData, preset: preset) ?? imageData
+                        let location = await cameraManager.currentLocationSnapshot()
+                        let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(imageData: imageData, preset: preset, outputQuality: 0.95, location: location) ?? imageData
                         await MainActor.run {
                             if currentRoll == nil || (currentRoll?.isCompleted ?? true) {
                                 currentRoll = createOrFetchActiveRoll()
@@ -207,7 +209,14 @@ struct CameraView: View {
     }
     
     // 固定焦距为 35mm，不提供 UI 调整
+    @MainActor
+    private func setFocus(at point: CGPoint) {
+        // 保留占位（已改由 GeometryReader 内部计算设备坐标并调用）
+        cameraManager.setFocusAndExposure(normalizedPoint: CGPoint(x: 0.5, y: 0.5))
+    }
 }
+
+    
 
 // 相机预览视图
 struct CameraPreviewView: UIViewRepresentable {
@@ -272,6 +281,15 @@ class CameraManager: NSObject, ObservableObject {
     let session = AVCaptureSession()
     private var photoOutput = AVCapturePhotoOutput()
     private var videoCaptureDevice: AVCaptureDevice?
+    private let videoDataOutput = AVCaptureVideoDataOutput()
+    private let ciContext = CIContext(options: [CIContextOption.useSoftwareRenderer: false])
+    private let previewQueue = DispatchQueue(label: "preview.lut.queue")
+    fileprivate var latestPixelBuffer: CVPixelBuffer?
+    // 预览方向缓存，供渲染线程读取（避免在渲染线程中做 async 查询）
+    fileprivate var previewRotationAngle: CGFloat?
+    fileprivate var previewDeviceOrientation: UIDeviceOrientation?
+    // 用于点击坐标到相机坐标的换算（不显示在界面上）
+    private var conversionPreviewLayer: AVCaptureVideoPreviewLayer?
     private var photoDataHandler: ((Data?) -> Void)?
     @Published var flashMode: FlashMode = .off
     
@@ -289,6 +307,10 @@ class CameraManager: NSObject, ObservableObject {
     // 位置管理器
     private let locationManager = CLLocationManager()
     private var currentLocation: CLLocation?
+    @MainActor
+    func currentLocationSnapshot() -> CLLocation? {
+        return currentLocation
+    }
     
     // 方向管理 - iOS 17新方式
     @available(iOS 17.0, *)
@@ -310,6 +332,13 @@ class CameraManager: NSObject, ObservableObject {
 
     // 自动测光定时器（在固定 ISO 前提下，周期性基于测光调整快门）
     private var exposureMeterTimer: Timer?
+    // 拍照前的曝光补偿记录（用于拍后恢复）
+    private var previousExposureTargetBias: Float = 0
+    // 标记是否为闪光拍摄短暂锁定了曝光
+    private var lockedExposureForFlashCapture: Bool = false
+    // 点击对焦保持计时
+    private var focusHoldTimer: Timer?
+    private let tapFocusHoldDuration: TimeInterval = 3.0
     
     init(preset: FilmPreset) {
         self.preset = preset
@@ -318,6 +347,7 @@ class CameraManager: NSObject, ObservableObject {
         setupCamera()
         setupOrientationMonitoring()
     }
+    //（已弃用）点击对焦坐标换算
     
     deinit {
         if let observer = orientationObserver {
@@ -356,6 +386,7 @@ class CameraManager: NSObject, ObservableObject {
         if orientation.isValidInterfaceOrientation {
             currentDeviceOrientation = orientation
             print("📱 设备方向更新: \(orientationDescription(orientation))")
+            applyVideoOrientationToOutputs()
         }
     }
     
@@ -370,20 +401,72 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
     
-    // 兼容旧版本：转换设备方向为AVCaptureVideoOrientation
-    @available(iOS, deprecated: 17.0, message: "Use AVCaptureDeviceRotationCoordinator instead")
-    private func videoOrientation(from deviceOrientation: UIDeviceOrientation) -> AVCaptureVideoOrientation {
-        switch deviceOrientation {
-        case .portrait:
-            return .portrait
-        case .portraitUpsideDown:
-            return .portraitUpsideDown
-        case .landscapeLeft:
-            return .landscapeRight  // 注意：设备向左转，视频方向向右
-        case .landscapeRight:
-            return .landscapeLeft   // 注意：设备向右转，视频方向向左
-        default:
-            return .portrait        // 默认为竖屏
+    // 兼容旧版本：仅缓存设备方向，由渲染与EXIF写入处理方向
+    // 不再使用已废弃的 AVCaptureConnection.videoOrientation
+
+    // 同步当前方向到预览/拍照输出连接
+    private func applyVideoOrientationToOutputs() {
+        if #available(iOS 17.0, *) {
+            if let coordinator = rotationCoordinator {
+                let angle = coordinator.videoRotationAngleForHorizonLevelCapture
+                // 仅为拍照输出设置角度，避免实时预览重复旋转
+                if let pconn = photoOutput.connection(with: .video), pconn.isVideoRotationAngleSupported(angle) {
+                    pconn.videoRotationAngle = angle
+                }
+                if let lconn = conversionPreviewLayer?.connection, lconn.isVideoRotationAngleSupported(angle) {
+                    lconn.videoRotationAngle = angle
+                }
+                // 缓存给渲染线程使用
+                self.previewRotationAngle = angle
+                return
+            }
+        }
+        // 旧系统分支（或无 rotationCoordinator）
+        let dev = currentDeviceOrientation
+        // 仅缓存设备方向，渲染时根据缓存旋转图像；不再设置已废弃的 connection.videoOrientation
+        self.previewRotationAngle = nil
+        self.previewDeviceOrientation = dev
+    }
+
+    private func applyLegacyVideoOrientationToOutputs() { }
+
+    // rotationInfoForPreview 已不再需要（使用缓存属性）
+
+    // （已改为全自动对焦，保留空实现以避免调用方改动）
+    @MainActor
+    func setFocusAndExposure(normalizedPoint: CGPoint) {}
+
+    // 按距离估算手电筒亮度，并开启；返回是否启用
+    @MainActor
+    func enableAutoTorchForCapture() -> Bool {
+        guard let device = videoCaptureDevice, device.hasTorch else { return false }
+        // 仅根据被摄物体远近（镜头位置）控制强度：
+        // 期望区间（建议）：>3m≈全开(1.0)，2~3m≈0.8，1~2m≈0.6，<1m≈0.4
+        // 说明：lensPosition 为对焦位置的近似，0≈近、1≈远，不同机型非线性；阈值为经验值，可后续调优
+        let lensPos = max(0.0, min(1.0, CGFloat(device.lensPosition)))
+        // 经验阈值（可按机型微调）
+        let near1: CGFloat = 0.20  // ~1m 内
+        let near2: CGFloat = 0.45  // ~1-2m
+        let near3: CGFloat = 0.70  // ~2-3m
+        let level: CGFloat
+        if lensPos <= near1 {
+            level = 0.40
+        } else if lensPos <= near2 {
+            level = 0.60
+        } else if lensPos <= near3 {
+            level = 0.80
+        } else {
+            level = 1.00
+        }
+        print("🔦 Torch: lensPos=\(String(format: "%.3f", lensPos)) → level=\(String(format: "%.2f", level)))")
+        do {
+            try device.lockForConfiguration()
+            try device.setTorchModeOn(level: Float(level))
+            device.unlockForConfiguration()
+            return true
+        } catch {
+            print("⚠️ 开启手电筒失败: \(error)")
+            return false
         }
     }
     
@@ -480,7 +563,29 @@ class CameraManager: NSObject, ObservableObject {
                 }
             }
 
-            // 启用主体区域变化监控（用于在场景变化时重新应用固定ISO逻辑）
+            // 实时预览数据输出（供 CI 管线使用）
+            videoDataOutput.alwaysDiscardsLateVideoFrames = true
+            videoDataOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+            if session.canAddOutput(videoDataOutput) {
+                session.addOutput(videoDataOutput)
+                videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
+                applyVideoOrientationToOutputs()
+            }
+
+            // 全自动对焦/曝光默认配置
+            try videoCaptureDevice.lockForConfiguration()
+            if videoCaptureDevice.isFocusModeSupported(.continuousAutoFocus) {
+                videoCaptureDevice.focusMode = .continuousAutoFocus
+            }
+            if videoCaptureDevice.isExposureModeSupported(.continuousAutoExposure) {
+                videoCaptureDevice.exposureMode = .continuousAutoExposure
+            }
+            if videoCaptureDevice.isSmoothAutoFocusSupported {
+                videoCaptureDevice.isSmoothAutoFocusEnabled = true
+            }
+            videoCaptureDevice.unlockForConfiguration()
+
+            // 启用主体区域变化监控（自动对焦时更灵敏）
             try videoCaptureDevice.lockForConfiguration()
             if videoCaptureDevice.isSubjectAreaChangeMonitoringEnabled == false {
                 videoCaptureDevice.isSubjectAreaChangeMonitoringEnabled = true
@@ -511,9 +616,11 @@ class CameraManager: NSObject, ObservableObject {
         // 会话启动后再次应用 35mm 等效变焦，确保生效
         await MainActor.run {
             self.calculateZoomFactorFor35mm()
+            self.applyVideoOrientationToOutputs()
         }
     }
     
+    @MainActor
     func capturePhoto(completion: @escaping (Data?) -> Void) {
         photoDataHandler = completion
         
@@ -528,9 +635,44 @@ class CameraManager: NSObject, ObservableObject {
             settings.isHighResolutionPhotoEnabled = false
         }
         
-        // 设置闪光灯模式
+        // 闪光灯/手电筒策略：若开启，按距离(对焦位置)估算手电筒强度，使用持续光代替一次性闪光
+        // 使用真实闪光灯（不再用手电筒模拟），并在拍照前按距离设置曝光补偿以间接控制闪光效果
         if let device = videoCaptureDevice, device.hasFlash {
-            settings.flashMode = flashMode.avFlashMode
+            settings.flashMode = (flashMode == .on) ? .on : .off
+            if flashMode == .on {
+                // 依据对焦远近设置曝光偏置（6段更强烈），并短暂锁曝光后再拍
+                // lensPosition: 0≈近, 1≈远；阈值与偏置为经验值，可后续机型调优
+                let lensPos = max(0.0, min(1.0, device.lensPosition))
+                let bias: Float
+                if lensPos < 0.10 {           // 近到极近
+                    bias = -0.8
+                } else if lensPos < 0.25 {    // 近
+                    bias = -0.4
+                } else if lensPos < 0.50 {    // 中近
+                    bias = -0.1
+                } else if lensPos < 0.75 {    // 中远
+                    bias = 0.2
+                } else if lensPos < 0.85 {    // 远
+                    bias = 0.5
+                } else {                       // 极远
+                    bias = 0.7
+                }
+                do {
+                    try device.lockForConfiguration()
+                    previousExposureTargetBias = device.exposureTargetBias
+                    let clamped = clamp(bias, min: device.minExposureTargetBias, max: device.maxExposureTargetBias)
+                    device.setExposureTargetBias(clamped) { _ in }
+                    // 短暂锁定曝光，避免 AE 立刻抵消偏置
+                    if device.isExposureModeSupported(.locked) {
+                        device.exposureMode = .locked
+                        lockedExposureForFlashCapture = true
+                    }
+                    device.unlockForConfiguration()
+                    print(String(format: "⚡️ Flash PreBias: lensPos=%.3f → bias=%.2f (range %.1f..%.1f)", lensPos, bias, device.minExposureTargetBias, device.maxExposureTargetBias))
+                } catch {
+                    print("⚠️ 设置曝光偏置失败: \(error)")
+                }
+            }
         }
         
         // 启用完整的元数据保留
@@ -554,16 +696,7 @@ class CameraManager: NSObject, ObservableObject {
                 }
             }
         } else {
-            // 兼容iOS 16及以下版本
-            if let connection = photoOutput.connection(with: .video) {
-                if connection.isVideoOrientationSupported {
-                    let videoOrientation = videoOrientation(from: currentDeviceOrientation)
-                    connection.videoOrientation = videoOrientation
-                    print("📱 兼容模式设置照片方向: \(orientationDescription(currentDeviceOrientation)) -> \(videoOrientation)")
-                } else {
-                    print("⚠️ 设备不支持视频方向设置")
-                }
-            }
+            // 兼容iOS 16及以下版本：不再设置已废弃的 videoOrientation，仅依赖渲染与EXIF缓存
         }
         
         // 添加位置信息到照片设置中
@@ -571,7 +704,16 @@ class CameraManager: NSObject, ObservableObject {
             print("📍 添加GPS位置信息: \(location.coordinate)")
         }
         
-        photoOutput.capturePhoto(with: settings, delegate: self)
+        // 若进行了曝光锁定，延迟短暂时间再触发拍照
+        if lockedExposureForFlashCapture {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) {
+                self.photoOutput.capturePhoto(with: settings, delegate: self)
+            }
+        } else {
+            photoOutput.capturePhoto(with: settings, delegate: self)
+        }
+
+        // 拍完在代理回调里关闭手电筒（见下）
     }
     
     func toggleFlashMode() {
@@ -773,8 +915,8 @@ class CameraManager: NSObject, ObservableObject {
         
         // 配置位置管理器
         locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters // 降低精度以节省电量
-        locationManager.distanceFilter = 50 // 移动50米才更新
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.distanceFilter = 5
         
         // 不主动拉取授权状态，直接请求授权，等回调中处理，避免主线程卡顿警告
         locationManager.requestWhenInUseAuthorization()
@@ -814,6 +956,7 @@ class CameraManager: NSObject, ObservableObject {
                 
                 print("📍 开始位置更新")
                 self.locationManager.startUpdatingLocation()
+                self.locationManager.startUpdatingHeading()
                 self.startLocationTimer()
             }
         }
@@ -912,6 +1055,21 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
             Task { @MainActor in self.photoDataHandler?(nil) }
             print("Could not get photo data")
             return
+        }
+        // 拍照完成后恢复曝光补偿和曝光模式（若有调整）
+        Task { @MainActor in
+            if let device = self.videoCaptureDevice {
+                do {
+                    try device.lockForConfiguration()
+                    device.setExposureTargetBias(self.previousExposureTargetBias) { _ in }
+                    if self.lockedExposureForFlashCapture, device.isExposureModeSupported(.continuousAutoExposure) {
+                        device.exposureMode = .continuousAutoExposure
+                        self.lockedExposureForFlashCapture = false
+                    }
+                    device.unlockForConfiguration()
+                    print(String(format: "⚡️ Flash PostRestore: bias=%.2f", self.previousExposureTargetBias))
+                } catch {}
+            }
         }
         // 直接回调原始数据；后续在调用方应用 LUT 并在后台复制元数据
         Task { @MainActor in self.photoDataHandler?(imageData) }
@@ -1046,6 +1204,88 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         }
         
         return nil
+    }
+}
+
+// MARK: - 视频输出：实时预览像素缓存
+extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
+    @preconcurrency nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        Task { @MainActor in
+            self.latestPixelBuffer = buffer
+        }
+    }
+}
+
+// MARK: - SwiftUI 实时预览视图（MTKView + CI 渲染）
+struct RealtimePreviewView: UIViewRepresentable {
+    let manager: CameraManager
+    let preset: FilmPreset
+
+    func makeUIView(context: Context) -> MTKView {
+        let view = MTKView(frame: .zero, device: MTLCreateSystemDefaultDevice())
+        view.isPaused = false
+        view.enableSetNeedsDisplay = false
+        view.framebufferOnly = false
+        view.preferredFramesPerSecond = 30
+        context.coordinator.setup(view: view)
+        return view
+    }
+
+    func updateUIView(_ uiView: MTKView, context: Context) {
+        context.coordinator.preset = preset
+        context.coordinator.manager = manager
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator: NSObject, MTKViewDelegate {
+        var preset: FilmPreset = .fujiC200
+        weak var manager: CameraManager?
+        private var ciContext: CIContext = CIContext(options: [CIContextOption.useSoftwareRenderer: false])
+
+        func setup(view: MTKView) {
+            view.delegate = self
+            if let dev = view.device {
+                // 可根据需要创建命令队列，但 CIContext 会管理
+                _ = dev
+            }
+        }
+
+        func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
+
+        func draw(in view: MTKView) {
+            guard let pixelBuffer = manager?.latestPixelBuffer,
+                  let drawable = view.currentDrawable,
+                  let commandQueue = view.device?.makeCommandQueue(),
+                  let commandBuffer = commandQueue.makeCommandBuffer() else { return }
+
+            var ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+            // 根据输出连接方向对预览做旋转以匹配界面（使用缓存，避免在渲染线程里 async）
+            if let manager = manager {
+                if #available(iOS 17.0, *), let angle = manager.previewRotationAngle {
+                    if angle == 90 { ciImage = ciImage.oriented(.right) }
+                    else if angle == 180 { ciImage = ciImage.oriented(.down) }
+                    else if angle == 270 { ciImage = ciImage.oriented(.left) }
+                } else if #unavailable(iOS 17.0), let dev = manager.previewDeviceOrientation {
+                    switch dev {
+                    case .portrait: break
+                    case .portraitUpsideDown: ciImage = ciImage.oriented(.down)
+                    case .landscapeLeft: ciImage = ciImage.oriented(.left)
+                    case .landscapeRight: ciImage = ciImage.oriented(.right)
+                    case .faceUp, .faceDown, .unknown: break
+                    @unknown default: break
+                    }
+                }
+            }
+            let outputImage = FilmProcessor.shared.applyLUT(to: ciImage, preset: preset) ?? ciImage
+
+            ciContext.render(outputImage, to: drawable.texture, commandBuffer: commandBuffer, bounds: outputImage.extent, colorSpace: CGColorSpaceCreateDeviceRGB())
+            commandBuffer.present(drawable)
+            commandBuffer.commit()
+        }
     }
 }
 
