@@ -205,6 +205,7 @@ struct GalleryView: View {
     private let gridColumns = [
         GridItem(.flexible()),
         GridItem(.flexible()),
+        GridItem(.flexible()),
         GridItem(.flexible())
     ]
     
@@ -289,14 +290,7 @@ private struct RollSectionView: View {
                         .clipShape(Capsule())
                 }
             }
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.white.opacity(0.08))
-                    .frame(height: 6)
-                Capsule()
-                    .fill(Color.accentColor.opacity(0.9))
-                    .frame(width: CGFloat(progress) * UIScreen.main.bounds.width * 0.86, height: 6)
-            }
+            // 移除分组进度条
             LazyVGrid(columns: gridColumns, spacing: 8) {
                 ForEach(groupPhotos) { photo in
                     PhotoThumbnailView(photo: photo)
@@ -341,17 +335,7 @@ struct PhotoThumbnailView: View {
                             .frame(width: geometry.size.width, height: geometry.size.width)
                             .clipped()
                         // 角标显示胶片名
-                        if let name = photo.filmPreset?.displayName {
-                            Text(name)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 4)
-                                .background(Color.black.opacity(0.6))
-                                .foregroundColor(.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                                .padding(6)
-                        }
+                        // 去掉胶片说明角标
                     }
                 } else {
                     Rectangle()

@@ -15,7 +15,7 @@
         "key": "相册",
         "location": {
           "startingColumn": 30,
-          "startingLine": 247
+          "startingLine": 248
         }
       },
       {
@@ -23,7 +23,7 @@
         "key": "暂无照片",
         "location": {
           "startingColumn": 30,
-          "startingLine": 219
+          "startingLine": 220
         }
       },
       {
@@ -31,7 +31,7 @@
         "key": "前往拍摄页面开始拍照",
         "location": {
           "startingColumn": 30,
-          "startingLine": 223
+          "startingLine": 224
         }
       },
       {
@@ -39,7 +39,7 @@
         "key": "完成",
         "location": {
           "startingColumn": 28,
-          "startingLine": 251
+          "startingLine": 252
         }
       },
       {
@@ -47,7 +47,7 @@
         "key": "%lld/%lld",
         "location": {
           "startingColumn": 22,
-          "startingLine": 279
+          "startingLine": 280
         }
       },
       {
@@ -55,7 +55,7 @@
         "key": "已完成",
         "location": {
           "startingColumn": 26,
-          "startingLine": 283
+          "startingLine": 284
         }
       },
       {
@@ -63,7 +63,7 @@
         "key": "%lld / %lld",
         "location": {
           "startingColumn": 22,
-          "startingLine": 420
+          "startingLine": 404
         }
       },
       {
@@ -71,7 +71,7 @@
         "key": "没有照片",
         "location": {
           "startingColumn": 26,
-          "startingLine": 480
+          "startingLine": 464
         }
       },
       {
@@ -79,7 +79,7 @@
         "key": "%@",
         "location": {
           "startingColumn": 30,
-          "startingLine": 493
+          "startingLine": 477
         }
       },
       {
@@ -87,7 +87,7 @@
         "key": "胶片",
         "location": {
           "startingColumn": 34,
-          "startingLine": 500
+          "startingLine": 484
         }
       },
       {
@@ -95,7 +95,7 @@
         "key": "加载中...",
         "location": {
           "startingColumn": 30,
-          "startingLine": 700
+          "startingLine": 684
         }
       }
     ]
