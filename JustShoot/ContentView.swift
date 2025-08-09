@@ -169,6 +169,10 @@ struct FilmPresetGrid: View {
         case .fujiPro400H: return Color.orange
         case .fujiProvia100F: return Color.blue
         case .kodakPortra400: return Color.pink
+        case .kodakVision5219: return Color.indigo
+        case .kodakVision5203: return Color.cyan
+        case .kodak5207: return Color.mint
+        case .harmanPhoenix200: return Color.red
         }
     }
 }

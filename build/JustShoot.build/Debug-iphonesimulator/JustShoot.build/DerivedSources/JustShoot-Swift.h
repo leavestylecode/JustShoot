@@ -283,6 +283,7 @@ typedef unsigned int swift_uint4  __attribute__((__ext_vector_type__(4)));
 #endif
 @import AVFoundation;
 @import CoreLocation;
+@import CoreMedia;
 @import Foundation;
 @import ObjectiveC;
 #endif
@@ -313,10 +314,10 @@ SWIFT_CLASS("_TtC9JustShoot13CameraManager")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
-@class AVCapturePhotoOutput;
-@class AVCapturePhoto;
-@interface CameraManager (SWIFT_EXTENSION(JustShoot)) <AVCapturePhotoCaptureDelegate>
-- (void)captureOutput:(AVCapturePhotoOutput * _Nonnull)output didFinishProcessingPhoto:(AVCapturePhoto * _Nonnull)photo error:(NSError * _Nullable)error;
+@class AVCaptureOutput;
+@class AVCaptureConnection;
+@interface CameraManager (SWIFT_EXTENSION(JustShoot)) <AVCaptureVideoDataOutputSampleBufferDelegate>
+- (void)captureOutput:(AVCaptureOutput * _Nonnull)output didOutputSampleBuffer:(CMSampleBufferRef _Nonnull)sampleBuffer fromConnection:(AVCaptureConnection * _Nonnull)connection;
 @end
 
 @class CLLocationManager;
@@ -325,6 +326,12 @@ SWIFT_CLASS("_TtC9JustShoot13CameraManager")
 - (void)locationManager:(CLLocationManager * _Nonnull)manager didUpdateLocations:(NSArray<CLLocation *> * _Nonnull)locations;
 - (void)locationManager:(CLLocationManager * _Nonnull)manager didFailWithError:(NSError * _Nonnull)error;
 - (void)locationManager:(CLLocationManager * _Nonnull)manager didChangeAuthorizationStatus:(CLAuthorizationStatus)status;
+@end
+
+@class AVCapturePhotoOutput;
+@class AVCapturePhoto;
+@interface CameraManager (SWIFT_EXTENSION(JustShoot)) <AVCapturePhotoCaptureDelegate>
+- (void)captureOutput:(AVCapturePhotoOutput * _Nonnull)output didFinishProcessingPhoto:(AVCapturePhoto * _Nonnull)photo error:(NSError * _Nullable)error;
 @end
 
 #endif
@@ -620,6 +627,7 @@ typedef unsigned int swift_uint4  __attribute__((__ext_vector_type__(4)));
 #endif
 @import AVFoundation;
 @import CoreLocation;
+@import CoreMedia;
 @import Foundation;
 @import ObjectiveC;
 #endif
@@ -650,10 +658,10 @@ SWIFT_CLASS("_TtC9JustShoot13CameraManager")
 + (nonnull instancetype)new SWIFT_UNAVAILABLE_MSG("-init is unavailable");
 @end
 
-@class AVCapturePhotoOutput;
-@class AVCapturePhoto;
-@interface CameraManager (SWIFT_EXTENSION(JustShoot)) <AVCapturePhotoCaptureDelegate>
-- (void)captureOutput:(AVCapturePhotoOutput * _Nonnull)output didFinishProcessingPhoto:(AVCapturePhoto * _Nonnull)photo error:(NSError * _Nullable)error;
+@class AVCaptureOutput;
+@class AVCaptureConnection;
+@interface CameraManager (SWIFT_EXTENSION(JustShoot)) <AVCaptureVideoDataOutputSampleBufferDelegate>
+- (void)captureOutput:(AVCaptureOutput * _Nonnull)output didOutputSampleBuffer:(CMSampleBufferRef _Nonnull)sampleBuffer fromConnection:(AVCaptureConnection * _Nonnull)connection;
 @end
 
 @class CLLocationManager;
@@ -662,6 +670,12 @@ SWIFT_CLASS("_TtC9JustShoot13CameraManager")
 - (void)locationManager:(CLLocationManager * _Nonnull)manager didUpdateLocations:(NSArray<CLLocation *> * _Nonnull)locations;
 - (void)locationManager:(CLLocationManager * _Nonnull)manager didFailWithError:(NSError * _Nonnull)error;
 - (void)locationManager:(CLLocationManager * _Nonnull)manager didChangeAuthorizationStatus:(CLAuthorizationStatus)status;
+@end
+
+@class AVCapturePhotoOutput;
+@class AVCapturePhoto;
+@interface CameraManager (SWIFT_EXTENSION(JustShoot)) <AVCapturePhotoCaptureDelegate>
+- (void)captureOutput:(AVCapturePhotoOutput * _Nonnull)output didFinishProcessingPhoto:(AVCapturePhoto * _Nonnull)photo error:(NSError * _Nullable)error;
 @end
 
 #endif

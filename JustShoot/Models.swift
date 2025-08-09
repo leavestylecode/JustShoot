@@ -175,6 +175,10 @@ enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
     case fujiPro400H
     case fujiProvia100F
     case kodakPortra400
+    case kodakVision5219 // 500T
+    case kodakVision5203 // 50D
+    case kodak5207       // 250D（文件名无 Vision 前缀）
+    case harmanPhoenix200
 
     var id: String { rawValue }
 
@@ -184,6 +188,10 @@ enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
         case .fujiPro400H: return "Fuji Pro 400H"
         case .fujiProvia100F: return "Fuji Provia 100F"
         case .kodakPortra400: return "Kodak Portra 400"
+        case .kodakVision5219: return "Kodak Vision3 500T (5219)"
+        case .kodakVision5203: return "Kodak Vision3 50D (5203)"
+        case .kodak5207: return "Kodak 250D (5207)"
+        case .harmanPhoenix200: return "Harman Phoenix 200"
         }
     }
 
@@ -193,6 +201,10 @@ enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
         case .fujiPro400H: return 400
         case .fujiProvia100F: return 100
         case .kodakPortra400: return 400
+        case .kodakVision5219: return 500
+        case .kodakVision5203: return 50
+        case .kodak5207: return 250
+        case .harmanPhoenix200: return 200
         }
     }
 
@@ -203,6 +215,10 @@ enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
         case .fujiPro400H: return "FujiPro400H"
         case .fujiProvia100F: return "FujiProvia100F"
         case .kodakPortra400: return "KodakPortra400"
+        case .kodakVision5219: return "KodakVision5219"
+        case .kodakVision5203: return "KodakVision5203"
+        case .kodak5207: return "Kodak5207"
+        case .harmanPhoenix200: return "HarmanPhoenix200"
         }
     }
 }

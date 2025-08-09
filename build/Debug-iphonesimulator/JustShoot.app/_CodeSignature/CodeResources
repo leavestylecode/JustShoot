@@ -16,13 +16,29 @@
 		<data>
 		TMMACWcEtFProz4Xnt7nsQ75VkY=
 		</data>
+		<key>HarmanPhoenix200.cube</key>
+		<data>
+		sQkxqO7KzPtmkwB4S4vBfpGcRMY=
+		</data>
 		<key>Info.plist</key>
 		<data>
 		FSxLdV1V93TIoZjW8JyoCQ6P9gY=
 		</data>
+		<key>Kodak5207.cube</key>
+		<data>
+		ar/A4RA33faEJ+qwmDkLnaXantg=
+		</data>
 		<key>KodakPortra400.cube</key>
 		<data>
 		x6Qe1BigLxED4ocwhn09YirfrlM=
+		</data>
+		<key>KodakVision5203.cube</key>
+		<data>
+		wKQI207b6En8umz9E51xC8SiqaQ=
+		</data>
+		<key>KodakVision5219.cube</key>
+		<data>
+		EZlp2jyz+sN534ntFBVsJ8vYiVc=
 		</data>
 		<key>PkgInfo</key>
 		<data>
@@ -52,11 +68,39 @@
 			gJKLFmh6/l022IwFDdJypYYXqAOXgkX+MVCmPgDuogI=
 			</data>
 		</dict>
+		<key>HarmanPhoenix200.cube</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			zaxxynUwwJxsal09LmYM+lrutdnKKW5q0yKK1XYzLRI=
+			</data>
+		</dict>
+		<key>Kodak5207.cube</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			vj5Ao6c9x8AHXiL/rHFKAssLZyE6pxbf7Pv6lDSJ6VY=
+			</data>
+		</dict>
 		<key>KodakPortra400.cube</key>
 		<dict>
 			<key>hash2</key>
 			<data>
 			vKcD0tWhaufSVPqFdnEGlBhACGFF7Sw3k/z42oHPQhA=
+			</data>
+		</dict>
+		<key>KodakVision5203.cube</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			VQcLz4sRkgChDOhp2MkARNKd4ys3++qpu53QtHBesmM=
+			</data>
+		</dict>
+		<key>KodakVision5219.cube</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			pGeC0kcJv+5Iv2SElwI1HzYbOyfLMaeQMP/ou1tkMEQ=
 			</data>
 		</dict>
 	</dict>
