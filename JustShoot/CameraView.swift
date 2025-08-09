@@ -789,8 +789,11 @@ class CameraManager: NSObject, ObservableObject {
         print("📱 设备标识符/名称: \(modelName)")
 
         // 基于机型的主摄等效焦距近似（不足以严谨，但足够用于设定目标视角）
+        // 16 Pro 系列主摄 24mm；16 非 Pro 为 26mm
         // 15 Pro 系列主摄 24mm；大多数 12/13/14/15 非 Pro 为 26mm；更老设备多为 28mm
         let name = modelName
+        if name.contains("16 Pro") { return 24.0 }
+        if name.contains("16") { return 26.0 }
         if name.contains("15 Pro") { return 24.0 }
         if name.contains("15") { return 26.0 }
         if name.contains("14") || name.contains("13") || name.contains("12") || name.contains("11") || name.contains("XS") || name.contains("XR") || name.contains(" iPhone X") { return 26.0 }
@@ -820,6 +823,12 @@ class CameraManager: NSObject, ObservableObject {
     // 将设备标识符转换为可读的设备名称
     private func deviceModelName(from identifier: String) -> String {
         switch identifier {
+        // iPhone 16 系列（推测的标识符）
+        case "iPhone17,1": return "iPhone 16"
+        case "iPhone17,2": return "iPhone 16 Plus"
+        case "iPhone17,3": return "iPhone 16 Pro"
+        case "iPhone17,4": return "iPhone 16 Pro Max"
+        
         // iPhone 15 系列
         case "iPhone16,1": return "iPhone 15"
         case "iPhone16,2": return "iPhone 15 Plus"
