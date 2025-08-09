@@ -359,17 +359,8 @@ final class FilmProcessor {
     // 应用 LUT 并尽量保留原图元数据（EXIF/GPS/方向等）
     func applyLUTPreservingMetadata(imageData: Data, preset: FilmPreset, outputQuality: CGFloat = 0.95, location: CLLocation? = nil) -> Data? {
         guard let ciInput = CIImage(data: imageData) else { return nil }
-        guard let colorCube = CIFilter(name: "CIColorCube") else { return nil }
-        do {
-            let lut = try loadCubeLUT(resourceName: preset.lutResourceName)
-            colorCube.setValue(ciInput, forKey: kCIInputImageKey)
-            colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
-            colorCube.setValue(lut.data, forKey: "inputCubeData")
-        } catch {
-            return nil
-        }
-
-        guard let output = colorCube.outputImage else { return nil }
+        // 仅在拍后进行完整的胶片模拟管线（不影响实时预览性能）
+        let output = processFinalCI(ciInput, preset: preset)
 
         // 用 JPEG 表示以减少内存占用，然后用 CGImageDestination 复制元数据
         let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
@@ -441,5 +432,384 @@ final class FilmProcessor {
         } catch {
             return nil
         }
+    }
+
+    // MARK: - 拍后最终处理管线（不影响预览）
+    private func processFinalCI(_ image: CIImage, preset: FilmPreset) -> CIImage {
+        // 1) LUT（色彩基线）
+        let lutApplied = applyLUT(to: image, preset: preset) ?? image
+
+        // 预设参数（适中强度，后续可微调）
+        let tone: (CIVector, CIVector, CIVector, CIVector, CIVector)
+        let bloomRadius: CGFloat
+        let bloomIntensity: CGFloat
+        let halationRadius: CGFloat
+        let halationIntensity: CGFloat
+        // 去掉渐晕相关参数
+        // 去掉桶形/色散
+        let colorMatrix: (CIVector, CIVector, CIVector, CIVector)
+        // 颗粒统一模拟 ISO 400（固定强度/尺度），不随预设变化
+        let iso400GrainLuma: CGFloat = 0.14
+        let iso400GrainChroma: CGFloat = 0.08
+        let iso400GrainScale: CGFloat = 1.8
+
+        switch preset {
+        case .fujiC200:
+            tone = (
+                CIVector(x: 0.0, y: 0.0),
+                CIVector(x: 0.25, y: 0.22),
+                CIVector(x: 0.5, y: 0.5),
+                CIVector(x: 0.75, y: 0.85),
+                CIVector(x: 1.0, y: 1.0)
+            )
+            bloomRadius = 14; bloomIntensity = 0.18
+            halationRadius = 18; halationIntensity = 0.10
+            
+            colorMatrix = (
+                CIVector(x: 0.98, y: 0.02, z: 0.0, w: 0),
+                CIVector(x: 0.02, y: 0.98, z: 0.0, w: 0),
+                CIVector(x: 0.00, y: 0.02, z: 0.98, w: 0),
+                CIVector(x: 0, y: 0, z: 0, w: 0)
+            )
+            // no paper/scan; grain fixed to ISO400
+        case .fujiPro400H:
+            tone = (
+                CIVector(x: 0.0, y: 0.02),
+                CIVector(x: 0.25, y: 0.28),
+                CIVector(x: 0.5, y: 0.55),
+                CIVector(x: 0.75, y: 0.82),
+                CIVector(x: 1.0, y: 0.98)
+            )
+            bloomRadius = 15; bloomIntensity = 0.16
+            halationRadius = 16; halationIntensity = 0.08
+            
+            colorMatrix = (
+                CIVector(x: 1.02, y: 0.02, z: 0.0, w: 0),
+                CIVector(x: 0.01, y: 0.99, z: 0.0, w: 0),
+                CIVector(x: 0.00, y: 0.02, z: 0.98, w: 0),
+                CIVector(x: 0, y: 0, z: 0, w: 0)
+            )
+            // no paper/scan; grain fixed to ISO400
+        case .fujiProvia100F:
+            tone = (
+                CIVector(x: 0.0, y: 0.0),
+                CIVector(x: 0.25, y: 0.18),
+                CIVector(x: 0.5, y: 0.5),
+                CIVector(x: 0.75, y: 0.92),
+                CIVector(x: 1.0, y: 1.0)
+            )
+            bloomRadius = 10; bloomIntensity = 0.10
+            halationRadius = 10; halationIntensity = 0.05
+            
+            colorMatrix = (
+                CIVector(x: 1.02, y: 0.0, z: 0.0, w: 0),
+                CIVector(x: 0.0, y: 1.02, z: 0.0, w: 0),
+                CIVector(x: 0.0, y: 0.0, z: 1.02, w: 0),
+                CIVector(x: 0, y: 0, z: 0, w: 0)
+            )
+            // no paper/scan; grain fixed to ISO400
+        case .kodakPortra400:
+            tone = (
+                CIVector(x: 0.0, y: 0.02),
+                CIVector(x: 0.25, y: 0.24),
+                CIVector(x: 0.5, y: 0.54),
+                CIVector(x: 0.75, y: 0.88),
+                CIVector(x: 1.0, y: 0.98)
+            )
+            bloomRadius = 18; bloomIntensity = 0.22
+            halationRadius = 22; halationIntensity = 0.12
+            
+            colorMatrix = (
+                CIVector(x: 1.03, y: 0.02, z: 0.0, w: 0),
+                CIVector(x: 0.00, y: 0.98, z: 0.0, w: 0),
+                CIVector(x: 0.00, y: 0.02, z: 0.97, w: 0),
+                CIVector(x: 0, y: 0, z: 0, w: 0)
+            )
+            // no paper/scan; grain fixed to ISO400
+        case .kodakVision5219:
+            tone = (
+                CIVector(x: 0.0, y: 0.02),
+                CIVector(x: 0.25, y: 0.27),
+                CIVector(x: 0.5, y: 0.55),
+                CIVector(x: 0.75, y: 0.86),
+                CIVector(x: 1.0, y: 0.98)
+            )
+            bloomRadius = 20; bloomIntensity = 0.20
+            halationRadius = 26; halationIntensity = 0.14
+            
+            colorMatrix = (
+                CIVector(x: 1.0, y: 0.01, z: 0.0, w: 0),
+                CIVector(x: 0.0, y: 1.0, z: 0.01, w: 0),
+                CIVector(x: 0.01, y: 0.0, z: 1.0, w: 0),
+                CIVector(x: 0, y: 0, z: 0, w: 0)
+            )
+            // no paper/scan; grain fixed to ISO400
+        case .kodakVision5203:
+            tone = (
+                CIVector(x: 0.0, y: 0.0),
+                CIVector(x: 0.25, y: 0.26),
+                CIVector(x: 0.5, y: 0.55),
+                CIVector(x: 0.75, y: 0.90),
+                CIVector(x: 1.0, y: 1.0)
+            )
+            bloomRadius = 12; bloomIntensity = 0.12
+            halationRadius = 14; halationIntensity = 0.08
+            
+            colorMatrix = (
+                CIVector(x: 1.0, y: 0.01, z: 0.0, w: 0),
+                CIVector(x: 0.0, y: 1.0, z: 0.01, w: 0),
+                CIVector(x: 0.01, y: 0.0, z: 1.0, w: 0),
+                CIVector(x: 0, y: 0, z: 0, w: 0)
+            )
+            // no paper/scan; grain fixed to ISO400
+        case .kodak5207:
+            tone = (
+                CIVector(x: 0.0, y: 0.0),
+                CIVector(x: 0.25, y: 0.26),
+                CIVector(x: 0.5, y: 0.55),
+                CIVector(x: 0.75, y: 0.90),
+                CIVector(x: 1.0, y: 1.0)
+            )
+            bloomRadius = 14; bloomIntensity = 0.14
+            halationRadius = 18; halationIntensity = 0.10
+            
+            colorMatrix = (
+                CIVector(x: 1.0, y: 0.01, z: 0.0, w: 0),
+                CIVector(x: 0.0, y: 1.0, z: 0.01, w: 0),
+                CIVector(x: 0.01, y: 0.0, z: 1.0, w: 0),
+                CIVector(x: 0, y: 0, z: 0, w: 0)
+            )
+            // no paper/scan; grain fixed to ISO400
+        case .harmanPhoenix200:
+            tone = (
+                CIVector(x: 0.0, y: 0.0),
+                CIVector(x: 0.25, y: 0.18),
+                CIVector(x: 0.5, y: 0.5),
+                CIVector(x: 0.75, y: 0.92),
+                CIVector(x: 1.0, y: 1.0)
+            )
+            bloomRadius = 14; bloomIntensity = 0.16
+            halationRadius = 18; halationIntensity = 0.09
+            
+            colorMatrix = (
+                CIVector(x: 0.98, y: 0.02, z: 0.0, w: 0),
+                CIVector(x: 0.0, y: 1.0, z: 0.02, w: 0),
+                CIVector(x: 0.02, y: 0.02, z: 1.0, w: 0),
+                CIVector(x: 0, y: 0, z: 0, w: 0)
+            )
+            // no paper/scan; grain fixed to ISO400
+        }
+
+        // 2) Tone Curve（Toe/Shoulder）
+//        let curved = applyingToneCurve(lutApplied, points: tone)
+//
+//        // 3) Bloom（高光泛光）
+//        let bloomed = applyingBloom(curved, radius: bloomRadius, intensity: bloomIntensity)
+//
+//        // 4) Halation（红晕）：红通道加权 + Screen 叠加
+//        let halated = applyingHalation(bloomed, radius: halationRadius, intensity: halationIntensity)
+//
+//        // 5) 色彩矩阵（轻微串扰）
+//        let colored = applyingColorMatrix(halated, r: colorMatrix.0, g: colorMatrix.1, b: colorMatrix.2, bias: colorMatrix.3)
+//
+        // 6) 去掉渐晕，直接进入颗粒
+        // 颗粒（统一 ISO400 模拟）
+        let grained = applyingGrain(lutApplied, luma: iso400GrainLuma, chroma: iso400GrainChroma, scale: iso400GrainScale)
+
+        // 9) 漏光（低概率、轻强度）
+        let final = applyingLightLeak(grained, probability: 0.05, intensity: 0.08)
+        return final
+    }
+
+    // MARK: - 算子实现（拍后）
+    private func applyingToneCurve(_ image: CIImage, points: (CIVector, CIVector, CIVector, CIVector, CIVector)) -> CIImage {
+        guard let f = CIFilter(name: "CIToneCurve") else { return image }
+        f.setValue(image, forKey: kCIInputImageKey)
+        f.setValue(points.0, forKey: "inputPoint0")
+        f.setValue(points.1, forKey: "inputPoint1")
+        f.setValue(points.2, forKey: "inputPoint2")
+        f.setValue(points.3, forKey: "inputPoint3")
+        f.setValue(points.4, forKey: "inputPoint4")
+        return f.outputImage ?? image
+    }
+
+    private func applyingBloom(_ image: CIImage, radius: CGFloat, intensity: CGFloat) -> CIImage {
+        let f = CIFilter.bloom()
+        f.inputImage = image
+        f.radius = Float(max(0, radius))
+        f.intensity = Float(max(0, intensity))
+        return f.outputImage ?? image
+    }
+
+    private func applyingHalation(_ image: CIImage, radius: CGFloat, intensity: CGFloat) -> CIImage {
+        guard intensity > 0.001 else { return image }
+        let blur = CIFilter.gaussianBlur()
+        blur.inputImage = image
+        blur.radius = Float(max(0, radius))
+        let blurred = blur.outputImage ?? image
+
+        let tint = CIFilter.colorMatrix()
+        tint.inputImage = blurred
+        tint.rVector = CIVector(x: 1, y: 0, z: 0, w: 0)
+        tint.gVector = CIVector(x: 0.1, y: 0.1, z: 0.0, w: 0)
+        tint.bVector = CIVector(x: 0.0, y: 0.0, z: 0.0, w: 0)
+        let tintedBase = tint.outputImage ?? blurred
+        let tinted = tintedBase.applyingFilter("CIColorMatrix", parameters: [
+            "inputRVector": CIVector(x: intensity, y: 0, z: 0, w: 0),
+            "inputGVector": CIVector(x: 0, y: intensity * 0.25, z: 0, w: 0),
+            "inputBVector": CIVector(x: 0, y: 0, z: 0, w: 0)
+        ])
+        let blend = CIFilter.screenBlendMode()
+        blend.inputImage = tinted
+        blend.backgroundImage = image
+        return blend.outputImage ?? image
+    }
+
+    private func applyingColorMatrix(_ image: CIImage, r: CIVector, g: CIVector, b: CIVector, bias: CIVector) -> CIImage {
+        let f = CIFilter.colorMatrix()
+        f.inputImage = image
+        f.rVector = r
+        f.gVector = g
+        f.bVector = b
+        f.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
+        f.biasVector = bias
+        return f.outputImage ?? image
+    }
+
+    private func applyingLensDefects(_ image: CIImage, barrelScale: CGFloat, barrelRadiusFactor: CGFloat, chromaShift: CGFloat) -> CIImage {
+        var out = image
+        if abs(barrelScale) > 0.001, let f = CIFilter(name: "CIBumpDistortion") {
+            f.setValue(out, forKey: kCIInputImageKey)
+            let extent = out.extent
+            f.setValue(CIVector(x: extent.midX, y: extent.midY), forKey: kCIInputCenterKey)
+            f.setValue(max(10, min(extent.width, extent.height) * barrelRadiusFactor), forKey: kCIInputRadiusKey)
+            f.setValue(barrelScale, forKey: kCIInputScaleKey)
+            out = f.outputImage ?? out
+        }
+        if chromaShift > 0.001 {
+            let r = out.applyingFilter("CIColorMatrix", parameters: [
+                "inputRVector": CIVector(x: 1, y: 0, z: 0, w: 0),
+                "inputGVector": CIVector(x: 0, y: 0, z: 0, w: 0),
+                "inputBVector": CIVector(x: 0, y: 0, z: 0, w: 0)
+            ]).transformed(by: CGAffineTransform(translationX: chromaShift, y: 0))
+            let g = out.applyingFilter("CIColorMatrix", parameters: [
+                "inputRVector": CIVector(x: 0, y: 0, z: 0, w: 0),
+                "inputGVector": CIVector(x: 0, y: 1, z: 0, w: 0),
+                "inputBVector": CIVector(x: 0, y: 0, z: 0, w: 0)
+            ])
+            let b = out.applyingFilter("CIColorMatrix", parameters: [
+                "inputRVector": CIVector(x: 0, y: 0, z: 0, w: 0),
+                "inputGVector": CIVector(x: 0, y: 0, z: 0, w: 0),
+                "inputBVector": CIVector(x: 0, y: 0, z: 1, w: 0)
+            ]).transformed(by: CGAffineTransform(translationX: -chromaShift, y: 0))
+            if let addRB = CIFilter(name: "CIAdditionCompositing", parameters: [kCIInputImageKey: r, kCIInputBackgroundImageKey: b])?.outputImage,
+               let addRGB = CIFilter(name: "CIAdditionCompositing", parameters: [kCIInputImageKey: addRB, kCIInputBackgroundImageKey: g])?.outputImage {
+                out = addRGB
+            }
+        }
+        return out
+    }
+
+    private func applyingVignette(_ image: CIImage, intensity: CGFloat, radius: CGFloat) -> CIImage {
+        let f = CIFilter.vignette()
+        f.inputImage = image
+        f.intensity = Float(intensity)
+        f.radius = Float(max(0.1, radius) * 200)
+        return f.outputImage ?? image
+    }
+
+    private func applyingGrain(_ image: CIImage, luma: CGFloat, chroma: CGFloat, scale: CGFloat) -> CIImage {
+        guard luma > 0.001 || chroma > 0.001 else { return image }
+
+        // 1) 生成噪声并调整尺度
+        let base = CIFilter.randomGenerator().outputImage ?? image
+        let noise = base.transformed(by: CGAffineTransform(scaleX: 1.0 / max(0.6, scale), y: 1.0 / max(0.6, scale)))
+
+        // 2) 生成亮度掩模（阴影更强，高光更弱）
+        // 采用 ColorControls 降低对比并偏亮，随后取反得到 shadowMask
+        let lumaImage = image.applyingFilter("CIColorControls", parameters: [
+            kCIInputSaturationKey: 0.0,
+            kCIInputBrightnessKey: 0.0,
+            kCIInputContrastKey: 0.9
+        ])
+        // 归一化到 0..1 后取反：shadowMask = 1 - normalized(luma)
+        let inverted = lumaImage.applyingFilter("CIColorMatrix", parameters: [
+            "inputRVector": CIVector(x: -1, y: 0, z: 0, w: 0),
+            "inputGVector": CIVector(x: 0, y: -1, z: 0, w: 0),
+            "inputBVector": CIVector(x: 0, y: 0, z: -1, w: 0),
+            "inputBiasVector": CIVector(x: 1, y: 1, z: 1, w: 0)
+        ])
+        // 软阈处理，避免亮部完全无粒
+        let shadowMask = inverted.applyingFilter("CIGammaAdjust", parameters: ["inputPower": 1.2])
+
+        // 3) 构造颗粒贴图（明度颗粒 + 彩色细颗粒）
+        let mono = noise.applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0])
+        let monoScaled = mono.applyingFilter("CIColorMatrix", parameters: [
+            "inputRVector": CIVector(x: luma, y: 0, z: 0, w: 0),
+            "inputGVector": CIVector(x: 0, y: luma, z: 0, w: 0),
+            "inputBVector": CIVector(x: 0, y: 0, z: luma, w: 0)
+        ])
+        let chromaScaled = noise.applyingFilter("CIColorMatrix", parameters: [
+            "inputRVector": CIVector(x: chroma, y: 0, z: 0, w: 0),
+            "inputGVector": CIVector(x: 0, y: chroma * 0.8, z: 0, w: 0),
+            "inputBVector": CIVector(x: 0, y: 0, z: chroma * 0.7, w: 0)
+        ])
+        let combined = CIFilter.additionCompositing()
+        combined.inputImage = monoScaled
+        combined.backgroundImage = chromaScaled
+        let grainRGB = combined.outputImage ?? monoScaled
+
+        // 4) 用阴影掩模限制颗粒，仅在阴影/中暗区域明显
+        // 先把掩模作为 alpha 叠到颗粒
+        let maskedGrain = grainRGB.applyingFilter("CIBlendWithAlphaMask", parameters: [
+            kCIInputBackgroundImageKey: CIImage(color: .clear).cropped(to: image.extent),
+            kCIInputMaskImageKey: shadowMask
+        ])
+
+        // 5) 与原图以 SoftLight 叠加
+        let soft = CIFilter.softLightBlendMode()
+        soft.inputImage = maskedGrain.cropped(to: image.extent)
+        soft.backgroundImage = image
+        return soft.outputImage ?? image
+    }
+
+    private func applyingPaperScan(_ image: CIImage, warmth: CGFloat, tint: CGFloat, contrast: CGFloat, sharpen: CGFloat) -> CIImage {
+        var out = image
+        if let f = CIFilter(name: "CITemperatureAndTint") {
+            f.setValue(out, forKey: kCIInputImageKey)
+            f.setValue(CIVector(x: 6500, y: 0), forKey: "inputNeutral")
+            f.setValue(CIVector(x: 6500 + warmth, y: tint), forKey: "inputTargetNeutral")
+            out = f.outputImage ?? out
+        }
+        out = out.applyingFilter("CIColorControls", parameters: [kCIInputContrastKey: contrast])
+        let sharp = CIFilter.sharpenLuminance()
+        sharp.inputImage = out
+        sharp.sharpness = Float(max(0, sharpen))
+        out = sharp.outputImage ?? out
+        return out
+    }
+
+    private func applyingLightLeak(_ image: CIImage, probability: CGFloat, intensity: CGFloat) -> CIImage {
+        guard intensity > 0.001 else { return image }
+        if CGFloat.random(in: 0...1) > probability { return image }
+        let extent = image.extent
+        let centerX = Bool.random() ? extent.minX : extent.maxX
+        let center = CIVector(x: centerX, y: extent.midY)
+        let radius0: CGFloat = min(extent.width, extent.height) * 0.1
+        let radius1: CGFloat = min(extent.width, extent.height) * 0.8
+        if let grad = CIFilter(name: "CIRadialGradient", parameters: [
+            "inputCenter": center,
+            "inputRadius0": radius0,
+            "inputRadius1": radius1,
+            "inputColor0": CIColor(red: 1.0, green: 0.35, blue: 0.1, alpha: intensity),
+            "inputColor1": CIColor(red: 1, green: 0.35, blue: 0.1, alpha: 0)
+        ])?.outputImage {
+            let leak = grad.cropped(to: extent)
+            let blend = CIFilter.screenBlendMode()
+            blend.inputImage = leak
+            blend.backgroundImage = image
+            return blend.outputImage ?? image
+        }
+        return image
     }
 }

@@ -24,12 +24,10 @@ struct CameraView: View {
     }
 
     var body: some View {
-        ZStack {
+            ZStack {
             // 背景：质感黑色（多层渐变叠加）
             ZStack {
-                LinearGradient(colors: [Color(red: 0.06, green: 0.06, blue: 0.06), Color.black], startPoint: .top, endPoint: .bottom)
-                RadialGradient(gradient: Gradient(colors: [Color.white.opacity(0.06), .clear]), center: .top, startRadius: 0, endRadius: 400)
-                LinearGradient(colors: [Color.clear, Color.white.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                Color.black
             }
             .ignoresSafeArea()
 
@@ -70,15 +68,10 @@ struct CameraView: View {
                 GeometryReader { _ in
                     // 实时预览（应用 LUT）
                     RealtimePreviewView(manager: cameraManager, preset: preset)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.red, lineWidth: 2)
-                        )
-                        .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 6)
+                        // 去掉外层边框/描边/阴影
                 }
                 .aspectRatio(3/4, contentMode: .fit)
-                .padding(.horizontal, 16)
+                // 取消左右留白，保证预览填满可用宽度，与成片观感一致
 
                 Spacer(minLength: 8)
 
@@ -571,6 +564,9 @@ class CameraManager: NSObject, ObservableObject {
         // 读取设备焦距信息
         readCameraSpecs(device: videoCaptureDevice)
         
+        // 优先选择 4:3 的 activeFormat，确保视频帧与成片一致的视角/FOV
+        setDeviceToBest4by3Format(videoCaptureDevice)
+
             // 固定 35mm 等效焦距
             calculateZoomFactorFor35mm()
         
@@ -636,6 +632,42 @@ class CameraManager: NSObject, ObservableObject {
             ) { _ in }
         } catch {
             print("Error setting up camera: \(error)")
+        }
+    }
+
+    // 选择并设置 4:3 的最高分辨率格式，保证预览帧比例与成片一致
+    private func setDeviceToBest4by3Format(_ device: AVCaptureDevice) {
+        var bestFormat: AVCaptureDevice.Format?
+        var bestArea: Int32 = 0
+        for format in device.formats {
+            let desc = format.formatDescription
+            let dims = CMVideoFormatDescriptionGetDimensions(desc)
+            let w = Int32(dims.width)
+            let h = Int32(dims.height)
+            guard w > 0 && h > 0 else { continue }
+            let ratio = Double(w) / Double(h)
+            // 容差 1% 认为是 4:3
+            if abs(ratio - (4.0/3.0)) > 0.01 { continue }
+            // 需支持至少 30fps
+            let supports30fps = format.videoSupportedFrameRateRanges.contains { $0.maxFrameRate >= 30.0 }
+            guard supports30fps else { continue }
+            let area = w * h
+            if area > bestArea { bestArea = area; bestFormat = format }
+        }
+        guard let best = bestFormat else { return }
+        do {
+            try device.lockForConfiguration()
+            device.activeFormat = best
+            if let range = best.videoSupportedFrameRateRanges.first {
+                let desired = min(30.0, range.maxFrameRate)
+                device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(desired))
+                device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(desired))
+            }
+            device.unlockForConfiguration()
+            let dims = CMVideoFormatDescriptionGetDimensions(best.formatDescription)
+            print("📸 设定4:3 activeFormat: \(dims.width)x\(dims.height)")
+        } catch {
+            print("⚠️ 设置4:3 activeFormat失败: \(error)")
         }
     }
     
@@ -1351,6 +1383,25 @@ struct RealtimePreviewView: UIViewRepresentable {
                     case .landscapeRight: ciImage = ciImage.oriented(.right)
                     case .faceUp, .faceDown, .unknown: break
                     @unknown default: break
+                    }
+                }
+            }
+            // 中心裁剪为 3:4，确保预览取景与成片一致（避免拉伸/挤压）
+            do {
+                let targetAspect: CGFloat = 3.0 / 4.0
+                let e = ciImage.extent
+                let aspect = e.width / e.height
+                if abs(aspect - targetAspect) > 0.001 {
+                    if aspect > targetAspect {
+                        // 过宽，裁左右
+                        let newW = e.height * targetAspect
+                        let x = e.origin.x + (e.width - newW) / 2.0
+                        ciImage = ciImage.cropped(to: CGRect(x: x, y: e.origin.y, width: newW, height: e.height))
+                    } else {
+                        // 过高，裁上下
+                        let newH = e.width / targetAspect
+                        let y = e.origin.y + (e.height - newH) / 2.0
+                        ciImage = ciImage.cropped(to: CGRect(x: e.origin.x, y: y, width: e.width, height: newH))
                     }
                 }
             }
