@@ -282,7 +282,7 @@ final class FilmProcessor {
             throw NSError(domain: "FilmProcessor", code: -1, userInfo: [NSLocalizedDescriptionKey: "找不到 LUT 资源: \(resourceName).cube"])
         }
 
-        let text = try String(contentsOf: url)
+        let text = try String(contentsOf: url, encoding: .utf8)
         var lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
         lines.removeAll { $0.hasPrefix("#") || $0.isEmpty }
 
@@ -356,75 +356,107 @@ final class FilmProcessor {
         return nil
     }
 
-    // 应用 LUT 并尽量保留原图元数据（EXIF/GPS/方向等）
+    /// 应用 LUT 并保留/添加元数据
+    /// - Parameters:
+    ///   - imageData: 已物理旋转的照片数据（像素方向正确，无需再读 EXIF 旋转）
+    ///   - preset: 胶片预设
+    ///   - outputQuality: JPEG 压缩质量
+    ///   - location: GPS 位置（可选）
+    /// - Returns: 处理后的照片数据
     func applyLUTPreservingMetadata(imageData: Data, preset: FilmPreset, outputQuality: CGFloat = 0.95, location: CLLocation? = nil) -> Data? {
-        guard let ciInput = CIImage(data: imageData) else { return nil }
-        guard let colorCube = CIFilter(name: "CIColorCube") else { return nil }
+        // 1. 加载图像（照片已物理旋转，直接使用）
+        guard let ciInput = CIImage(data: imageData) else {
+            print("❌ [LUT] 无法从数据创建 CIImage")
+            return nil
+        }
+
+        let inputExtent = ciInput.extent
+        print("🎨 [LUT] 输入尺寸: \(Int(inputExtent.width))×\(Int(inputExtent.height))")
+
+        // 2. 应用 LUT 滤镜
+        guard let colorCube = CIFilter(name: "CIColorCube") else {
+            print("❌ [LUT] 无法创建 CIColorCube 滤镜")
+            return nil
+        }
+
         do {
             let lut = try loadCubeLUT(resourceName: preset.lutResourceName)
             colorCube.setValue(ciInput, forKey: kCIInputImageKey)
             colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
             colorCube.setValue(lut.data, forKey: "inputCubeData")
         } catch {
+            print("❌ [LUT] 加载 LUT 失败: \(error)")
             return nil
         }
 
-        guard let output = colorCube.outputImage else { return nil }
+        guard let output = colorCube.outputImage else {
+            print("❌ [LUT] 无法生成输出图像")
+            return nil
+        }
 
-        // 用 JPEG 表示以减少内存占用，然后用 CGImageDestination 复制元数据
+        let outputExtent = output.extent
+        print("✅ [LUT] 输出尺寸: \(Int(outputExtent.width))×\(Int(outputExtent.height))")
+
+        // 3. 渲染为 JPEG
         let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         guard let renderedJPEG = ciContext.jpegRepresentation(
             of: output,
             colorSpace: colorSpace,
             options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
-        ) else { return nil }
+        ) else {
+            print("❌ [LUT] 渲染 JPEG 失败")
+            return nil
+        }
 
-        // 原图元数据（延迟到后台做，不阻塞快门返回）
+        // 4. 提取原始元数据
         guard let originalSource = CGImageSourceCreateWithData(imageData as CFData, nil) else { return nil }
-        var originalMetadata = CGImageSourceCopyPropertiesAtIndex(originalSource, 0, nil) as? [String: Any] ?? [:]
+        var metadata = CGImageSourceCopyPropertiesAtIndex(originalSource, 0, nil) as? [String: Any] ?? [:]
 
-        // 将渲染后的 JPEG 作为 source，再写出附带原元数据
-        guard let renderedSource = CGImageSourceCreateWithData(renderedJPEG as CFData, nil) else { return nil }
-        guard let mutableData = CFDataCreateMutable(nil, 0) else { return nil }
-        let imageType = CGImageSourceGetType(renderedSource) ?? CGImageSourceGetType(originalSource)
-        guard let destination = CGImageDestinationCreateWithData(mutableData, imageType!, 1, nil) else { return nil }
+        // 5. 确保方向标记为 .up（因为像素已物理旋转）
+        metadata[kCGImagePropertyOrientation as String] = 1
+        if var tiff = metadata[kCGImagePropertyTIFFDictionary as String] as? [String: Any] {
+            tiff[kCGImagePropertyTIFFOrientation as String] = 1
+            metadata[kCGImagePropertyTIFFDictionary as String] = tiff
+        }
 
-        // 合并 GPS 信息（如有需要始终写入）
+        // 6. 添加 GPS 信息
         if let loc = location {
-            var gps: [String: Any] = originalMetadata[kCGImagePropertyGPSDictionary as String] as? [String: Any] ?? [:]
-            // 坐标与参考方向
+            var gps: [String: Any] = metadata[kCGImagePropertyGPSDictionary as String] as? [String: Any] ?? [:]
             gps[kCGImagePropertyGPSLatitude as String] = abs(loc.coordinate.latitude)
             gps[kCGImagePropertyGPSLongitude as String] = abs(loc.coordinate.longitude)
             gps[kCGImagePropertyGPSLatitudeRef as String] = loc.coordinate.latitude >= 0 ? "N" : "S"
             gps[kCGImagePropertyGPSLongitudeRef as String] = loc.coordinate.longitude >= 0 ? "E" : "W"
-            // 海拔与参考（0=海平面以上，1=以下）
             gps[kCGImagePropertyGPSAltitude as String] = abs(loc.altitude)
             gps[kCGImagePropertyGPSAltitudeRef as String] = loc.altitude >= 0 ? 0 : 1
-            // 时间（UTC）：分别提供 DateStamp 与 TimeStamp，兼容 Photos/EXIF 读取
+
             let utc = TimeZone(secondsFromGMT: 0)
             let dateFmt = DateFormatter(); dateFmt.dateFormat = "yyyy:MM:dd"; dateFmt.timeZone = utc
             let timeFmt = DateFormatter(); timeFmt.dateFormat = "HH:mm:ss.SS"; timeFmt.timeZone = utc
             gps[kCGImagePropertyGPSDateStamp as String] = dateFmt.string(from: loc.timestamp)
             gps[kCGImagePropertyGPSTimeStamp as String] = timeFmt.string(from: loc.timestamp)
-            // 速度（转换为 km/h）与参考单位
+
             if loc.speed >= 0 {
-                let kmh = loc.speed * 3.6
-                gps[kCGImagePropertyGPSSpeed as String] = kmh
-                gps[kCGImagePropertyGPSSpeedRef as String] = "K" // km/h
+                gps[kCGImagePropertyGPSSpeed as String] = loc.speed * 3.6
+                gps[kCGImagePropertyGPSSpeedRef as String] = "K"
             }
-            // 航向与参考（真北）
             if loc.course >= 0 {
                 gps[kCGImagePropertyGPSImgDirection as String] = loc.course
                 gps[kCGImagePropertyGPSImgDirectionRef as String] = "T"
             }
-            originalMetadata[kCGImagePropertyGPSDictionary as String] = gps
+            metadata[kCGImagePropertyGPSDictionary as String] = gps
         }
 
-        let finalMetadata = originalMetadata
-        // 写入时同时传入压缩质量，避免后续修改目的地属性导致报错
-        var props = finalMetadata
-        props[kCGImageDestinationLossyCompressionQuality as String] = outputQuality
-        CGImageDestinationAddImageFromSource(destination, renderedSource, 0, props as CFDictionary)
+        // 7. 写入最终图像
+        guard let renderedSource = CGImageSourceCreateWithData(renderedJPEG as CFData, nil),
+              let mutableData = CFDataCreateMutable(nil, 0),
+              let imageType = CGImageSourceGetType(renderedSource),
+              let destination = CGImageDestinationCreateWithData(mutableData, imageType, 1, nil) else {
+            return nil
+        }
+
+        metadata[kCGImageDestinationLossyCompressionQuality as String] = outputQuality
+        CGImageDestinationAddImageFromSource(destination, renderedSource, 0, metadata as CFDictionary)
+
         guard CGImageDestinationFinalize(destination) else { return nil }
         return mutableData as Data
     }

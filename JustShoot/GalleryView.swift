@@ -494,6 +494,35 @@ struct PhotoDetailView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.bottom, 2)
                         
+                        // 照片尺寸和比例信息（用于调试）
+                        if let imageDimensions = getImageDimensions(from: viewModel.currentPhoto.imageData) {
+                            HStack(spacing: 8) {
+                                Text("照片尺寸")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                Text(imageDimensions.sizeString)
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.white.opacity(0.08))
+                                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+
+                                Text("比例")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                Text(imageDimensions.aspectString)
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.white.opacity(0.08))
+                                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.bottom, 8)
+                        }
+
                         // 拍摄参数和设备信息合并显示
                         LazyVGrid(columns: [
                             GridItem(.flexible()),
@@ -506,7 +535,7 @@ struct PhotoDetailView: View {
                             ExifInfoView(title: "焦距", value: viewModel.currentPhoto.focalLength)
                             ExifInfoView(title: "曝光", value: viewModel.currentPhoto.exposureMode)
                             ExifInfoView(title: "闪光灯", value: viewModel.currentPhoto.flashMode)
-                            
+
                             if let device = viewModel.currentPhoto.deviceInfo {
                                 ExifInfoView(title: "制造商", value: device.make)
                                 ExifInfoView(title: "型号", value: device.model)
@@ -575,6 +604,36 @@ struct PhotoDetailView: View {
         return formatter
     }
     
+    // 获取图片尺寸信息
+    private func getImageDimensions(from imageData: Data) -> (sizeString: String, aspectString: String)? {
+        print("📊 [详情] 开始获取图片尺寸，数据大小: \(imageData.count) bytes")
+
+        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil) else {
+            print("❌ [详情] 无法创建 CGImageSource")
+            return nil
+        }
+
+        guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] else {
+            print("❌ [详情] 无法读取图片属性")
+            return nil
+        }
+
+        guard let width = properties[kCGImagePropertyPixelWidth as String] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight as String] as? Int else {
+            print("❌ [详情] 无法读取宽度或高度")
+            print("📊 [详情] 属性内容: \(properties.keys)")
+            return nil
+        }
+
+        let aspect = Double(width) / Double(height)
+        let sizeString = "\(width)×\(height)"
+        let aspectString = String(format: "%.3f (%d:%d)", aspect, width, height)
+
+        print("✅ [详情] 照片尺寸: \(sizeString), 比例: \(aspectString)")
+
+        return (sizeString, aspectString)
+    }
+
     // 保存到照片库
     private func saveToPhotoLibrary() {
         guard let image = viewModel.currentPhoto.image else {
