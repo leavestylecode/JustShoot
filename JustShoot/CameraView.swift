@@ -13,11 +13,16 @@ struct CameraView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Roll.createdAt, order: .reverse) private var rolls: [Roll]
+    @Query(sort: \Photo.timestamp, order: .reverse) private var allPhotos: [Photo]
     @StateObject private var cameraManager: CameraManager
     @State private var showFlash = false
     @State private var exposuresRemaining: Int = 27
     @State private var currentRoll: Roll?
-    
+    @State private var isCapturing = false
+    @State private var lastCapturedPhoto: Photo?
+    @State private var lastPhotoThumbnail: UIImage?
+    @State private var showingGallery = false
+
     init(preset: FilmPreset) {
         self.preset = preset
         _cameraManager = StateObject(wrappedValue: CameraManager(preset: preset))
@@ -66,86 +71,154 @@ struct CameraView: View {
 
                 Spacer(minLength: 8)
 
-                // 中间预览区：3:4 固定取景框（红色边框）
+                // 中间预览区：3:4 固定取景框
                 GeometryReader { _ in
-                    // 实时预览（应用 LUT）
                     RealtimePreviewView(manager: cameraManager, preset: preset)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.red, lineWidth: 2)
-                        )
-                        .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 6)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .shadow(color: .black.opacity(0.5), radius: 12, x: 0, y: 8)
                 }
                 .aspectRatio(3/4, contentMode: .fit)
                 .padding(.horizontal, 16)
 
                 Spacer(minLength: 8)
 
-                // 底部：左侧闪光 + 中间快门
-                ZStack {
-                    // 中间快门（绿色）
-                    Button(action: { capturePhoto() }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color(red: 0.18, green: 0.80, blue: 0.36))
-                                .frame(width: 82, height: 82)
-                                .shadow(color: .black.opacity(0.45), radius: 8, x: 0, y: 6)
-                            Circle()
-                                .stroke(Color.black.opacity(0.6), lineWidth: 3)
-                                .frame(width: 70, height: 70)
-                        }
+                // 底部控制区：左侧闪光灯 + 中间快门 + 右侧缩略图
+                HStack(alignment: .center) {
+                    // 左侧闪光灯按钮
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        cameraManager.toggleFlashMode()
+                    }) {
+                        let isOn = cameraManager.flashMode == .on
+                        Image(systemName: isOn ? "bolt.fill" : "bolt.slash.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(isOn ? Color.black : Color.white.opacity(0.8))
+                            .frame(width: 44, height: 44)
+                            .background(isOn ? Color.yellow : Color.white.opacity(0.12))
+                            .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
 
-                    // 左侧闪光按钮
-                    HStack {
-                        Button(action: { cameraManager.toggleFlashMode() }) {
-                            let isOn = cameraManager.flashMode == .on
-                            Image(systemName: "bolt.fill")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundStyle(isOn ? Color.black : Color.white)
-                                .frame(width: 40, height: 40)
-                                .background(isOn ? Color.yellow : Color.white.opacity(0.10))
-                                .clipShape(Circle())
-                        }
+                    Spacer()
 
-                        Spacer()
+                    // 中间快门按钮（白色圆环设计）
+                    Button(action: { capturePhoto() }) {
+                        ZStack {
+                            // 外圈白色环
+                            Circle()
+                                .stroke(Color.white, lineWidth: 4)
+                                .frame(width: 72, height: 72)
+                            // 内圈按钮
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 60, height: 60)
+                                .scaleEffect(isCapturing ? 0.9 : 1.0)
+                                .animation(.easeInOut(duration: 0.1), value: isCapturing)
+                        }
+                        .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 4)
                     }
-                    .padding(.horizontal, 16)
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    // 右侧最近照片缩略图
+                    Button(action: { showingGallery = true }) {
+                        if let lastPhoto = lastCapturedPhoto, let thumb = lastPhotoThumbnail {
+                            Image(uiImage: thumb)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 44, height: 44)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                )
+                        } else {
+                            Image(systemName: "photo.on.rectangle")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(Color.white.opacity(0.6))
+                                .frame(width: 44, height: 44)
+                                .background(Color.white.opacity(0.12))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                    }
+                    .buttonStyle(.plain)
                 }
-                
-                Spacer(minLength: 8)
+                .padding(.horizontal, 40)
+                .padding(.bottom, 20)
             }
 
-            // 闪光效果
+            // 快门闪光效果
             if showFlash {
                 Color.white
                     .ignoresSafeArea()
-                    .opacity(0.85)
-                    .animation(.easeInOut(duration: 0.1), value: showFlash)
+                    .opacity(0.7)
             }
         }
         .statusBarHidden(true)
         .onAppear {
-            // 预加载 LUT，提升首次拍摄速度
+            // 锁定为竖屏
+            OrientationManager.shared.lockOrientation(.portrait)
+            // 强制旋转到竖屏
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+            }
+
             FilmProcessor.shared.preload(preset: preset)
             cameraManager.requestCameraPermission()
             prepareCurrentRoll()
             updateExposuresRemaining()
+            loadLastPhotoThumbnail()
         }
-        .onDisappear { cameraManager.stopLocationServices() }
+        .onDisappear {
+            // 解锁方向
+            OrientationManager.shared.unlockOrientation()
+            cameraManager.stopLocationServices()
+        }
+        .fullScreenCover(isPresented: $showingGallery) {
+            GalleryView()
+        }
+        .onChange(of: allPhotos.count) { _, _ in
+            loadLastPhotoThumbnail()
+        }
+    }
+
+    private func loadLastPhotoThumbnail() {
+        guard let photo = allPhotos.first else {
+            lastCapturedPhoto = nil
+            lastPhotoThumbnail = nil
+            return
+        }
+        lastCapturedPhoto = photo
+        Task {
+            let thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: 88)
+            await MainActor.run {
+                lastPhotoThumbnail = thumb
+            }
+        }
     }
     
     private func capturePhoto() {
-        // iOS 18 优化：立即触发快门反馈，不等待相机回调
+        // 防止重复拍摄
+        guard !isCapturing else { return }
+
+        // 立即触发触觉反馈
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
-        // 快门动画（异步，模拟机械快门）
+        // 快门按压动画 + 闪光效果
         Task { @MainActor in
-            showFlash = true
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
-            showFlash = false
+            isCapturing = true
+            try? await Task.sleep(nanoseconds: 80_000_000) // 0.08s 按压效果
+
+            withAnimation(.easeOut(duration: 0.08)) {
+                showFlash = true
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s 闪光
+            withAnimation(.easeIn(duration: 0.1)) {
+                showFlash = false
+            }
+
+            isCapturing = false
         }
 
         // 触发拍摄（回调仅处理数据）
@@ -1205,13 +1278,26 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         }
 
         Task.detached(priority: .userInitiated) {
+            // 原始照片信息
+            if let source = CGImageSourceCreateWithData(imageData as CFData, nil),
+               let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] {
+                let width = props[kCGImagePropertyPixelWidth as String] as? Int ?? 0
+                let height = props[kCGImagePropertyPixelHeight as String] as? Int ?? 0
+                let exifOrientation = props[kCGImagePropertyOrientation as String] as? UInt32 ?? 0
+                print("📸 [照片] 原始尺寸: \(width)×\(height), EXIF方向: \(exifOrientation)")
+            }
+
             // 读取照片的 EXIF 方向并物理旋转像素
             let rotatedData = self.applyExifOrientationToPixels(imageData: imageData)
 
             // 调试日志
-            if let ciImage = CIImage(data: rotatedData ?? imageData) {
-                let extent = ciImage.extent
-                print("📸 [照片] 最终尺寸: \(Int(extent.width))×\(Int(extent.height))")
+            if let rotatedData = rotatedData,
+               let source = CGImageSourceCreateWithData(rotatedData as CFData, nil),
+               let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] {
+                let width = props[kCGImagePropertyPixelWidth as String] as? Int ?? 0
+                let height = props[kCGImagePropertyPixelHeight as String] as? Int ?? 0
+                let exifOrientation = props[kCGImagePropertyOrientation as String] as? UInt32 ?? 0
+                print("📸 [照片] 旋转后尺寸: \(width)×\(height), EXIF方向: \(exifOrientation)")
             }
 
             // 回调处理后的数据
@@ -1363,9 +1449,18 @@ struct RealtimePreviewView: UIViewRepresentable {
             var ciImage = CIImage(cvPixelBuffer: pixelBuffer)
             let rawExtent = ciImage.extent
 
-            // 2. 获取当前设备方向并应用旋转
-            // 使用缓存的方向角度（主线程已计算好），避免跨线程访问
-            if let angle = manager?.previewRotationAngle {
+            // 2. 判断是否需要旋转
+            // 相机预览应该是竖屏（高 > 宽），如果是横向buffer（宽 > 高），需要旋转90度
+            let isLandscapeBuffer = rawExtent.width > rawExtent.height
+            let drawableSize = CGSize(width: drawable.texture.width, height: drawable.texture.height)
+            let isPortraitView = drawableSize.height > drawableSize.width
+
+            // 如果 buffer 是横向的，但视图是竖向的，需要旋转
+            if isLandscapeBuffer && isPortraitView {
+                // 强制旋转 90 度使其变为竖向
+                ciImage = ciImage.oriented(.right)
+            } else if let angle = manager?.previewRotationAngle, angle != 0 {
+                // 否则使用 RotationCoordinator 提供的角度
                 let orientation = orientationFromAngle(angle)
                 ciImage = ciImage.oriented(orientation)
             }
@@ -1375,7 +1470,6 @@ struct RealtimePreviewView: UIViewRepresentable {
             let imageExtent = lutImage.extent
 
             // 4. 计算填充渲染区域（保持比例，居中显示）
-            let drawableSize = CGSize(width: drawable.texture.width, height: drawable.texture.height)
             let targetRect = aspectFillRect(imageSize: imageExtent.size, targetSize: drawableSize)
 
             // 5. 将图像缩放到目标区域
@@ -1395,7 +1489,9 @@ struct RealtimePreviewView: UIViewRepresentable {
             let now = Date()
             if now.timeIntervalSince(lastLogTime) >= logInterval {
                 lastLogTime = now
-                print("🎥 [预览] 原始:\(Int(rawExtent.width))×\(Int(rawExtent.height)) → 旋转后:\(Int(imageExtent.width))×\(Int(imageExtent.height)) → 显示:\(Int(targetRect.width))×\(Int(targetRect.height))")
+                let rotationAngle = manager?.previewRotationAngle ?? -1
+                let autoRotated = isLandscapeBuffer && isPortraitView
+                print("🎥 [预览] 原始:\(Int(rawExtent.width))×\(Int(rawExtent.height)) 自动旋转:\(autoRotated) 角度:\(Int(rotationAngle))° → 处理后:\(Int(imageExtent.width))×\(Int(imageExtent.height)) → 显示:\(Int(targetRect.width))×\(Int(targetRect.height))")
             }
         }
 

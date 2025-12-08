@@ -1,73 +1,95 @@
 import SwiftUI
 import SwiftData
+import AVFoundation
+import CoreLocation
+
+// MARK: - 按压缩放按钮样式
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var photos: [Photo]
     @State private var selectedPreset: FilmPreset?
     @State private var showingGallery = false
-    
+    @State private var isPreloading = true
+
     var body: some View {
         NavigationView {
             ZStack {
-                // 渐变背景
-                LinearGradient(
-                    gradient: Gradient(colors: [Color.black, Color.gray.opacity(0.8)]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-                
-                VStack(spacing: 40) {
-                    Spacer()
-                    
-                    // App标题
-                    VStack(spacing: 8) {
-                        Image(systemName: "camera.aperture")
-                            .font(.system(size: 60))
-                            .foregroundColor(.white)
-                        Text("JustShoot")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                        Text("简单 · 纯粹 · 专业")
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                    
-                    Spacer()
-                    
-                    // 四个胶片入口
-                    VStack(spacing: 14) {
-                        FilmPresetGrid { preset in
-                            selectedPreset = preset
-                        }
+                // 纯黑背景
+                Color.black.ignoresSafeArea()
 
-                        // 相册按钮
-                        Button(action: {
-                            showingGallery = true
-                        }) {
-                            HStack {
-                                Image(systemName: "photo.on.rectangle")
-                                    .font(.title2)
-                                Text("相册 (\(photos.count))")
-                                    .font(.title2)
-                                    .fontWeight(.semibold)
-                            }
+                VStack(spacing: 0) {
+                    // 顶部标题区域
+                    VStack(spacing: 4) {
+                        Text("JustShoot")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 60)
-                            .background(Color.white.opacity(0.2))
-                            .cornerRadius(15)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 15)
-                                    .stroke(Color.white.opacity(0.5), lineWidth: 1)
-                            )
-                        }
+                        Text(isPreloading ? "正在准备相机..." : "选择胶卷开始拍摄")
+                            .font(.system(size: 13))
+                            .foregroundColor(.white.opacity(0.5))
                     }
-                    .padding(.horizontal, 40)
-                    
+                    .padding(.top, 20)
+                    .padding(.bottom, 24)
+
+                    // 胶卷列表
+                    ScrollView(.vertical, showsIndicators: false) {
+                        LazyVStack(spacing: 12) {
+                            ForEach(FilmPreset.allCases) { preset in
+                                FilmPresetCard(preset: preset, rolls: rolls) {
+                                    selectedPreset = preset
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 100) // 为底部按钮留空间
+                    }
+
                     Spacer()
+                }
+
+                // 底部相册入口
+                VStack {
+                    Spacer()
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        showingGallery = true
+                    }) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "photo.stack")
+                                .font(.system(size: 18, weight: .medium))
+                            Text("相册")
+                                .font(.system(size: 17, weight: .semibold))
+                            if photos.count > 0 {
+                                Text("\(photos.count)")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.black)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(Color.white)
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(Color.white.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(ScaleButtonStyle())
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
                 }
             }
             .navigationBarHidden(true)
@@ -78,101 +100,144 @@ struct ContentView: View {
         .fullScreenCover(isPresented: $showingGallery) {
             GalleryView()
         }
+        .task {
+            await preloadResources()
+        }
     }
-} 
 
-// MARK: - 胶片预设宫格
-struct FilmPresetGrid: View {
-    let onSelect: (FilmPreset) -> Void
-    private let columns = [GridItem(.flexible()), GridItem(.flexible())]
     @Query(sort: \Roll.createdAt, order: .reverse) private var rolls: [Roll]
-    
-    var body: some View {
-        LazyVGrid(columns: columns, spacing: 16) {
-            ForEach(FilmPreset.allCases) { preset in
-                Button {
-                    onSelect(preset)
-                } label: {
-                    ZStack(alignment: .topTrailing) {
-                        let active = rolls.first { $0.presetName == preset.rawValue && !$0.isCompleted }
-                        let isContinue = (active != nil)
-                        let remaining = active?.exposuresRemaining ?? 27
-                        let shots = (active?.shotsTaken ?? 0)
-                        let capacity = (active?.capacity ?? 27)
-                        let accent = accentColor(for: preset)
 
-                        VStack(spacing: 10) {
-                            Image(systemName: "camera.filters")
-                                .font(.system(size: 22, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 44, height: 44)
-                                .background(accent.opacity(0.9))
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            Text(preset.displayName)
-                                .font(.subheadline)
-                                .foregroundColor(.white)
-                                .lineLimit(1)
-                            HStack(spacing: 6) {
-                                Text("ISO \(Int(preset.iso))")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.8))
-                                if isContinue {
-                                    Text("剩余 \(remaining)")
-                                        .font(.caption2)
-                                        .foregroundColor(accent)
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(
-                                colors: [accent.opacity(0.22), Color.white.opacity(0.08)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(Color.white.opacity(0.25), lineWidth: 1)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay(alignment: .bottomLeading) {
-                            if isContinue {
-                                Capsule()
-                                    .fill(Color.white.opacity(0.12))
-                                    .frame(height: 6)
-                                    .overlay(alignment: .leading) {
-                                        Capsule()
-                                            .fill(accent.opacity(0.9))
-                                            .frame(width: max(6, CGFloat(shots) / CGFloat(max(1, capacity)) * UIScreen.main.bounds.width / 2.2), height: 6)
-                                    }
-                                    .padding(.horizontal, 12)
-                                    .padding(.bottom, 8)
-                            }
-                        }
-                        // 右上角状态圆点：黄=继续，绿=新建
-                        Circle()
-                            .fill((isContinue ? Color.yellow : Color.green).opacity(0.95))
-                            .frame(width: 10, height: 10)
-                            .padding(10)
+    /// 预加载相机资源：LUT 文件 + 相机权限预请求
+    private func preloadResources() async {
+        // 1. 预加载所有 LUT 文件（后台线程）
+        await Task.detached(priority: .userInitiated) {
+            for preset in FilmPreset.allCases {
+                FilmProcessor.shared.preload(preset: preset)
+            }
+        }.value
+
+        // 2. 预请求相机权限（让用户提前授权，避免进入相机时弹窗）
+        let cameraStatus = AVCaptureDevice.authorizationStatus(for: .video)
+        if cameraStatus == .notDetermined {
+            _ = await AVCaptureDevice.requestAccess(for: .video)
+        }
+
+        // 3. 预请求位置权限
+        let locationManager = CLLocationManager()
+        if locationManager.authorizationStatus == .notDetermined {
+            locationManager.requestWhenInUseAuthorization()
+        }
+
+        // 完成预加载
+        await MainActor.run {
+            withAnimation(.easeOut(duration: 0.3)) {
+                isPreloading = false
+            }
+        }
+    }
+}
+
+// MARK: - 胶卷卡片
+struct FilmPresetCard: View {
+    let preset: FilmPreset
+    let rolls: [Roll]
+    let onTap: () -> Void
+
+    @State private var isPressed = false
+
+    private var activeRoll: Roll? {
+        rolls.first { $0.presetName == preset.rawValue && !$0.isCompleted }
+    }
+
+    private var hasActiveRoll: Bool { activeRoll != nil }
+    private var shotsTaken: Int { activeRoll?.shotsTaken ?? 0 }
+    private var capacity: Int { activeRoll?.capacity ?? 27 }
+    private var progress: CGFloat { CGFloat(shotsTaken) / CGFloat(max(1, capacity)) }
+
+    private var accentColor: Color {
+        switch preset {
+        case .fujiC200: return Color(red: 0.2, green: 0.7, blue: 0.6)
+        case .fujiPro400H: return Color(red: 0.95, green: 0.6, blue: 0.2)
+        case .fujiProvia100F: return Color(red: 0.3, green: 0.5, blue: 0.9)
+        case .kodakPortra400: return Color(red: 0.95, green: 0.5, blue: 0.5)
+        case .kodakVision5219: return Color(red: 0.4, green: 0.3, blue: 0.7)
+        case .kodakVision5203: return Color(red: 0.3, green: 0.7, blue: 0.8)
+        case .kodak5207: return Color(red: 0.4, green: 0.8, blue: 0.6)
+        case .harmanPhoenix200: return Color(red: 0.9, green: 0.3, blue: 0.3)
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            // 左侧色块图标
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(accentColor)
+                .frame(width: 48, height: 48)
+                .overlay(
+                    Image(systemName: "film")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.white)
+                )
+
+            // 中间信息
+            VStack(alignment: .leading, spacing: 4) {
+                Text(preset.displayName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+
+                HStack(spacing: 8) {
+                    Text("ISO \(Int(preset.iso))")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.5))
+
+                    if hasActiveRoll {
+                        Text("\(shotsTaken)/\(capacity)")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(accentColor)
                     }
                 }
             }
-        }
-        .padding(.horizontal, 8)
-    }
 
-    private func accentColor(for preset: FilmPreset) -> Color {
-        switch preset {
-        case .fujiC200: return Color.teal
-        case .fujiPro400H: return Color.orange
-        case .fujiProvia100F: return Color.blue
-        case .kodakPortra400: return Color.pink
-        case .kodakVision5219: return Color.indigo
-        case .kodakVision5203: return Color.cyan
-        case .kodak5207: return Color.mint
-        case .harmanPhoenix200: return Color.red
+            Spacer()
+
+            // 右侧状态
+            VStack(alignment: .trailing, spacing: 6) {
+                if hasActiveRoll {
+                    // 进度条
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.white.opacity(0.1))
+                            .frame(width: 50, height: 4)
+                        Capsule()
+                            .fill(accentColor)
+                            .frame(width: 50 * progress, height: 4)
+                    }
+                    Text("继续")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(accentColor)
+                } else {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white.opacity(0.3))
+                }
+            }
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(Color.white.opacity(isPressed ? 0.12 : 0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(hasActiveRoll ? accentColor.opacity(0.4) : Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .scaleEffect(isPressed ? 0.97 : 1.0)
+        .animation(.easeOut(duration: 0.15), value: isPressed)
+        .onTapGesture {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            onTap()
+        }
+        .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
+            isPressed = pressing
+        }, perform: {})
     }
 }
