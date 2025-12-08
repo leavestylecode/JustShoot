@@ -508,9 +508,13 @@ struct PhotoDetailView: View {
 
     @StateObject private var viewModel: PhotoDetailViewModel
     @State private var saveStatus: SaveStatus = .none
-    @State private var showingInfo = true
+    @State private var showingInfo = false
     @State private var currentIndex: Int = 0
     @State private var showDeleteConfirm = false
+    @State private var imageScale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var imageOffset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
 
     enum SaveStatus {
         case none, saving, success, failed
@@ -525,158 +529,120 @@ struct PhotoDetailView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // 顶部导航栏
-            HStack(spacing: 16) {
-                // 关闭按钮
-                Button(action: {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    dismiss()
-                }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Color.white.opacity(0.15))
-                        .clipShape(Circle())
-                }
+        NavigationView {
+            ZStack {
+                Color.black.ignoresSafeArea()
 
-                Spacer()
-
-                // 照片计数
-                Text("\(currentIndex + 1) / \(allPhotos.count)")
-                    .foregroundColor(.white.opacity(0.8))
-                    .font(.system(size: 15, weight: .medium))
-
-                Spacer()
-
-                // 删除按钮
-                Button(action: {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    showDeleteConfirm = true
-                }) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Color.white.opacity(0.15))
-                        .clipShape(Circle())
-                }
-
-                // 保存按钮
-                Button(action: {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    saveToPhotoLibrary()
-                }) {
-                    Image(systemName: saveButtonIcon)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                        .background(saveButtonBackgroundColor)
-                        .clipShape(Circle())
-                }
-                .disabled(saveStatus == .saving)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color.black)
-            
-            // 照片显示区域
-            if !allPhotos.isEmpty {
-                TabView(selection: $currentIndex) {
-                    ForEach(Array(allPhotos.enumerated()), id: \.element.id) { index, photoItem in
-                        OptimizedPhotoView(
-                            photo: photoItem,
-                            loadedImage: viewModel.loadedImages[photoItem.id],
-                            isLoading: viewModel.isLoading
-                        )
-                        .tag(index)
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showingInfo.toggle()
+                // 照片显示区域
+                if !allPhotos.isEmpty {
+                    TabView(selection: $currentIndex) {
+                        ForEach(Array(allPhotos.enumerated()), id: \.element.id) { index, photoItem in
+                            ZoomablePhotoView(
+                                photo: photoItem,
+                                loadedImage: viewModel.loadedImages[photoItem.id],
+                                isLoading: viewModel.isLoading,
+                                scale: index == currentIndex ? $imageScale : .constant(1.0),
+                                offset: index == currentIndex ? $imageOffset : .constant(.zero)
+                            )
+                            .tag(index)
+                            .onAppear {
+                                viewModel.loadImage(for: photoItem)
                             }
                         }
-                        .onAppear {
-                            viewModel.loadImage(for: photoItem)
+                    }
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                    .onChange(of: currentIndex) { _, newIndex in
+                        // 切换照片时重置缩放
+                        imageScale = 1.0
+                        imageOffset = .zero
+                        if newIndex >= 0 && newIndex < allPhotos.count {
+                            let newPhoto = allPhotos[newIndex]
+                            viewModel.updateCurrentPhoto(newPhoto)
                         }
                     }
-                }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                .animation(.easeInOut(duration: 0.1), value: currentIndex)
-                .onChange(of: currentIndex) { _, newIndex in
-                    if newIndex >= 0 && newIndex < allPhotos.count {
-                        let newPhoto = allPhotos[newIndex]
-                        viewModel.updateCurrentPhoto(newPhoto)
+                } else {
+                    // 没有照片时的占位符
+                    VStack(spacing: 16) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 80))
+                            .foregroundColor(.gray.opacity(0.5))
+                        Text("没有照片")
+                            .font(.title3)
+                            .foregroundColor(.gray)
                     }
                 }
-                .background(Color.black)
-            } else {
-                // 没有照片时的占位符
-                Spacer()
+
+                // 底部信息面板（可展开）
                 VStack {
-                    Image(systemName: "photo")
-                        .font(.system(size: 100))
-                        .foregroundColor(.gray)
-                    Text("没有照片")
-                        .font(.title2)
-                        .foregroundColor(.gray)
-                        .padding(.top, 16)
+                    Spacer()
+                    PhotoInfoPanel(
+                        photo: viewModel.currentPhoto,
+                        isExpanded: $showingInfo,
+                        getImageDimensions: getImageDimensions
+                    )
                 }
-                Spacer()
             }
-            
-            // 底部信息面板（简化版）
-            if showingInfo {
-                VStack(spacing: 12) {
-                    // 拍摄时间
-                    Text("\(viewModel.currentPhoto.timestamp, formatter: detailDateFormatter)")
-                        .font(.system(size: 13))
-                        .foregroundColor(.white.opacity(0.6))
-
-                    // 胶片类型标签
-                    HStack(spacing: 12) {
-                        // 胶片名称
-                        HStack(spacing: 6) {
-                            Image(systemName: "film")
-                                .font(.system(size: 12))
-                            Text(viewModel.currentPhoto.filmDisplayName)
-                                .font(.system(size: 13, weight: .medium))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Capsule())
-
-                        // ISO
-                        Text("ISO \(viewModel.currentPhoto.iso)")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.white.opacity(0.7))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.white.opacity(0.08))
-                            .clipShape(Capsule())
-
-                        // 快门速度
-                        Text(viewModel.currentPhoto.shutterSpeed)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.white.opacity(0.7))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.white.opacity(0.08))
-                            .clipShape(Capsule())
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                // 左侧：关闭按钮
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        dismiss()
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .frame(maxWidth: .infinity)
-                .background(
-                    LinearGradient(colors: [.clear, .black.opacity(0.95)], startPoint: .top, endPoint: .bottom)
-                )
-                .transition(.opacity)
+
+                // 中间：照片计数
+                ToolbarItem(placement: .principal) {
+                    Text("\(currentIndex + 1) / \(allPhotos.count)")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+
+                // 右侧：操作按钮
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    // 信息按钮
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            showingInfo.toggle()
+                        }
+                    }) {
+                        Image(systemName: showingInfo ? "info.circle.fill" : "info.circle")
+                            .font(.system(size: 16))
+                            .foregroundColor(showingInfo ? .yellow : .white)
+                    }
+
+                    // 保存按钮
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        saveToPhotoLibrary()
+                    }) {
+                        Image(systemName: saveButtonIcon)
+                            .font(.system(size: 16))
+                            .foregroundColor(saveButtonColor)
+                    }
+                    .disabled(saveStatus == .saving)
+
+                    // 删除按钮
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        showDeleteConfirm = true
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 16))
+                            .foregroundColor(.white)
+                    }
+                }
             }
+            .toolbarBackground(Color.black.opacity(0.8), for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
         }
-        .background(Color.black.ignoresSafeArea())
+        .preferredColorScheme(.dark)
         .onAppear {
             if !allPhotos.isEmpty && currentIndex < allPhotos.count {
                 viewModel.updateCurrentPhoto(allPhotos[currentIndex])
@@ -705,176 +671,85 @@ struct PhotoDetailView: View {
             try modelContext.save()
             UINotificationFeedbackGenerator().notificationOccurred(.success)
 
-            // 如果删除后没有照片了，关闭详情页
             if allPhotos.count <= 1 {
                 dismiss()
             } else if currentIndex >= allPhotos.count - 1 {
-                // 如果删除的是最后一张，往前移动
                 currentIndex = max(0, currentIndex - 1)
             }
         } catch {
             print("❌ 删除照片失败: \(error)")
         }
     }
-    
-    // 移除初始化索引函数，改为在 init 中设定初始索引
-    
-    // 计算属性
+
     private var saveButtonIcon: String {
         switch saveStatus {
         case .none: return "square.and.arrow.down"
         case .saving: return "arrow.triangle.2.circlepath"
-        case .success: return "checkmark"
+        case .success: return "checkmark.circle.fill"
         case .failed: return "exclamationmark.triangle"
         }
     }
-    
-    private var saveButtonBackgroundColor: Color {
+
+    private var saveButtonColor: Color {
         switch saveStatus {
-        case .none: return Color.black.opacity(0.6)
-        case .saving: return Color.blue.opacity(0.8)
-        case .success: return Color.green.opacity(0.8)
-        case .failed: return Color.red.opacity(0.8)
+        case .none: return .white
+        case .saving: return .blue
+        case .success: return .green
+        case .failed: return .red
         }
     }
-    
-    private var saveButtonText: String {
-        switch saveStatus {
-        case .none: return "保存"
-        case .saving: return "保存中..."
-        case .success: return "已保存"
-        case .failed: return "保存失败"
-        }
-    }
-    
-    // 日期格式化器
-    private var detailDateFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .medium
-        formatter.locale = Locale(identifier: "zh_CN")
-        return formatter
-    }
-    
-    // 获取图片尺寸信息
-    private func getImageDimensions(from imageData: Data) -> (sizeString: String, aspectString: String)? {
-        print("📊 [详情] 开始获取图片尺寸，数据大小: \(imageData.count) bytes")
 
-        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil) else {
-            print("❌ [详情] 无法创建 CGImageSource")
-            return nil
-        }
-
-        guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] else {
-            print("❌ [详情] 无法读取图片属性")
-            return nil
-        }
-
-        guard let width = properties[kCGImagePropertyPixelWidth as String] as? Int,
+    private func getImageDimensions(from imageData: Data) -> (width: Int, height: Int)? {
+        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any],
+              let width = properties[kCGImagePropertyPixelWidth as String] as? Int,
               let height = properties[kCGImagePropertyPixelHeight as String] as? Int else {
-            print("❌ [详情] 无法读取宽度或高度")
-            print("📊 [详情] 属性内容: \(properties.keys)")
             return nil
         }
-
-        let aspect = Double(width) / Double(height)
-        let sizeString = "\(width)×\(height)"
-        let aspectString = String(format: "%.3f (%d:%d)", aspect, width, height)
-
-        print("✅ [详情] 照片尺寸: \(sizeString), 比例: \(aspectString)")
-
-        return (sizeString, aspectString)
+        return (width, height)
     }
 
-    // 保存到照片库
     private func saveToPhotoLibrary() {
-        guard let image = viewModel.currentPhoto.image else {
-            print("❌ 保存失败：图片为空")
-            return
-        }
+        guard viewModel.currentPhoto.image != nil else { return }
 
         saveStatus = .saving
-        print("📱 开始保存照片到相册")
 
-        if #available(iOS 14, *) {
-            PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
-                DispatchQueue.main.async {
-                    self.handleAuthorizationStatus(status, image: image)
-                }
-            }
-        } else {
-            PHPhotoLibrary.requestAuthorization { status in
-                DispatchQueue.main.async {
-                    self.handleAuthorizationStatus(status, image: image)
-                }
-            }
-        }
-    }
-
-    private func handleAuthorizationStatus(_ status: PHAuthorizationStatus, image: UIImage) {
-        switch status {
-        case .authorized, .limited:
-            print("✅ 照片库权限获得，开始保存")
-            saveImageToPhotoLibrary(image)
-
-        case .denied:
-            print("❌ 照片库权限被拒绝")
-            saveStatus = .failed
-            resetSaveStatus()
-
-        case .restricted:
-            print("❌ 照片库权限受限")
-            saveStatus = .failed
-            resetSaveStatus()
-
-        case .notDetermined:
-            print("❌ 照片库权限未确定")
-            saveStatus = .failed
-            resetSaveStatus()
-
-        @unknown default:
-            print("❌ 未知的照片库权限状态")
-            saveStatus = .failed
-            resetSaveStatus()
-        }
-    }
-
-    private func saveImageToPhotoLibrary(_ image: UIImage) {
-        // 使用原始数据保存以保留完整元数据
-        let imageData = viewModel.currentPhoto.imageData
-        let lat = viewModel.currentPhoto.latitude
-        let lon = viewModel.currentPhoto.longitude
-        let alt = viewModel.currentPhoto.altitude
-        let locTime = viewModel.currentPhoto.locationTimestamp
-        let assetLocation: CLLocation? = {
-            if let lat = lat, let lon = lon {
-                let altitude = alt ?? 0
-                let timestamp = locTime ?? viewModel.currentPhoto.timestamp
-                return CLLocation(coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), altitude: altitude, horizontalAccuracy: 10, verticalAccuracy: 10, timestamp: timestamp)
-            }
-            return nil
-        }()
-        
-        print("📱 使用原始数据保存照片以保留完整元数据")
-        
-        PHPhotoLibrary.shared().performChanges({
-            let creationRequest = PHAssetCreationRequest.forAsset()
-            creationRequest.creationDate = viewModel.currentPhoto.timestamp
-            if let loc = assetLocation { creationRequest.location = loc }
-            let options = PHAssetResourceCreationOptions()
-            options.uniformTypeIdentifier = "public.jpeg"
-            creationRequest.addResource(with: .photo, data: imageData, options: options)
-            // 精简日志：不输出 PHAsset 位置信息
-        }) { success, error in
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
             DispatchQueue.main.async {
-                if success {
-                    print("✅ 照片保存成功（含完整元数据）")
-                    self.saveStatus = .success
-                } else {
-                    print("❌ 照片保存失败: \(error?.localizedDescription ?? "未知错误")")
+                guard status == .authorized || status == .limited else {
                     self.saveStatus = .failed
+                    self.resetSaveStatus()
+                    return
                 }
-                self.resetSaveStatus()
+
+                let imageData = self.viewModel.currentPhoto.imageData
+                let photo = self.viewModel.currentPhoto
+
+                PHPhotoLibrary.shared().performChanges({
+                    let request = PHAssetCreationRequest.forAsset()
+                    request.creationDate = photo.timestamp
+
+                    if let lat = photo.latitude, let lon = photo.longitude {
+                        let location = CLLocation(
+                            coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                            altitude: photo.altitude ?? 0,
+                            horizontalAccuracy: 10,
+                            verticalAccuracy: 10,
+                            timestamp: photo.locationTimestamp ?? photo.timestamp
+                        )
+                        request.location = location
+                    }
+
+                    let options = PHAssetResourceCreationOptions()
+                    options.uniformTypeIdentifier = "public.jpeg"
+                    request.addResource(with: .photo, data: imageData, options: options)
+                }) { success, _ in
+                    DispatchQueue.main.async {
+                        self.saveStatus = success ? .success : .failed
+                        UINotificationFeedbackGenerator().notificationOccurred(success ? .success : .error)
+                        self.resetSaveStatus()
+                    }
+                }
             }
         }
     }
@@ -886,74 +761,250 @@ struct PhotoDetailView: View {
     }
 }
 
-// MARK: - 优化的照片视图组件
-struct OptimizedPhotoView: View {
+// MARK: - 可缩放照片视图
+struct ZoomablePhotoView: View {
     let photo: Photo
     let loadedImage: UIImage?
     let isLoading: Bool
-    
+    @Binding var scale: CGFloat
+    @Binding var offset: CGSize
+
+    @State private var lastScale: CGFloat = 1.0
+
     var body: some View {
         GeometryReader { geometry in
-            Group {
-                if let image = loadedImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.black)
-                } else if isLoading {
-                    // 加载状态
-                    VStack {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(1.2)
-                        Text("加载中...")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                            .padding(.top, 8)
+            if let image = loadedImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .scaleEffect(scale)
+                    .offset(offset)
+                    .gesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                let newScale = lastScale * value
+                                scale = min(max(newScale, 1.0), 5.0)
+                            }
+                            .onEnded { _ in
+                                lastScale = scale
+                                if scale <= 1.0 {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        scale = 1.0
+                                        offset = .zero
+                                    }
+                                    lastScale = 1.0
+                                }
+                            }
+                    )
+                    .simultaneousGesture(
+                        scale > 1.0 ?
+                        DragGesture()
+                            .onChanged { value in
+                                offset = CGSize(
+                                    width: value.translation.width,
+                                    height: value.translation.height
+                                )
+                            }
+                            .onEnded { _ in
+                                // 限制拖动范围
+                                let maxOffset = (scale - 1) * min(geometry.size.width, geometry.size.height) / 2
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    offset.width = min(max(offset.width, -maxOffset), maxOffset)
+                                    offset.height = min(max(offset.height, -maxOffset), maxOffset)
+                                }
+                            }
+                        : nil
+                    )
+                    .onTapGesture(count: 2) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            if scale > 1.0 {
+                                scale = 1.0
+                                offset = .zero
+                                lastScale = 1.0
+                            } else {
+                                scale = 2.5
+                                lastScale = 2.5
+                            }
+                        }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.black)
-                } else {
-                    // 加载失败或占位符
+            } else if isLoading {
+                VStack(spacing: 12) {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(1.1)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.black)
+                        .scaleEffect(1.2)
+                    Text("加载中...")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .background(Color.black)
+    }
+}
+
+// MARK: - 照片信息面板
+struct PhotoInfoPanel: View {
+    let photo: Photo
+    @Binding var isExpanded: Bool
+    let getImageDimensions: (Data) -> (width: Int, height: Int)?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // 收起状态：简要信息条
+            if !isExpanded {
+                HStack(spacing: 16) {
+                    // 胶片类型
+                    Label(photo.filmDisplayName, systemImage: "film")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white)
+
+                    Spacer()
+
+                    // 拍摄时间
+                    Text(photo.timestamp, style: .date)
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.6))
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(Color.black.opacity(0.7))
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isExpanded = true
+                    }
+                }
+            }
+
+            // 展开状态：完整信息
+            if isExpanded {
+                VStack(spacing: 16) {
+                    // 拖动指示条
+                    Capsule()
+                        .fill(Color.white.opacity(0.3))
+                        .frame(width: 36, height: 4)
+                        .padding(.top, 8)
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isExpanded = false
+                            }
+                        }
+
+                    // 拍摄时间
+                    HStack {
+                        Image(systemName: "calendar")
+                            .foregroundColor(.yellow)
+                        Text(photo.timestamp, format: .dateTime.year().month().day().hour().minute())
+                            .font(.system(size: 14))
+                            .foregroundColor(.white)
+                        Spacer()
+                    }
+
+                    Divider().background(Color.white.opacity(0.2))
+
+                    // 胶片信息
+                    HStack {
+                        Image(systemName: "film")
+                            .foregroundColor(.yellow)
+                        Text(photo.filmDisplayName)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white)
+                        Spacer()
+                    }
+
+                    // 曝光参数网格
+                    LazyVGrid(columns: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ], spacing: 12) {
+                        ExifInfoCard(icon: "camera.aperture", title: "光圈", value: photo.aperture)
+                        ExifInfoCard(icon: "timer", title: "快门", value: photo.shutterSpeed)
+                        ExifInfoCard(icon: "speedometer", title: "ISO", value: photo.iso)
+                        ExifInfoCard(icon: "scope", title: "焦距", value: photo.focalLength)
+                        ExifInfoCard(icon: "bolt.fill", title: "闪光灯", value: photo.flashMode)
+                        if let dims = getImageDimensions(photo.imageData) {
+                            ExifInfoCard(icon: "aspectratio", title: "尺寸", value: "\(dims.width)×\(dims.height)")
+                        } else {
+                            ExifInfoCard(icon: "aspectratio", title: "尺寸", value: "未知")
+                        }
+                    }
+
+                    // 位置信息
+                    if let lat = photo.latitude, let lon = photo.longitude {
+                        Divider().background(Color.white.opacity(0.2))
+                        HStack {
+                            Image(systemName: "location.fill")
+                                .foregroundColor(.yellow)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(format: "%.6f, %.6f", lat, lon))
+                                    .font(.system(size: 13, design: .monospaced))
+                                    .foregroundColor(.white)
+                                if let alt = photo.altitude {
+                                    Text("海拔 \(String(format: "%.1f", alt))m")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.white.opacity(0.6))
+                                }
+                            }
+                            Spacer()
+                        }
+                    }
+
+                    // 设备信息
+                    if let device = photo.deviceInfo {
+                        Divider().background(Color.white.opacity(0.2))
+                        HStack {
+                            Image(systemName: "iphone")
+                                .foregroundColor(.yellow)
+                            Text("\(device.make) \(device.model)")
+                                .font(.system(size: 13))
+                                .foregroundColor(.white.opacity(0.8))
+                            Spacer()
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color.black.opacity(0.9))
+                        .shadow(color: .black.opacity(0.3), radius: 10, y: -5)
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
     }
 }
 
-// EXIF 信息组件
-struct ExifInfoView: View {
+// MARK: - EXIF 信息卡片
+struct ExifInfoCard: View {
+    let icon: String
     let title: String
     let value: String
-    
+
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundColor(.yellow.opacity(0.8))
             Text(title)
-                .font(.caption2)
-                .foregroundColor(.gray)
-                .fontWeight(.medium)
+                .font(.system(size: 10))
+                .foregroundColor(.white.opacity(0.5))
             Text(value)
-                .font(.caption)
+                .font(.system(size: 12, weight: .medium))
                 .foregroundColor(.white)
-                .fontWeight(.medium)
-                .multilineTextAlignment(.center)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity, minHeight: 45)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(Color.white.opacity(0.05))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
-        )
-        .cornerRadius(8)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
