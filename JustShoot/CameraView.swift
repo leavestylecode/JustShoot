@@ -22,6 +22,8 @@ struct CameraView: View {
     @State private var lastCapturedPhoto: Photo?
     @State private var lastPhotoThumbnail: UIImage?
     @State private var showingGallery = false
+    @State private var focusPoint: CGPoint? = nil
+    @State private var showFocusIndicator = false
 
     init(preset: FilmPreset) {
         self.preset = preset
@@ -72,10 +74,22 @@ struct CameraView: View {
                 Spacer(minLength: 8)
 
                 // 中间预览区：3:4 固定取景框
-                GeometryReader { _ in
-                    RealtimePreviewView(manager: cameraManager, preset: preset)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .shadow(color: .black.opacity(0.5), radius: 12, x: 0, y: 8)
+                GeometryReader { geometry in
+                    ZStack {
+                        RealtimePreviewView(manager: cameraManager, preset: preset)
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .shadow(color: .black.opacity(0.5), radius: 12, x: 0, y: 8)
+
+                        // 对焦框
+                        if showFocusIndicator, let point = focusPoint {
+                            FocusIndicatorView()
+                                .position(point)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { location in
+                        handleTapToFocus(at: location, in: geometry.size)
+                    }
                 }
                 .aspectRatio(3/4, contentMode: .fit)
                 .padding(.horizontal, 16)
@@ -123,7 +137,7 @@ struct CameraView: View {
 
                     // 右侧最近照片缩略图
                     Button(action: { showingGallery = true }) {
-                        if let lastPhoto = lastCapturedPhoto, let thumb = lastPhotoThumbnail {
+                        if let _ = lastCapturedPhoto, let thumb = lastPhotoThumbnail {
                             Image(uiImage: thumb)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -201,32 +215,33 @@ struct CameraView: View {
     private func capturePhoto() {
         // 防止重复拍摄
         guard !isCapturing else { return }
+        isCapturing = true
 
-        // 立即触发触觉反馈
+        // 立即触发触觉反馈和按压效果
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
-        // 快门按压动画 + 闪光效果
-        Task { @MainActor in
-            isCapturing = true
-            try? await Task.sleep(nanoseconds: 80_000_000) // 0.08s 按压效果
-
-            withAnimation(.easeOut(duration: 0.08)) {
-                showFlash = true
-            }
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s 闪光
-            withAnimation(.easeIn(duration: 0.1)) {
-                showFlash = false
-            }
-
-            isCapturing = false
-        }
-
-        // 触发拍摄（回调仅处理数据）
+        // 触发拍摄
         let currentPreset = preset
         let manager = cameraManager
         let context = modelContext
 
-        cameraManager.capturePhoto { imageData in
+        // 曝光完成时触发 UI 闪动（闪光灯已结束）
+        cameraManager.capturePhoto(onExposureComplete: { [self] in
+            Task { @MainActor in
+                withAnimation(.easeOut(duration: 0.05)) {
+                    showFlash = true
+                }
+                try? await Task.sleep(nanoseconds: 80_000_000) // 0.08s 闪光
+                withAnimation(.easeIn(duration: 0.1)) {
+                    showFlash = false
+                }
+            }
+        }) { [self] imageData in
+            // 照片处理完成
+            Task { @MainActor in
+                isCapturing = false
+            }
+
             guard let data = imageData else { return }
 
             // 后台处理管道（不阻塞 UI）
@@ -243,7 +258,7 @@ struct CameraView: View {
                 // 等待并发任务完成
                 let (finalData, finalLoc) = await (processedData ?? data, location)
 
-                // 主线程保存（使用 nonisolated 上下文避免 Sendable 警告）
+                // 主线程保存
                 await MainActor.run {
                     Self.savePhotoToContext(
                         imageData: finalData,
@@ -330,15 +345,98 @@ struct CameraView: View {
         }
     }
     
-    // 固定焦距为 35mm，不提供 UI 调整
+    // 点击对焦处理
     @MainActor
-    private func setFocus(at point: CGPoint) {
-        // 保留占位（已改由 GeometryReader 内部计算设备坐标并调用）
-        cameraManager.setFocusAndExposure(normalizedPoint: CGPoint(x: 0.5, y: 0.5))
+    private func handleTapToFocus(at location: CGPoint, in size: CGSize) {
+        // 触觉反馈
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+        // 记录对焦点位置（用于显示对焦框）
+        focusPoint = location
+
+        // 显示对焦框动画
+        withAnimation(.easeOut(duration: 0.15)) {
+            showFocusIndicator = true
+        }
+
+        // 将点击位置转换为相机坐标系（0-1 归一化，注意坐标系转换）
+        // 相机坐标系：x 从左到右，y 从上到下
+        // 但 AVFoundation 的 focusPointOfInterest 使用的是横屏坐标系
+        // 在竖屏模式下，需要交换 x 和 y
+        let normalizedX = location.y / size.height
+        let normalizedY = 1.0 - (location.x / size.width)
+        let normalizedPoint = CGPoint(x: normalizedX, y: normalizedY)
+
+        // 调用相机对焦
+        cameraManager.setFocusAndExposure(normalizedPoint: normalizedPoint)
+
+        // 延迟隐藏对焦框
+        Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
+            withAnimation(.easeOut(duration: 0.3)) {
+                showFocusIndicator = false
+            }
+        }
     }
 }
 
-    
+// MARK: - 对焦框视图
+struct FocusIndicatorView: View {
+    @State private var scale: CGFloat = 1.5
+    @State private var opacity: Double = 0.0
+
+    var body: some View {
+        ZStack {
+            // 外框
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color.yellow, lineWidth: 1.5)
+                .frame(width: 70, height: 70)
+
+            // 四角标记
+            FocusCorners()
+                .stroke(Color.yellow, lineWidth: 2.5)
+                .frame(width: 70, height: 70)
+        }
+        .scaleEffect(scale)
+        .opacity(opacity)
+        .onAppear {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                scale = 1.0
+                opacity = 1.0
+            }
+        }
+    }
+}
+
+// 对焦框四角
+struct FocusCorners: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let cornerLength: CGFloat = 15
+
+        // 左上角
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY + cornerLength))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.minX + cornerLength, y: rect.minY))
+
+        // 右上角
+        path.move(to: CGPoint(x: rect.maxX - cornerLength, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + cornerLength))
+
+        // 右下角
+        path.move(to: CGPoint(x: rect.maxX, y: rect.maxY - cornerLength))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX - cornerLength, y: rect.maxY))
+
+        // 左下角
+        path.move(to: CGPoint(x: rect.minX + cornerLength, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - cornerLength))
+
+        return path
+    }
+}
 
 // 相机预览视图
 struct CameraPreviewView: UIViewRepresentable {
@@ -413,6 +511,7 @@ class CameraManager: NSObject, ObservableObject {
     // 用于点击坐标到相机坐标的换算（不显示在界面上）
     private var conversionPreviewLayer: AVCaptureVideoPreviewLayer?
     private var photoDataHandler: ((Data?) -> Void)?
+    private var exposureCompleteHandler: (() -> Void)?
     @Published var flashMode: FlashMode = .off
     
     // 35mm等效焦距相关属性
@@ -605,9 +704,143 @@ class CameraManager: NSObject, ObservableObject {
         self.previewRotationAngle = angle
     }
 
-    // 已改为全自动对焦
+    // 点击对焦：设置对焦点和曝光点
     @MainActor
-    func setFocusAndExposure(normalizedPoint: CGPoint) {}
+    func setFocusAndExposure(normalizedPoint: CGPoint) {
+        guard let device = videoCaptureDevice else { return }
+
+        do {
+            try device.lockForConfiguration()
+
+            // 设置对焦点
+            if device.isFocusPointOfInterestSupported {
+                device.focusPointOfInterest = normalizedPoint
+            }
+
+            // 设置曝光点
+            if device.isExposurePointOfInterestSupported {
+                device.exposurePointOfInterest = normalizedPoint
+            }
+
+            // 切换到自动对焦模式（单次对焦后锁定）
+            if device.isFocusModeSupported(.autoFocus) {
+                device.focusMode = .autoFocus
+            }
+
+            // 切换到自动曝光模式
+            if device.isExposureModeSupported(.autoExpose) {
+                device.exposureMode = .autoExpose
+            }
+
+            device.unlockForConfiguration()
+
+            print("📍 点击对焦: (\(String(format: "%.2f", normalizedPoint.x)), \(String(format: "%.2f", normalizedPoint.y)))")
+
+            // 对焦完成后延迟恢复连续对焦
+            startFocusHoldTimer()
+
+        } catch {
+            print("❌ 设置对焦失败: \(error)")
+        }
+    }
+
+    // 对焦保持计时器：点击对焦后保持一段时间再恢复连续对焦
+    private func startFocusHoldTimer() {
+        focusHoldTimer?.invalidate()
+        focusHoldTimer = Timer.scheduledTimer(withTimeInterval: tapFocusHoldDuration, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.restoreContinuousFocus()
+            }
+        }
+    }
+
+    // 恢复连续自动对焦
+    @MainActor
+    private func restoreContinuousFocus() {
+        guard let device = videoCaptureDevice else { return }
+
+        do {
+            try device.lockForConfiguration()
+
+            if device.isFocusModeSupported(.continuousAutoFocus) {
+                device.focusMode = .continuousAutoFocus
+            }
+            if device.isExposureModeSupported(.continuousAutoExposure) {
+                device.exposureMode = .continuousAutoExposure
+            }
+
+            device.unlockForConfiguration()
+            print("📍 恢复连续自动对焦")
+        } catch {
+            print("❌ 恢复连续对焦失败: \(error)")
+        }
+    }
+
+    // 智能闪光灯曝光补偿计算
+    // 根据对焦距离和环境光自动调整曝光补偿，优化闪光效果
+    @MainActor
+    private func calculateFlashExposureBias(device: AVCaptureDevice) -> Float {
+        // lensPosition: 0 = 近焦（微距），1 = 远焦（无穷远）
+        let lensPos = max(0.0, min(1.0, device.lensPosition))
+
+        // 获取当前曝光时间来估算环境光强度
+        let exposureDuration = device.exposureDuration
+        let exposureSeconds = Double(exposureDuration.value) / Double(exposureDuration.timescale)
+
+        // 环境光估算：曝光时间越长，环境越暗
+        // 典型值：室外阳光 ~1/1000s，室内 ~1/60s，暗光 ~1/15s
+        let isLowLight = exposureSeconds > 0.03  // > 1/30s 认为是暗光环境
+        let isVeryLowLight = exposureSeconds > 0.1  // > 1/10s 认为是极暗环境
+
+        // 基础曝光补偿：根据距离调整
+        // 近距离需要降低曝光（避免过曝），远距离需要提高曝光
+        var bias: Float
+
+        // 使用平滑的曲线而非离散分段
+        // 距离越近（lensPos 越小），补偿越负；距离越远（lensPos 越大），补偿越正
+        // 基础曲线：从 -1.0（极近）到 +0.8（极远）
+        let baseBias = Float(lensPos) * 1.8 - 1.0
+
+        // 根据环境光调整
+        if isVeryLowLight {
+            // 极暗环境：整体提高补偿，让闪光更强
+            bias = baseBias + 0.3
+        } else if isLowLight {
+            // 暗光环境：略微提高补偿
+            bias = baseBias + 0.15
+        } else {
+            // 正常/明亮环境：使用基础补偿
+            bias = baseBias
+        }
+
+        // 额外的近距离保护（避免近距离闪光过曝）
+        if lensPos < 0.15 {
+            bias = min(bias, -0.6)
+        }
+
+        // 距离描述
+        let distanceDesc: String
+        if lensPos < 0.15 {
+            distanceDesc = "极近(<0.5m)"
+        } else if lensPos < 0.30 {
+            distanceDesc = "近(0.5-1m)"
+        } else if lensPos < 0.50 {
+            distanceDesc = "中近(1-2m)"
+        } else if lensPos < 0.70 {
+            distanceDesc = "中远(2-3m)"
+        } else if lensPos < 0.85 {
+            distanceDesc = "远(3-5m)"
+        } else {
+            distanceDesc = "极远(>5m)"
+        }
+
+        let lightDesc = isVeryLowLight ? "极暗" : (isLowLight ? "暗光" : "正常")
+
+        print(String(format: "⚡️ 智能闪光: 距离=%@ (%.2f) 环境=%@ (1/%.0fs) → 补偿=%.2f EV",
+                     distanceDesc, lensPos, lightDesc, 1.0/exposureSeconds, bias))
+
+        return bias
+    }
 
     // 按距离估算手电筒亮度，并开启；返回是否启用
     @MainActor
@@ -817,36 +1050,20 @@ class CameraManager: NSObject, ObservableObject {
     }
     
     @MainActor
-    func capturePhoto(completion: @escaping (Data?) -> Void) {
+    func capturePhoto(onExposureComplete: (() -> Void)? = nil, completion: @escaping (Data?) -> Void) {
         photoDataHandler = completion
+        exposureCompleteHandler = onExposureComplete
 
         let settings = AVCapturePhotoSettings()
 
         // iOS 18 优化：快速拍摄优先级
         settings.photoQualityPrioritization = .speed
         
-        // 闪光灯/手电筒策略：若开启，按距离(对焦位置)估算手电筒强度，使用持续光代替一次性闪光
-        // 使用真实闪光灯（不再用手电筒模拟），并在拍照前按距离设置曝光补偿以间接控制闪光效果
+        // 闪光灯智能控制：根据对焦距离和环境光自动调整
         if let device = videoCaptureDevice, device.hasFlash {
             settings.flashMode = (flashMode == .on) ? .on : .off
             if flashMode == .on {
-                // 依据对焦远近设置曝光偏置（6段更强烈），并短暂锁曝光后再拍
-                // lensPosition: 0≈近, 1≈远；阈值与偏置为经验值，可后续机型调优
-                let lensPos = max(0.0, min(1.0, device.lensPosition))
-                let bias: Float
-                if lensPos < 0.10 {           // 近到极近
-                    bias = -0.8
-                } else if lensPos < 0.25 {    // 近
-                    bias = -0.4
-                } else if lensPos < 0.50 {    // 中近
-                    bias = -0.1
-                } else if lensPos < 0.75 {    // 中远
-                    bias = 0.2
-                } else if lensPos < 0.85 {    // 远
-                    bias = 0.5
-                } else {                       // 极远
-                    bias = 0.7
-                }
+                let bias = calculateFlashExposureBias(device: device)
                 do {
                     try device.lockForConfiguration()
                     previousExposureTargetBias = device.exposureTargetBias
@@ -858,7 +1075,6 @@ class CameraManager: NSObject, ObservableObject {
                         lockedExposureForFlashCapture = true
                     }
                     device.unlockForConfiguration()
-                    print(String(format: "⚡️ Flash PreBias: lensPos=%.3f → bias=%.2f (range %.1f..%.1f)", lensPos, bias, device.minExposureTargetBias, device.maxExposureTargetBias))
                 } catch {
                     print("⚠️ 设置曝光偏置失败: \(error)")
                 }
@@ -1265,6 +1481,15 @@ extension CameraManager: CLLocationManagerDelegate {
 
 // MARK: - AVCapturePhotoCaptureDelegate
 extension CameraManager: AVCapturePhotoCaptureDelegate {
+    // 曝光完成回调（闪光灯在此之前已触发完毕）
+    nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didCapturePhotoFor resolvedSettings: AVCaptureResolvedPhotoSettings) {
+        // 闪光灯/曝光已完成，触发 UI 闪动
+        Task { @MainActor in
+            self.exposureCompleteHandler?()
+            self.exposureCompleteHandler = nil
+        }
+    }
+
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error = error {
             Task { @MainActor in self.photoDataHandler?(nil) }
@@ -1431,9 +1656,11 @@ struct RealtimePreviewView: UIViewRepresentable {
             view.delegate = self
             if let device = view.device {
                 commandQueue = device.makeCommandQueue()
+                // 使用 sRGB 色彩空间，与成片保持一致
+                let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
                 ciContext = CIContext(mtlDevice: device, options: [
-                    .workingColorSpace: CGColorSpaceCreateDeviceRGB(),
-                    .outputColorSpace: CGColorSpaceCreateDeviceRGB()
+                    .workingColorSpace: srgbColorSpace,
+                    .outputColorSpace: srgbColorSpace
                 ])
             }
         }
@@ -1479,9 +1706,10 @@ struct RealtimePreviewView: UIViewRepresentable {
                 .transformed(by: CGAffineTransform(scaleX: scaleX, y: scaleY))
                 .transformed(by: CGAffineTransform(translationX: targetRect.origin.x, y: targetRect.origin.y))
 
-            // 6. 渲染到 drawable
+            // 6. 渲染到 drawable（使用 sRGB 色彩空间）
             let renderBounds = CGRect(origin: .zero, size: drawableSize)
-            ciContext.render(scaledImage, to: drawable.texture, commandBuffer: commandBuffer, bounds: renderBounds, colorSpace: CGColorSpaceCreateDeviceRGB())
+            let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+            ciContext.render(scaledImage, to: drawable.texture, commandBuffer: commandBuffer, bounds: renderBounds, colorSpace: srgbColorSpace)
             commandBuffer.present(drawable)
             commandBuffer.commit()
 

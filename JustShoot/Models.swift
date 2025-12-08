@@ -271,8 +271,13 @@ final class FilmProcessor {
     private var lutCache: [String: CubeLUT] = [:]
 
     private init() {
-        // 使用 Metal 后端的 CIContext 以获得更好性能
-        self.ciContext = CIContext(options: [CIContextOption.useSoftwareRenderer: false])
+        // 使用 Metal 后端 + sRGB 色彩空间（与预览保持一致）
+        let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        self.ciContext = CIContext(options: [
+            CIContextOption.useSoftwareRenderer: false,
+            CIContextOption.workingColorSpace: srgbColorSpace,
+            CIContextOption.outputColorSpace: srgbColorSpace
+        ])
     }
 
     func loadCubeLUT(resourceName: String) throws -> CubeLUT {
@@ -365,15 +370,38 @@ final class FilmProcessor {
     /// - Returns: 处理后的照片数据
     func applyLUTPreservingMetadata(imageData: Data, preset: FilmPreset, outputQuality: CGFloat = 0.95, location: CLLocation? = nil) -> Data? {
         // 1. 加载图像（照片已物理旋转，直接使用）
-        guard let ciInput = CIImage(data: imageData) else {
+        guard var ciInput = CIImage(data: imageData) else {
             print("❌ [LUT] 无法从数据创建 CIImage")
             return nil
         }
 
         let inputExtent = ciInput.extent
-        print("🎨 [LUT] 输入尺寸: \(Int(inputExtent.width))×\(Int(inputExtent.height))")
+        let isLandscape = inputExtent.width > inputExtent.height
+        print("🎨 [LUT] 原始尺寸: \(Int(inputExtent.width))×\(Int(inputExtent.height)) \(isLandscape ? "横向" : "竖向")")
 
-        // 2. 应用 LUT 滤镜
+        // 2. 根据照片方向裁剪为对应比例（横拍4:3，竖拍3:4）
+        // 预览取景框是 3:4 竖屏，但相机可以横着拍（此时照片是横向的）
+        let targetAspect: CGFloat = isLandscape ? (4.0 / 3.0) : (3.0 / 4.0)
+        let currentAspect = inputExtent.width / inputExtent.height
+
+        var cropRect = inputExtent
+        if abs(currentAspect - targetAspect) > 0.01 {
+            if currentAspect > targetAspect {
+                // 图片太宽，裁剪左右两边
+                let newWidth = inputExtent.height * targetAspect
+                let xOffset = (inputExtent.width - newWidth) / 2
+                cropRect = CGRect(x: inputExtent.origin.x + xOffset, y: inputExtent.origin.y, width: newWidth, height: inputExtent.height)
+            } else {
+                // 图片太高，裁剪上下两边
+                let newHeight = inputExtent.width / targetAspect
+                let yOffset = (inputExtent.height - newHeight) / 2
+                cropRect = CGRect(x: inputExtent.origin.x, y: inputExtent.origin.y + yOffset, width: inputExtent.width, height: newHeight)
+            }
+            ciInput = ciInput.cropped(to: cropRect)
+            print("✂️ [LUT] 裁剪为 \(isLandscape ? "4:3" : "3:4"): \(Int(cropRect.width))×\(Int(cropRect.height))")
+        }
+
+        // 3. 应用 LUT 滤镜
         guard let colorCube = CIFilter(name: "CIColorCube") else {
             print("❌ [LUT] 无法创建 CIColorCube 滤镜")
             return nil

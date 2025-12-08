@@ -205,13 +205,21 @@ struct GalleryView: View {
     @State private var selectedPhotos: Set<UUID> = []
     @State private var showDeleteConfirm = false
 
-
     private let gridColumns = [
         GridItem(.flexible()),
         GridItem(.flexible()),
         GridItem(.flexible()),
         GridItem(.flexible())
     ]
+
+    /// 按最新照片时间排序的胶卷列表
+    private var sortedRolls: [Roll] {
+        rolls.sorted { roll1, roll2 in
+            let latest1 = roll1.photos.map(\.timestamp).max() ?? roll1.createdAt
+            let latest2 = roll2.photos.map(\.timestamp).max() ?? roll2.createdAt
+            return latest1 > latest2
+        }
+    }
 
     var body: some View {
         NavigationView {
@@ -236,7 +244,7 @@ struct GalleryView: View {
                         .frame(maxWidth: .infinity, minHeight: 400)
                     } else {
                         LazyVStack(spacing: 16) {
-                            ForEach(rolls) { roll in
+                            ForEach(sortedRolls) { roll in
                                 RollSectionView(
                                     roll: roll,
                                     gridColumns: gridColumns,
