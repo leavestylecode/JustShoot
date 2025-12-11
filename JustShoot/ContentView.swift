@@ -21,79 +21,56 @@ struct ContentView: View {
     @State private var isPreloading = true
 
     var body: some View {
-        NavigationView {
-            ZStack {
-                // 纯黑背景
-                Color.black.ignoresSafeArea()
-
-                VStack(spacing: 0) {
-                    // 顶部标题区域
-                    VStack(spacing: 4) {
-                        Text("JustShoot")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                        Text(isPreloading ? "正在准备相机..." : "选择胶卷开始拍摄")
-                            .font(.system(size: 13))
-                            .foregroundColor(.white.opacity(0.5))
-                    }
-                    .padding(.top, 20)
-                    .padding(.bottom, 24)
-
-                    // 胶卷列表
-                    ScrollView(.vertical, showsIndicators: false) {
-                        LazyVStack(spacing: 12) {
-                            ForEach(FilmPreset.allCases) { preset in
-                                FilmPresetCard(preset: preset, rolls: rolls) {
-                                    selectedPreset = preset
-                                }
-                            }
+        NavigationStack {
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(spacing: 12) {
+                    ForEach(FilmPreset.allCases) { preset in
+                        FilmPresetCard(preset: preset, rolls: rolls) {
+                            selectedPreset = preset
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 100) // 为底部按钮留空间
                     }
-
-                    Spacer()
                 }
-
-                // 底部相册入口
-                VStack {
-                    Spacer()
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 20)
+            }
+            .background(Color.black)
+            .navigationTitle("JustShoot")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         showingGallery = true
                     }) {
-                        HStack(spacing: 10) {
+                        HStack(spacing: 6) {
                             Image(systemName: "photo.stack")
-                                .font(.system(size: 18, weight: .medium))
-                            Text("相册")
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(.system(size: 15, weight: .medium))
                             if photos.count > 0 {
                                 Text("\(photos.count)")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.black)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(Color.white)
-                                    .clipShape(Capsule())
+                                    .font(.system(size: 13, weight: .semibold))
                             }
                         }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 54)
-                        .background(Color.white.opacity(0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        )
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
                 }
             }
-            .navigationBarHidden(true)
+            .safeAreaInset(edge: .bottom) {
+                if isPreloading {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.8)
+                        Text("正在准备相机...")
+                            .font(.system(size: 13))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.black.opacity(0.9))
+                }
+            }
         }
+        .preferredColorScheme(.dark)
         .fullScreenCover(item: $selectedPreset) { preset in
             CameraView(preset: preset)
         }
