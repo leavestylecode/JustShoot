@@ -64,9 +64,18 @@ struct CameraView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarRole(.editor)
+        .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
+            // 左上：返回
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left")
+                        .fontWeight(.semibold)
+                }
+                .tint(.white)
+            }
+
             // 中间：胶片名 + 剩余张数
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
@@ -184,7 +193,7 @@ struct CameraView: View {
     }
 
     private func loadLastPhotoThumbnail() {
-        guard let photo = allPhotos.first else {
+        guard let photo = currentRollPhotos.first else {
             lastPhotoThumbnail = nil
             return
         }
