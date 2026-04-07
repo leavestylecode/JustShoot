@@ -165,9 +165,9 @@ struct CameraView: View {
             Text("当前胶卷已拍满 27 张，请返回选择新的胶卷。")
         }
         .sheet(isPresented: $showPhotoDetail) {
-            if let first = currentRollPhotos.first {
+            if let latest = currentRollPhotos.last {
                 NavigationStack {
-                    PhotoDetailView(photo: first, allPhotos: currentRollPhotos)
+                    PhotoDetailView(photo: latest, allPhotos: currentRollPhotos)
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
                                 Button { showPhotoDetail = false } label: {
@@ -186,14 +186,14 @@ struct CameraView: View {
         }
     }
 
-    /// 当前胶卷的照片（按时间倒序，最新在前）
+    /// 当前胶卷的照片（按时间升序，最新在最后——向左滑可看之前的）
     private var currentRollPhotos: [Photo] {
         guard let roll = currentRoll else { return [] }
-        return roll.photos.sorted { $0.timestamp > $1.timestamp }
+        return roll.photos.sorted { $0.timestamp < $1.timestamp }
     }
 
     private func loadLastPhotoThumbnail() {
-        guard let photo = currentRollPhotos.first else {
+        guard let photo = currentRollPhotos.last else {
             lastPhotoThumbnail = nil
             return
         }

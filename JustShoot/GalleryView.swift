@@ -470,10 +470,13 @@ struct PhotoDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(isFullScreen)
             .toolbar(isFullScreen ? .hidden : .visible, for: .navigationBar)
-            .toolbar(isFullScreen ? .hidden : .visible, for: .bottomBar)
             .toolbar { navigationToolbar }
-            .toolbar { bottomToolbar }
             .statusBarHidden(isFullScreen)
+            .safeAreaInset(edge: .bottom) {
+                if !isFullScreen && !photos.isEmpty {
+                    bottomBar
+                }
+            }
             .onAppear {
                 if !photos.isEmpty && currentIndex < photos.count {
                     viewModel.updateCurrentPhoto(photos[currentIndex])
@@ -583,25 +586,64 @@ struct PhotoDetailView: View {
         }
     }
 
-    @ToolbarContentBuilder
-    private var bottomToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .bottomBar) {
-            Button {
-                saveToPhotoLibrary()
-            } label: {
-                Image(systemName: saveButtonIcon)
+    /// 底部栏：缩略图条 + 操作按钮
+    @ViewBuilder
+    private var bottomBar: some View {
+        VStack(spacing: 8) {
+            // 缩略图滚动条
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 3) {
+                        ForEach(Array(photos.enumerated()), id: \.element.id) { index, photoItem in
+                            ThumbnailStripItem(
+                                photo: photoItem,
+                                isSelected: index == currentIndex,
+                                size: 40
+                            )
+                            .id(index)
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    currentIndex = index
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .onChange(of: currentIndex) { _, newIndex in
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        proxy.scrollTo(newIndex, anchor: .center)
+                    }
+                }
+                .onAppear {
+                    proxy.scrollTo(currentIndex, anchor: .center)
+                }
             }
-            .tint(saveButtonColor)
-            .disabled(saveStatus == .saving)
 
-            Spacer()
+            // 操作按钮
+            HStack {
+                Button {
+                    saveToPhotoLibrary()
+                } label: {
+                    Image(systemName: saveButtonIcon)
+                        .font(.system(size: 20))
+                }
+                .tint(saveButtonColor)
+                .disabled(saveStatus == .saving)
 
-            Button(role: .destructive) {
-                showDeleteConfirm = true
-            } label: {
-                Image(systemName: "trash")
+                Spacer()
+
+                Button(role: .destructive) {
+                    showDeleteConfirm = true
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 20))
+                }
             }
+            .padding(.horizontal, 20)
         }
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
     }
 
     private func deleteCurrentPhoto() {
@@ -806,6 +848,41 @@ struct ZoomablePhotoView: View {
             }
         }
         .background(Color.black)
+    }
+}
+
+// MARK: - 底部缩略图条项目
+private struct ThumbnailStripItem: View {
+    let photo: Photo
+    let isSelected: Bool
+    let size: CGFloat
+    @State private var thumb: UIImage?
+
+    var body: some View {
+        Group {
+            if let image = thumb {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: size, height: size)
+                    .clipped()
+            } else {
+                Rectangle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: size, height: size)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .stroke(isSelected ? Color.white : Color.clear, lineWidth: 2)
+        )
+        .opacity(isSelected ? 1.0 : 0.6)
+        .task {
+            if thumb == nil {
+                thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: Int(size * 2))
+            }
+        }
     }
 }
 
