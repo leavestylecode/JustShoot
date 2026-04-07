@@ -470,13 +470,10 @@ struct PhotoDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(isFullScreen)
             .toolbar(isFullScreen ? .hidden : .visible, for: .navigationBar)
+            .toolbar(isFullScreen ? .hidden : .visible, for: .bottomBar)
             .toolbar { navigationToolbar }
+            .toolbar { bottomToolbar }
             .statusBarHidden(isFullScreen)
-            .safeAreaInset(edge: .bottom) {
-                if !isFullScreen && !photos.isEmpty {
-                    bottomBar
-                }
-            }
             .onAppear {
                 if !photos.isEmpty && currentIndex < photos.count {
                     viewModel.updateCurrentPhoto(photos[currentIndex])
@@ -508,14 +505,53 @@ struct PhotoDetailView: View {
 
     @ViewBuilder
     private var photoContentView: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             Color.black.ignoresSafeArea()
 
             if !photos.isEmpty {
                 photoTabView
                     .ignoresSafeArea()
+
+                // 缩略图条（贴近底部工具栏上方）
+                if !isFullScreen {
+                    thumbnailStrip
+                        .padding(.bottom, 4)
+                }
             } else {
                 emptyPlaceholder
+            }
+        }
+    }
+
+    /// 底部缩略图滚动条
+    @ViewBuilder
+    private var thumbnailStrip: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
+                    ForEach(Array(photos.enumerated()), id: \.element.id) { index, photoItem in
+                        ThumbnailStripItem(
+                            photo: photoItem,
+                            isSelected: index == currentIndex,
+                            size: 36
+                        )
+                        .id(index)
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                currentIndex = index
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            .onChange(of: currentIndex) { _, newIndex in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    proxy.scrollTo(newIndex, anchor: .center)
+                }
+            }
+            .onAppear {
+                proxy.scrollTo(currentIndex, anchor: .center)
             }
         }
     }
@@ -586,64 +622,25 @@ struct PhotoDetailView: View {
         }
     }
 
-    /// 底部栏：缩略图条 + 操作按钮
-    @ViewBuilder
-    private var bottomBar: some View {
-        VStack(spacing: 8) {
-            // 缩略图滚动条
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 3) {
-                        ForEach(Array(photos.enumerated()), id: \.element.id) { index, photoItem in
-                            ThumbnailStripItem(
-                                photo: photoItem,
-                                isSelected: index == currentIndex,
-                                size: 40
-                            )
-                            .id(index)
-                            .onTapGesture {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    currentIndex = index
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                }
-                .onChange(of: currentIndex) { _, newIndex in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        proxy.scrollTo(newIndex, anchor: .center)
-                    }
-                }
-                .onAppear {
-                    proxy.scrollTo(currentIndex, anchor: .center)
-                }
+    @ToolbarContentBuilder
+    private var bottomToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
+            Button {
+                saveToPhotoLibrary()
+            } label: {
+                Image(systemName: saveButtonIcon)
             }
+            .tint(saveButtonColor)
+            .disabled(saveStatus == .saving)
 
-            // 操作按钮
-            HStack {
-                Button {
-                    saveToPhotoLibrary()
-                } label: {
-                    Image(systemName: saveButtonIcon)
-                        .font(.system(size: 20))
-                }
-                .tint(saveButtonColor)
-                .disabled(saveStatus == .saving)
+            Spacer()
 
-                Spacer()
-
-                Button(role: .destructive) {
-                    showDeleteConfirm = true
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 20))
-                }
+            Button(role: .destructive) {
+                showDeleteConfirm = true
+            } label: {
+                Image(systemName: "trash")
             }
-            .padding(.horizontal, 20)
         }
-        .padding(.vertical, 8)
-        .background(.ultraThinMaterial)
     }
 
     private func deleteCurrentPhoto() {
