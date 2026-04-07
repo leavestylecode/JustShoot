@@ -8,29 +8,26 @@ class ImageLoader: ObservableObject {
     static let shared = ImageLoader()
     private let cache = NSCache<NSString, UIImage>()
     private let fileManager = FileManager.default
-    
+
     init() {
-        // 设置缓存限制
         cache.countLimit = 50
         cache.totalCostLimit = 50 * 1024 * 1024 // 50MB
     }
-    
-    // 详情页预览：按给定像素下采样，避免解码原图
+
     func loadPreview(for photo: Photo, maxPixel: Int) async -> UIImage? {
         let key = "preview_\(photo.id.uuidString)_\(maxPixel)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
 
-        // 磁盘缓存优先
         if let url = previewURL(for: photo, maxPixel: maxPixel),
            fileManager.fileExists(atPath: url.path),
            let data = try? Data(contentsOf: url),
-            let img = UIImage(data: data) {
+           let img = UIImage(data: data) {
             cache.setObject(img, forKey: key)
             return img
         }
 
         return await Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self = self else { return nil }
+            guard let self else { return nil }
             let options: [CFString: Any] = [
                 kCGImageSourceShouldCache: false,
                 kCGImageSourceShouldCacheImmediately: false
@@ -44,7 +41,6 @@ class ImageLoader: ObservableObject {
             guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
             let image = UIImage(cgImage: cgThumb)
             self.cache.setObject(image, forKey: key)
-            // 持久化至磁盘
             if let url = self.previewURL(for: photo, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
                 try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try? jpeg.write(to: url, options: .atomic)
@@ -53,22 +49,20 @@ class ImageLoader: ObservableObject {
         }.value
     }
 
-    // 生成缩略图（使用 CGImageSource 硬件加速缩放，极快）
     func loadThumbnail(for photo: Photo, maxPixel: Int) async -> UIImage? {
         let key = "thumb_\(photo.id.uuidString)_\(maxPixel)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
 
-        // 磁盘缓存优先
         if let url = thumbnailURL(for: photo, maxPixel: maxPixel),
            fileManager.fileExists(atPath: url.path),
            let data = try? Data(contentsOf: url),
-            let img = UIImage(data: data) {
+           let img = UIImage(data: data) {
             cache.setObject(img, forKey: key)
             return img
         }
 
         return await Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self = self else { return nil }
+            guard let self else { return nil }
             let options: [CFString: Any] = [
                 kCGImageSourceShouldCache: false,
                 kCGImageSourceShouldCacheImmediately: false
@@ -82,7 +76,6 @@ class ImageLoader: ObservableObject {
             guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
             let image = UIImage(cgImage: cgThumb)
             self.cache.setObject(image, forKey: key)
-            // 持久化至磁盘
             if let url = self.thumbnailURL(for: photo, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.85) {
                 try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try? jpeg.write(to: url, options: .atomic)
@@ -110,37 +103,9 @@ class ImageLoader: ObservableObject {
         guard let dir = previewDirectory() else { return nil }
         return dir.appendingPathComponent("\(photo.id.uuidString)_p_\(maxPixel).jpg")
     }
-    
-    private func optimizeImage(_ image: UIImage, for photo: Photo) -> UIImage {
-        let maxSize = CGSize(width: 1200, height: 1200) // 限制最大尺寸
-        
-        let size = image.size
-        if size.width <= maxSize.width && size.height <= maxSize.height {
-            return image
-        }
-        
-        let scale = min(maxSize.width / size.width, maxSize.height / size.height)
-        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        
-        UIGraphicsBeginImageContextWithOptions(newSize, false, 0)
-        image.draw(in: CGRect(origin: .zero, size: newSize))
-        let optimizedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        
-        return optimizedImage ?? image
-    }
-    
+
     func clearCache() {
         cache.removeAllObjects()
-    }
-}
-
-private struct GalleryToolbar: ToolbarContent {
-    let dismiss: DismissAction
-    var body: some ToolbarContent {
-        ToolbarItem(placement: .navigationBarLeading) {
-            Button("完成") { dismiss() }
-        }
     }
 }
 
@@ -149,15 +114,15 @@ class PhotoDetailViewModel: ObservableObject {
     @Published var currentPhoto: Photo
     @Published var loadedImages: [UUID: UIImage] = [:]
     @Published var isLoading: Bool = false
-    
+
     let imageLoader = ImageLoader.shared
     private let allPhotos: [Photo]
-    
+
     init(photo: Photo, allPhotos: [Photo]) {
         self.currentPhoto = photo
         self.allPhotos = allPhotos
     }
-    
+
     func loadImage(for photo: Photo) {
         let photoId = photo.id
         if loadedImages[photoId] != nil { return }
@@ -168,20 +133,20 @@ class PhotoDetailViewModel: ObservableObject {
 
         let maxPixel = Int(max(UIScreen.main.bounds.width, UIScreen.main.bounds.height) * UIScreen.main.scale)
         Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             let image = await self.imageLoader.loadPreview(for: photo, maxPixel: maxPixel)
             await MainActor.run {
-                if let image = image {
+                if let image {
                     self.loadedImages[photoId] = image
                 }
                 self.isLoading = false
             }
         }
     }
-    
+
     func preloadImages(around index: Int) {
         let range = max(0, index - 1)...min(allPhotos.count - 1, index + 1)
-        
+
         Task { @MainActor in
             for i in range {
                 let photo = allPhotos[i]
@@ -189,13 +154,14 @@ class PhotoDetailViewModel: ObservableObject {
             }
         }
     }
-    
+
     func updateCurrentPhoto(_ photo: Photo) {
         currentPhoto = photo
         preloadImages(around: allPhotos.firstIndex(of: photo) ?? 0)
     }
 }
 
+// MARK: - 相册视图
 struct GalleryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -212,7 +178,6 @@ struct GalleryView: View {
         GridItem(.flexible())
     ]
 
-    /// 按最新照片时间排序的胶卷列表
     private var sortedRolls: [Roll] {
         rolls.sorted { roll1, roll2 in
             let latest1 = roll1.photos.map(\.timestamp).max() ?? roll1.createdAt
@@ -329,7 +294,6 @@ struct GalleryView: View {
     }
 
     private func deleteSelectedPhotos() {
-        // 收集要删除的照片
         let photosToDelete = rolls.flatMap { $0.photos }.filter { selectedPhotos.contains($0.id) }
 
         for photo in photosToDelete {
@@ -338,17 +302,12 @@ struct GalleryView: View {
 
         do {
             try modelContext.save()
-            print("✅ 已删除 \(photosToDelete.count) 张照片")
         } catch {
             print("❌ 删除照片失败: \(error)")
         }
 
         selectedPhotos.removeAll()
         isSelecting = false
-    }
-
-    private var flattenedPhotos: [Photo] {
-        rolls.flatMap { $0.photos }.sorted(by: { $0.timestamp > $1.timestamp })
     }
 }
 
@@ -420,6 +379,7 @@ private struct DetailPayload: Identifiable, Equatable {
     static func == (lhs: DetailPayload, rhs: DetailPayload) -> Bool { lhs.startPhoto.id == rhs.startPhoto.id }
 }
 
+// MARK: - 缩略图视图（不再 fallback 到全尺寸 photo.image）
 struct PhotoThumbnailView: View {
     let photo: Photo
     var isSelecting: Bool = false
@@ -430,7 +390,7 @@ struct PhotoThumbnailView: View {
         GeometryReader { geometry in
             ZStack(alignment: .topTrailing) {
                 Group {
-                    if let image = thumb ?? photo.image {
+                    if let image = thumb {
                         Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -448,7 +408,6 @@ struct PhotoThumbnailView: View {
                     }
                 }
 
-                // 选择模式下显示选中状态
                 if isSelecting {
                     ZStack {
                         Circle()
@@ -468,7 +427,6 @@ struct PhotoThumbnailView: View {
                     .padding(5)
                 }
 
-                // 选中时添加边框
                 if isSelecting && isSelected {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(Color.blue, lineWidth: 2)
@@ -486,6 +444,7 @@ struct PhotoThumbnailView: View {
     }
 }
 
+// MARK: - 照片详情
 struct PhotoDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -561,23 +520,19 @@ struct PhotoDetailView: View {
     @ViewBuilder
     private var photoContentView: some View {
         ZStack {
-            // 背景随拖动变暗
             Color.black
                 .opacity(1 - Double(dragOffset) / 500)
                 .ignoresSafeArea()
 
-            // 照片显示区域
             if !photos.isEmpty {
                 photoTabView
                     .ignoresSafeArea()
                     .offset(y: dragOffset)
                     .scaleEffect(1 - dragOffset / 1000)
                     .gesture(
-                        // 只在未缩放时允许下滑关闭
                         imageScale <= 1.0 ?
                         DragGesture()
                             .onChanged { value in
-                                // 只响应向下拖动
                                 if value.translation.height > 0 {
                                     dragOffset = value.translation.height
                                     isDraggingToClose = true
@@ -585,7 +540,6 @@ struct PhotoDetailView: View {
                             }
                             .onEnded { value in
                                 isDraggingToClose = false
-                                // 下滑超过 150 点或速度足够快则关闭
                                 if value.translation.height > 150 || value.predictedEndTranslation.height > 300 {
                                     withAnimation(.easeOut(duration: 0.2)) {
                                         dragOffset = UIScreen.main.bounds.height
@@ -633,7 +587,6 @@ struct PhotoDetailView: View {
         .onChange(of: currentIndex) { _, newIndex in
             imageScale = 1.0
             imageOffset = .zero
-            // 切换照片时退出全屏
             if isFullScreen {
                 isFullScreen = false
             }
@@ -717,27 +670,20 @@ struct PhotoDetailView: View {
         guard currentIndex < photos.count else { return }
         let photoToDelete = photos[currentIndex]
 
-        // 从数据库删除
         modelContext.delete(photoToDelete)
         do {
             try modelContext.save()
             UINotificationFeedbackGenerator().notificationOccurred(.success)
 
-            // 从本地数组移除
             photos.remove(at: currentIndex)
-
-            // 清理已加载的图片缓存
             viewModel.loadedImages.removeValue(forKey: photoToDelete.id)
 
             if photos.isEmpty {
-                // 没有照片了，关闭详情页
                 dismiss()
             } else if currentIndex >= photos.count {
-                // 删除的是最后一张，索引回退
                 currentIndex = photos.count - 1
                 viewModel.updateCurrentPhoto(photos[currentIndex])
             } else {
-                // 删除的是中间的照片，更新当前显示
                 viewModel.updateCurrentPhoto(photos[currentIndex])
             }
         } catch {
@@ -763,15 +709,6 @@ struct PhotoDetailView: View {
         }
     }
 
-    private var saveButtonText: String {
-        switch saveStatus {
-        case .none: return "保存"
-        case .saving: return "保存中"
-        case .success: return "已保存"
-        case .failed: return "失败"
-        }
-    }
-
     private func getImageDimensions(from imageData: Data) -> (width: Int, height: Int)? {
         guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any],
@@ -782,23 +719,26 @@ struct PhotoDetailView: View {
         return (width, height)
     }
 
+    /// 保存到系统相册（async/await 现代化）
     private func saveToPhotoLibrary() {
-        guard viewModel.currentPhoto.image != nil else { return }
+        guard !viewModel.currentPhoto.imageData.isEmpty else { return }
 
         saveStatus = .saving
+        let imageData = viewModel.currentPhoto.imageData
+        let photo = viewModel.currentPhoto
 
-        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
-            DispatchQueue.main.async {
-                guard status == .authorized || status == .limited else {
-                    self.saveStatus = .failed
-                    self.resetSaveStatus()
-                    return
+        Task {
+            let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+            guard status == .authorized || status == .limited else {
+                await MainActor.run {
+                    saveStatus = .failed
+                    resetSaveStatus()
                 }
+                return
+            }
 
-                let imageData = self.viewModel.currentPhoto.imageData
-                let photo = self.viewModel.currentPhoto
-
-                PHPhotoLibrary.shared().performChanges({
+            do {
+                try await PHPhotoLibrary.shared().performChanges {
                     let request = PHAssetCreationRequest.forAsset()
                     request.creationDate = photo.timestamp
 
@@ -816,19 +756,26 @@ struct PhotoDetailView: View {
                     let options = PHAssetResourceCreationOptions()
                     options.uniformTypeIdentifier = "public.jpeg"
                     request.addResource(with: .photo, data: imageData, options: options)
-                }) { success, _ in
-                    DispatchQueue.main.async {
-                        self.saveStatus = success ? .success : .failed
-                        UINotificationFeedbackGenerator().notificationOccurred(success ? .success : .error)
-                        self.resetSaveStatus()
-                    }
+                }
+
+                await MainActor.run {
+                    saveStatus = .success
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    resetSaveStatus()
+                }
+            } catch {
+                await MainActor.run {
+                    saveStatus = .failed
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                    resetSaveStatus()
                 }
             }
         }
     }
 
     private func resetSaveStatus() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+        Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
             saveStatus = .none
         }
     }
@@ -880,7 +827,6 @@ struct ZoomablePhotoView: View {
                                 )
                             }
                             .onEnded { _ in
-                                // 限制拖动范围
                                 let maxOffset = (scale - 1) * min(geometry.size.width, geometry.size.height) / 2
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     offset.width = min(max(offset.width, -maxOffset), maxOffset)
@@ -933,7 +879,6 @@ struct PhotoInfoPanel: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // 拍摄时间
                 HStack {
                     Image(systemName: "calendar")
                         .foregroundColor(.yellow)
@@ -944,7 +889,6 @@ struct PhotoInfoPanel: View {
 
                 Divider()
 
-                // 胶片信息
                 HStack {
                     Image(systemName: "film")
                         .foregroundColor(.yellow)
@@ -953,7 +897,6 @@ struct PhotoInfoPanel: View {
                     Spacer()
                 }
 
-                // 曝光参数网格
                 LazyVGrid(columns: [
                     GridItem(.flexible()),
                     GridItem(.flexible()),
@@ -971,7 +914,6 @@ struct PhotoInfoPanel: View {
                     }
                 }
 
-                // 位置信息
                 if let lat = photo.latitude, let lon = photo.longitude {
                     Divider()
                     HStack {
@@ -990,7 +932,6 @@ struct PhotoInfoPanel: View {
                     }
                 }
 
-                // 设备信息
                 if let device = photo.deviceInfo {
                     Divider()
                     HStack {
@@ -1033,10 +974,9 @@ struct ExifInfoCard: View {
     }
 }
 
-// 导航栏样式扩展
 extension View {
     func navigationBarStyle(color: Color, backgroundColor: Color) -> some View {
         self.toolbarBackground(backgroundColor, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
     }
-} 
+}

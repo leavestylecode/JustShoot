@@ -96,7 +96,7 @@ xcrun simctl boot <UDID>
 
 # Install and run on simulator (camera won't work, but UI can be tested)
 xcrun simctl install <UDID> build/Debug-iphonesimulator/JustShoot.app
-xcrun simctl launch <UDID> com.leavestyle.JustShoot
+xcrun simctl launch <UDID> leavestylecode.JustShoot
 
 # Build for device (requires provisioning profile)
 xcodebuild -project JustShoot.xcodeproj -scheme JustShoot -destination 'generic/platform=iOS' build

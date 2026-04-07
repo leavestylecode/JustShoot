@@ -99,11 +99,7 @@ struct ContentView: View {
             _ = await AVCaptureDevice.requestAccess(for: .video)
         }
 
-        // 3. 预请求位置权限
-        let locationManager = CLLocationManager()
-        if locationManager.authorizationStatus == .notDetermined {
-            locationManager.requestWhenInUseAuthorization()
-        }
+        // 位置权限由 CameraManager.startLocationServices() 在进入拍摄时处理
 
         // 完成预加载
         await MainActor.run {

@@ -1,25 +1,10 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - 方向锁定管理器
-class OrientationManager: ObservableObject {
-    static let shared = OrientationManager()
-
-    @Published var orientationLock: UIInterfaceOrientationMask = .all
-
-    func lockOrientation(_ orientation: UIInterfaceOrientationMask) {
-        orientationLock = orientation
-    }
-
-    func unlockOrientation() {
-        orientationLock = .all
-    }
-}
-
-// MARK: - AppDelegate 用于控制方向
+// MARK: - AppDelegate：全局锁定竖屏
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
-        return OrientationManager.shared.orientationLock
+        return .portrait
     }
 }
 
@@ -30,6 +15,7 @@ struct JustShootApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Photo.self,
+            Roll.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
