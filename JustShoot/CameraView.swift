@@ -1,5 +1,6 @@
 import SwiftUI
-import AVFoundation
+@preconcurrency import AVFoundation
+@preconcurrency import CoreVideo
 import SwiftData
 import CoreLocation
 import UIKit
@@ -398,15 +399,20 @@ class CameraManager: NSObject, ObservableObject {
     /// 专用会话队列（AVCaptureSession 操作必须在同一串行队列）
     private let sessionQueue = DispatchQueue(label: "camera.session.queue")
 
+    /// CVPixelBuffer 的 Sendable 包装（CVBuffer 本身不符合 Sendable，但通过锁保护是安全的）
+    private struct SendableBuffer: @unchecked Sendable {
+        var buffer: CVPixelBuffer?
+    }
+
     /// 线程安全的像素缓冲区（用 os_unfair_lock 保护跨线程访问）
-    private let pixelBufferLock = OSAllocatedUnfairLock<CVPixelBuffer?>(initialState: nil)
+    private let pixelBufferLock = OSAllocatedUnfairLock(initialState: SendableBuffer())
 
     nonisolated func getLatestPixelBuffer() -> CVPixelBuffer? {
-        pixelBufferLock.withLock { $0 }
+        pixelBufferLock.withLockUnchecked { $0.buffer }
     }
 
     nonisolated func setLatestPixelBuffer(_ buffer: CVPixelBuffer) {
-        pixelBufferLock.withLock { $0 = buffer }
+        pixelBufferLock.withLockUnchecked { $0.buffer = buffer }
     }
 
     // 预览方向缓存
@@ -745,9 +751,11 @@ class CameraManager: NSObject, ObservableObject {
     private func startSession() async {
         guard !session.isRunning else { return }
 
-        await withCheckedContinuation { continuation in
-            sessionQueue.async { [weak self] in
-                self?.session.startRunning()
+        // 在主线程取得 session 引用，然后传给后台队列
+        let captureSession = session
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            sessionQueue.async {
+                captureSession.startRunning()
                 continuation.resume()
             }
         }
