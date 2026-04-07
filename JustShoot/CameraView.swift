@@ -164,10 +164,10 @@ struct CameraView: View {
         } message: {
             Text("当前胶卷已拍满 27 张，请返回选择新的胶卷。")
         }
-        .fullScreenCover(isPresented: $showPhotoDetail) {
+        .sheet(isPresented: $showPhotoDetail) {
             if let first = currentRollPhotos.first {
                 NavigationStack {
-                    PhotoDetailView(photo: first, allPhotos: currentRollPhotos, dismissStyle: .dragDown)
+                    PhotoDetailView(photo: first, allPhotos: currentRollPhotos)
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
                                 Button { showPhotoDetail = false } label: {
@@ -178,6 +178,9 @@ struct CameraView: View {
                             }
                         }
                 }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+                .interactiveDismissDisabled(false)
                 .preferredColorScheme(.dark)
             }
         }
