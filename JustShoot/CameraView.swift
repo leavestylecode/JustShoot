@@ -26,7 +26,6 @@ struct CameraView: View {
     @State private var showFocusIndicator = false
     @State private var showRollFullAlert = false
     @State private var showPhotoDetail = false
-    @Namespace private var zoomTransition
 
     init(preset: FilmPreset) {
         self.preset = preset
@@ -119,7 +118,6 @@ struct CameraView: View {
                                 }
                         }
                     }
-                    .matchedTransitionSource(id: "photoZoom", in: zoomTransition)
 
                     Spacer()
 
@@ -185,8 +183,6 @@ struct CameraView: View {
                 .preferredColorScheme(.dark)
             }
         }
-        .transaction { $0.disablesAnimations = false }
-        .navigationTransition(.zoom(sourceID: "photoZoom", in: zoomTransition))
     }
 
     /// 当前胶卷的照片（按时间倒序，最新在前）
