@@ -5,8 +5,6 @@ import AVFoundation
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var photos: [Photo]
-    @State private var selectedPreset: FilmPreset?
-    @State private var showingGallery = false
     @State private var isPreloading = true
 
     var body: some View {
@@ -14,8 +12,8 @@ struct ContentView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 12) {
                     ForEach(FilmPreset.allCases) { preset in
-                        FilmPresetCard(preset: preset, rolls: rolls) {
-                            selectedPreset = preset
+                        NavigationLink(value: preset) {
+                            FilmPresetCard(preset: preset, rolls: rolls)
                         }
                     }
                 }
@@ -43,6 +41,9 @@ struct ContentView: View {
             .navigationDestination(for: String.self) { _ in
                 GalleryView()
             }
+            .navigationDestination(for: FilmPreset.self) { preset in
+                CameraView(preset: preset)
+            }
             .safeAreaInset(edge: .bottom) {
                 if isPreloading {
                     HStack(spacing: 8) {
@@ -60,9 +61,6 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .fullScreenCover(item: $selectedPreset) { preset in
-            CameraView(preset: preset)
-        }
         .task {
             await preloadResources()
         }
@@ -94,9 +92,6 @@ struct ContentView: View {
 struct FilmPresetCard: View {
     let preset: FilmPreset
     let rolls: [Roll]
-    let onTap: () -> Void
-
-    @State private var isPressed = false
 
     private var activeRoll: Roll? {
         rolls.first { $0.presetName == preset.rawValue && !$0.isCompleted }
@@ -173,20 +168,11 @@ struct FilmPresetCard: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(Color.white.opacity(isPressed ? 0.12 : 0.06))
+        .background(Color.white.opacity(0.06))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(hasActiveRoll ? accentColor.opacity(0.4) : Color.white.opacity(0.08), lineWidth: 1)
         )
-        .scaleEffect(isPressed ? 0.97 : 1.0)
-        .animation(.easeOut(duration: 0.15), value: isPressed)
-        .onTapGesture {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            onTap()
-        }
-        .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
-            isPressed = pressing
-        }, perform: {})
     }
 }

@@ -33,120 +33,118 @@ struct CameraView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.black.ignoresSafeArea()
+        ZStack {
+            Color.black.ignoresSafeArea()
 
-                // 预览区
-                GeometryReader { geometry in
-                    ZStack {
-                        RealtimePreviewView(manager: cameraManager, preset: preset)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            // 预览区
+            GeometryReader { geometry in
+                ZStack {
+                    RealtimePreviewView(manager: cameraManager, preset: preset)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-                        if showFocusIndicator, let point = focusPoint {
-                            FocusIndicatorView()
-                                .position(point)
-                        }
+                    if showFocusIndicator, let point = focusPoint {
+                        FocusIndicatorView()
+                            .position(point)
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture { location in
-                        handleTapToFocus(at: location, in: geometry.size)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .aspectRatio(3.0/4.0, contentMode: .fit)
-                .padding(.horizontal, 4)
-
-                // 快门闪光效果
-                if showFlash {
-                    Color.white
-                        .ignoresSafeArea()
-                        .opacity(0.7)
+                .contentShape(Rectangle())
+                .onTapGesture { location in
+                    handleTapToFocus(at: location, in: geometry.size)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbar {
-                // 左上：关闭
-                ToolbarItem(placement: .cancellationAction) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .fontWeight(.semibold)
-                    }
-                    .tint(.white)
-                }
+            .aspectRatio(3.0/4.0, contentMode: .fit)
+            .padding(.horizontal, 4)
 
-                // 中间：胶片名 + 剩余张数
-                ToolbarItem(placement: .principal) {
-                    VStack(spacing: 1) {
-                        Text(preset.displayName)
-                            .font(.subheadline.weight(.semibold))
-                        Text("\(exposuresRemaining) 张剩余")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                // 右上：闪光灯
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        cameraManager.toggleFlashMode()
-                    } label: {
-                        Image(systemName: cameraManager.flashMode == .on ? "bolt.fill" : "bolt.slash.fill")
-                    }
-                    .tint(cameraManager.flashMode == .on ? .yellow : .white)
-                }
-            }
-            // 底部控制栏
-            .safeAreaInset(edge: .bottom) {
-                HStack {
-                    // 左：最近照片缩略图（点击查看详情，iOS 18 zoom transition）
-                    Button { if !currentRollPhotos.isEmpty { showPhotoDetail = true } } label: {
-                        if let thumb = lastPhotoThumbnail {
-                            Image(uiImage: thumb)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 46, height: 46)
-                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        } else {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 46, height: 46)
-                                .overlay {
-                                    Image(systemName: "photo")
-                                        .foregroundStyle(.secondary)
-                                }
-                        }
-                    }
-
-                    Spacer()
-
-                    // 中：快门按钮
-                    Button(action: capturePhoto) {
-                        ZStack {
-                            Circle()
-                                .stroke(.white, lineWidth: 4)
-                                .frame(width: 72, height: 72)
-                            Circle()
-                                .fill(.white)
-                                .frame(width: 60, height: 60)
-                                .scaleEffect(isCapturing ? 0.85 : 1.0)
-                                .animation(.easeInOut(duration: 0.1), value: isCapturing)
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer()
-
-                    // 右：占位（保持快门居中）
-                    Color.clear
-                        .frame(width: 46, height: 46)
-                }
-                .padding(.horizontal, 30)
-                .padding(.bottom, 10)
+            // 快门闪光效果
+            if showFlash {
+                Color.white
+                    .ignoresSafeArea()
+                    .opacity(0.7)
             }
         }
-        .preferredColorScheme(.dark)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            // 左上：返回
+            ToolbarItem(placement: .cancellationAction) {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left")
+                        .fontWeight(.semibold)
+                }
+                .tint(.white)
+            }
+
+            // 中间：胶片名 + 剩余张数
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text(preset.displayName)
+                        .font(.subheadline.weight(.semibold))
+                    Text("\(exposuresRemaining) 张剩余")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // 右上：闪光灯
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    cameraManager.toggleFlashMode()
+                } label: {
+                    Image(systemName: cameraManager.flashMode == .on ? "bolt.fill" : "bolt.slash.fill")
+                }
+                .tint(cameraManager.flashMode == .on ? .yellow : .white)
+            }
+        }
+        // 底部控制栏
+        .safeAreaInset(edge: .bottom) {
+            HStack {
+                // 左：最近照片缩略图
+                Button { if !currentRollPhotos.isEmpty { showPhotoDetail = true } } label: {
+                    if let thumb = lastPhotoThumbnail {
+                        Image(uiImage: thumb)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 46, height: 46)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    } else {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 46, height: 46)
+                            .overlay {
+                                Image(systemName: "photo")
+                                    .foregroundStyle(.secondary)
+                            }
+                    }
+                }
+
+                Spacer()
+
+                // 中：快门按钮
+                Button(action: capturePhoto) {
+                    ZStack {
+                        Circle()
+                            .stroke(.white, lineWidth: 4)
+                            .frame(width: 72, height: 72)
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 60, height: 60)
+                            .scaleEffect(isCapturing ? 0.85 : 1.0)
+                            .animation(.easeInOut(duration: 0.1), value: isCapturing)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                // 右：占位（保持快门居中）
+                Color.clear
+                    .frame(width: 46, height: 46)
+            }
+            .padding(.horizontal, 30)
+            .padding(.bottom, 10)
+        }
         .onAppear {
             FilmProcessor.shared.preload(preset: preset)
             cameraManager.requestCameraPermission()
