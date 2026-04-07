@@ -24,6 +24,7 @@ struct CameraView: View {
     @State private var focusPoint: CGPoint? = nil
     @State private var showFocusIndicator = false
     @State private var showRollFullAlert = false
+    @State private var showPhotoDetail = false
 
     init(preset: FilmPreset) {
         self.preset = preset
@@ -98,8 +99,8 @@ struct CameraView: View {
             // 底部控制栏
             .safeAreaInset(edge: .bottom) {
                 HStack {
-                    // 左：最近照片缩略图（点击 dismiss 回首页查看相册）
-                    Button { dismiss() } label: {
+                    // 左：最近照片缩略图（点击查看详情，类似 iPhone Camera）
+                    Button { if !currentRollPhotos.isEmpty { showPhotoDetail = true } } label: {
                         if let thumb = lastPhotoThumbnail {
                             Image(uiImage: thumb)
                                 .resizable()
@@ -164,6 +165,29 @@ struct CameraView: View {
         } message: {
             Text("当前胶卷已拍满 27 张，请返回选择新的胶卷。")
         }
+        .fullScreenCover(isPresented: $showPhotoDetail) {
+            if let first = currentRollPhotos.first {
+                NavigationStack {
+                    PhotoDetailView(photo: first, allPhotos: currentRollPhotos)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button { showPhotoDetail = false } label: {
+                                    Image(systemName: "xmark")
+                                        .fontWeight(.semibold)
+                                }
+                                .tint(.white)
+                            }
+                        }
+                }
+                .preferredColorScheme(.dark)
+            }
+        }
+    }
+
+    /// 当前胶卷的照片（按时间倒序，最新在前）
+    private var currentRollPhotos: [Photo] {
+        guard let roll = currentRoll else { return [] }
+        return roll.photos.sorted { $0.timestamp > $1.timestamp }
     }
 
     private func loadLastPhotoThumbnail() {
