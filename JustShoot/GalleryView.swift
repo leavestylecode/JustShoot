@@ -523,37 +523,16 @@ struct PhotoDetailView: View {
         }
     }
 
-    /// 底部缩略图滚动条
+    /// 底部缩略图滚动条（可拖拽，居中选中，触觉反馈）
     @ViewBuilder
     private var thumbnailStrip: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 2) {
-                    ForEach(Array(photos.enumerated()), id: \.element.id) { index, photoItem in
-                        ThumbnailStripItem(
-                            photo: photoItem,
-                            isSelected: index == currentIndex,
-                            size: 36
-                        )
-                        .id(index)
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                currentIndex = index
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-            .onChange(of: currentIndex) { _, newIndex in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    proxy.scrollTo(newIndex, anchor: .center)
-                }
-            }
-            .onAppear {
-                proxy.scrollTo(currentIndex, anchor: .center)
-            }
-        }
+        ScrubberStripView(
+            photos: photos,
+            currentIndex: $currentIndex,
+            itemSize: 36,
+            spacing: 2
+        )
+        .frame(height: 40)
     }
 
     @ViewBuilder
@@ -579,15 +558,14 @@ struct PhotoDetailView: View {
             }
         }
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-        .onChange(of: currentIndex) { _, newIndex in
+        .onChange(of: currentIndex) { oldIndex, newIndex in
             imageScale = 1.0
             imageOffset = .zero
             if isFullScreen {
                 isFullScreen = false
             }
             if newIndex >= 0 && newIndex < photos.count {
-                let newPhoto = photos[newIndex]
-                viewModel.updateCurrentPhoto(newPhoto)
+                viewModel.updateCurrentPhoto(photos[newIndex])
             }
         }
     }
@@ -845,6 +823,87 @@ struct ZoomablePhotoView: View {
             }
         }
         .background(Color.black)
+    }
+}
+
+// MARK: - 可拖拽缩略图条（iPhone Camera 风格）
+private struct ScrubberStripView: View {
+    let photos: [Photo]
+    @Binding var currentIndex: Int
+    let itemSize: CGFloat
+    let spacing: CGFloat
+
+    /// 拖拽产生的额外偏移
+    @State private var dragOffset: CGFloat = 0
+    /// 拖拽开始时记录的 index
+    @State private var dragStartIndex: Int = 0
+    /// 是否正在拖拽
+    @State private var isDragging = false
+
+    private let feedbackGenerator = UISelectionFeedbackGenerator()
+
+    /// 每个 item 的步进宽度
+    private var step: CGFloat { itemSize + spacing }
+
+    /// 当前 index 对应的居中偏移（负值向左移）
+    private func offsetForIndex(_ index: Int) -> CGFloat {
+        -CGFloat(index) * step
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            let centerX = geometry.size.width / 2 - itemSize / 2
+
+            HStack(spacing: spacing) {
+                ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
+                    ThumbnailStripItem(
+                        photo: photo,
+                        isSelected: index == currentIndex,
+                        size: itemSize
+                    )
+                    .scaleEffect(index == currentIndex ? 1.15 : 1.0)
+                    .animation(.easeOut(duration: 0.15), value: currentIndex)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            currentIndex = index
+                        }
+                        feedbackGenerator.selectionChanged()
+                    }
+                }
+            }
+            .offset(x: centerX + offsetForIndex(currentIndex) + dragOffset)
+            .animation(isDragging ? nil : .easeInOut(duration: 0.25), value: currentIndex)
+            .animation(isDragging ? nil : .easeOut(duration: 0.2), value: dragOffset)
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        if !isDragging {
+                            isDragging = true
+                            dragStartIndex = currentIndex
+                            feedbackGenerator.prepare()
+                        }
+                        dragOffset = value.translation.width
+
+                        // 根据拖拽距离计算新 index
+                        let indexDelta = Int(round(-dragOffset / step))
+                        let newIndex = max(0, min(photos.count - 1, dragStartIndex + indexDelta))
+                        if newIndex != currentIndex {
+                            currentIndex = newIndex
+                            feedbackGenerator.selectionChanged()
+                        }
+                    }
+                    .onEnded { _ in
+                        isDragging = false
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            dragOffset = 0
+                        }
+                    }
+            )
+        }
+        .clipShape(Rectangle())
+        .onAppear {
+            feedbackGenerator.prepare()
+        }
     }
 }
 
