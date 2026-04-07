@@ -64,18 +64,9 @@ struct CameraView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
+        .toolbarRole(.editor)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
-            // 左上：返回
-            ToolbarItem(placement: .cancellationAction) {
-                Button { dismiss() } label: {
-                    Image(systemName: "chevron.left")
-                        .fontWeight(.semibold)
-                }
-                .tint(.white)
-            }
-
             // 中间：胶片名 + 剩余张数
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
