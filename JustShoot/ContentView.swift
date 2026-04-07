@@ -1,17 +1,6 @@
 import SwiftUI
 import SwiftData
 import AVFoundation
-import CoreLocation
-
-// MARK: - 按压缩放按钮样式
-struct ScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .opacity(configuration.isPressed ? 0.9 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -39,10 +28,7 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        showingGallery = true
-                    }) {
+                    NavigationLink(value: "gallery") {
                         HStack(spacing: 6) {
                             Image(systemName: "photo.stack")
                                 .font(.system(size: 15, weight: .medium))
@@ -53,6 +39,9 @@ struct ContentView: View {
                         }
                     }
                 }
+            }
+            .navigationDestination(for: String.self) { _ in
+                GalleryView()
             }
             .safeAreaInset(edge: .bottom) {
                 if isPreloading {
@@ -74,9 +63,6 @@ struct ContentView: View {
         .fullScreenCover(item: $selectedPreset) { preset in
             CameraView(preset: preset)
         }
-        .fullScreenCover(isPresented: $showingGallery) {
-            GalleryView()
-        }
         .task {
             await preloadResources()
         }
@@ -84,24 +70,18 @@ struct ContentView: View {
 
     @Query(sort: \Roll.createdAt, order: .reverse) private var rolls: [Roll]
 
-    /// 预加载相机资源：LUT 文件 + 相机权限预请求
     private func preloadResources() async {
-        // 1. 预加载所有 LUT 文件（后台线程）
         await Task.detached(priority: .userInitiated) {
             for preset in FilmPreset.allCases {
                 FilmProcessor.shared.preload(preset: preset)
             }
         }.value
 
-        // 2. 预请求相机权限（让用户提前授权，避免进入相机时弹窗）
         let cameraStatus = AVCaptureDevice.authorizationStatus(for: .video)
         if cameraStatus == .notDetermined {
             _ = await AVCaptureDevice.requestAccess(for: .video)
         }
 
-        // 位置权限由 CameraManager.startLocationServices() 在进入拍摄时处理
-
-        // 完成预加载
         await MainActor.run {
             withAnimation(.easeOut(duration: 0.3)) {
                 isPreloading = false
@@ -142,7 +122,6 @@ struct FilmPresetCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            // 左侧色块图标
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(accentColor)
                 .frame(width: 48, height: 48)
@@ -152,7 +131,6 @@ struct FilmPresetCard: View {
                         .foregroundColor(.white)
                 )
 
-            // 中间信息
             VStack(alignment: .leading, spacing: 4) {
                 Text(preset.displayName)
                     .font(.system(size: 16, weight: .semibold))
@@ -173,10 +151,8 @@ struct FilmPresetCard: View {
 
             Spacer()
 
-            // 右侧状态
             VStack(alignment: .trailing, spacing: 6) {
                 if hasActiveRoll {
-                    // 进度条
                     ZStack(alignment: .leading) {
                         Capsule()
                             .fill(Color.white.opacity(0.1))

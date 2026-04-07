@@ -161,12 +161,11 @@ class PhotoDetailViewModel: ObservableObject {
     }
 }
 
-// MARK: - 相册视图
+// MARK: - 相册视图（不自带 NavigationStack，由父级 ContentView 提供）
 struct GalleryView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Roll.createdAt, order: .reverse) private var rolls: [Roll]
-    @State private var detailPayload: DetailPayload?
+    @State private var selectedDetail: DetailPayload?
     @State private var isSelecting = false
     @State private var selectedPhotos: Set<UUID> = []
     @State private var showDeleteConfirm = false
@@ -187,108 +186,100 @@ struct GalleryView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView(.vertical, showsIndicators: true) {
-                if rolls.isEmpty {
-                    VStack {
-                        Image(systemName: "photo")
-                            .font(.system(size: 80))
-                            .foregroundColor(.gray.opacity(0.5))
-                        Text("暂无照片")
-                            .font(.title3)
-                            .foregroundColor(.gray)
-                            .padding(.top, 16)
-                        Text("前往拍摄页面开始拍照")
-                            .font(.caption)
-                            .foregroundColor(.gray.opacity(0.6))
-                            .padding(.top, 4)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 400)
-                } else {
-                    LazyVStack(spacing: 16) {
-                        ForEach(sortedRolls) { roll in
-                            RollSectionView(
-                                roll: roll,
-                                gridColumns: gridColumns,
-                                isSelecting: isSelecting,
-                                selectedPhotos: $selectedPhotos
-                            ) { startPhoto, groupPhotos in
-                                if !isSelecting {
-                                    let screenBounds = UIScreen.main.bounds
-                                    let maxPixel = Int(max(screenBounds.width, screenBounds.height) * UIScreen.main.scale)
-                                    Task.detached(priority: .userInitiated) {
-                                        _ = await ImageLoader.shared.loadPreview(for: startPhoto, maxPixel: maxPixel)
-                                    }
-                                    detailPayload = DetailPayload(startPhoto: startPhoto, photos: groupPhotos)
+        ScrollView(.vertical, showsIndicators: true) {
+            if rolls.isEmpty {
+                VStack {
+                    Image(systemName: "photo")
+                        .font(.system(size: 80))
+                        .foregroundColor(.gray.opacity(0.5))
+                    Text("暂无照片")
+                        .font(.title3)
+                        .foregroundColor(.gray)
+                        .padding(.top, 16)
+                    Text("前往拍摄页面开始拍照")
+                        .font(.caption)
+                        .foregroundColor(.gray.opacity(0.6))
+                        .padding(.top, 4)
+                }
+                .frame(maxWidth: .infinity, minHeight: 400)
+            } else {
+                LazyVStack(spacing: 16) {
+                    ForEach(sortedRolls) { roll in
+                        RollSectionView(
+                            roll: roll,
+                            gridColumns: gridColumns,
+                            isSelecting: isSelecting,
+                            selectedPhotos: $selectedPhotos
+                        ) { startPhoto, groupPhotos in
+                            if !isSelecting {
+                                let screenBounds = UIScreen.main.bounds
+                                let maxPixel = Int(max(screenBounds.width, screenBounds.height) * UIScreen.main.scale)
+                                Task.detached(priority: .userInitiated) {
+                                    _ = await ImageLoader.shared.loadPreview(for: startPhoto, maxPixel: maxPixel)
                                 }
-                            }
-                        }
-                    }
-                    .padding(.top, 8)
-                    .padding(.bottom, 20)
-                }
-            }
-            .background(Color.black)
-            .navigationTitle(isSelecting ? "已选择 \(selectedPhotos.count) 张" : "相册")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(isSelecting ? "取消" : "关闭") {
-                        if isSelecting {
-                            isSelecting = false
-                            selectedPhotos.removeAll()
-                        } else {
-                            dismiss()
-                        }
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if !rolls.isEmpty {
-                        Button(isSelecting ? "全选" : "选择") {
-                            if isSelecting {
-                                let allPhotoIds = Set(rolls.flatMap { $0.photos.map { $0.id } })
-                                if selectedPhotos.count == allPhotoIds.count {
-                                    selectedPhotos.removeAll()
-                                } else {
-                                    selectedPhotos = allPhotoIds
-                                }
-                            } else {
-                                isSelecting = true
+                                selectedDetail = DetailPayload(startPhoto: startPhoto, photos: groupPhotos)
                             }
                         }
                     }
                 }
-            }
-            .toolbar(isSelecting ? .visible : .hidden, for: .bottomBar)
-            .toolbar {
-                ToolbarItemGroup(placement: .bottomBar) {
-                    if isSelecting {
-                        Spacer()
-                        Button(action: { showDeleteConfirm = true }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 16))
-                                Text("删除")
-                                    .font(.system(size: 16, weight: .medium))
-                            }
-                            .foregroundColor(selectedPhotos.isEmpty ? .gray : .red)
-                        }
-                        .disabled(selectedPhotos.isEmpty)
-                        Spacer()
-                    }
-                }
-            }
-            .alert("确认删除", isPresented: $showDeleteConfirm) {
-                Button("取消", role: .cancel) {}
-                Button("删除", role: .destructive) {
-                    deleteSelectedPhotos()
-                }
-            } message: {
-                Text("确定要删除选中的 \(selectedPhotos.count) 张照片吗？此操作不可撤销。")
+                .padding(.top, 8)
+                .padding(.bottom, 20)
             }
         }
-        .preferredColorScheme(.dark)
-        .fullScreenCover(item: $detailPayload) { payload in
+        .background(Color.black)
+        .navigationTitle(isSelecting ? "已选择 \(selectedPhotos.count) 张" : "相册")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if !rolls.isEmpty {
+                    Button(isSelecting ? "全选" : "选择") {
+                        if isSelecting {
+                            let allPhotoIds = Set(rolls.flatMap { $0.photos.map { $0.id } })
+                            if selectedPhotos.count == allPhotoIds.count {
+                                selectedPhotos.removeAll()
+                            } else {
+                                selectedPhotos = allPhotoIds
+                            }
+                        } else {
+                            isSelecting = true
+                        }
+                    }
+                }
+            }
+        }
+        .toolbar(isSelecting ? .visible : .hidden, for: .bottomBar)
+        .toolbar {
+            ToolbarItemGroup(placement: .bottomBar) {
+                if isSelecting {
+                    Button("取消") {
+                        isSelecting = false
+                        selectedPhotos.removeAll()
+                    }
+
+                    Spacer()
+
+                    Button(action: { showDeleteConfirm = true }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 16))
+                            Text("删除")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        .foregroundColor(selectedPhotos.isEmpty ? .gray : .red)
+                    }
+                    .disabled(selectedPhotos.isEmpty)
+                }
+            }
+        }
+        .alert("确认删除", isPresented: $showDeleteConfirm) {
+            Button("取消", role: .cancel) {}
+            Button("删除", role: .destructive) {
+                deleteSelectedPhotos()
+            }
+        } message: {
+            Text("确定要删除选中的 \(selectedPhotos.count) 张照片吗？此操作不可撤销。")
+        }
+        .navigationDestination(item: $selectedDetail) { payload in
             PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos)
         }
     }
@@ -372,11 +363,12 @@ private struct RollSectionView: View {
     }
 }
 
-private struct DetailPayload: Identifiable, Equatable {
+private struct DetailPayload: Identifiable, Equatable, Hashable {
     var id: UUID { startPhoto.id }
     let startPhoto: Photo
     let photos: [Photo]
     static func == (lhs: DetailPayload, rhs: DetailPayload) -> Bool { lhs.startPhoto.id == rhs.startPhoto.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(startPhoto.id) }
 }
 
 // MARK: - 缩略图视图（不再 fallback 到全尺寸 photo.image）
@@ -444,7 +436,7 @@ struct PhotoThumbnailView: View {
     }
 }
 
-// MARK: - 照片详情
+// MARK: - 照片详情（不自带 NavigationStack，由父级导航容器提供）
 struct PhotoDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -458,11 +450,7 @@ struct PhotoDetailView: View {
     @State private var currentIndex: Int = 0
     @State private var showDeleteConfirm = false
     @State private var imageScale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
     @State private var imageOffset: CGSize = .zero
-    @State private var lastOffset: CGSize = .zero
-    @State private var dragOffset: CGFloat = 0
-    @State private var isDraggingToClose = false
     @State private var isFullScreen = false
 
     enum SaveStatus {
@@ -478,83 +466,51 @@ struct PhotoDetailView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            photoContentView
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar(isFullScreen ? .hidden : .visible, for: .navigationBar)
-                .toolbar(isFullScreen ? .hidden : .visible, for: .bottomBar)
-                .toolbar { navigationToolbar }
-                .toolbar { bottomToolbar }
-                .statusBarHidden(isFullScreen)
-        }
-        .preferredColorScheme(.dark)
-        .onAppear {
-            if !photos.isEmpty && currentIndex < photos.count {
-                viewModel.updateCurrentPhoto(photos[currentIndex])
-                viewModel.loadImage(for: photos[currentIndex])
+        photoContentView
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(isFullScreen)
+            .toolbar(isFullScreen ? .hidden : .visible, for: .navigationBar)
+            .toolbar(isFullScreen ? .hidden : .visible, for: .bottomBar)
+            .toolbar { navigationToolbar }
+            .toolbar { bottomToolbar }
+            .statusBarHidden(isFullScreen)
+            .onAppear {
+                if !photos.isEmpty && currentIndex < photos.count {
+                    viewModel.updateCurrentPhoto(photos[currentIndex])
+                    viewModel.loadImage(for: photos[currentIndex])
+                }
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
-            viewModel.imageLoader.clearCache()
-        }
-        .alert("删除照片", isPresented: $showDeleteConfirm) {
-            Button("取消", role: .cancel) {}
-            Button("删除", role: .destructive) {
-                deleteCurrentPhoto()
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+                viewModel.imageLoader.clearCache()
             }
-        } message: {
-            Text("确定要删除这张照片吗？此操作不可撤销。")
-        }
-        .sheet(isPresented: $showingInfo) {
-            if currentIndex < photos.count {
-                PhotoInfoPanel(
-                    photo: photos[currentIndex],
-                    getImageDimensions: getImageDimensions
-                )
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
+            .alert("删除照片", isPresented: $showDeleteConfirm) {
+                Button("取消", role: .cancel) {}
+                Button("删除", role: .destructive) {
+                    deleteCurrentPhoto()
+                }
+            } message: {
+                Text("确定要删除这张照片吗？此操作不可撤销。")
             }
-        }
+            .sheet(isPresented: $showingInfo) {
+                if currentIndex < photos.count {
+                    PhotoInfoPanel(
+                        photo: photos[currentIndex],
+                        getImageDimensions: getImageDimensions
+                    )
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+                }
+            }
     }
 
     @ViewBuilder
     private var photoContentView: some View {
         ZStack {
-            Color.black
-                .opacity(1 - Double(dragOffset) / 500)
-                .ignoresSafeArea()
+            Color.black.ignoresSafeArea()
 
             if !photos.isEmpty {
                 photoTabView
                     .ignoresSafeArea()
-                    .offset(y: dragOffset)
-                    .scaleEffect(1 - dragOffset / 1000)
-                    .gesture(
-                        imageScale <= 1.0 ?
-                        DragGesture()
-                            .onChanged { value in
-                                if value.translation.height > 0 {
-                                    dragOffset = value.translation.height
-                                    isDraggingToClose = true
-                                }
-                            }
-                            .onEnded { value in
-                                isDraggingToClose = false
-                                if value.translation.height > 150 || value.predictedEndTranslation.height > 300 {
-                                    withAnimation(.easeOut(duration: 0.2)) {
-                                        dragOffset = UIScreen.main.bounds.height
-                                    }
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                        dismiss()
-                                    }
-                                } else {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                        dragOffset = 0
-                                    }
-                                }
-                            }
-                        : nil
-                    )
             } else {
                 emptyPlaceholder
             }
@@ -611,16 +567,6 @@ struct PhotoDetailView: View {
 
     @ToolbarContentBuilder
     private var navigationToolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigationBarLeading) {
-            Button(action: {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                dismiss()
-            }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-            }
-        }
-
         ToolbarItem(placement: .principal) {
             Text("\(currentIndex + 1) / \(photos.count)")
                 .font(.system(size: 15, weight: .medium))
@@ -628,40 +574,32 @@ struct PhotoDetailView: View {
         }
 
         ToolbarItem(placement: .navigationBarTrailing) {
-            Button(action: {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    showingInfo.toggle()
-                }
-            }) {
-                Image(systemName: showingInfo ? "info.fill" : "info")
-                    .font(.system(size: 16))
-                    .foregroundColor(showingInfo ? .yellow : .white)
+            Button {
+                showingInfo.toggle()
+            } label: {
+                Image(systemName: showingInfo ? "info.circle.fill" : "info.circle")
             }
+            .tint(showingInfo ? .yellow : .white)
         }
     }
 
     @ToolbarContentBuilder
     private var bottomToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
-            Button(action: {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            Button {
                 saveToPhotoLibrary()
-            }) {
+            } label: {
                 Image(systemName: saveButtonIcon)
-                    .font(.system(size: 20))
-                    .foregroundColor(saveButtonColor)
             }
+            .tint(saveButtonColor)
             .disabled(saveStatus == .saving)
 
             Spacer()
 
-            Button(action: {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            Button(role: .destructive) {
                 showDeleteConfirm = true
-            }) {
+            } label: {
                 Image(systemName: "trash")
-                    .font(.system(size: 20))
             }
         }
     }
@@ -974,9 +912,3 @@ struct ExifInfoCard: View {
     }
 }
 
-extension View {
-    func navigationBarStyle(color: Color, backgroundColor: Color) -> some View {
-        self.toolbarBackground(backgroundColor, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-    }
-}

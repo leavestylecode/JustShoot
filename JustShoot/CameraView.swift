@@ -20,9 +20,7 @@ struct CameraView: View {
     @State private var exposuresRemaining: Int = 27
     @State private var currentRoll: Roll?
     @State private var isCapturing = false
-    @State private var lastCapturedPhoto: Photo?
     @State private var lastPhotoThumbnail: UIImage?
-    @State private var showingGallery = false
     @State private var focusPoint: CGPoint? = nil
     @State private var showFocusIndicator = false
     @State private var showRollFullAlert = false
@@ -33,142 +31,120 @@ struct CameraView: View {
     }
 
     var body: some View {
-        ZStack {
-            // 背景
+        NavigationStack {
             ZStack {
-                LinearGradient(colors: [Color(red: 0.06, green: 0.06, blue: 0.06), Color.black], startPoint: .top, endPoint: .bottom)
-                RadialGradient(gradient: Gradient(colors: [Color.white.opacity(0.06), .clear]), center: .top, startRadius: 0, endRadius: 400)
-                LinearGradient(colors: [Color.clear, Color.white.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                Color.black.ignoresSafeArea()
+
+                // 预览区
+                GeometryReader { geometry in
+                    ZStack {
+                        RealtimePreviewView(manager: cameraManager, preset: preset)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                        if showFocusIndicator, let point = focusPoint {
+                            FocusIndicatorView()
+                                .position(point)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { location in
+                        handleTapToFocus(at: location, in: geometry.size)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .aspectRatio(3.0/4.0, contentMode: .fit)
+                .padding(.horizontal, 4)
+
+                // 快门闪光效果
+                if showFlash {
+                    Color.white
+                        .ignoresSafeArea()
+                        .opacity(0.7)
+                }
             }
-            .ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                    // 顶部栏
-                    HStack(alignment: .center) {
-                        Button(action: { dismiss() }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 40, height: 40)
-                                .background(Color.white.opacity(0.10))
-                                .clipShape(Circle())
-                        }
-
-                        Spacer()
-
-                        HStack(spacing: 6) {
-                            Text("EXP")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.85))
-                            Text("\(exposuresRemaining)")
-                                .font(.system(size: 18, weight: .heavy))
-                                .monospacedDigit()
-                                .foregroundStyle(.white)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(Color.white.opacity(0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbar {
+                // 左上：关闭
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .fontWeight(.semibold)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-
-                    Spacer(minLength: 8)
-
-                    // 预览区
-                    GeometryReader { geometry in
-                        ZStack {
-                            RealtimePreviewView(manager: cameraManager, preset: preset)
-                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                                .shadow(color: .black.opacity(0.5), radius: 12, x: 0, y: 8)
-
-                            if showFocusIndicator, let point = focusPoint {
-                                FocusIndicatorView()
-                                    .position(point)
-                            }
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture { location in
-                            handleTapToFocus(at: location, in: geometry.size)
-                        }
-                    }
-                    .aspectRatio(3/4, contentMode: .fit)
-                    .padding(.horizontal, 16)
-
-                    Spacer(minLength: 8)
-
-                    // 底部控制区
-                    HStack(alignment: .center) {
-                        // 闪光灯
-                        Button(action: {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            cameraManager.toggleFlashMode()
-                        }) {
-                            let isOn = cameraManager.flashMode == .on
-                            Image(systemName: isOn ? "bolt.fill" : "bolt.slash.fill")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(isOn ? Color.black : Color.white.opacity(0.8))
-                                .frame(width: 44, height: 44)
-                                .background(isOn ? Color.yellow : Color.white.opacity(0.12))
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-
-                        Spacer()
-
-                        // 快门
-                        Button(action: { capturePhoto() }) {
-                            ZStack {
-                                Circle()
-                                    .stroke(Color.white, lineWidth: 4)
-                                    .frame(width: 72, height: 72)
-                                Circle()
-                                    .fill(Color.white)
-                                    .frame(width: 60, height: 60)
-                                    .scaleEffect(isCapturing ? 0.9 : 1.0)
-                                    .animation(.easeInOut(duration: 0.1), value: isCapturing)
-                            }
-                            .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 4)
-                        }
-                        .buttonStyle(.plain)
-
-                        Spacer()
-
-                        // 缩略图
-                        Button(action: { showingGallery = true }) {
-                            if let _ = lastCapturedPhoto, let thumb = lastPhotoThumbnail {
-                                Image(uiImage: thumb)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 44, height: 44)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                    )
-                            } else {
-                                Image(systemName: "photo.on.rectangle")
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundStyle(Color.white.opacity(0.6))
-                                    .frame(width: 44, height: 44)
-                                    .background(Color.white.opacity(0.12))
-                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 40)
-                    .padding(.bottom, 20)
+                    .tint(.white)
                 }
 
-            // 快门闪光效果
-            if showFlash {
-                Color.white
-                    .ignoresSafeArea()
-                    .opacity(0.7)
+                // 中间：胶片名 + 剩余张数
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 1) {
+                        Text(preset.displayName)
+                            .font(.subheadline.weight(.semibold))
+                        Text("\(exposuresRemaining) 张剩余")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // 右上：闪光灯
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        cameraManager.toggleFlashMode()
+                    } label: {
+                        Image(systemName: cameraManager.flashMode == .on ? "bolt.fill" : "bolt.slash.fill")
+                    }
+                    .tint(cameraManager.flashMode == .on ? .yellow : .white)
+                }
+            }
+            // 底部控制栏
+            .safeAreaInset(edge: .bottom) {
+                HStack {
+                    // 左：最近照片缩略图（点击 dismiss 回首页查看相册）
+                    Button { dismiss() } label: {
+                        if let thumb = lastPhotoThumbnail {
+                            Image(uiImage: thumb)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 46, height: 46)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        } else {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 46, height: 46)
+                                .overlay {
+                                    Image(systemName: "photo")
+                                        .foregroundStyle(.secondary)
+                                }
+                        }
+                    }
+
+                    Spacer()
+
+                    // 中：快门按钮
+                    Button(action: capturePhoto) {
+                        ZStack {
+                            Circle()
+                                .stroke(.white, lineWidth: 4)
+                                .frame(width: 72, height: 72)
+                            Circle()
+                                .fill(.white)
+                                .frame(width: 60, height: 60)
+                                .scaleEffect(isCapturing ? 0.85 : 1.0)
+                                .animation(.easeInOut(duration: 0.1), value: isCapturing)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    // 右：占位（保持快门居中）
+                    Color.clear
+                        .frame(width: 46, height: 46)
+                }
+                .padding(.horizontal, 30)
+                .padding(.bottom, 10)
             }
         }
-        .statusBarHidden(true)
+        .preferredColorScheme(.dark)
         .onAppear {
             FilmProcessor.shared.preload(preset: preset)
             cameraManager.requestCameraPermission()
@@ -178,9 +154,6 @@ struct CameraView: View {
         }
         .onDisappear {
             cameraManager.stopLocationServices()
-        }
-        .fullScreenCover(isPresented: $showingGallery) {
-            GalleryView()
         }
         .onChange(of: allPhotos.count) { _, _ in
             loadLastPhotoThumbnail()
@@ -195,11 +168,9 @@ struct CameraView: View {
 
     private func loadLastPhotoThumbnail() {
         guard let photo = allPhotos.first else {
-            lastCapturedPhoto = nil
             lastPhotoThumbnail = nil
             return
         }
-        lastCapturedPhoto = photo
         Task {
             let thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: 88)
             await MainActor.run {
@@ -362,48 +333,17 @@ struct FocusIndicatorView: View {
     @State private var opacity: Double = 0.0
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(Color.yellow, lineWidth: 1.5)
-                .frame(width: 70, height: 70)
-
-            FocusCorners()
-                .stroke(Color.yellow, lineWidth: 2.5)
-                .frame(width: 70, height: 70)
-        }
-        .scaleEffect(scale)
-        .opacity(opacity)
-        .onAppear {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                scale = 1.0
-                opacity = 1.0
+        RoundedRectangle(cornerRadius: 2)
+            .stroke(Color.yellow, lineWidth: 1)
+            .frame(width: 70, height: 70)
+            .scaleEffect(scale)
+            .opacity(opacity)
+            .onAppear {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
+                    scale = 1.0
+                    opacity = 1.0
+                }
             }
-        }
-    }
-}
-
-struct FocusCorners: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let cornerLength: CGFloat = 15
-
-        path.move(to: CGPoint(x: rect.minX, y: rect.minY + cornerLength))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.minX + cornerLength, y: rect.minY))
-
-        path.move(to: CGPoint(x: rect.maxX - cornerLength, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + cornerLength))
-
-        path.move(to: CGPoint(x: rect.maxX, y: rect.maxY - cornerLength))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.maxX - cornerLength, y: rect.maxY))
-
-        path.move(to: CGPoint(x: rect.minX + cornerLength, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - cornerLength))
-
-        return path
     }
 }
 
