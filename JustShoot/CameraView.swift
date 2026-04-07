@@ -26,6 +26,7 @@ struct CameraView: View {
     @State private var showFocusIndicator = false
     @State private var showRollFullAlert = false
     @State private var showPhotoDetail = false
+    @Namespace private var zoomTransition
 
     init(preset: FilmPreset) {
         self.preset = preset
@@ -100,7 +101,7 @@ struct CameraView: View {
             // 底部控制栏
             .safeAreaInset(edge: .bottom) {
                 HStack {
-                    // 左：最近照片缩略图（点击查看详情，类似 iPhone Camera）
+                    // 左：最近照片缩略图（点击查看详情，iOS 18 zoom transition）
                     Button { if !currentRollPhotos.isEmpty { showPhotoDetail = true } } label: {
                         if let thumb = lastPhotoThumbnail {
                             Image(uiImage: thumb)
@@ -118,6 +119,7 @@ struct CameraView: View {
                                 }
                         }
                     }
+                    .matchedTransitionSource(id: "photoZoom", in: zoomTransition)
 
                     Spacer()
 
@@ -169,7 +171,7 @@ struct CameraView: View {
         .fullScreenCover(isPresented: $showPhotoDetail) {
             if let first = currentRollPhotos.first {
                 NavigationStack {
-                    PhotoDetailView(photo: first, allPhotos: currentRollPhotos)
+                    PhotoDetailView(photo: first, allPhotos: currentRollPhotos, dismissStyle: .dragDown)
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
                                 Button { showPhotoDetail = false } label: {
@@ -183,6 +185,8 @@ struct CameraView: View {
                 .preferredColorScheme(.dark)
             }
         }
+        .transaction { $0.disablesAnimations = false }
+        .navigationTransition(.zoom(sourceID: "photoZoom", in: zoomTransition))
     }
 
     /// 当前胶卷的照片（按时间倒序，最新在前）

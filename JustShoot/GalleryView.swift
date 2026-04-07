@@ -438,10 +438,17 @@ struct PhotoThumbnailView: View {
 
 // MARK: - 照片详情（不自带 NavigationStack，由父级导航容器提供）
 struct PhotoDetailView: View {
+    /// 关闭方式：从相机进入支持下拉关闭，从相册进入使用系统返回
+    enum DismissStyle {
+        case backButton  // 默认：系统返回按钮 + 右滑
+        case dragDown    // 相机入口：下拉关闭（Apple Camera 风格）
+    }
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
     let photo: Photo
+    let dismissStyle: DismissStyle
     @State private var photos: [Photo]
 
     @StateObject private var viewModel: PhotoDetailViewModel
@@ -452,13 +459,15 @@ struct PhotoDetailView: View {
     @State private var imageScale: CGFloat = 1.0
     @State private var imageOffset: CGSize = .zero
     @State private var isFullScreen = false
+    @State private var dragOffset: CGFloat = 0
 
     enum SaveStatus {
         case none, saving, success, failed
     }
 
-    init(photo: Photo, allPhotos: [Photo]) {
+    init(photo: Photo, allPhotos: [Photo], dismissStyle: DismissStyle = .backButton) {
         self.photo = photo
+        self.dismissStyle = dismissStyle
         self._photos = State(initialValue: allPhotos)
         self._viewModel = StateObject(wrappedValue: PhotoDetailViewModel(photo: photo, allPhotos: allPhotos))
         let initialIndex = allPhotos.firstIndex(of: photo) ?? 0
@@ -506,15 +515,41 @@ struct PhotoDetailView: View {
     @ViewBuilder
     private var photoContentView: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.black
+                .opacity(dismissStyle == .dragDown ? 1.0 - Double(abs(dragOffset)) / 400.0 : 1.0)
+                .ignoresSafeArea()
 
             if !photos.isEmpty {
                 photoTabView
                     .ignoresSafeArea()
+                    .offset(y: dragOffset)
+                    .scaleEffect(dismissStyle == .dragDown ? 1.0 - abs(dragOffset) / 1000.0 : 1.0)
+                    .gesture(dragDownGesture)
             } else {
                 emptyPlaceholder
             }
         }
+    }
+
+    /// 下拉关闭手势（仅在 .dragDown 模式且未缩放时启用）
+    private var dragDownGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                guard dismissStyle == .dragDown, imageScale <= 1.0 else { return }
+                if value.translation.height > 0 {
+                    dragOffset = value.translation.height
+                }
+            }
+            .onEnded { value in
+                guard dismissStyle == .dragDown, imageScale <= 1.0 else { return }
+                if value.translation.height > 120 || value.predictedEndTranslation.height > 300 {
+                    dismiss()
+                } else {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        dragOffset = 0
+                    }
+                }
+            }
     }
 
     @ViewBuilder
