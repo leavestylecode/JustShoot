@@ -519,9 +519,7 @@ struct PhotoDetailView: View {
                             itemSize: 40,
                             spacing: 6
                         )
-                        .frame(height: 48)
-                        .padding(.top, 8)
-                        .padding(.bottom, 4)
+                        .padding(.vertical, 6)
                     }
                 }
             } else {
@@ -845,61 +843,71 @@ private struct ScrubberStripView: View {
         -CGFloat(index) * step
     }
 
-    var body: some View {
-        GeometryReader { geometry in
-            let centerX = geometry.size.width / 2 - itemSize / 2
+    @State private var containerWidth: CGFloat = 0
 
-            HStack(spacing: spacing) {
-                ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
-                    ThumbnailStripItem(
-                        photo: photo,
-                        isSelected: index == currentIndex,
-                        size: itemSize
-                    )
-                    .scaleEffect(index == currentIndex ? 1.15 : 1.0)
-                    .animation(.easeOut(duration: 0.15), value: currentIndex)
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            currentIndex = index
-                        }
+    private let scaleFactor: CGFloat = 1.2
+
+    var body: some View {
+        // 用固定高度容器，不用 GeometryReader，避免裁剪
+        let expandedSize = itemSize * scaleFactor
+
+        HStack(spacing: spacing) {
+            ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
+                ThumbnailStripItem(
+                    photo: photo,
+                    isSelected: index == currentIndex,
+                    size: itemSize
+                )
+                .scaleEffect(index == currentIndex ? scaleFactor : 1.0)
+                .animation(.easeOut(duration: 0.15), value: currentIndex)
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        currentIndex = index
+                    }
+                    feedbackGenerator.selectionChanged()
+                }
+            }
+        }
+        .frame(height: expandedSize) // 高度按放大后的尺寸，不裁剪
+        .offset(x: centerOffset + offsetForIndex(currentIndex) + dragOffset)
+        .animation(isDragging ? nil : .easeInOut(duration: 0.25), value: currentIndex)
+        .animation(isDragging ? nil : .easeOut(duration: 0.2), value: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    if !isDragging {
+                        isDragging = true
+                        dragStartIndex = currentIndex
+                        feedbackGenerator.prepare()
+                    }
+                    dragOffset = value.translation.width
+
+                    let indexDelta = Int(round(-dragOffset / step))
+                    let newIndex = max(0, min(photos.count - 1, dragStartIndex + indexDelta))
+                    if newIndex != currentIndex {
+                        currentIndex = newIndex
                         feedbackGenerator.selectionChanged()
                     }
                 }
-            }
-            .offset(x: centerX + offsetForIndex(currentIndex) + dragOffset)
-            .animation(isDragging ? nil : .easeInOut(duration: 0.25), value: currentIndex)
-            .animation(isDragging ? nil : .easeOut(duration: 0.2), value: dragOffset)
-            .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        if !isDragging {
-                            isDragging = true
-                            dragStartIndex = currentIndex
-                            feedbackGenerator.prepare()
-                        }
-                        dragOffset = value.translation.width
-
-                        // 根据拖拽距离计算新 index
-                        let indexDelta = Int(round(-dragOffset / step))
-                        let newIndex = max(0, min(photos.count - 1, dragStartIndex + indexDelta))
-                        if newIndex != currentIndex {
-                            currentIndex = newIndex
-                            feedbackGenerator.selectionChanged()
-                        }
+                .onEnded { _ in
+                    isDragging = false
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        dragOffset = 0
                     }
-                    .onEnded { _ in
-                        isDragging = false
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            dragOffset = 0
-                        }
-                    }
-            )
-        }
-        .clipped()
-        .padding(.vertical, itemSize * 0.1) // 留出 scaleEffect 放大的空间
+                }
+        )
+        .frame(maxWidth: .infinity, alignment: .leading) // 占满宽度
+        .clipped() // 只裁剪水平溢出，垂直方向已有足够空间
+        .background(GeometryReader { geo in
+            Color.clear.onAppear { containerWidth = geo.size.width }
+        })
         .onAppear {
             feedbackGenerator.prepare()
         }
+    }
+
+    private var centerOffset: CGFloat {
+        containerWidth / 2 - itemSize / 2
     }
 }
 
