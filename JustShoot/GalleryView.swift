@@ -895,7 +895,8 @@ private struct ScrubberStripView: View {
                     }
             )
         }
-        .clipShape(Rectangle())
+        .clipped()
+        .padding(.vertical, itemSize * 0.1) // 留出 scaleEffect 放大的空间
         .onAppear {
             feedbackGenerator.prepare()
         }
