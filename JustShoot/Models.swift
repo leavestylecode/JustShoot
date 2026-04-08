@@ -141,7 +141,6 @@ final class Photo: Identifiable {
     var timestamp: Date
     @Attribute(.externalStorage) var imageData: Data
     var filmPresetName: String?
-    @Relationship(inverse: \Roll.photos) var roll: Roll?
     var latitude: Double?
     var longitude: Double?
     var altitude: Double?
@@ -244,31 +243,6 @@ extension Photo {
 struct CubeLUT: Sendable {
     let data: Data
     let dimension: Int
-}
-
-// MARK: - 胶卷分组（27张一组）
-@Model
-final class Roll: Identifiable {
-    var id: UUID
-    var createdAt: Date
-    var completedAt: Date?
-    var presetName: String
-    var capacity: Int
-    @Relationship var photos: [Photo]
-
-    init(preset: FilmPreset, capacity: Int = 27) {
-        self.id = UUID()
-        self.createdAt = Date()
-        self.presetName = preset.rawValue
-        self.capacity = capacity
-        self.photos = []
-    }
-
-    var preset: FilmPreset? { FilmPreset(rawValue: presetName) }
-    var displayName: String { preset?.displayName ?? presetName }
-    var shotsTaken: Int { photos.count }
-    var exposuresRemaining: Int { max(0, capacity - shotsTaken) }
-    var isCompleted: Bool { completedAt != nil || shotsTaken >= capacity }
 }
 
 // MARK: - 胶片处理器（线程安全）

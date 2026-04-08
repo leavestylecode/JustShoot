@@ -13,7 +13,7 @@ struct ContentView: View {
                 LazyVStack(spacing: 12) {
                     ForEach(FilmPreset.allCases) { preset in
                         NavigationLink(value: preset) {
-                            FilmPresetCard(preset: preset, rolls: rolls)
+                            FilmPresetCard(preset: preset, photoCount: photosCount(for: preset))
                         }
                     }
                 }
@@ -66,7 +66,9 @@ struct ContentView: View {
         }
     }
 
-    @Query(sort: \Roll.createdAt, order: .reverse) private var rolls: [Roll]
+    private func photosCount(for preset: FilmPreset) -> Int {
+        photos.filter { $0.filmPresetName == preset.rawValue }.count
+    }
 
     private func preloadResources() async {
         await Task.detached(priority: .userInitiated) {
@@ -88,19 +90,10 @@ struct ContentView: View {
     }
 }
 
-// MARK: - 胶卷卡片
+// MARK: - 胶片卡片
 struct FilmPresetCard: View {
     let preset: FilmPreset
-    let rolls: [Roll]
-
-    private var activeRoll: Roll? {
-        rolls.first { $0.presetName == preset.rawValue && !$0.isCompleted }
-    }
-
-    private var hasActiveRoll: Bool { activeRoll != nil }
-    private var shotsTaken: Int { activeRoll?.shotsTaken ?? 0 }
-    private var capacity: Int { activeRoll?.capacity ?? 27 }
-    private var progress: CGFloat { CGFloat(shotsTaken) / CGFloat(max(1, capacity)) }
+    let photoCount: Int
 
     private var accentColor: Color {
         switch preset {
@@ -136,8 +129,8 @@ struct FilmPresetCard: View {
                         .font(.system(size: 12))
                         .foregroundColor(.white.opacity(0.5))
 
-                    if hasActiveRoll {
-                        Text("\(shotsTaken)/\(capacity)")
+                    if photoCount > 0 {
+                        Text("\(photoCount) 张")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(accentColor)
                     }
@@ -146,25 +139,9 @@ struct FilmPresetCard: View {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 6) {
-                if hasActiveRoll {
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(Color.white.opacity(0.1))
-                            .frame(width: 50, height: 4)
-                        Capsule()
-                            .fill(accentColor)
-                            .frame(width: 50 * progress, height: 4)
-                    }
-                    Text("继续")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(accentColor)
-                } else {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 22))
-                        .foregroundColor(.white.opacity(0.3))
-                }
-            }
+            Image(systemName: "camera.fill")
+                .font(.system(size: 18))
+                .foregroundColor(.white.opacity(0.3))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
@@ -172,7 +149,7 @@ struct FilmPresetCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(hasActiveRoll ? accentColor.opacity(0.4) : Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
     }
 }

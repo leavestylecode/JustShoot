@@ -141,10 +141,10 @@ class PhotoDetailViewModel: ObservableObject {
     }
 }
 
-// MARK: - 相册视图（不自带 NavigationStack，由父级 ContentView 提供）
+// MARK: - 相册视图
 struct GalleryView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Roll.createdAt, order: .reverse) private var rolls: [Roll]
+    @Query(sort: \Photo.timestamp, order: .reverse) private var photos: [Photo]
     @State private var selectedDetail: DetailPayload?
     @State private var isSelecting = false
     @State private var selectedPhotos: Set<UUID> = []
@@ -157,17 +157,9 @@ struct GalleryView: View {
         GridItem(.flexible())
     ]
 
-    private var sortedRolls: [Roll] {
-        rolls.sorted { roll1, roll2 in
-            let latest1 = roll1.photos.map(\.timestamp).max() ?? roll1.createdAt
-            let latest2 = roll2.photos.map(\.timestamp).max() ?? roll2.createdAt
-            return latest1 > latest2
-        }
-    }
-
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
-            if rolls.isEmpty {
+            if photos.isEmpty {
                 VStack {
                     Image(systemName: "photo")
                         .font(.system(size: 80))
@@ -183,25 +175,37 @@ struct GalleryView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 400)
             } else {
-                LazyVStack(spacing: 16) {
-                    ForEach(sortedRolls) { roll in
-                        RollSectionView(
-                            roll: roll,
-                            gridColumns: gridColumns,
+                LazyVGrid(columns: gridColumns, spacing: 6) {
+                    ForEach(photos) { photo in
+                        PhotoThumbnailView(
+                            photo: photo,
                             isSelecting: isSelecting,
-                            selectedPhotos: $selectedPhotos
-                        ) { startPhoto, groupPhotos in
-                            if !isSelecting {
+                            isSelected: selectedPhotos.contains(photo.id)
+                        )
+                        .aspectRatio(1, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .clipped()
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            if isSelecting {
+                                if selectedPhotos.contains(photo.id) {
+                                    selectedPhotos.remove(photo.id)
+                                } else {
+                                    selectedPhotos.insert(photo.id)
+                                }
+                            } else {
                                 let screenBounds = UIScreen.main.bounds
                                 let maxPixel = Int(max(screenBounds.width, screenBounds.height) * UIScreen.main.scale)
                                 Task.detached(priority: .userInitiated) {
-                                    _ = await ImageLoader.shared.loadPreview(for: startPhoto, maxPixel: maxPixel)
+                                    _ = await ImageLoader.shared.loadPreview(for: photo, maxPixel: maxPixel)
                                 }
-                                selectedDetail = DetailPayload(startPhoto: startPhoto, photos: groupPhotos)
+                                selectedDetail = DetailPayload(startPhoto: photo, photos: Array(photos))
                             }
                         }
                     }
                 }
+                .padding(.horizontal, 14)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
             }
@@ -211,10 +215,10 @@ struct GalleryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                if !rolls.isEmpty {
+                if !photos.isEmpty {
                     Button(isSelecting ? "全选" : "选择") {
                         if isSelecting {
-                            let allPhotoIds = Set(rolls.flatMap { $0.photos.map { $0.id } })
+                            let allPhotoIds = Set(photos.map { $0.id })
                             if selectedPhotos.count == allPhotoIds.count {
                                 selectedPhotos.removeAll()
                             } else {
@@ -265,7 +269,7 @@ struct GalleryView: View {
     }
 
     private func deleteSelectedPhotos() {
-        let photosToDelete = rolls.flatMap { $0.photos }.filter { selectedPhotos.contains($0.id) }
+        let photosToDelete = photos.filter { selectedPhotos.contains($0.id) }
 
         for photo in photosToDelete {
             modelContext.delete(photo)
@@ -282,67 +286,6 @@ struct GalleryView: View {
     }
 }
 
-private struct RollSectionView: View {
-    let roll: Roll
-    let gridColumns: [GridItem]
-    let isSelecting: Bool
-    @Binding var selectedPhotos: Set<UUID>
-    let onSelect: (Photo, [Photo]) -> Void
-
-    var body: some View {
-        let groupPhotos = roll.photos.sorted(by: { $0.timestamp > $1.timestamp })
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(roll.displayName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                Spacer()
-                Text("\(roll.shotsTaken)/\(roll.capacity)")
-                    .font(.system(size: 13))
-                    .foregroundColor(.white.opacity(0.5))
-                if roll.isCompleted {
-                    Text("已完成")
-                        .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.green.opacity(0.15))
-                        .foregroundColor(.green)
-                        .clipShape(Capsule())
-                }
-            }
-            LazyVGrid(columns: gridColumns, spacing: 6) {
-                ForEach(groupPhotos) { photo in
-                    PhotoThumbnailView(
-                        photo: photo,
-                        isSelecting: isSelecting,
-                        isSelected: selectedPhotos.contains(photo.id)
-                    )
-                    .aspectRatio(1, contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .clipped()
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        if isSelecting {
-                            if selectedPhotos.contains(photo.id) {
-                                selectedPhotos.remove(photo.id)
-                            } else {
-                                selectedPhotos.insert(photo.id)
-                            }
-                        } else {
-                            onSelect(photo, groupPhotos)
-                        }
-                    }
-                }
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 14)
-        .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-}
-
 private struct DetailPayload: Identifiable, Equatable, Hashable {
     var id: UUID { startPhoto.id }
     let startPhoto: Photo
@@ -351,7 +294,7 @@ private struct DetailPayload: Identifiable, Equatable, Hashable {
     func hash(into hasher: inout Hasher) { hasher.combine(startPhoto.id) }
 }
 
-// MARK: - 缩略图视图（不再 fallback 到全尺寸 photo.image）
+// MARK: - 缩略图视图
 struct PhotoThumbnailView: View {
     let photo: Photo
     var isSelecting: Bool = false
@@ -416,7 +359,7 @@ struct PhotoThumbnailView: View {
     }
 }
 
-// MARK: - 照片详情（不自带 NavigationStack，由父级导航容器提供）
+// MARK: - 照片详情
 struct PhotoDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -437,7 +380,6 @@ struct PhotoDetailView: View {
         case none, saving, success, failed
     }
 
-    /// 当前显示的照片（唯一数据源）
     private var currentPhoto: Photo? {
         guard currentIndex >= 0 && currentIndex < photos.count else { return nil }
         return photos[currentIndex]
@@ -456,7 +398,6 @@ struct PhotoDetailView: View {
 
             if !photos.isEmpty {
                 VStack(spacing: 0) {
-                    // 照片主视图
                     TabView(selection: $currentIndex) {
                         ForEach(Array(photos.enumerated()), id: \.element.id) { index, photoItem in
                             ZoomablePhotoView(
@@ -476,10 +417,8 @@ struct PhotoDetailView: View {
                         }
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
-                    .allowsHitTesting(imageScale <= 1.0 ? true : true) // TabView 始终响应
-                    .disabled(imageScale > 1.0) // 缩放时禁用 TabView 翻页
+                    .disabled(imageScale > 1.0)
 
-                    // 缩略图条（用 opacity 切换避免布局跳动）
                     ScrubberStripView(
                         photos: photos,
                         currentIndex: $currentIndex,
@@ -567,7 +506,6 @@ struct PhotoDetailView: View {
     @ToolbarContentBuilder
     private var bottomToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
-            // 保存到相册
             Button {
                 saveToPhotoLibrary()
             } label: {
@@ -578,7 +516,6 @@ struct PhotoDetailView: View {
 
             Spacer()
 
-            // 删除
             Button(role: .destructive) {
                 showDeleteConfirm = true
             } label: {
@@ -733,7 +670,6 @@ struct ZoomablePhotoView: View {
                             }
                     )
                     .highPriorityGesture(
-                        // 缩放时拖动平移（优先级高于 TabView 翻页）
                         scale > 1.0 ?
                         DragGesture()
                             .onChanged { value in
@@ -774,7 +710,7 @@ struct ZoomablePhotoView: View {
     }
 }
 
-// MARK: - 可拖拽缩略图条（iPhone Camera 风格）
+// MARK: - 可拖拽缩略图条
 private struct ScrubberStripView: View {
     let photos: [Photo]
     @Binding var currentIndex: Int
@@ -787,7 +723,7 @@ private struct ScrubberStripView: View {
     @State private var containerWidth: CGFloat = 0
 
     private let feedbackGenerator = UISelectionFeedbackGenerator()
-    private let selectedSize: CGFloat = 50 // 选中态的实际尺寸
+    private let selectedSize: CGFloat = 50
 
     private var step: CGFloat { itemSize + spacing }
 
@@ -803,7 +739,6 @@ private struct ScrubberStripView: View {
         HStack(alignment: .center, spacing: spacing) {
             ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
                 let isSelected = index == currentIndex
-                // 选中用实际更大的 frame，不用 scaleEffect
                 let displaySize = isSelected ? selectedSize : itemSize
 
                 ThumbnailStripItem(photo: photo, size: displaySize)
@@ -849,7 +784,7 @@ private struct ScrubberStripView: View {
                 }
         )
         .frame(maxWidth: .infinity)
-        .frame(height: selectedSize) // 高度固定为选中态尺寸，所有缩略图居中对齐
+        .frame(height: selectedSize)
         .clipped()
         .background(GeometryReader { geo in
             Color.clear.onAppear { containerWidth = geo.size.width }
@@ -860,7 +795,7 @@ private struct ScrubberStripView: View {
     }
 }
 
-// MARK: - 缩略图项（纯显示，不含选中逻辑）
+// MARK: - 缩略图项
 private struct ThumbnailStripItem: View {
     let photo: Photo
     let size: CGFloat
@@ -989,4 +924,3 @@ struct ExifInfoCard: View {
         .padding(.vertical, 10)
     }
 }
-

@@ -14,17 +14,13 @@ struct CameraView: View {
     let preset: FilmPreset
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Roll.createdAt, order: .reverse) private var rolls: [Roll]
     @Query(sort: \Photo.timestamp, order: .reverse) private var allPhotos: [Photo]
     @StateObject private var cameraManager: CameraManager
     @State private var showFlash = false
-    @State private var exposuresRemaining: Int = 27
-    @State private var currentRoll: Roll?
     @State private var isCapturing = false
     @State private var lastPhotoThumbnail: UIImage?
     @State private var focusPoint: CGPoint? = nil
     @State private var showFocusIndicator = false
-    @State private var showRollFullAlert = false
     @State private var showPhotoDetail = false
 
     init(preset: FilmPreset) {
@@ -76,15 +72,10 @@ struct CameraView: View {
                 .tint(.white)
             }
 
-            // 中间：胶片名 + 剩余张数
+            // 中间：胶片名
             ToolbarItem(placement: .principal) {
-                VStack(spacing: 1) {
-                    Text(preset.displayName)
-                        .font(.subheadline.weight(.semibold))
-                    Text("\(exposuresRemaining) 张剩余")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                Text(preset.displayName)
+                    .font(.subheadline.weight(.semibold))
             }
 
             // 右上：闪光灯
@@ -101,7 +92,7 @@ struct CameraView: View {
         .safeAreaInset(edge: .bottom) {
             HStack {
                 // 左：最近照片缩略图
-                Button { if !currentRollPhotos.isEmpty { showPhotoDetail = true } } label: {
+                Button { if !presetPhotos.isEmpty { showPhotoDetail = true } } label: {
                     if let thumb = lastPhotoThumbnail {
                         Image(uiImage: thumb)
                             .resizable()
@@ -148,8 +139,6 @@ struct CameraView: View {
         .onAppear {
             FilmProcessor.shared.preload(preset: preset)
             cameraManager.requestCameraPermission()
-            prepareCurrentRoll()
-            updateExposuresRemaining()
             loadLastPhotoThumbnail()
         }
         .onDisappear {
@@ -157,17 +146,11 @@ struct CameraView: View {
         }
         .onChange(of: allPhotos.count) { _, _ in
             loadLastPhotoThumbnail()
-            updateExposuresRemaining()
-        }
-        .alert("胶卷已拍完", isPresented: $showRollFullAlert) {
-            Button("确定", role: .cancel) {}
-        } message: {
-            Text("当前胶卷已拍满 27 张，请返回选择新的胶卷。")
         }
         .sheet(isPresented: $showPhotoDetail) {
-            if let latest = currentRollPhotos.last {
+            if let latest = presetPhotos.last {
                 NavigationStack {
-                    PhotoDetailView(photo: latest, allPhotos: currentRollPhotos)
+                    PhotoDetailView(photo: latest, allPhotos: presetPhotos)
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
                                 Button { showPhotoDetail = false } label: {
@@ -186,14 +169,14 @@ struct CameraView: View {
         }
     }
 
-    /// 当前胶卷的照片（按时间升序，最新在最后——向左滑可看之前的）
-    private var currentRollPhotos: [Photo] {
-        guard let roll = currentRoll else { return [] }
-        return roll.photos.sorted { $0.timestamp < $1.timestamp }
+    /// 当前预设的照片（按时间升序，最新在最后）
+    private var presetPhotos: [Photo] {
+        allPhotos.filter { $0.filmPresetName == preset.rawValue }
+            .sorted { $0.timestamp < $1.timestamp }
     }
 
     private func loadLastPhotoThumbnail() {
-        guard let photo = currentRollPhotos.last else {
+        guard let photo = presetPhotos.last else {
             lastPhotoThumbnail = nil
             return
         }
@@ -208,13 +191,6 @@ struct CameraView: View {
     private func capturePhoto() {
         // 防止重复拍摄
         guard !isCapturing else { return }
-
-        // 胶卷已满检查
-        guard exposuresRemaining > 0 else {
-            UINotificationFeedbackGenerator().notificationOccurred(.warning)
-            showRollFullAlert = true
-            return
-        }
 
         isCapturing = true
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -280,51 +256,12 @@ struct CameraView: View {
             newPhoto.locationTimestamp = loc.timestamp
         }
 
-        let roll = findOrCreateActiveRoll(preset: preset, context: context)
-        newPhoto.roll = roll
         context.insert(newPhoto)
 
         do {
             try context.save()
-            if roll.isCompleted {
-                roll.completedAt = Date()
-                try? context.save()
-            }
         } catch {
             print("❌ Failed to save photo: \(error)")
-        }
-    }
-
-    /// 统一的 Roll 查找/创建逻辑（消除三处重复）
-    @MainActor
-    private static func findOrCreateActiveRoll(preset: FilmPreset, context: ModelContext) -> Roll {
-        let descriptor = FetchDescriptor<Roll>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        let allRolls = (try? context.fetch(descriptor)) ?? []
-        if let active = allRolls.first(where: { $0.presetName == preset.rawValue && !$0.isCompleted }) {
-            return active
-        }
-        let newRoll = Roll(preset: preset, capacity: 27)
-        context.insert(newRoll)
-        return newRoll
-    }
-
-    private func prepareCurrentRoll() {
-        currentRoll = Self.findOrCreateActiveRoll(preset: preset, context: modelContext)
-    }
-
-    private func updateExposuresRemaining() {
-        if let active = rolls.first(where: { $0.presetName == preset.rawValue && !$0.isCompleted }) {
-            exposuresRemaining = active.exposuresRemaining
-            currentRoll = active
-            if active.isCompleted && active.completedAt == nil {
-                active.completedAt = Date()
-            }
-        } else if let current = currentRoll {
-            exposuresRemaining = current.exposuresRemaining
-        } else {
-            exposuresRemaining = 27
         }
     }
 
