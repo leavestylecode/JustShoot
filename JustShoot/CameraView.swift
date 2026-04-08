@@ -453,8 +453,7 @@ class CameraManager: NSObject, ObservableObject {
             return fresh
         }
 
-        // 3. 触发后台更新
-        locationManager.requestLocation()
+        // startUpdatingLocation 已在持续更新，无需额外请求
         return nil
     }
 
@@ -929,33 +928,11 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     private func startLocationUpdates() {
-        // 将阻塞调用移到后台线程，避免主线程卡顿
-        Task.detached {
-            let enabled = CLLocationManager.locationServicesEnabled()
-            await MainActor.run {
-                guard enabled else { return }
-                self.locationManager.startUpdatingLocation()
-                self.startLocationTimer()
-            }
-        }
+        locationManager.startUpdatingLocation()
     }
 
     func stopLocationServices() {
         locationManager.stopUpdatingLocation()
-        locationTimer?.invalidate()
-        locationTimer = nil
-    }
-
-    private var locationTimer: Timer?
-
-    private func startLocationTimer() {
-        locationTimer?.invalidate()
-        locationTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            Task { @MainActor in
-                self.locationManager.requestLocation()
-            }
-        }
     }
 }
 
