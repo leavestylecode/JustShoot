@@ -953,9 +953,7 @@ class CameraManager: NSObject, ObservableObject {
         locationTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             Task { @MainActor in
-                if CLLocationManager.locationServicesEnabled() {
-                    self.locationManager.requestLocation()
-                }
+                self.locationManager.requestLocation()
             }
         }
     }
