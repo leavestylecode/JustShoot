@@ -833,7 +833,7 @@ private struct ScrubberStripView: View {
                 ThumbnailStripItem(photo: photo, size: displaySize)
                     .overlay(
                         RoundedRectangle(cornerRadius: isSelected ? 5 : 3, style: .continuous)
-                            .stroke(isSelected ? Color.white : Color.clear, lineWidth: isSelected ? 2 : 0)
+                            .strokeBorder(isSelected ? Color.white : Color.clear, lineWidth: isSelected ? 2 : 0)
                     )
                     .opacity(isSelected ? 1.0 : 0.5)
                     .animation(.easeOut(duration: 0.15), value: currentIndex)
