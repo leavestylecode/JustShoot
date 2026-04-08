@@ -505,34 +505,29 @@ struct PhotoDetailView: View {
 
     @ViewBuilder
     private var photoContentView: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             Color.black.ignoresSafeArea()
 
             if !photos.isEmpty {
-                photoTabView
-                    .ignoresSafeArea()
+                VStack(spacing: 0) {
+                    photoTabView
 
-                // 缩略图条（贴近底部工具栏上方）
-                if !isFullScreen {
-                    thumbnailStrip
+                    if !isFullScreen {
+                        ScrubberStripView(
+                            photos: photos,
+                            currentIndex: $currentIndex,
+                            itemSize: 40,
+                            spacing: 6
+                        )
+                        .frame(height: 48)
+                        .padding(.top, 8)
                         .padding(.bottom, 4)
+                    }
                 }
             } else {
                 emptyPlaceholder
             }
         }
-    }
-
-    /// 底部缩略图滚动条（可拖拽，居中选中，触觉反馈）
-    @ViewBuilder
-    private var thumbnailStrip: some View {
-        ScrubberStripView(
-            photos: photos,
-            currentIndex: $currentIndex,
-            itemSize: 36,
-            spacing: 2
-        )
-        .frame(height: 40)
     }
 
     @ViewBuilder
