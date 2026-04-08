@@ -826,49 +826,46 @@ private struct ScrubberStripView: View {
     let itemSize: CGFloat
     let spacing: CGFloat
 
-    /// 拖拽产生的额外偏移
     @State private var dragOffset: CGFloat = 0
-    /// 拖拽开始时记录的 index
     @State private var dragStartIndex: Int = 0
-    /// 是否正在拖拽
     @State private var isDragging = false
+    @State private var containerWidth: CGFloat = 0
 
     private let feedbackGenerator = UISelectionFeedbackGenerator()
+    private let selectedSize: CGFloat = 50 // 选中态的实际尺寸
 
-    /// 每个 item 的步进宽度
     private var step: CGFloat { itemSize + spacing }
 
-    /// 当前 index 对应的居中偏移（负值向左移）
     private func offsetForIndex(_ index: Int) -> CGFloat {
         -CGFloat(index) * step
     }
 
-    @State private var containerWidth: CGFloat = 0
-
-    private let scaleFactor: CGFloat = 1.2
+    private var centerOffset: CGFloat {
+        containerWidth / 2 - itemSize / 2
+    }
 
     var body: some View {
-        // 用固定高度容器，不用 GeometryReader，避免裁剪
-        let expandedSize = itemSize * scaleFactor
-
-        HStack(spacing: spacing) {
+        HStack(alignment: .center, spacing: spacing) {
             ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
-                ThumbnailStripItem(
-                    photo: photo,
-                    isSelected: index == currentIndex,
-                    size: itemSize
-                )
-                .scaleEffect(index == currentIndex ? scaleFactor : 1.0)
-                .animation(.easeOut(duration: 0.15), value: currentIndex)
-                .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        currentIndex = index
+                let isSelected = index == currentIndex
+                // 选中用实际更大的 frame，不用 scaleEffect
+                let displaySize = isSelected ? selectedSize : itemSize
+
+                ThumbnailStripItem(photo: photo, size: displaySize)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: isSelected ? 5 : 3, style: .continuous)
+                            .stroke(isSelected ? Color.white : Color.clear, lineWidth: isSelected ? 2 : 0)
+                    )
+                    .opacity(isSelected ? 1.0 : 0.5)
+                    .animation(.easeOut(duration: 0.15), value: currentIndex)
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            currentIndex = index
+                        }
+                        feedbackGenerator.selectionChanged()
                     }
-                    feedbackGenerator.selectionChanged()
-                }
             }
         }
-        .frame(height: expandedSize) // 高度按放大后的尺寸，不裁剪
         .offset(x: centerOffset + offsetForIndex(currentIndex) + dragOffset)
         .animation(isDragging ? nil : .easeInOut(duration: 0.25), value: currentIndex)
         .animation(isDragging ? nil : .easeOut(duration: 0.2), value: dragOffset)
@@ -896,8 +893,9 @@ private struct ScrubberStripView: View {
                     }
                 }
         )
-        .frame(maxWidth: .infinity, alignment: .leading) // 占满宽度
-        .clipped() // 只裁剪水平溢出，垂直方向已有足够空间
+        .frame(maxWidth: .infinity)
+        .frame(height: selectedSize) // 高度固定为选中态尺寸，所有缩略图居中对齐
+        .clipped()
         .background(GeometryReader { geo in
             Color.clear.onAppear { containerWidth = geo.size.width }
         })
@@ -905,16 +903,11 @@ private struct ScrubberStripView: View {
             feedbackGenerator.prepare()
         }
     }
-
-    private var centerOffset: CGFloat {
-        containerWidth / 2 - itemSize / 2
-    }
 }
 
-// MARK: - 底部缩略图条项目
+// MARK: - 缩略图项（纯显示，不含选中逻辑）
 private struct ThumbnailStripItem: View {
     let photo: Photo
-    let isSelected: Bool
     let size: CGFloat
     @State private var thumb: UIImage?
 
@@ -924,23 +917,16 @@ private struct ThumbnailStripItem: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: size, height: size)
-                    .clipped()
             } else {
                 Rectangle()
                     .fill(Color.white.opacity(0.1))
-                    .frame(width: size, height: size)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .stroke(isSelected ? Color.white : Color.clear, lineWidth: 2)
-        )
-        .opacity(isSelected ? 1.0 : 0.6)
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size > 45 ? 5 : 3, style: .continuous))
         .task {
             if thumb == nil {
-                thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: Int(size * 2))
+                thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: Int(size * 3))
             }
         }
     }
