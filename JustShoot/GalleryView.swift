@@ -111,25 +111,13 @@ class ImageLoader: ObservableObject {
 
 // MARK: - 照片详情视图模型
 class PhotoDetailViewModel: ObservableObject {
-    @Published var currentPhoto: Photo
     @Published var loadedImages: [UUID: UIImage] = [:]
-    @Published var isLoading: Bool = false
 
     let imageLoader = ImageLoader.shared
-    private let allPhotos: [Photo]
-
-    init(photo: Photo, allPhotos: [Photo]) {
-        self.currentPhoto = photo
-        self.allPhotos = allPhotos
-    }
 
     func loadImage(for photo: Photo) {
         let photoId = photo.id
         if loadedImages[photoId] != nil { return }
-
-        Task { @MainActor in
-            isLoading = true
-        }
 
         let maxPixel = Int(max(UIScreen.main.bounds.width, UIScreen.main.bounds.height) * UIScreen.main.scale)
         Task.detached(priority: .userInitiated) { [weak self] in
@@ -139,25 +127,17 @@ class PhotoDetailViewModel: ObservableObject {
                 if let image {
                     self.loadedImages[photoId] = image
                 }
-                self.isLoading = false
             }
         }
     }
 
-    func preloadImages(around index: Int) {
-        let range = max(0, index - 1)...min(allPhotos.count - 1, index + 1)
-
-        Task { @MainActor in
-            for i in range {
-                let photo = allPhotos[i]
-                self.loadImage(for: photo)
-            }
+    func preloadImages(around index: Int, in photos: [Photo]) {
+        guard !photos.isEmpty else { return }
+        let lo = max(0, index - 1)
+        let hi = min(photos.count - 1, index + 1)
+        for i in lo...hi {
+            loadImage(for: photos[i])
         }
-    }
-
-    func updateCurrentPhoto(_ photo: Photo) {
-        currentPhoto = photo
-        preloadImages(around: allPhotos.firstIndex(of: photo) ?? 0)
     }
 }
 
@@ -444,7 +424,7 @@ struct PhotoDetailView: View {
     let photo: Photo
     @State private var photos: [Photo]
 
-    @StateObject private var viewModel: PhotoDetailViewModel
+    @StateObject private var viewModel = PhotoDetailViewModel()
     @State private var saveStatus: SaveStatus = .none
     @State private var showingInfo = false
     @State private var currentIndex: Int = 0
@@ -457,130 +437,121 @@ struct PhotoDetailView: View {
         case none, saving, success, failed
     }
 
+    /// 当前显示的照片（唯一数据源）
+    private var currentPhoto: Photo? {
+        guard currentIndex >= 0 && currentIndex < photos.count else { return nil }
+        return photos[currentIndex]
+    }
+
     init(photo: Photo, allPhotos: [Photo]) {
         self.photo = photo
         self._photos = State(initialValue: allPhotos)
-        self._viewModel = StateObject(wrappedValue: PhotoDetailViewModel(photo: photo, allPhotos: allPhotos))
         let initialIndex = allPhotos.firstIndex(of: photo) ?? 0
         self._currentIndex = State(initialValue: initialIndex)
     }
 
     var body: some View {
-        photoContentView
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(isFullScreen)
-            .toolbar(isFullScreen ? .hidden : .visible, for: .navigationBar)
-            .toolbar(isFullScreen ? .hidden : .visible, for: .bottomBar)
-            .toolbar { navigationToolbar }
-            .toolbar { bottomToolbar }
-            .statusBarHidden(isFullScreen)
-            .onAppear {
-                if !photos.isEmpty && currentIndex < photos.count {
-                    viewModel.updateCurrentPhoto(photos[currentIndex])
-                    viewModel.loadImage(for: photos[currentIndex])
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
-                viewModel.imageLoader.clearCache()
-            }
-            .alert("删除照片", isPresented: $showDeleteConfirm) {
-                Button("取消", role: .cancel) {}
-                Button("删除", role: .destructive) {
-                    deleteCurrentPhoto()
-                }
-            } message: {
-                Text("确定要删除这张照片吗？此操作不可撤销。")
-            }
-            .sheet(isPresented: $showingInfo) {
-                if currentIndex < photos.count {
-                    PhotoInfoPanel(
-                        photo: photos[currentIndex],
-                        getImageDimensions: getImageDimensions
-                    )
-                    .presentationDetents([.medium])
-                    .presentationDragIndicator(.visible)
-                }
-            }
-    }
-
-    @ViewBuilder
-    private var photoContentView: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
             if !photos.isEmpty {
                 VStack(spacing: 0) {
-                    photoTabView
-
-                    if !isFullScreen {
-                        ScrubberStripView(
-                            photos: photos,
-                            currentIndex: $currentIndex,
-                            itemSize: 40,
-                            spacing: 6
-                        )
-                        .padding(.vertical, 6)
-                    }
-                }
-            } else {
-                emptyPlaceholder
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var photoTabView: some View {
-        TabView(selection: $currentIndex) {
-            ForEach(Array(photos.enumerated()), id: \.element.id) { index, photoItem in
-                ZoomablePhotoView(
-                    photo: photoItem,
-                    loadedImage: viewModel.loadedImages[photoItem.id],
-                    isLoading: viewModel.isLoading,
-                    scale: index == currentIndex ? $imageScale : .constant(1.0),
-                    offset: index == currentIndex ? $imageOffset : .constant(.zero),
-                    onSingleTap: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            isFullScreen.toggle()
+                    // 照片主视图
+                    TabView(selection: $currentIndex) {
+                        ForEach(Array(photos.enumerated()), id: \.element.id) { index, photoItem in
+                            ZoomablePhotoView(
+                                loadedImage: viewModel.loadedImages[photoItem.id],
+                                scale: index == currentIndex ? $imageScale : .constant(1.0),
+                                offset: index == currentIndex ? $imageOffset : .constant(.zero),
+                                onSingleTap: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        isFullScreen.toggle()
+                                    }
+                                }
+                            )
+                            .tag(index)
+                            .onAppear {
+                                viewModel.loadImage(for: photoItem)
+                            }
                         }
                     }
-                )
-                .tag(index)
-                .onAppear {
-                    viewModel.loadImage(for: photoItem)
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .allowsHitTesting(imageScale <= 1.0 ? true : true) // TabView 始终响应
+                    .disabled(imageScale > 1.0) // 缩放时禁用 TabView 翻页
+
+                    // 缩略图条（用 opacity 切换避免布局跳动）
+                    ScrubberStripView(
+                        photos: photos,
+                        currentIndex: $currentIndex,
+                        itemSize: 40,
+                        spacing: 6
+                    )
+                    .padding(.vertical, 6)
+                    .opacity(isFullScreen ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.2), value: isFullScreen)
+                }
+            } else {
+                VStack(spacing: 16) {
+                    Image(systemName: "photo")
+                        .font(.system(size: 80))
+                        .foregroundColor(.gray.opacity(0.5))
+                    Text("没有照片")
+                        .font(.title3)
+                        .foregroundColor(.gray)
                 }
             }
         }
-        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-        .onChange(of: currentIndex) { oldIndex, newIndex in
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(isFullScreen)
+        .toolbar(isFullScreen ? .hidden : .visible, for: .navigationBar)
+        .toolbar(isFullScreen ? .hidden : .visible, for: .bottomBar)
+        .toolbar { navigationToolbar }
+        .toolbar { bottomToolbar }
+        .statusBarHidden(isFullScreen)
+        .onChange(of: currentIndex) { _, newIndex in
             imageScale = 1.0
             imageOffset = .zero
-            if isFullScreen {
-                isFullScreen = false
-            }
             if newIndex >= 0 && newIndex < photos.count {
-                viewModel.updateCurrentPhoto(photos[newIndex])
+                viewModel.preloadImages(around: newIndex, in: photos)
+            }
+        }
+        .onAppear {
+            if !photos.isEmpty {
+                viewModel.preloadImages(around: currentIndex, in: photos)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            viewModel.imageLoader.clearCache()
+        }
+        .alert("删除照片", isPresented: $showDeleteConfirm) {
+            Button("取消", role: .cancel) {}
+            Button("删除", role: .destructive) { deleteCurrentPhoto() }
+        } message: {
+            Text("确定要删除这张照片吗？此操作不可撤销。")
+        }
+        .sheet(isPresented: $showingInfo) {
+            if let photo = currentPhoto {
+                PhotoInfoPanel(photo: photo, getImageDimensions: getImageDimensions)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
             }
         }
     }
 
-    @ViewBuilder
-    private var emptyPlaceholder: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "photo")
-                .font(.system(size: 80))
-                .foregroundColor(.gray.opacity(0.5))
-            Text("没有照片")
-                .font(.title3)
-                .foregroundColor(.gray)
-        }
-    }
+    // MARK: - Toolbars
 
     @ToolbarContentBuilder
     private var navigationToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Text("\(currentIndex + 1) / \(photos.count)")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(.white.opacity(0.9))
+            if let photo = currentPhoto {
+                VStack(spacing: 1) {
+                    Text(photo.timestamp, format: .dateTime.month().day().hour().minute())
+                        .font(.subheadline.weight(.semibold))
+                    Text("\(currentIndex + 1) / \(photos.count)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
 
         ToolbarItem(placement: .navigationBarTrailing) {
@@ -596,6 +567,16 @@ struct PhotoDetailView: View {
     @ToolbarContentBuilder
     private var bottomToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
+            // 分享
+            Button {
+                shareCurrentPhoto()
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+
+            Spacer()
+
+            // 保存到相册
             Button {
                 saveToPhotoLibrary()
             } label: {
@@ -606,6 +587,7 @@ struct PhotoDetailView: View {
 
             Spacer()
 
+            // 删除
             Button(role: .destructive) {
                 showDeleteConfirm = true
             } label: {
@@ -614,9 +596,10 @@ struct PhotoDetailView: View {
         }
     }
 
+    // MARK: - Actions
+
     private func deleteCurrentPhoto() {
-        guard currentIndex < photos.count else { return }
-        let photoToDelete = photos[currentIndex]
+        guard let photoToDelete = currentPhoto else { return }
 
         modelContext.delete(photoToDelete)
         do {
@@ -630,9 +613,6 @@ struct PhotoDetailView: View {
                 dismiss()
             } else if currentIndex >= photos.count {
                 currentIndex = photos.count - 1
-                viewModel.updateCurrentPhoto(photos[currentIndex])
-            } else {
-                viewModel.updateCurrentPhoto(photos[currentIndex])
             }
         } catch {
             print("❌ 删除照片失败: \(error)")
@@ -667,13 +647,12 @@ struct PhotoDetailView: View {
         return (width, height)
     }
 
-    /// 保存到系统相册（async/await 现代化）
     private func saveToPhotoLibrary() {
-        guard !viewModel.currentPhoto.imageData.isEmpty else { return }
+        guard let photo = currentPhoto, !photo.imageData.isEmpty else { return }
 
         saveStatus = .saving
-        let imageData = viewModel.currentPhoto.imageData
-        let photo = viewModel.currentPhoto
+        let imageData = photo.imageData
+        let photoRef = photo
 
         Task {
             let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
@@ -688,17 +667,16 @@ struct PhotoDetailView: View {
             do {
                 try await PHPhotoLibrary.shared().performChanges {
                     let request = PHAssetCreationRequest.forAsset()
-                    request.creationDate = photo.timestamp
+                    request.creationDate = photoRef.timestamp
 
-                    if let lat = photo.latitude, let lon = photo.longitude {
-                        let location = CLLocation(
+                    if let lat = photoRef.latitude, let lon = photoRef.longitude {
+                        request.location = CLLocation(
                             coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                            altitude: photo.altitude ?? 0,
+                            altitude: photoRef.altitude ?? 0,
                             horizontalAccuracy: 10,
                             verticalAccuracy: 10,
-                            timestamp: photo.locationTimestamp ?? photo.timestamp
+                            timestamp: photoRef.locationTimestamp ?? photoRef.timestamp
                         )
-                        request.location = location
                     }
 
                     let options = PHAssetResourceCreationOptions()
@@ -727,13 +705,27 @@ struct PhotoDetailView: View {
             saveStatus = .none
         }
     }
+
+    private func shareCurrentPhoto() {
+        guard let photo = currentPhoto,
+              let image = UIImage(data: photo.imageData) else { return }
+
+        let activityVC = UIActivityViewController(activityItems: [image], applicationActivities: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            // 找到最顶层的 presented VC
+            var topVC = rootVC
+            while let presented = topVC.presentedViewController {
+                topVC = presented
+            }
+            topVC.present(activityVC, animated: true)
+        }
+    }
 }
 
 // MARK: - 可缩放照片视图
 struct ZoomablePhotoView: View {
-    let photo: Photo
     let loadedImage: UIImage?
-    let isLoading: Bool
     @Binding var scale: CGFloat
     @Binding var offset: CGSize
     var onSingleTap: (() -> Void)?
@@ -751,8 +743,7 @@ struct ZoomablePhotoView: View {
                     .gesture(
                         MagnificationGesture()
                             .onChanged { value in
-                                let newScale = lastScale * value
-                                scale = min(max(newScale, 1.0), 5.0)
+                                scale = min(max(lastScale * value, 1.0), 5.0)
                             }
                             .onEnded { _ in
                                 lastScale = scale
@@ -765,20 +756,18 @@ struct ZoomablePhotoView: View {
                                 }
                             }
                     )
-                    .simultaneousGesture(
+                    .highPriorityGesture(
+                        // 缩放时拖动平移（优先级高于 TabView 翻页）
                         scale > 1.0 ?
                         DragGesture()
                             .onChanged { value in
-                                offset = CGSize(
-                                    width: value.translation.width,
-                                    height: value.translation.height
-                                )
+                                offset = value.translation
                             }
                             .onEnded { _ in
-                                let maxOffset = (scale - 1) * min(geometry.size.width, geometry.size.height) / 2
+                                let maxOff = (scale - 1) * min(geometry.size.width, geometry.size.height) / 2
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    offset.width = min(max(offset.width, -maxOffset), maxOffset)
-                                    offset.height = min(max(offset.height, -maxOffset), maxOffset)
+                                    offset.width = min(max(offset.width, -maxOff), maxOff)
+                                    offset.height = min(max(offset.height, -maxOff), maxOff)
                                 }
                             }
                         : nil
@@ -799,16 +788,6 @@ struct ZoomablePhotoView: View {
                         onSingleTap?()
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if isLoading {
-                VStack(spacing: 12) {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(1.2)
-                    Text("加载中...")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
