@@ -14,7 +14,7 @@ struct CameraView: View {
     let preset: FilmPreset
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Photo.timestamp, order: .reverse) private var allPhotos: [Photo]
+    @Query private var presetPhotos: [Photo]
     @StateObject private var cameraManager: CameraManager
     @State private var showFlash = false
     @State private var isCapturing = false
@@ -25,6 +25,13 @@ struct CameraView: View {
 
     init(preset: FilmPreset) {
         self.preset = preset
+        let name = preset.rawValue
+        _presetPhotos = Query(
+            filter: #Predicate<Photo> { photo in
+                photo.filmPresetName == name
+            },
+            sort: \Photo.timestamp
+        )
         _cameraManager = StateObject(wrappedValue: CameraManager(preset: preset))
     }
 
@@ -144,7 +151,7 @@ struct CameraView: View {
         .onDisappear {
             cameraManager.stopLocationServices()
         }
-        .onChange(of: allPhotos.count) { _, _ in
+        .onChange(of: presetPhotos.count) { _, _ in
             loadLastPhotoThumbnail()
         }
         .sheet(isPresented: $showPhotoDetail) {
@@ -167,12 +174,6 @@ struct CameraView: View {
                 .preferredColorScheme(.dark)
             }
         }
-    }
-
-    /// 当前预设的照片（按时间升序，最新在最后）
-    private var presetPhotos: [Photo] {
-        allPhotos.filter { $0.filmPresetName == preset.rawValue }
-            .sorted { $0.timestamp < $1.timestamp }
     }
 
     private func loadLastPhotoThumbnail() {
@@ -409,7 +410,11 @@ class CameraManager: NSObject, ObservableObject {
     init(preset: FilmPreset) {
         self.preset = preset
         super.init()
-        setupCamera()
+        // Lightweight init: only find device and read specs, no session configuration
+        if let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
+            videoCaptureDevice = device
+            readCameraSpecs(device: device)
+        }
         setupOrientationMonitoring()
     }
 
@@ -590,12 +595,12 @@ class CameraManager: NSObject, ObservableObject {
             let status = AVCaptureDevice.authorizationStatus(for: .video)
             switch status {
             case .authorized:
-                await startSession()
+                await configureAndStartSession()
                 startLocationServices()
             case .notDetermined:
                 let granted = await AVCaptureDevice.requestAccess(for: .video)
                 if granted {
-                    await startSession()
+                    await configureAndStartSession()
                     startLocationServices()
                 }
             default:
@@ -604,101 +609,87 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    private func setupCamera() {
-        session.beginConfiguration()
-        defer { session.commitConfiguration() }
+    /// 在专用串行队列上配置并启动 AVCaptureSession，避免阻塞主线程
+    private func configureAndStartSession() async {
+        guard !session.isRunning, let device = videoCaptureDevice else { return }
 
-        session.sessionPreset = .photo
-
-        guard let videoCaptureDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
-            return
-        }
-
-        self.videoCaptureDevice = videoCaptureDevice
-        readCameraSpecs(device: videoCaptureDevice)
-        calculateZoomFactorFor35mm()
-
-        do {
-            let videoInput = try AVCaptureDeviceInput(device: videoCaptureDevice)
-
-            if session.canAddInput(videoInput) {
-                session.addInput(videoInput)
-            }
-
-            if session.canAddOutput(photoOutput) {
-                session.addOutput(photoOutput)
-
-                photoOutput.maxPhotoQualityPrioritization = .speed
-                photoOutput.isResponsiveCaptureEnabled = true
-                photoOutput.isFastCapturePrioritizationEnabled = true
-
-                let format = videoCaptureDevice.activeFormat
-                let supportedDimensions = format.supportedMaxPhotoDimensions
-
-                let preferred = supportedDimensions.filter { dim in
-                    let ratio = Float(dim.width) / Float(dim.height)
-                    return dim.width <= 4000 && abs(ratio - 4.0/3.0) < 0.1
-                }.max { $0.width < $1.width }
-
-                if let selected = preferred {
-                    photoOutput.maxPhotoDimensions = selected
-                } else if let largest = supportedDimensions.max(by: { $0.width < $1.width }) {
-                    photoOutput.maxPhotoDimensions = largest
-                }
-
-                rotationCoordinator = AVCaptureDevice.RotationCoordinator(
-                    device: videoCaptureDevice,
-                    previewLayer: nil
-                )
-            }
-
-            videoDataOutput.alwaysDiscardsLateVideoFrames = true
-            videoDataOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
-            if session.canAddOutput(videoDataOutput) {
-                session.addOutput(videoDataOutput)
-                videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
-                applyVideoOrientationToOutputs()
-            }
-
-            // 合并为一次 lockForConfiguration
-            try videoCaptureDevice.lockForConfiguration()
-            if videoCaptureDevice.isFocusModeSupported(.continuousAutoFocus) {
-                videoCaptureDevice.focusMode = .continuousAutoFocus
-            }
-            if videoCaptureDevice.isExposureModeSupported(.continuousAutoExposure) {
-                videoCaptureDevice.exposureMode = .continuousAutoExposure
-            }
-            if videoCaptureDevice.isSmoothAutoFocusSupported {
-                videoCaptureDevice.isSmoothAutoFocusEnabled = true
-            }
-            videoCaptureDevice.isSubjectAreaChangeMonitoringEnabled = true
-            videoCaptureDevice.unlockForConfiguration()
-
-            subjectAreaObserver = NotificationCenter.default.addObserver(
-                forName: AVCaptureDevice.subjectAreaDidChangeNotification,
-                object: videoCaptureDevice,
-                queue: .main
-            ) { _ in }
-        } catch {
-            print("Error setting up camera: \(error)")
-        }
-    }
-
-    /// 使用专用串行队列启动会话，避免阻塞主线程
-    private func startSession() async {
-        guard !session.isRunning else { return }
-
-        // 在主线程取得 session 引用，然后传给后台队列
         let captureSession = session
+        let output = photoOutput
+        let videoOutput = videoDataOutput
+
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             sessionQueue.async {
+                captureSession.beginConfiguration()
+                captureSession.sessionPreset = .photo
+
+                do {
+                    let videoInput = try AVCaptureDeviceInput(device: device)
+
+                    if captureSession.canAddInput(videoInput) {
+                        captureSession.addInput(videoInput)
+                    }
+
+                    if captureSession.canAddOutput(output) {
+                        captureSession.addOutput(output)
+
+                        output.maxPhotoQualityPrioritization = .speed
+                        output.isResponsiveCaptureEnabled = true
+                        output.isFastCapturePrioritizationEnabled = true
+
+                        let format = device.activeFormat
+                        let supportedDimensions = format.supportedMaxPhotoDimensions
+
+                        let preferred = supportedDimensions.filter { dim in
+                            let ratio = Float(dim.width) / Float(dim.height)
+                            return dim.width <= 4000 && abs(ratio - 4.0/3.0) < 0.1
+                        }.max { $0.width < $1.width }
+
+                        if let selected = preferred {
+                            output.maxPhotoDimensions = selected
+                        } else if let largest = supportedDimensions.max(by: { $0.width < $1.width }) {
+                            output.maxPhotoDimensions = largest
+                        }
+                    }
+
+                    videoOutput.alwaysDiscardsLateVideoFrames = true
+                    videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+                    if captureSession.canAddOutput(videoOutput) {
+                        captureSession.addOutput(videoOutput)
+                    }
+
+                    try device.lockForConfiguration()
+                    if device.isFocusModeSupported(.continuousAutoFocus) {
+                        device.focusMode = .continuousAutoFocus
+                    }
+                    if device.isExposureModeSupported(.continuousAutoExposure) {
+                        device.exposureMode = .continuousAutoExposure
+                    }
+                    if device.isSmoothAutoFocusSupported {
+                        device.isSmoothAutoFocusEnabled = true
+                    }
+                    device.isSubjectAreaChangeMonitoringEnabled = true
+                    device.unlockForConfiguration()
+                } catch {
+                    print("Error setting up camera: \(error)")
+                }
+
+                captureSession.commitConfiguration()
                 captureSession.startRunning()
                 continuation.resume()
             }
         }
 
+        // Back on MainActor — set up delegates and properties that need main thread
+        rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
+        videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
         calculateZoomFactorFor35mm()
         applyVideoOrientationToOutputs()
+
+        subjectAreaObserver = NotificationCenter.default.addObserver(
+            forName: AVCaptureDevice.subjectAreaDidChangeNotification,
+            object: device,
+            queue: .main
+        ) { _ in }
     }
 
     // MARK: - 拍照

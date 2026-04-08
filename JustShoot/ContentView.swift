@@ -11,9 +11,10 @@ struct ContentView: View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 12) {
+                    let counts = presetCountMap
                     ForEach(FilmPreset.allCases) { preset in
                         NavigationLink(value: preset) {
-                            FilmPresetCard(preset: preset, photoCount: photosCount(for: preset))
+                            FilmPresetCard(preset: preset, photoCount: counts[preset.rawValue] ?? 0)
                         }
                     }
                 }
@@ -66,8 +67,15 @@ struct ContentView: View {
         }
     }
 
-    private func photosCount(for preset: FilmPreset) -> Int {
-        photos.filter { $0.filmPresetName == preset.rawValue }.count
+    /// Single-pass count computation instead of filtering 8 times
+    private var presetCountMap: [String: Int] {
+        var counts: [String: Int] = [:]
+        for photo in photos {
+            if let name = photo.filmPresetName {
+                counts[name, default: 0] += 1
+            }
+        }
+        return counts
     }
 
     private func preloadResources() async {

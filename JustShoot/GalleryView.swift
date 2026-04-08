@@ -15,10 +15,11 @@ class ImageLoader: ObservableObject {
     }
 
     func loadPreview(for photo: Photo, maxPixel: Int) async -> UIImage? {
-        let key = "preview_\(photo.id.uuidString)_\(maxPixel)" as NSString
+        let photoId = photo.id
+        let key = "preview_\(photoId.uuidString)_\(maxPixel)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
 
-        if let url = previewURL(for: photo, maxPixel: maxPixel),
+        if let url = previewURL(for: photoId, maxPixel: maxPixel),
            fileManager.fileExists(atPath: url.path),
            let data = try? Data(contentsOf: url),
            let img = UIImage(data: data) {
@@ -26,13 +27,16 @@ class ImageLoader: ObservableObject {
             return img
         }
 
+        // Extract imageData on calling actor before dispatching to background
+        let imageData = photo.imageData
+
         return await Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return nil }
             let options: [CFString: Any] = [
                 kCGImageSourceShouldCache: false,
                 kCGImageSourceShouldCacheImmediately: false
             ]
-            guard let src = CGImageSourceCreateWithData(photo.imageData as CFData, options as CFDictionary) else { return nil }
+            guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
             let downOptions: [CFString: Any] = [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
                 kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 256),
@@ -41,7 +45,7 @@ class ImageLoader: ObservableObject {
             guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
             let image = UIImage(cgImage: cgThumb)
             self.cache.setObject(image, forKey: key)
-            if let url = self.previewURL(for: photo, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
+            if let url = self.previewURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
                 try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try? jpeg.write(to: url, options: .atomic)
             }
@@ -50,10 +54,11 @@ class ImageLoader: ObservableObject {
     }
 
     func loadThumbnail(for photo: Photo, maxPixel: Int) async -> UIImage? {
-        let key = "thumb_\(photo.id.uuidString)_\(maxPixel)" as NSString
+        let photoId = photo.id
+        let key = "thumb_\(photoId.uuidString)_\(maxPixel)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
 
-        if let url = thumbnailURL(for: photo, maxPixel: maxPixel),
+        if let url = thumbnailURL(for: photoId, maxPixel: maxPixel),
            fileManager.fileExists(atPath: url.path),
            let data = try? Data(contentsOf: url),
            let img = UIImage(data: data) {
@@ -61,13 +66,16 @@ class ImageLoader: ObservableObject {
             return img
         }
 
+        // Extract imageData on calling actor before dispatching to background
+        let imageData = photo.imageData
+
         return await Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return nil }
             let options: [CFString: Any] = [
                 kCGImageSourceShouldCache: false,
                 kCGImageSourceShouldCacheImmediately: false
             ]
-            guard let src = CGImageSourceCreateWithData(photo.imageData as CFData, options as CFDictionary) else { return nil }
+            guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
             let thumbOptions: [CFString: Any] = [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
                 kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 96),
@@ -76,7 +84,7 @@ class ImageLoader: ObservableObject {
             guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
             let image = UIImage(cgImage: cgThumb)
             self.cache.setObject(image, forKey: key)
-            if let url = self.thumbnailURL(for: photo, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.85) {
+            if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.85) {
                 try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try? jpeg.write(to: url, options: .atomic)
             }
@@ -89,9 +97,9 @@ class ImageLoader: ObservableObject {
         return cacheDir.appendingPathComponent("Thumbs", isDirectory: true)
     }
 
-    private func thumbnailURL(for photo: Photo, maxPixel: Int) -> URL? {
+    private func thumbnailURL(for photoId: UUID, maxPixel: Int) -> URL? {
         guard let dir = thumbsDirectory() else { return nil }
-        return dir.appendingPathComponent("\(photo.id.uuidString)_t_\(maxPixel).jpg")
+        return dir.appendingPathComponent("\(photoId.uuidString)_t_\(maxPixel).jpg")
     }
 
     private func previewDirectory() -> URL? {
@@ -99,9 +107,9 @@ class ImageLoader: ObservableObject {
         return cacheDir.appendingPathComponent("Previews", isDirectory: true)
     }
 
-    private func previewURL(for photo: Photo, maxPixel: Int) -> URL? {
+    private func previewURL(for photoId: UUID, maxPixel: Int) -> URL? {
         guard let dir = previewDirectory() else { return nil }
-        return dir.appendingPathComponent("\(photo.id.uuidString)_p_\(maxPixel).jpg")
+        return dir.appendingPathComponent("\(photoId.uuidString)_p_\(maxPixel).jpg")
     }
 
     func clearCache() {
@@ -120,13 +128,13 @@ class PhotoDetailViewModel: ObservableObject {
         if loadedImages[photoId] != nil { return }
 
         let maxPixel = Int(max(UIScreen.main.bounds.width, UIScreen.main.bounds.height) * UIScreen.main.scale)
-        Task.detached(priority: .userInitiated) { [weak self] in
+        // Use Task (not Task.detached) so loadPreview extracts imageData on MainActor
+        // before dispatching its own background work
+        Task { [weak self] in
             guard let self else { return }
             let image = await self.imageLoader.loadPreview(for: photo, maxPixel: maxPixel)
-            await MainActor.run {
-                if let image {
-                    self.loadedImages[photoId] = image
-                }
+            if let image {
+                self.loadedImages[photoId] = image
             }
         }
     }
@@ -197,7 +205,7 @@ struct GalleryView: View {
                             } else {
                                 let screenBounds = UIScreen.main.bounds
                                 let maxPixel = Int(max(screenBounds.width, screenBounds.height) * UIScreen.main.scale)
-                                Task.detached(priority: .userInitiated) {
+                                Task {
                                     _ = await ImageLoader.shared.loadPreview(for: photo, maxPixel: maxPixel)
                                 }
                                 selectedDetail = DetailPayload(startPhoto: photo, photos: Array(photos))
