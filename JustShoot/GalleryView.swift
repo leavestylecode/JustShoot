@@ -118,6 +118,7 @@ class ImageLoader: ObservableObject {
 }
 
 // MARK: - 照片详情视图模型
+@MainActor
 class PhotoDetailViewModel: ObservableObject {
     @Published var loadedImages: [UUID: UIImage] = [:]
 
@@ -128,8 +129,6 @@ class PhotoDetailViewModel: ObservableObject {
         if loadedImages[photoId] != nil { return }
 
         let maxPixel = Int(max(UIScreen.main.bounds.width, UIScreen.main.bounds.height) * UIScreen.main.scale)
-        // Use Task (not Task.detached) so loadPreview extracts imageData on MainActor
-        // before dispatching its own background work
         Task { [weak self] in
             guard let self else { return }
             let image = await self.imageLoader.loadPreview(for: photo, maxPixel: maxPixel)
@@ -380,8 +379,7 @@ struct PhotoDetailView: View {
     @State private var showingInfo = false
     @State private var currentIndex: Int = 0
     @State private var showDeleteConfirm = false
-    @State private var imageScale: CGFloat = 1.0
-    @State private var imageOffset: CGSize = .zero
+    @State private var isZoomed = false
     @State private var isFullScreen = false
 
     enum SaveStatus {
@@ -410,11 +408,14 @@ struct PhotoDetailView: View {
                         ForEach(Array(photos.enumerated()), id: \.element.id) { index, photoItem in
                             ZoomablePhotoView(
                                 loadedImage: viewModel.loadedImages[photoItem.id],
-                                scale: index == currentIndex ? $imageScale : .constant(1.0),
-                                offset: index == currentIndex ? $imageOffset : .constant(.zero),
                                 onSingleTap: {
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         isFullScreen.toggle()
+                                    }
+                                },
+                                onZoomChanged: { zoomed in
+                                    if index == currentIndex {
+                                        isZoomed = zoomed
                                     }
                                 }
                             )
@@ -425,7 +426,7 @@ struct PhotoDetailView: View {
                         }
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
-                    .disabled(imageScale > 1.0)
+                    .disabled(isZoomed)
 
                     ScrubberStripView(
                         photos: photos,
@@ -456,8 +457,7 @@ struct PhotoDetailView: View {
         .toolbar { bottomToolbar }
         .statusBarHidden(isFullScreen)
         .onChange(of: currentIndex) { _, newIndex in
-            imageScale = 1.0
-            imageOffset = .zero
+            isZoomed = false
             if newIndex >= 0 && newIndex < photos.count {
                 viewModel.preloadImages(around: newIndex, in: photos)
             }
@@ -647,11 +647,13 @@ struct PhotoDetailView: View {
 // MARK: - 可缩放照片视图
 struct ZoomablePhotoView: View {
     let loadedImage: UIImage?
-    @Binding var scale: CGFloat
-    @Binding var offset: CGSize
     var onSingleTap: (() -> Void)?
+    var onZoomChanged: ((Bool) -> Void)?
 
+    @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
 
     var body: some View {
         GeometryReader { geometry in
@@ -667,40 +669,51 @@ struct ZoomablePhotoView: View {
                                 scale = min(max(lastScale * value, 1.0), 5.0)
                             }
                             .onEnded { _ in
-                                lastScale = scale
-                                if scale <= 1.0 {
+                                if scale <= 1.05 {
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                         scale = 1.0
                                         offset = .zero
+                                        lastOffset = .zero
                                     }
                                     lastScale = 1.0
+                                    onZoomChanged?(false)
+                                } else {
+                                    lastScale = scale
+                                    onZoomChanged?(true)
                                 }
                             }
                     )
-                    .highPriorityGesture(
-                        scale > 1.0 ?
+                    .simultaneousGesture(
                         DragGesture()
                             .onChanged { value in
-                                offset = value.translation
+                                guard scale > 1.0 else { return }
+                                offset = CGSize(
+                                    width: lastOffset.width + value.translation.width,
+                                    height: lastOffset.height + value.translation.height
+                                )
                             }
                             .onEnded { _ in
+                                guard scale > 1.0 else { return }
                                 let maxOff = (scale - 1) * min(geometry.size.width, geometry.size.height) / 2
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     offset.width = min(max(offset.width, -maxOff), maxOff)
                                     offset.height = min(max(offset.height, -maxOff), maxOff)
                                 }
+                                lastOffset = offset
                             }
-                        : nil
                     )
                     .onTapGesture(count: 2) {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             if scale > 1.0 {
                                 scale = 1.0
-                                offset = .zero
                                 lastScale = 1.0
+                                offset = .zero
+                                lastOffset = .zero
+                                onZoomChanged?(false)
                             } else {
                                 scale = 2.5
                                 lastScale = 2.5
+                                onZoomChanged?(true)
                             }
                         }
                     }
