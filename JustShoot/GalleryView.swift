@@ -567,15 +567,6 @@ struct PhotoDetailView: View {
     @ToolbarContentBuilder
     private var bottomToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
-            // 分享
-            Button {
-                shareCurrentPhoto()
-            } label: {
-                Image(systemName: "square.and.arrow.up")
-            }
-
-            Spacer()
-
             // 保存到相册
             Button {
                 saveToPhotoLibrary()
@@ -706,21 +697,6 @@ struct PhotoDetailView: View {
         }
     }
 
-    private func shareCurrentPhoto() {
-        guard let photo = currentPhoto,
-              let image = UIImage(data: photo.imageData) else { return }
-
-        let activityVC = UIActivityViewController(activityItems: [image], applicationActivities: nil)
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = windowScene.windows.first?.rootViewController {
-            // 找到最顶层的 presented VC
-            var topVC = rootVC
-            while let presented = topVC.presentedViewController {
-                topVC = presented
-            }
-            topVC.present(activityVC, animated: true)
-        }
-    }
 }
 
 // MARK: - 可缩放照片视图
