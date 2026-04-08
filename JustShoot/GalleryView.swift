@@ -129,7 +129,7 @@ class PhotoDetailViewModel: ObservableObject {
         if loadedImages[photoId] != nil { return }
 
         let maxPixel = Int(max(UIScreen.main.bounds.width, UIScreen.main.bounds.height) * UIScreen.main.scale)
-        Task { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self else { return }
             let image = await self.imageLoader.loadPreview(for: photo, maxPixel: maxPixel)
             if let image {
