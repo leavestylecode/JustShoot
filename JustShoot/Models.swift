@@ -250,38 +250,27 @@ final class FilmProcessor: Sendable {
     static let shared = FilmProcessor()
 
     private let ciContext: CIContext
-    /// 保护 lutCache 和 previewFilter 的锁
+    private let srgbColorSpace: CGColorSpace
+    /// 保护 lutCache 的锁
     private let lock = OSAllocatedUnfairLock<LUTState>(initialState: LUTState())
 
-    /// 锁内保护的可变状态
+    /// 锁内保护的可变状态（仅缓存 LUT 数据，不缓存 CIFilter）
     private struct LUTState {
         var lutCache: [String: CubeLUT] = [:]
-        /// 预览用 CIFilter 缓存（避免每帧创建）
-        var previewFilterCache: [String: CIFilter] = [:]
     }
 
     private init() {
-        let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        self.srgbColorSpace = colorSpace
         self.ciContext = CIContext(options: [
             CIContextOption.useSoftwareRenderer: false,
-            CIContextOption.workingColorSpace: srgbColorSpace,
-            CIContextOption.outputColorSpace: srgbColorSpace
+            CIContextOption.workingColorSpace: colorSpace,
+            CIContextOption.outputColorSpace: colorSpace
         ])
     }
 
-    func loadCubeLUT(resourceName: String) throws -> CubeLUT {
-        // 快速路径：缓存命中
-        if let cached = lock.withLock({ $0.lutCache[resourceName] }) {
-            return cached
-        }
-
-        // 慢路径：解析 LUT 文件（锁外执行，避免长时间持锁）
-        guard let url = Bundle.main.url(forResource: resourceName, withExtension: "cube") else {
-            throw NSError(domain: "FilmProcessor", code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "找不到 LUT 资源: \(resourceName).cube"])
-        }
-
-        let text = try String(contentsOf: url, encoding: .utf8)
+    /// 从 .cube 文件文本解析 LUT 数据（纯函数，无锁无 I/O）
+    private static func parseCubeText(_ text: String) throws -> CubeLUT {
         var lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
         lines.removeAll { $0.hasPrefix("#") || $0.isEmpty }
 
@@ -318,7 +307,23 @@ final class FilmProcessor: Sendable {
         let data: Data = rgba.withUnsafeBufferPointer { buffer in
             Data(buffer: buffer)
         }
-        let cube = CubeLUT(data: data, dimension: size)
+        return CubeLUT(data: data, dimension: size)
+    }
+
+    func loadCubeLUT(resourceName: String) throws -> CubeLUT {
+        // 快速路径：缓存命中
+        if let cached = lock.withLock({ $0.lutCache[resourceName] }) {
+            return cached
+        }
+
+        // 慢路径：解析 LUT 文件（锁外执行，避免长时间持锁）
+        guard let url = Bundle.main.url(forResource: resourceName, withExtension: "cube") else {
+            throw NSError(domain: "FilmProcessor", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "找不到 LUT 资源: \(resourceName).cube"])
+        }
+
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let cube = try Self.parseCubeText(text)
 
         // 写入缓存（可能有并发写入，以最后一个为准，结果一致）
         lock.withLock { $0.lutCache[resourceName] = cube }
@@ -332,7 +337,7 @@ final class FilmProcessor: Sendable {
     /// 应用 LUT 并保留/添加元数据（拍照用，统一 sRGB 色彩空间）
     func applyLUTPreservingMetadata(imageData: Data, preset: FilmPreset, outputQuality: CGFloat = 0.95, location: CLLocation? = nil) -> Data? {
         guard var ciInput = CIImage(data: imageData) else {
-            print("❌ [LUT] 无法从数据创建 CIImage")
+            print("[LUT] Failed to create CIImage from data")
             return nil
         }
 
@@ -357,7 +362,7 @@ final class FilmProcessor: Sendable {
             ciInput = ciInput.cropped(to: cropRect)
         }
 
-        // 应用 LUT 滤镜
+        // 应用 LUT 滤镜（每次创建新 CIFilter，避免线程竞争）
         guard let colorCube = CIFilter(name: "CIColorCube") else { return nil }
 
         do {
@@ -366,17 +371,16 @@ final class FilmProcessor: Sendable {
             colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
             colorCube.setValue(lut.data, forKey: "inputCubeData")
         } catch {
-            print("❌ [LUT] 加载 LUT 失败: \(error)")
+            print("[LUT] Failed to load LUT: \(error)")
             return nil
         }
 
         guard let output = colorCube.outputImage else { return nil }
 
         // 渲染为 JPEG（统一 sRGB）
-        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         guard let renderedJPEG = ciContext.jpegRepresentation(
             of: output,
-            colorSpace: colorSpace,
+            colorSpace: srgbColorSpace,
             options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
         ) else { return nil }
 
@@ -433,76 +437,28 @@ final class FilmProcessor: Sendable {
         return mutableData as Data
     }
 
-    /// 实时预览：对 CIImage 应用 LUT，复用缓存的 CIFilter（避免每帧创建）
+    /// 实时预览：对 CIImage 应用 LUT（每次调用创建独立 CIFilter，线程安全）
     func applyLUT(to image: CIImage, preset: FilmPreset) -> CIImage? {
         let resourceName = preset.lutResourceName
 
-        // 获取或创建 filter + lut 数据
-        let (filter, lut): (CIFilter, CubeLUT) = lock.withLock { state in
-            let cachedLUT = state.lutCache[resourceName]
-            let cachedFilter = state.previewFilterCache[resourceName]
-
-            if let f = cachedFilter, let l = cachedLUT {
-                return (f, l)
-            }
-
-            // 需要创建 filter
-            let f = cachedFilter ?? CIFilter(name: "CIColorCube")!
-            let l: CubeLUT
-            if let cl = cachedLUT {
-                l = cl
-            } else {
-                // LUT 未加载（不应发生，因为有 preload）
-                guard let loaded = try? self.loadCubeLUTUnsafe(resourceName: resourceName) else {
-                    return (f, CubeLUT(data: Data(), dimension: 0))
-                }
-                state.lutCache[resourceName] = loaded
-                l = loaded
-            }
-
-            f.setValue(l.dimension, forKey: "inputCubeDimension")
-            f.setValue(l.data, forKey: "inputCubeData")
-            state.previewFilterCache[resourceName] = f
-            return (f, l)
+        // 从缓存获取 LUT 数据（锁内只读取数据，不做 I/O）
+        guard let lut = lock.withLock({ $0.lutCache[resourceName] }),
+              lut.dimension > 0 else {
+            // 缓存未命中时在锁外加载
+            guard let lut = try? loadCubeLUT(resourceName: resourceName),
+                  lut.dimension > 0 else { return nil }
+            return applyLUTToImage(image, lut: lut)
         }
 
-        guard lut.dimension > 0 else { return nil }
-
-        // 只更新 inputImage（dimension 和 cubeData 已缓存在 filter 中）
-        filter.setValue(image, forKey: kCIInputImageKey)
-        return filter.outputImage
+        return applyLUTToImage(image, lut: lut)
     }
 
-    /// 锁内调用的 LUT 加载（不获取锁）
-    private func loadCubeLUTUnsafe(resourceName: String) throws -> CubeLUT {
-        guard let url = Bundle.main.url(forResource: resourceName, withExtension: "cube") else {
-            throw NSError(domain: "FilmProcessor", code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "找不到 LUT 资源: \(resourceName).cube"])
-        }
-        let text = try String(contentsOf: url, encoding: .utf8)
-        var lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
-        lines.removeAll { $0.hasPrefix("#") || $0.isEmpty }
-
-        var size = 0
-        var values: [Float] = []
-        for line in lines {
-            if line.uppercased().hasPrefix("LUT_3D_SIZE") {
-                if let last = line.split(separator: " ").last, let dim = Int(last) { size = dim }
-            } else {
-                let comps = line.split(separator: " ").compactMap { Float($0) }
-                if comps.count == 3 { values.append(contentsOf: comps) }
-            }
-        }
-        guard size > 0, values.count == size * size * size * 3 else {
-            throw NSError(domain: "FilmProcessor", code: -2,
-                          userInfo: [NSLocalizedDescriptionKey: "LUT 解析失败或尺寸不匹配"])
-        }
-        var rgba: [Float] = []
-        rgba.reserveCapacity(size * size * size * 4)
-        for i in stride(from: 0, to: values.count, by: 3) {
-            rgba.append(values[i]); rgba.append(values[i + 1]); rgba.append(values[i + 2]); rgba.append(1.0)
-        }
-        let data = rgba.withUnsafeBufferPointer { Data(buffer: $0) }
-        return CubeLUT(data: data, dimension: size)
+    /// 将 LUT 应用到 CIImage（创建独立 CIFilter，线程安全）
+    private func applyLUTToImage(_ image: CIImage, lut: CubeLUT) -> CIImage? {
+        guard let colorCube = CIFilter(name: "CIColorCube") else { return nil }
+        colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
+        colorCube.setValue(lut.data, forKey: "inputCubeData")
+        colorCube.setValue(image, forKey: kCIInputImageKey)
+        return colorCube.outputImage
     }
 }

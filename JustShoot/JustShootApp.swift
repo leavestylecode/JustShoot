@@ -33,7 +33,18 @@ struct JustShootApp: App {
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            // 数据库损坏时尝试删除旧数据库并重建
+            let url = modelConfiguration.url
+            try? FileManager.default.removeItem(at: url)
+            // 同时清理 WAL/SHM 文件
+            try? FileManager.default.removeItem(at: url.appendingPathExtension("wal"))
+            try? FileManager.default.removeItem(at: url.appendingPathExtension("shm"))
+
+            do {
+                return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            } catch {
+                fatalError("Could not create ModelContainer after recovery: \(error)")
+            }
         }
     }()
 

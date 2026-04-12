@@ -59,6 +59,31 @@ struct CameraView: View {
             .aspectRatio(3.0/4.0, contentMode: .fit)
             .padding(.horizontal, 4)
 
+            // 权限被拒绝时的引导
+            if cameraManager.cameraPermissionDenied {
+                VStack(spacing: 16) {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(.gray)
+                    Text("需要相机权限")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    Text("请在系统设置中允许 JustShoot 访问相机")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                    Button("打开设置") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.white)
+                    .foregroundColor(.black)
+                }
+                .padding(40)
+            }
+
             // 快门闪光效果
             if showFlash {
                 Color.white
@@ -79,10 +104,15 @@ struct CameraView: View {
                 .tint(.white)
             }
 
-            // 中间：胶片名
+            // 中间：胶片名 + 拍摄计数
             ToolbarItem(placement: .principal) {
-                Text(preset.displayName)
-                    .font(.subheadline.weight(.semibold))
+                VStack(spacing: 1) {
+                    Text(preset.displayName)
+                        .font(.subheadline.weight(.semibold))
+                    Text("\(presetPhotos.count) 张")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             // 右上：闪光灯
@@ -332,8 +362,6 @@ class CameraManager: NSObject, ObservableObject {
     private var photoOutput = AVCapturePhotoOutput()
     private var videoCaptureDevice: AVCaptureDevice?
     private let videoDataOutput = AVCaptureVideoDataOutput()
-    /// 共享 CIContext（复用于旋转处理，避免每次拍照创建）
-    private let ciContext = CIContext(options: [CIContextOption.useSoftwareRenderer: false])
     private let previewQueue = DispatchQueue(label: "preview.lut.queue")
     /// 专用会话队列（AVCaptureSession 操作必须在同一串行队列）
     private let sessionQueue = DispatchQueue(label: "camera.session.queue")
@@ -400,6 +428,9 @@ class CameraManager: NSObject, ObservableObject {
     private var currentDeviceOrientation: UIDeviceOrientation = .portrait
     private var orientationObserver: NSObjectProtocol?
     private var subjectAreaObserver: NSObjectProtocol?
+
+    // 权限状态
+    @Published var cameraPermissionDenied: Bool = false
 
     // 拍照曝光补偿
     private var previousExposureTargetBias: Float = 0
@@ -595,15 +626,21 @@ class CameraManager: NSObject, ObservableObject {
             let status = AVCaptureDevice.authorizationStatus(for: .video)
             switch status {
             case .authorized:
+                cameraPermissionDenied = false
                 await configureAndStartSession()
                 startLocationServices()
             case .notDetermined:
                 let granted = await AVCaptureDevice.requestAccess(for: .video)
                 if granted {
+                    cameraPermissionDenied = false
                     await configureAndStartSession()
                     startLocationServices()
+                } else {
+                    cameraPermissionDenied = true
                 }
-            default:
+            case .denied, .restricted:
+                cameraPermissionDenied = true
+            @unknown default:
                 break
             }
         }
@@ -752,6 +789,9 @@ class CameraManager: NSObject, ObservableObject {
 
     private func estimate35mmEquivalentFocalLength() -> Float {
         let modelName = getModelIdentifier()
+        if modelName.contains("17 Pro") { return 24.0 }
+        if modelName.contains("17") { return 24.0 }
+        if modelName.contains("16e") { return 26.0 }
         if modelName.contains("16 Pro") { return 24.0 }
         if modelName.contains("16") { return 26.0 }
         if modelName.contains("15 Pro") { return 24.0 }
@@ -779,6 +819,11 @@ class CameraManager: NSObject, ObservableObject {
 
     private func deviceModelName(from identifier: String) -> String {
         switch identifier {
+        case "iPhone18,1": return "iPhone 17"
+        case "iPhone18,2": return "iPhone 17 Air"
+        case "iPhone18,3": return "iPhone 17 Pro"
+        case "iPhone18,4": return "iPhone 17 Pro Max"
+        case "iPhone17,5": return "iPhone 16e"
         case "iPhone17,1": return "iPhone 16"
         case "iPhone17,2": return "iPhone 16 Plus"
         case "iPhone17,3": return "iPhone 16 Pro"
@@ -904,7 +949,7 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error = error {
             Task { @MainActor in self.photoDataHandler?(nil) }
-            print("❌ [照片] 拍摄错误: \(error)")
+            print("[Photo] Capture error: \(error)")
             return
         }
         guard let imageData = photo.fileDataRepresentation() else {
@@ -912,15 +957,10 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
             return
         }
 
-        // 复用管理器持有的 CIContext（避免每次创建）
-        let sharedCIContext = self.ciContext
-
-        Task.detached(priority: .userInitiated) {
-            let rotatedData = Self.applyExifOrientationToPixels(imageData: imageData, ciContext: sharedCIContext)
-
-            await MainActor.run {
-                self.photoDataHandler?(rotatedData ?? imageData)
-            }
+        // CIImage(data:) in applyLUTPreservingMetadata already applies EXIF orientation,
+        // so we pass raw data directly — no need for a separate rotate+encode step.
+        Task { @MainActor in
+            self.photoDataHandler?(imageData)
         }
 
         // 恢复曝光
@@ -937,47 +977,6 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
                 } catch {}
             }
         }
-    }
-
-    /// 读取 EXIF 方向并物理旋转像素（静态方法，复用 CIContext）
-    private nonisolated static func applyExifOrientationToPixels(imageData: Data, ciContext: CIContext) -> Data? {
-        guard let imageSource = CGImageSourceCreateWithData(imageData as CFData, nil),
-              let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [String: Any] else {
-            return imageData
-        }
-
-        let orientationValue = properties[kCGImagePropertyOrientation as String] as? UInt32 ?? 1
-        let orientation = CGImagePropertyOrientation(rawValue: orientationValue) ?? .up
-
-        if orientation == .up { return imageData }
-
-        guard let ciImage = CIImage(data: imageData) else { return imageData }
-        let rotatedImage = ciImage.oriented(orientation)
-
-        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
-        guard let renderedJPEG = ciContext.jpegRepresentation(of: rotatedImage, colorSpace: colorSpace, options: [
-            kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.95
-        ]) else { return imageData }
-
-        var metadata = properties
-        metadata[kCGImagePropertyOrientation as String] = 1
-        if var tiff = metadata[kCGImagePropertyTIFFDictionary as String] as? [String: Any] {
-            tiff[kCGImagePropertyTIFFOrientation as String] = 1
-            metadata[kCGImagePropertyTIFFDictionary as String] = tiff
-        }
-
-        guard let renderedSource = CGImageSourceCreateWithData(renderedJPEG as CFData, nil),
-              let mutableData = CFDataCreateMutable(nil, 0),
-              let imageType = CGImageSourceGetType(renderedSource),
-              let destination = CGImageDestinationCreateWithData(mutableData, imageType, 1, nil) else {
-            return imageData
-        }
-
-        metadata[kCGImageDestinationLossyCompressionQuality as String] = 0.95
-        CGImageDestinationAddImageFromSource(destination, renderedSource, 0, metadata as CFDictionary)
-
-        guard CGImageDestinationFinalize(destination) else { return imageData }
-        return mutableData as Data
     }
 }
 
@@ -1026,12 +1025,12 @@ struct RealtimePreviewView: UIViewRepresentable {
         weak var manager: CameraManager?
         private var ciContext: CIContext!
         private var commandQueue: MTLCommandQueue?
+        private let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
 
         func setup(view: MTKView) {
             view.delegate = self
             if let device = view.device {
                 commandQueue = device.makeCommandQueue()
-                let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
                 ciContext = CIContext(mtlDevice: device, options: [
                     .workingColorSpace: srgbColorSpace,
                     .outputColorSpace: srgbColorSpace
@@ -1072,7 +1071,6 @@ struct RealtimePreviewView: UIViewRepresentable {
                 .transformed(by: CGAffineTransform(translationX: targetRect.origin.x, y: targetRect.origin.y))
 
             let renderBounds = CGRect(origin: .zero, size: drawableSize)
-            let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
             ciContext.render(scaledImage, to: drawable.texture, commandBuffer: commandBuffer, bounds: renderBounds, colorSpace: srgbColorSpace)
             commandBuffer.present(drawable)
             commandBuffer.commit()

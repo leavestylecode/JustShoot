@@ -115,12 +115,35 @@ class ImageLoader: ObservableObject {
     func clearCache() {
         cache.removeAllObjects()
     }
+
+    /// 删除指定照片的磁盘缓存文件
+    func removeDiskCache(for photoId: UUID) {
+        let fm = fileManager
+        // 清理缩略图和预览的所有尺寸变体
+        for dir in [thumbsDirectory(), previewDirectory()] {
+            guard let dir else { continue }
+            let prefix = photoId.uuidString
+            if let files = try? fm.contentsOfDirectory(atPath: dir.path) {
+                for file in files where file.hasPrefix(prefix) {
+                    try? fm.removeItem(at: dir.appendingPathComponent(file))
+                }
+            }
+        }
+        // 清理内存缓存中对应的条目
+        // NSCache 没有遍历 API，但 key 模式固定，尝试移除常见尺寸
+        let commonSizes = [88, 96, 256, 400, 600, 800, 1200, 2000, 3000]
+        for size in commonSizes {
+            cache.removeObject(forKey: "thumb_\(photoId.uuidString)_\(size)" as NSString)
+            cache.removeObject(forKey: "preview_\(photoId.uuidString)_\(size)" as NSString)
+        }
+    }
 }
 
 // MARK: - 照片详情视图模型
 @MainActor
-class PhotoDetailViewModel: ObservableObject {
-    @Published var loadedImages: [UUID: UIImage] = [:]
+@Observable
+class PhotoDetailViewModel {
+    var loadedImages: [UUID: UIImage] = [:]
 
     let imageLoader = ImageLoader.shared
 
@@ -277,6 +300,7 @@ struct GalleryView: View {
 
     private func deleteSelectedPhotos() {
         let photosToDelete = photos.filter { selectedPhotos.contains($0.id) }
+        let deletedIds = photosToDelete.map { $0.id }
 
         for photo in photosToDelete {
             modelContext.delete(photo)
@@ -284,8 +308,12 @@ struct GalleryView: View {
 
         do {
             try modelContext.save()
+            // 清理已删除照片的磁盘缓存
+            for id in deletedIds {
+                ImageLoader.shared.removeDiskCache(for: id)
+            }
         } catch {
-            print("❌ 删除照片失败: \(error)")
+            print("Failed to delete photos: \(error)")
         }
 
         selectedPhotos.removeAll()
@@ -374,7 +402,7 @@ struct PhotoDetailView: View {
     let photo: Photo
     @State private var photos: [Photo]
 
-    @StateObject private var viewModel = PhotoDetailViewModel()
+    @State private var viewModel = PhotoDetailViewModel()
     @State private var saveStatus: SaveStatus = .none
     @State private var showingInfo = false
     @State private var currentIndex: Int = 0
@@ -536,6 +564,7 @@ struct PhotoDetailView: View {
 
     private func deleteCurrentPhoto() {
         guard let photoToDelete = currentPhoto else { return }
+        let deletedId = photoToDelete.id
 
         modelContext.delete(photoToDelete)
         do {
@@ -543,7 +572,8 @@ struct PhotoDetailView: View {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
 
             photos.remove(at: currentIndex)
-            viewModel.loadedImages.removeValue(forKey: photoToDelete.id)
+            viewModel.loadedImages.removeValue(forKey: deletedId)
+            ImageLoader.shared.removeDiskCache(for: deletedId)
 
             if photos.isEmpty {
                 dismiss()
@@ -551,7 +581,7 @@ struct PhotoDetailView: View {
                 currentIndex = photos.count - 1
             }
         } catch {
-            print("❌ 删除照片失败: \(error)")
+            print("Failed to delete photo: \(error)")
         }
     }
 

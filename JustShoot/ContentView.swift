@@ -31,8 +31,8 @@ struct ContentView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "photo.stack")
                                 .font(.system(size: 15, weight: .medium))
-                            if photos.count > 0 {
-                                Text("\(photos.count)")
+                            if totalPhotoCount > 0 {
+                                Text("\(totalPhotoCount)")
                                     .font(.system(size: 13, weight: .semibold))
                             }
                         }
@@ -65,6 +65,10 @@ struct ContentView: View {
         .task {
             await preloadResources()
         }
+    }
+
+    private var totalPhotoCount: Int {
+        photos.count
     }
 
     /// Single-pass count computation instead of filtering 8 times
