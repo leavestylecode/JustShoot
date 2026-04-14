@@ -27,6 +27,7 @@ struct JustShootApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Photo.self,
+            CustomLUT.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

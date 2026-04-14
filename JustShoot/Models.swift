@@ -142,6 +142,7 @@ final class Photo: Identifiable {
     var timestamp: Date
     @Attribute(.externalStorage) var imageData: Data
     var filmPresetName: String?
+    var filmDisplayLabel: String?
     var latitude: Double?
     var longitude: Double?
     var altitude: Double?
@@ -237,7 +238,84 @@ extension Photo {
     }
 
     var filmDisplayName: String {
-        filmPreset?.displayName ?? "默认"
+        filmPreset?.displayName ?? filmDisplayLabel ?? "默认"
+    }
+}
+
+// MARK: - 自定义 LUT 模型
+@Model
+final class CustomLUT: Identifiable {
+    var id: UUID
+    var displayName: String
+    var fileName: String
+    var iso: Float
+    var dimension: Int
+    var createdAt: Date
+
+    init(displayName: String, fileName: String, iso: Float, dimension: Int) {
+        self.id = UUID()
+        self.displayName = displayName
+        self.fileName = fileName
+        self.iso = iso
+        self.dimension = dimension
+        self.createdAt = Date()
+    }
+
+    static var storageDirectory: URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return docs.appendingPathComponent("CustomLUTs", isDirectory: true)
+    }
+
+    var fileURL: URL {
+        Self.storageDirectory.appendingPathComponent(fileName)
+    }
+}
+
+// MARK: - 统一 LUT 来源
+enum FilmSource: Hashable, Identifiable {
+    case preset(FilmPreset)
+    case custom(id: UUID, displayName: String, iso: Float, fileName: String)
+
+    var id: String {
+        switch self {
+        case .preset(let p): return p.rawValue
+        case .custom(let id, _, _, _): return id.uuidString
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .preset(let p): return p.displayName
+        case .custom(_, let name, _, _): return name
+        }
+    }
+
+    var iso: Float {
+        switch self {
+        case .preset(let p): return p.iso
+        case .custom(_, _, let iso, _): return iso
+        }
+    }
+
+    /// Photo.filmPresetName 存储值（用于查询过滤）
+    var photoFilterName: String {
+        switch self {
+        case .preset(let p): return p.rawValue
+        case .custom(let id, _, _, _): return "custom:\(id.uuidString)"
+        }
+    }
+
+    /// FilmProcessor 缓存键
+    var lutCacheKey: String {
+        switch self {
+        case .preset(let p): return p.lutResourceName
+        case .custom(let id, _, _, _): return "custom_\(id.uuidString)"
+        }
+    }
+
+    static func from(_ customLUT: CustomLUT) -> FilmSource {
+        .custom(id: customLUT.id, displayName: customLUT.displayName,
+                iso: customLUT.iso, fileName: customLUT.fileName)
     }
 }
 
@@ -279,7 +357,7 @@ final class FilmProcessor: Sendable {
     }
 
     /// 从 .cube 文件文本解析 LUT 数据（纯函数，无锁无 I/O）
-    private static func parseCubeText(_ text: String) throws -> CubeLUT {
+    static func parseCubeFile(_ text: String) throws -> CubeLUT {
         var lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
         lines.removeAll { $0.hasPrefix("#") || $0.isEmpty }
 
@@ -332,7 +410,7 @@ final class FilmProcessor: Sendable {
         }
 
         let text = try String(contentsOf: url, encoding: .utf8)
-        let cube = try Self.parseCubeText(text)
+        let cube = try Self.parseCubeFile(text)
 
         // 写入缓存（可能有并发写入，以最后一个为准，结果一致）
         lock.withLock { $0.lutCache[resourceName] = cube }
@@ -343,8 +421,36 @@ final class FilmProcessor: Sendable {
         _ = try? loadCubeLUT(resourceName: preset.lutResourceName)
     }
 
+    /// 从文件 URL 加载自定义 LUT（用于用户导入的 .cube 文件）
+    @discardableResult
+    func loadCubeLUTFromFile(url: URL, cacheKey: String) throws -> CubeLUT {
+        if let cached = lock.withLock({ $0.lutCache[cacheKey] }) {
+            return cached
+        }
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let cube = try Self.parseCubeFile(text)
+        lock.withLock { $0.lutCache[cacheKey] = cube }
+        return cube
+    }
+
+    /// 获取已缓存的 LUT 数据（用于 Metal 预览创建 3D 纹理）
+    func getCachedLUT(cacheKey: String) -> CubeLUT? {
+        lock.withLock { $0.lutCache[cacheKey] }
+    }
+
+    /// 预加载 FilmSource 对应的 LUT
+    func preload(source: FilmSource) {
+        switch source {
+        case .preset(let p):
+            preload(preset: p)
+        case .custom(_, _, _, let fileName):
+            let url = CustomLUT.storageDirectory.appendingPathComponent(fileName)
+            _ = try? loadCubeLUTFromFile(url: url, cacheKey: source.lutCacheKey)
+        }
+    }
+
     /// 应用 LUT 并保留/添加元数据（拍照用，统一 sRGB 色彩空间）
-    func applyLUTPreservingMetadata(imageData: Data, preset: FilmPreset, outputQuality: CGFloat = 0.95, location: CLLocation? = nil) -> Data? {
+    func applyLUTPreservingMetadata(imageData: Data, lutCacheKey: String, outputQuality: CGFloat = 0.95, location: CLLocation? = nil) -> Data? {
         guard var ciInput = CIImage(data: imageData) else {
             print("[LUT] Failed to create CIImage from data")
             return nil
@@ -372,17 +478,12 @@ final class FilmProcessor: Sendable {
         }
 
         // 应用 LUT 滤镜（每次创建新 CIFilter，避免线程竞争）
-        guard let colorCube = CIFilter(name: "CIColorCube") else { return nil }
+        guard let colorCube = CIFilter(name: "CIColorCube"),
+              let lut = getCachedLUT(cacheKey: lutCacheKey) else { return nil }
 
-        do {
-            let lut = try loadCubeLUT(resourceName: preset.lutResourceName)
-            colorCube.setValue(ciInput, forKey: kCIInputImageKey)
-            colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
-            colorCube.setValue(lut.data, forKey: "inputCubeData")
-        } catch {
-            print("[LUT] Failed to load LUT: \(error)")
-            return nil
-        }
+        colorCube.setValue(ciInput, forKey: kCIInputImageKey)
+        colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
+        colorCube.setValue(lut.data, forKey: "inputCubeData")
 
         guard let output = colorCube.outputImage else { return nil }
 
@@ -446,28 +547,4 @@ final class FilmProcessor: Sendable {
         return mutableData as Data
     }
 
-    /// 实时预览：对 CIImage 应用 LUT（每次调用创建独立 CIFilter，线程安全）
-    func applyLUT(to image: CIImage, preset: FilmPreset) -> CIImage? {
-        let resourceName = preset.lutResourceName
-
-        // 从缓存获取 LUT 数据（锁内只读取数据，不做 I/O）
-        guard let lut = lock.withLock({ $0.lutCache[resourceName] }),
-              lut.dimension > 0 else {
-            // 缓存未命中时在锁外加载
-            guard let lut = try? loadCubeLUT(resourceName: resourceName),
-                  lut.dimension > 0 else { return nil }
-            return applyLUTToImage(image, lut: lut)
-        }
-
-        return applyLUTToImage(image, lut: lut)
-    }
-
-    /// 将 LUT 应用到 CIImage（创建独立 CIFilter，线程安全）
-    private func applyLUTToImage(_ image: CIImage, lut: CubeLUT) -> CIImage? {
-        guard let colorCube = CIFilter(name: "CIColorCube") else { return nil }
-        colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
-        colorCube.setValue(lut.data, forKey: "inputCubeData")
-        colorCube.setValue(image, forKey: kCIInputImageKey)
-        return colorCube.outputImage
-    }
 }

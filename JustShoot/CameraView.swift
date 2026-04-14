@@ -11,7 +11,7 @@ import MetalKit
 import os
 
 struct CameraView: View {
-    let preset: FilmPreset
+    let source: FilmSource
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var presetPhotos: [Photo]
@@ -23,16 +23,16 @@ struct CameraView: View {
     @State private var showFocusIndicator = false
     @State private var showPhotoDetail = false
 
-    init(preset: FilmPreset) {
-        self.preset = preset
-        let name = preset.rawValue
+    init(source: FilmSource) {
+        self.source = source
+        let filterName = source.photoFilterName
         _presetPhotos = Query(
             filter: #Predicate<Photo> { photo in
-                photo.filmPresetName == name
+                photo.filmPresetName == filterName
             },
             sort: \Photo.timestamp
         )
-        _cameraManager = StateObject(wrappedValue: CameraManager(preset: preset))
+        _cameraManager = StateObject(wrappedValue: CameraManager())
     }
 
     var body: some View {
@@ -42,7 +42,7 @@ struct CameraView: View {
             // 预览区
             GeometryReader { geometry in
                 ZStack {
-                    RealtimePreviewView(manager: cameraManager, preset: preset)
+                    RealtimePreviewView(manager: cameraManager, lutCacheKey: source.lutCacheKey)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                     if showFocusIndicator, let point = focusPoint {
@@ -107,7 +107,7 @@ struct CameraView: View {
             // 中间：胶片名 + 拍摄计数
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
-                    Text(preset.displayName)
+                    Text(source.displayName)
                         .font(.subheadline.weight(.semibold))
                     Text("\(presetPhotos.count) 张")
                         .font(.caption2)
@@ -174,7 +174,7 @@ struct CameraView: View {
             .padding(.bottom, 10)
         }
         .onAppear {
-            FilmProcessor.shared.preload(preset: preset)
+            FilmProcessor.shared.preload(source: source)
             cameraManager.requestCameraPermission()
             loadLastPhotoThumbnail()
         }
@@ -226,7 +226,7 @@ struct CameraView: View {
         isCapturing = true
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
-        let currentPreset = preset
+        let currentSource = source
         let manager = cameraManager
         let context = modelContext
 
@@ -248,12 +248,11 @@ struct CameraView: View {
             guard let data = imageData else { return }
 
             Task.detached(priority: .userInitiated) {
-                // 先获取一次 location，避免重复调用
                 let location = await manager.cachedOrFreshLocation()
 
                 let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(
                     imageData: data,
-                    preset: currentPreset,
+                    lutCacheKey: currentSource.lutCacheKey,
                     outputQuality: 0.95,
                     location: location
                 )
@@ -263,7 +262,7 @@ struct CameraView: View {
                 await MainActor.run {
                     Self.savePhotoToContext(
                         imageData: finalData,
-                        preset: currentPreset,
+                        source: currentSource,
                         location: location,
                         context: context
                     )
@@ -275,11 +274,15 @@ struct CameraView: View {
     @MainActor
     private static func savePhotoToContext(
         imageData: Data,
-        preset: FilmPreset,
+        source: FilmSource,
         location: CLLocation?,
         context: ModelContext
     ) {
-        let newPhoto = Photo(imageData: imageData, filmPresetName: preset.rawValue)
+        let newPhoto = Photo(imageData: imageData, filmPresetName: source.photoFilterName)
+        // 自定义 LUT 存储显示名称
+        if case .custom(_, let name, _, _) = source {
+            newPhoto.filmDisplayLabel = name
+        }
         if let loc = location {
             newPhoto.latitude = loc.coordinate.latitude
             newPhoto.longitude = loc.coordinate.longitude
@@ -357,7 +360,6 @@ enum FlashMode: String, CaseIterable {
 // MARK: - 相机管理器
 @MainActor
 class CameraManager: NSObject, ObservableObject {
-    private let preset: FilmPreset
     let session = AVCaptureSession()
     private var photoOutput = AVCapturePhotoOutput()
     private var videoCaptureDevice: AVCaptureDevice?
@@ -438,8 +440,7 @@ class CameraManager: NSObject, ObservableObject {
     private var focusHoldTimer: Timer?
     private let tapFocusHoldDuration: TimeInterval = 3.0
 
-    init(preset: FilmPreset) {
-        self.preset = preset
+    override init() {
         super.init()
         // Lightweight init: only find device and read specs, no session configuration
         if let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
@@ -992,7 +993,7 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
 // MARK: - 实时预览视图（全 Metal 管线：CVPixelBuffer → compute shader → drawable）
 struct RealtimePreviewView: UIViewRepresentable {
     let manager: CameraManager
-    let preset: FilmPreset
+    let lutCacheKey: String
 
     func makeUIView(context: Context) -> MTKView {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -1011,7 +1012,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: MTKView, context: Context) {
-        context.coordinator.preset = preset
+        context.coordinator.lutCacheKey = lutCacheKey
         context.coordinator.manager = manager
     }
 
@@ -1021,7 +1022,7 @@ struct RealtimePreviewView: UIViewRepresentable {
 
     // MARK: - Metal Preview Coordinator
     final class Coordinator: NSObject, MTKViewDelegate {
-        var preset: FilmPreset = .fujiC200
+        var lutCacheKey: String = ""
         weak var manager: CameraManager?
 
         // Metal 核心对象
@@ -1092,8 +1093,8 @@ struct RealtimePreviewView: UIViewRepresentable {
                   let inputTexture = CVMetalTextureGetTexture(cvTex) else { return }
 
             // 获取或创建 3D LUT 纹理
-            guard let lutTexture = getOrCreateLUTTexture(for: preset) else { return }
-            let lutDim = lutDimensions[preset.lutResourceName] ?? 25
+            guard let lutTexture = getOrCreateLUTTexture(cacheKey: lutCacheKey) else { return }
+            let lutDim = lutDimensions[lutCacheKey] ?? 25
 
             let outW = drawable.texture.width
             let outH = drawable.texture.height
@@ -1155,14 +1156,13 @@ struct RealtimePreviewView: UIViewRepresentable {
 
         // MARK: - 3D LUT 纹理管理
 
-        private func getOrCreateLUTTexture(for preset: FilmPreset) -> MTLTexture? {
-            let key = preset.lutResourceName
-            if let cached = lutTextures[key] { return cached }
+        private func getOrCreateLUTTexture(cacheKey: String) -> MTLTexture? {
+            if let cached = lutTextures[cacheKey] { return cached }
 
             guard let device = metalDevice else { return nil }
 
-            // 复用 FilmProcessor 的 LUT 数据缓存
-            guard let lut = try? FilmProcessor.shared.loadCubeLUT(resourceName: key) else { return nil }
+            // 从 FilmProcessor 缓存获取 LUT 数据
+            guard let lut = FilmProcessor.shared.getCachedLUT(cacheKey: cacheKey) else { return nil }
             let dim = lut.dimension
 
             // 创建 3D 纹理（硬件三线性插值采样）
@@ -1191,8 +1191,8 @@ struct RealtimePreviewView: UIViewRepresentable {
                 )
             }
 
-            lutTextures[key] = texture
-            lutDimensions[key] = dim
+            lutTextures[cacheKey] = texture
+            lutDimensions[cacheKey] = dim
             return texture
         }
 
