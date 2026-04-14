@@ -5,6 +5,7 @@ import ImageIO
 import CoreImage
 import CoreImage.CIFilterBuiltins
 import CoreLocation
+import Metal
 import os
 
 // MARK: - EXIF 解析结果（一次解析，多处使用）
@@ -262,11 +263,19 @@ final class FilmProcessor: Sendable {
     private init() {
         let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         self.srgbColorSpace = colorSpace
-        self.ciContext = CIContext(options: [
-            CIContextOption.useSoftwareRenderer: false,
-            CIContextOption.workingColorSpace: colorSpace,
-            CIContextOption.outputColorSpace: colorSpace
-        ])
+        // 显式使用 Metal 设备，确保 LUT 处理走 GPU 加速路径
+        if let mtlDevice = MTLCreateSystemDefaultDevice() {
+            self.ciContext = CIContext(mtlDevice: mtlDevice, options: [
+                CIContextOption.workingColorSpace: colorSpace,
+                CIContextOption.outputColorSpace: colorSpace
+            ])
+        } else {
+            self.ciContext = CIContext(options: [
+                CIContextOption.useSoftwareRenderer: false,
+                CIContextOption.workingColorSpace: colorSpace,
+                CIContextOption.outputColorSpace: colorSpace
+            ])
+        }
     }
 
     /// 从 .cube 文件文本解析 LUT 数据（纯函数，无锁无 I/O）

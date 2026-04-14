@@ -989,14 +989,13 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
     }
 }
 
-// MARK: - 实时预览视图（MTKView + CI 渲染）
+// MARK: - 实时预览视图（全 Metal 管线：CVPixelBuffer → compute shader → drawable）
 struct RealtimePreviewView: UIViewRepresentable {
     let manager: CameraManager
     let preset: FilmPreset
 
     func makeUIView(context: Context) -> MTKView {
         guard let device = MTLCreateSystemDefaultDevice() else {
-            // Metal 不可用（模拟器等），返回空视图
             let fallback = MTKView(frame: .zero)
             fallback.backgroundColor = .black
             return fallback
@@ -1004,7 +1003,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         let view = MTKView(frame: .zero, device: device)
         view.isPaused = false
         view.enableSetNeedsDisplay = false
-        view.framebufferOnly = false
+        view.framebufferOnly = false  // 允许 compute shader 写入 drawable
         view.preferredFramesPerSecond = 30
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         context.coordinator.setup(view: view)
@@ -1020,92 +1019,191 @@ struct RealtimePreviewView: UIViewRepresentable {
         Coordinator()
     }
 
+    // MARK: - Metal Preview Coordinator
     final class Coordinator: NSObject, MTKViewDelegate {
         var preset: FilmPreset = .fujiC200
         weak var manager: CameraManager?
-        private var ciContext: CIContext!
+
+        // Metal 核心对象
+        private var metalDevice: MTLDevice?
         private var commandQueue: MTLCommandQueue?
-        private let srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        private var computePipeline: MTLComputePipelineState?
+
+        // CVPixelBuffer → MTLTexture 零拷贝缓存
+        private var textureCache: CVMetalTextureCache?
+
+        // 3D LUT 纹理缓存（每个预设一个，首次使用时创建）
+        private var lutTextures: [String: MTLTexture] = [:]
+        private var lutDimensions: [String: Int] = [:]
+
+        // Shader 参数结构（必须与 LUTShader.metal 中的 PreviewParams 一致）
+        private struct PreviewParams {
+            var scale: Float
+            var offsetX: Float
+            var offsetY: Float
+            var inputWidth: UInt32
+            var inputHeight: UInt32
+            var rotation: UInt32
+            var lutDimension: UInt32
+        }
 
         func setup(view: MTKView) {
+            guard let device = view.device else { return }
+            metalDevice = device
+            commandQueue = device.makeCommandQueue()
             view.delegate = self
-            if let device = view.device {
-                commandQueue = device.makeCommandQueue()
-                ciContext = CIContext(mtlDevice: device, options: [
-                    .workingColorSpace: srgbColorSpace,
-                    .outputColorSpace: srgbColorSpace
-                ])
+
+            // 创建 CVMetalTextureCache（零拷贝访问相机像素缓冲区）
+            var cache: CVMetalTextureCache?
+            CVMetalTextureCacheCreate(nil, nil, device, nil, &cache)
+            textureCache = cache
+
+            // 加载 compute shader
+            guard let library = device.makeDefaultLibrary(),
+                  let function = library.makeFunction(name: "previewLUT") else {
+                print("[Metal] Failed to load previewLUT shader")
+                return
             }
+            computePipeline = try? device.makeComputePipelineState(function: function)
         }
 
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
+        // MARK: - 每帧渲染（全 Metal，无 CIImage/CIFilter）
+
         func draw(in view: MTKView) {
             guard let pixelBuffer = manager?.getLatestPixelBuffer(),
                   let drawable = view.currentDrawable,
-                  let commandBuffer = commandQueue?.makeCommandBuffer() else { return }
+                  let commandBuffer = commandQueue?.makeCommandBuffer(),
+                  let pipeline = computePipeline,
+                  let cache = textureCache else { return }
 
-            var ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-            let rawExtent = ciImage.extent
+            let inW = CVPixelBufferGetWidth(pixelBuffer)
+            let inH = CVPixelBufferGetHeight(pixelBuffer)
 
-            let isLandscapeBuffer = rawExtent.width > rawExtent.height
-            let drawableSize = CGSize(width: drawable.texture.width, height: drawable.texture.height)
-            let isPortraitView = drawableSize.height > drawableSize.width
+            // CVPixelBuffer → MTLTexture（零拷贝，GPU 直接读取相机帧内存）
+            var cvTexture: CVMetalTexture?
+            let status = CVMetalTextureCacheCreateTextureFromImage(
+                nil, cache, pixelBuffer, nil,
+                .bgra8Unorm, inW, inH, 0, &cvTexture
+            )
+            guard status == kCVReturnSuccess,
+                  let cvTex = cvTexture,
+                  let inputTexture = CVMetalTextureGetTexture(cvTex) else { return }
 
-            if isLandscapeBuffer && isPortraitView {
-                ciImage = ciImage.oriented(.right)
+            // 获取或创建 3D LUT 纹理
+            guard let lutTexture = getOrCreateLUTTexture(for: preset) else { return }
+            let lutDim = lutDimensions[preset.lutResourceName] ?? 25
+
+            let outW = drawable.texture.width
+            let outH = drawable.texture.height
+
+            // 计算旋转参数
+            let isLandscape = inW > inH
+            let isPortraitView = outH > outW
+            var rotation: UInt32 = 0
+            if isLandscape && isPortraitView {
+                rotation = 1  // 90° CW
             } else if let angle = manager?.previewRotationAngle, angle != 0 {
-                let orientation = orientationFromAngle(angle)
-                ciImage = ciImage.oriented(orientation)
+                rotation = rotationFromAngle(angle)
             }
 
-            let lutImage = FilmProcessor.shared.applyLUT(to: ciImage, preset: preset) ?? ciImage
-            let imageExtent = lutImage.extent
+            // 计算 aspect-fill 参数
+            let rotatedW: Float
+            let rotatedH: Float
+            if rotation == 1 || rotation == 3 {
+                rotatedW = Float(inH)
+                rotatedH = Float(inW)
+            } else {
+                rotatedW = Float(inW)
+                rotatedH = Float(inH)
+            }
 
-            let targetRect = aspectFillRect(imageSize: imageExtent.size, targetSize: drawableSize)
+            let scaleX = Float(outW) / rotatedW
+            let scaleY = Float(outH) / rotatedH
+            let scale = max(scaleX, scaleY)
+            let offsetX = (Float(outW) - rotatedW * scale) / 2.0
+            let offsetY = (Float(outH) - rotatedH * scale) / 2.0
 
-            let scaleX = targetRect.width / imageExtent.width
-            let scaleY = targetRect.height / imageExtent.height
-            let scaledImage = lutImage
-                .transformed(by: CGAffineTransform(scaleX: scaleX, y: scaleY))
-                .transformed(by: CGAffineTransform(translationX: targetRect.origin.x, y: targetRect.origin.y))
+            var params = PreviewParams(
+                scale: scale,
+                offsetX: offsetX,
+                offsetY: offsetY,
+                inputWidth: UInt32(inW),
+                inputHeight: UInt32(inH),
+                rotation: rotation,
+                lutDimension: UInt32(lutDim)
+            )
 
-            let renderBounds = CGRect(origin: .zero, size: drawableSize)
-            ciContext.render(scaledImage, to: drawable.texture, commandBuffer: commandBuffer, bounds: renderBounds, colorSpace: srgbColorSpace)
+            // 编码 compute 命令
+            guard let encoder = commandBuffer.makeComputeCommandEncoder() else { return }
+            encoder.setComputePipelineState(pipeline)
+            encoder.setTexture(inputTexture, index: 0)
+            encoder.setTexture(lutTexture, index: 1)
+            encoder.setTexture(drawable.texture, index: 2)
+            encoder.setBytes(&params, length: MemoryLayout<PreviewParams>.size, index: 0)
+
+            // 使用 dispatchThreads（iOS 11+ / A11+，精确线程数）
+            let threadsPerGroup = MTLSize(width: 16, height: 16, depth: 1)
+            let gridSize = MTLSize(width: outW, height: outH, depth: 1)
+            encoder.dispatchThreads(gridSize, threadsPerThreadgroup: threadsPerGroup)
+
+            encoder.endEncoding()
             commandBuffer.present(drawable)
             commandBuffer.commit()
         }
 
-        private func orientationFromAngle(_ angle: CGFloat) -> CGImagePropertyOrientation {
-            let normalized = Int(angle.truncatingRemainder(dividingBy: 360))
-            switch normalized {
-            case 0: return .up
-            case 90: return .right
-            case 180: return .down
-            case 270: return .left
-            default: return .up
+        // MARK: - 3D LUT 纹理管理
+
+        private func getOrCreateLUTTexture(for preset: FilmPreset) -> MTLTexture? {
+            let key = preset.lutResourceName
+            if let cached = lutTextures[key] { return cached }
+
+            guard let device = metalDevice else { return nil }
+
+            // 复用 FilmProcessor 的 LUT 数据缓存
+            guard let lut = try? FilmProcessor.shared.loadCubeLUT(resourceName: key) else { return nil }
+            let dim = lut.dimension
+
+            // 创建 3D 纹理（硬件三线性插值采样）
+            let desc = MTLTextureDescriptor()
+            desc.textureType = .type3D
+            desc.pixelFormat = .rgba32Float
+            desc.width = dim
+            desc.height = dim
+            desc.depth = dim
+            desc.usage = [.shaderRead]
+            desc.storageMode = .shared
+
+            guard let texture = device.makeTexture(descriptor: desc) else { return nil }
+
+            lut.data.withUnsafeBytes { ptr in
+                texture.replace(
+                    region: MTLRegion(
+                        origin: MTLOrigin(x: 0, y: 0, z: 0),
+                        size: MTLSize(width: dim, height: dim, depth: dim)
+                    ),
+                    mipmapLevel: 0,
+                    slice: 0,
+                    withBytes: ptr.baseAddress!,
+                    bytesPerRow: dim * 4 * MemoryLayout<Float>.size,
+                    bytesPerImage: dim * dim * 4 * MemoryLayout<Float>.size
+                )
             }
+
+            lutTextures[key] = texture
+            lutDimensions[key] = dim
+            return texture
         }
 
-        private func aspectFillRect(imageSize: CGSize, targetSize: CGSize) -> CGRect {
-            let imageAspect = imageSize.width / imageSize.height
-            let targetAspect = targetSize.width / targetSize.height
-
-            var drawWidth: CGFloat
-            var drawHeight: CGFloat
-
-            if imageAspect > targetAspect {
-                drawHeight = targetSize.height
-                drawWidth = drawHeight * imageAspect
-            } else {
-                drawWidth = targetSize.width
-                drawHeight = drawWidth / imageAspect
+        private func rotationFromAngle(_ angle: CGFloat) -> UInt32 {
+            let normalized = Int(angle.truncatingRemainder(dividingBy: 360))
+            switch normalized {
+            case 90:  return 1  // 90° CW
+            case 180: return 2
+            case 270: return 3
+            default:  return 0
             }
-
-            let x = (targetSize.width - drawWidth) / 2
-            let y = (targetSize.height - drawHeight) / 2
-
-            return CGRect(x: x, y: y, width: drawWidth, height: drawHeight)
         }
     }
 }
