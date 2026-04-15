@@ -8,6 +8,7 @@ import Foundation
 import CoreImage
 import CoreImage.CIFilterBuiltins
 import MetalKit
+import AVKit
 import os
 
 struct CameraView: View {
@@ -200,6 +201,12 @@ struct CameraView: View {
         }
         .onDisappear {
             cameraManager.stopSession()
+        }
+        // Camera Control 硬件快门按钮（iPhone 16+）
+        .onCameraCaptureEvent { event in
+            if event.phase == .ended {
+                capturePhoto()
+            }
         }
         .onChange(of: presetPhotos.count) { _, _ in
             loadLastPhotoThumbnail()
@@ -1021,6 +1028,8 @@ class CameraManager: NSObject, ObservableObject {
                 session.addControl(picker)
                 Log.session.info("camera_control_index_picker_added options=\(titles)")
             }
+            // 设置 controls delegate（控件激活的必要条件）
+            session.setControlsDelegate(self, queue: .main)
         }
 
         // KVO: 实时追踪 videoZoomFactor（ramp 动画、捏合缩放、Camera Control 等来源）
@@ -1389,6 +1398,18 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.previewMTKView?.setNeedsDisplay()
         }
+    }
+}
+
+// MARK: - AVCaptureSessionControlsDelegate（Camera Control 控件激活必需）
+extension CameraManager: AVCaptureSessionControlsDelegate {
+    nonisolated func sessionControlsDidBecomeActive(_ session: AVCaptureSession) {
+        Log.session.info("camera_controls_active")
+    }
+    nonisolated func sessionControlsWillEnterFullscreenAppearance(_ session: AVCaptureSession) {}
+    nonisolated func sessionControlsWillExitFullscreenAppearance(_ session: AVCaptureSession) {}
+    nonisolated func sessionControlsDidBecomeInactive(_ session: AVCaptureSession) {
+        Log.session.info("camera_controls_inactive")
     }
 }
 
