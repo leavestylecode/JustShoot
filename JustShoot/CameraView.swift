@@ -18,6 +18,7 @@ struct CameraView: View {
     @StateObject private var cameraManager: CameraManager
     @State private var showFlash = false
     @State private var isCapturing = false
+    @State private var shutterPressed = false
     @State private var lastPhotoThumbnail: UIImage?
     @State private var focusPoint: CGPoint? = nil
     @State private var showFocusIndicator = false
@@ -158,8 +159,8 @@ struct CameraView: View {
                         Circle()
                             .fill(.white)
                             .frame(width: 60, height: 60)
-                            .scaleEffect(isCapturing ? 0.85 : 1.0)
-                            .animation(.easeInOut(duration: 0.1), value: isCapturing)
+                            .scaleEffect(shutterPressed ? 0.85 : 1.0)
+                            .animation(.easeInOut(duration: 0.1), value: shutterPressed)
                     }
                 }
                 .buttonStyle(.plain)
@@ -221,9 +222,16 @@ struct CameraView: View {
 
     private func capturePhoto() {
         // 防止重复拍摄
-        guard !isCapturing else { return }
+        guard !isCapturing else {
+            Log.capture.debug("shutter_ignored reason=busy")
+            return
+        }
+
+        let tapTime = Log.now()
+        Log.capture.info("shutter_tap source=\(source.photoFilterName, privacy: .public)")
 
         isCapturing = true
+        shutterPressed = true
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
         let currentSource = source
@@ -231,7 +239,10 @@ struct CameraView: View {
         let context = modelContext
 
         cameraManager.capturePhoto(onExposureComplete: { [self] in
+            Log.capture.info("exposure_complete dt_from_tap=\(Log.ms(since: tapTime))ms")
             Task { @MainActor in
+                // 曝光已完成：立刻释放按钮按压视觉，贴近原生相机手感
+                shutterPressed = false
                 withAnimation(.easeOut(duration: 0.05)) {
                     showFlash = true
                 }
@@ -243,12 +254,18 @@ struct CameraView: View {
         }) { [self] imageData in
             Task { @MainActor in
                 isCapturing = false
+                shutterPressed = false
             }
 
-            guard let data = imageData else { return }
+            guard let data = imageData else {
+                Log.capture.error("photo_data_nil dt_from_tap=\(Log.ms(since: tapTime))ms")
+                return
+            }
+            Log.capture.info("photo_data_received bytes=\(data.count) dt_from_tap=\(Log.ms(since: tapTime))ms")
 
             Task.detached(priority: .userInitiated) {
                 let location = await manager.cachedOrFreshLocation()
+                Log.gps.info("gps_resolved present=\(location != nil) age=\(location.map { String(format: "%.1fs", Date().timeIntervalSince($0.timestamp)) } ?? "nil", privacy: .public)")
 
                 let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(
                     imageData: data,
@@ -258,6 +275,9 @@ struct CameraView: View {
                 )
 
                 let finalData = processedData ?? data
+                if processedData == nil {
+                    Log.capture.error("lut_fallback_raw bytes=\(finalData.count)")
+                }
 
                 await MainActor.run {
                     Self.savePhotoToContext(
@@ -266,6 +286,7 @@ struct CameraView: View {
                         location: location,
                         context: context
                     )
+                    Log.capture.info("capture_pipeline_complete total_dt=\(Log.ms(since: tapTime))ms")
                 }
             }
         }
@@ -294,8 +315,9 @@ struct CameraView: View {
 
         do {
             try context.save()
+            Log.save.info("photo_saved id=\(newPhoto.id.uuidString, privacy: .public) bytes=\(imageData.count) preset=\(source.photoFilterName, privacy: .public) gps=\(location != nil)")
         } catch {
-            print("❌ Failed to save photo: \(error)")
+            Log.save.error("photo_save_failed error=\(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -382,6 +404,19 @@ class CameraManager: NSObject, ObservableObject {
 
     nonisolated func setLatestPixelBuffer(_ buffer: CVPixelBuffer) {
         pixelBufferLock.withLockUnchecked { $0.buffer = buffer }
+    }
+
+    /// 首帧到达标记（线程安全，仅打印一次）
+    private let firstFrameFlag = OSAllocatedUnfairLock<Bool>(initialState: false)
+    nonisolated func logFirstFrameOnce(width: Int, height: Int) {
+        let shouldLog = firstFrameFlag.withLock { flagged -> Bool in
+            guard !flagged else { return false }
+            flagged = true
+            return true
+        }
+        if shouldLog {
+            Log.session.info("preview_first_frame w=\(width) h=\(height)")
+        }
     }
 
     // 预览方向缓存
@@ -515,6 +550,9 @@ class CameraManager: NSObject, ObservableObject {
             pconn.videoRotationAngle = angle
         }
 
+        if previewRotationAngle != angle {
+            Log.orientation.info("rotation_applied angle=\(Int(angle))° device=\(self.currentDeviceOrientation.rawValue)")
+        }
         previewRotationAngle = angle
     }
 
@@ -625,6 +663,7 @@ class CameraManager: NSObject, ObservableObject {
     func requestCameraPermission() {
         Task {
             let status = AVCaptureDevice.authorizationStatus(for: .video)
+            Log.session.info("permission_camera_status status=\(status.rawValue)")
             switch status {
             case .authorized:
                 cameraPermissionDenied = false
@@ -632,6 +671,7 @@ class CameraManager: NSObject, ObservableObject {
                 startLocationServices()
             case .notDetermined:
                 let granted = await AVCaptureDevice.requestAccess(for: .video)
+                Log.session.info("permission_camera_result granted=\(granted)")
                 if granted {
                     cameraPermissionDenied = false
                     await configureAndStartSession()
@@ -640,6 +680,7 @@ class CameraManager: NSObject, ObservableObject {
                     cameraPermissionDenied = true
                 }
             case .denied, .restricted:
+                Log.session.error("permission_camera_denied")
                 cameraPermissionDenied = true
             @unknown default:
                 break
@@ -649,7 +690,12 @@ class CameraManager: NSObject, ObservableObject {
 
     /// 在专用串行队列上配置并启动 AVCaptureSession，避免阻塞主线程
     private func configureAndStartSession() async {
-        guard !session.isRunning, let device = videoCaptureDevice else { return }
+        guard !session.isRunning, let device = videoCaptureDevice else {
+            Log.session.debug("session_config_skip running=\(self.session.isRunning) has_device=\(self.videoCaptureDevice != nil)")
+            return
+        }
+        let configTimer = Log.perf("session_configure", logger: Log.session)
+        Log.session.info("session_config_begin device=\(device.localizedName, privacy: .public)")
 
         let captureSession = session
         let output = photoOutput
@@ -708,11 +754,12 @@ class CameraManager: NSObject, ObservableObject {
                     device.isSubjectAreaChangeMonitoringEnabled = true
                     device.unlockForConfiguration()
                 } catch {
-                    print("Error setting up camera: \(error)")
+                    Log.session.error("session_setup_error error=\(error.localizedDescription, privacy: .public)")
                 }
 
                 captureSession.commitConfiguration()
                 captureSession.startRunning()
+                Log.session.info("session_started running=\(captureSession.isRunning) inputs=\(captureSession.inputs.count) outputs=\(captureSession.outputs.count) max_dims=\(output.maxPhotoDimensions.width)x\(output.maxPhotoDimensions.height)")
                 continuation.resume()
             }
         }
@@ -722,6 +769,7 @@ class CameraManager: NSObject, ObservableObject {
         videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
         calculateZoomFactorFor35mm()
         applyVideoOrientationToOutputs()
+        configTimer.end("zoom=\(String(format: "%.2f", currentZoomFactor))x")
 
         subjectAreaObserver = NotificationCenter.default.addObserver(
             forName: AVCaptureDevice.subjectAreaDidChangeNotification,
@@ -736,6 +784,7 @@ class CameraManager: NSObject, ObservableObject {
         photoDataHandler = completion
         exposureCompleteHandler = onExposureComplete
 
+        let issueTime = Log.now()
         let settings = AVCapturePhotoSettings()
         settings.photoQualityPrioritization = .speed
 
@@ -761,20 +810,24 @@ class CameraManager: NSObject, ObservableObject {
         settings.embedsPortraitEffectsMatteInPhoto = false
         settings.embedsSemanticSegmentationMattesInPhoto = false
 
-        if let coordinator = rotationCoordinator,
-           let connection = photoOutput.connection(with: .video) {
-            let rotationAngle = coordinator.videoRotationAngleForHorizonLevelCapture
-            if connection.isVideoRotationAngleSupported(rotationAngle) {
-                connection.videoRotationAngle = rotationAngle
-            }
-        }
+        // 抓取当前 rotation 角度（避免在 sessionQueue 跨 actor 访问）
+        let rotationAngle = rotationCoordinator?.videoRotationAngleForHorizonLevelCapture
+        let output = photoOutput
+        let delegate = self
+        let needsFlashDelay = lockedExposureForFlashCapture
 
-        if lockedExposureForFlashCapture {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) {
-                self.photoOutput.capturePhoto(with: settings, delegate: self)
+        // 调度到 sessionQueue：AVCapturePhotoOutput 操作不占用主线程，快门响应更快
+        let deadline: DispatchTime = needsFlashDelay ? .now() + 0.20 : .now()
+        Log.capture.info("capture_dispatch flash=\(self.flashMode.rawValue, privacy: .public) flash_delay=\(needsFlashDelay ? 200 : 0)ms rotation=\(rotationAngle.map { "\(Int($0))°" } ?? "nil", privacy: .public)")
+        sessionQueue.asyncAfter(deadline: deadline) {
+            if let angle = rotationAngle,
+               let connection = output.connection(with: .video),
+               connection.isVideoRotationAngleSupported(angle) {
+                connection.videoRotationAngle = angle
             }
-        } else {
-            photoOutput.capturePhoto(with: settings, delegate: self)
+            let dispatchLatency = (CFAbsoluteTimeGetCurrent() - issueTime) * 1000.0
+            Log.capture.info("capture_invoke dt_issue=\(String(format: "%.1f", dispatchLatency))ms")
+            output.capturePhoto(with: settings, delegate: delegate)
         }
     }
 
@@ -916,16 +969,18 @@ extension CameraManager: CLLocationManagerDelegate {
         Task { @MainActor in
             if let location = locations.last {
                 self.currentLocation = location
+                Log.gps.debug("gps_update acc=\(String(format: "%.1f", location.horizontalAccuracy))m")
             }
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("📍 位置获取失败: \(error.localizedDescription)")
+        Log.gps.error("gps_fail error=\(error.localizedDescription, privacy: .public)")
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         Task { @MainActor in
+            Log.gps.info("gps_auth_changed status=\(status.rawValue)")
             switch status {
             case .authorizedWhenInUse, .authorizedAlways:
                 self.startLocationUpdates()
@@ -941,6 +996,7 @@ extension CameraManager: CLLocationManagerDelegate {
 // MARK: - AVCapturePhotoCaptureDelegate
 extension CameraManager: AVCapturePhotoCaptureDelegate {
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didCapturePhotoFor resolvedSettings: AVCaptureResolvedPhotoSettings) {
+        Log.capture.info("delegate_did_capture dims=\(resolvedSettings.photoDimensions.width)x\(resolvedSettings.photoDimensions.height)")
         Task { @MainActor in
             self.exposureCompleteHandler?()
             self.exposureCompleteHandler = nil
@@ -949,14 +1005,16 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
 
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error = error {
+            Log.capture.error("delegate_process_error error=\(error.localizedDescription, privacy: .public)")
             Task { @MainActor in self.photoDataHandler?(nil) }
-            print("[Photo] Capture error: \(error)")
             return
         }
         guard let imageData = photo.fileDataRepresentation() else {
+            Log.capture.error("delegate_process_no_data")
             Task { @MainActor in self.photoDataHandler?(nil) }
             return
         }
+        Log.capture.info("delegate_process_ok bytes=\(imageData.count)")
 
         // CIImage(data:) in applyLUTPreservingMetadata already applies EXIF orientation,
         // so we pass raw data directly — no need for a separate rotate+encode step.
@@ -987,6 +1045,7 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
         guard let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         // 直接在 delegate 线程写入（锁保护），避免 MainActor 中转延迟
         self.setLatestPixelBuffer(buffer)
+        self.logFirstFrameOnce(width: CVPixelBufferGetWidth(buffer), height: CVPixelBufferGetHeight(buffer))
     }
 }
 
@@ -1072,12 +1131,31 @@ struct RealtimePreviewView: UIViewRepresentable {
 
         // MARK: - 每帧渲染（全 Metal，无 CIImage/CIFilter）
 
+        // 一次性诊断用计数器
+        private var skipFrameCount: Int = 0
+        private var didLogFirstDraw: Bool = false
+
         func draw(in view: MTKView) {
             guard let pixelBuffer = manager?.getLatestPixelBuffer(),
                   let drawable = view.currentDrawable,
                   let commandBuffer = commandQueue?.makeCommandBuffer(),
                   let pipeline = computePipeline,
-                  let cache = textureCache else { return }
+                  let cache = textureCache else {
+                skipFrameCount += 1
+                // 每 60 帧（约 2s）打一次 skip 原因，避免日志洪水
+                if skipFrameCount % 60 == 1 {
+                    let hasBuffer = manager?.getLatestPixelBuffer() != nil
+                    let hasDrawable = view.currentDrawable != nil
+                    let hasPipeline = computePipeline != nil
+                    let hasCache = textureCache != nil
+                    Log.session.error("preview_skip n=\(self.skipFrameCount) buf=\(hasBuffer) drawable=\(hasDrawable) pipeline=\(hasPipeline) cache=\(hasCache)")
+                }
+                return
+            }
+            if !didLogFirstDraw {
+                didLogFirstDraw = true
+                Log.session.info("preview_first_draw skipped=\(self.skipFrameCount) lut_key=\(self.lutCacheKey, privacy: .public)")
+            }
 
             let inW = CVPixelBufferGetWidth(pixelBuffer)
             let inH = CVPixelBufferGetHeight(pixelBuffer)

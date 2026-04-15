@@ -8,6 +8,54 @@ import CoreLocation
 import Metal
 import os
 
+// MARK: - 统一日志系统
+//
+// 用法：
+//   Log.capture.info("shutter_tap preset=\(name)")
+//   let t = Log.perf("lut_apply", logger: Log.lut); ...; t.end("size=\(bytes)")
+//
+// 过滤（Xcode Console / Terminal）:
+//   log stream --predicate 'subsystem == "com.leavestylecode.JustShoot"'
+//   log stream --predicate 'subsystem == "com.leavestylecode.JustShoot" && category == "camera.capture"'
+//
+// 事件命名约定：snake_case，参数用 key=value，时间单位 ms。
+enum Log {
+    static let subsystem = "com.leavestylecode.JustShoot"
+
+    static let session     = Logger(subsystem: subsystem, category: "camera.session")
+    static let capture     = Logger(subsystem: subsystem, category: "camera.capture")
+    static let orientation = Logger(subsystem: subsystem, category: "camera.orient")
+    static let gps         = Logger(subsystem: subsystem, category: "camera.gps")
+    static let lut         = Logger(subsystem: subsystem, category: "photo.lut")
+    static let save        = Logger(subsystem: subsystem, category: "photo.save")
+    static let gallery     = Logger(subsystem: subsystem, category: "gallery")
+    static let ui          = Logger(subsystem: subsystem, category: "ui")
+
+    /// 测量代码段耗时
+    struct PerfTimer {
+        let label: String
+        let logger: Logger
+        let start: CFAbsoluteTime
+
+        func end(_ extra: String = "") {
+            let ms = (CFAbsoluteTimeGetCurrent() - start) * 1000.0
+            let suffix = extra.isEmpty ? "" : " \(extra)"
+            logger.info("⏱ \(label) took=\(String(format: "%.1f", ms))ms\(suffix)")
+        }
+    }
+
+    static func perf(_ label: String, logger: Logger) -> PerfTimer {
+        PerfTimer(label: label, logger: logger, start: CFAbsoluteTimeGetCurrent())
+    }
+
+    /// 当前高精度时间（秒），用于跨回调的时差测量
+    static func now() -> CFAbsoluteTime { CFAbsoluteTimeGetCurrent() }
+
+    static func ms(since t0: CFAbsoluteTime) -> String {
+        String(format: "%.1f", (CFAbsoluteTimeGetCurrent() - t0) * 1000.0)
+    }
+}
+
 // MARK: - EXIF 解析结果（一次解析，多处使用）
 struct ParsedExifInfo {
     let iso: String
@@ -397,24 +445,42 @@ final class FilmProcessor: Sendable {
         return CubeLUT(data: data, dimension: size)
     }
 
+    /// 健壮读取 .cube 文本：部分 LUT 文件的 TITLE 含非 UTF-8 字节（如中文 GBK/Shift-JIS），
+    /// 强制 UTF-8 会抛错。这里按常见编码回退，最后兜底丢弃非法字节。
+    static func readCubeText(from url: URL) throws -> String {
+        let data = try Data(contentsOf: url)
+        for encoding in [String.Encoding.utf8, .isoLatin1, .windowsCP1252, .macOSRoman] {
+            if let s = String(data: data, encoding: encoding) { return s }
+        }
+        // 兜底：按 ASCII 读取，忽略非法字节（cube 文件的数据部分必然是 ASCII 数字）
+        return String(decoding: data, as: UTF8.self)
+    }
+
     func loadCubeLUT(resourceName: String) throws -> CubeLUT {
         // 快速路径：缓存命中
         if let cached = lock.withLock({ $0.lutCache[resourceName] }) {
+            Log.lut.debug("lut_cache_hit name=\(resourceName, privacy: .public) dim=\(cached.dimension)")
             return cached
         }
 
         // 慢路径：解析 LUT 文件（锁外执行，避免长时间持锁）
         guard let url = Bundle.main.url(forResource: resourceName, withExtension: "cube") else {
+            Log.lut.error("lut_resource_missing name=\(resourceName, privacy: .public)")
             throw NSError(domain: "FilmProcessor", code: -1,
                           userInfo: [NSLocalizedDescriptionKey: "找不到 LUT 资源: \(resourceName).cube"])
         }
 
-        let text = try String(contentsOf: url, encoding: .utf8)
-        let cube = try Self.parseCubeFile(text)
-
-        // 写入缓存（可能有并发写入，以最后一个为准，结果一致）
-        lock.withLock { $0.lutCache[resourceName] = cube }
-        return cube
+        let timer = Log.perf("lut_load", logger: Log.lut)
+        do {
+            let text = try Self.readCubeText(from: url)
+            let cube = try Self.parseCubeFile(text)
+            lock.withLock { $0.lutCache[resourceName] = cube }
+            timer.end("name=\(resourceName) dim=\(cube.dimension)")
+            return cube
+        } catch {
+            Log.lut.error("lut_parse_failed name=\(resourceName, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+            throw error
+        }
     }
 
     func preload(preset: FilmPreset) {
@@ -427,10 +493,15 @@ final class FilmProcessor: Sendable {
         if let cached = lock.withLock({ $0.lutCache[cacheKey] }) {
             return cached
         }
-        let text = try String(contentsOf: url, encoding: .utf8)
-        let cube = try Self.parseCubeFile(text)
-        lock.withLock { $0.lutCache[cacheKey] = cube }
-        return cube
+        do {
+            let text = try Self.readCubeText(from: url)
+            let cube = try Self.parseCubeFile(text)
+            lock.withLock { $0.lutCache[cacheKey] = cube }
+            return cube
+        } catch {
+            Log.lut.error("lut_custom_parse_failed key=\(cacheKey, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+            throw error
+        }
     }
 
     /// 获取已缓存的 LUT 数据（用于 Metal 预览创建 3D 纹理）
@@ -451,13 +522,29 @@ final class FilmProcessor: Sendable {
 
     /// 应用 LUT 并保留/添加元数据（拍照用，统一 sRGB 色彩空间）
     func applyLUTPreservingMetadata(imageData: Data, lutCacheKey: String, outputQuality: CGFloat = 0.95, location: CLLocation? = nil) -> Data? {
-        guard var ciInput = CIImage(data: imageData) else {
-            print("[LUT] Failed to create CIImage from data")
+        // 读取原始 EXIF 方向（AVCapture 写入时通常为 6/3/8，像素保留在传感器原始横向朝向）
+        let sourceProps: [String: Any]? = {
+            guard let src = CGImageSourceCreateWithData(imageData as CFData, nil) else { return nil }
+            return CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [String: Any]
+        }()
+        let exifOrientation: Int32 = {
+            if let v = sourceProps?[kCGImagePropertyOrientation as String] as? Int32 { return v }
+            if let v = sourceProps?[kCGImagePropertyOrientation as String] as? Int { return Int32(v) }
+            if let v = sourceProps?[kCGImagePropertyOrientation as String] as? UInt32 { return Int32(v) }
+            return 1
+        }()
+
+        guard let rawCI = CIImage(data: imageData) else {
+            Log.lut.error("lut_apply_failed reason=ciimage_init_nil bytes=\(imageData.count)")
             return nil
         }
+        let timer = Log.perf("lut_apply", logger: Log.lut)
+        // 物理旋转像素到视觉正向朝向，这样 extent 反映真实宽高、输出 orientation=1 才正确
+        var ciInput = rawCI.oriented(forExifOrientation: exifOrientation)
 
         let inputExtent = ciInput.extent
         let isLandscape = inputExtent.width > inputExtent.height
+        Log.lut.info("lut_apply_begin key=\(lutCacheKey, privacy: .public) exif=\(exifOrientation) w=\(Int(inputExtent.width)) h=\(Int(inputExtent.height)) landscape=\(isLandscape)")
 
         // 根据照片方向裁剪为对应比例（横拍4:3，竖拍3:4）
         let targetAspect: CGFloat = isLandscape ? (4.0 / 3.0) : (3.0 / 4.0)
@@ -479,7 +566,10 @@ final class FilmProcessor: Sendable {
 
         // 应用 LUT 滤镜（每次创建新 CIFilter，避免线程竞争）
         guard let colorCube = CIFilter(name: "CIColorCube"),
-              let lut = getCachedLUT(cacheKey: lutCacheKey) else { return nil }
+              let lut = getCachedLUT(cacheKey: lutCacheKey) else {
+            Log.lut.error("lut_apply_failed reason=lut_missing key=\(lutCacheKey, privacy: .public)")
+            return nil
+        }
 
         colorCube.setValue(ciInput, forKey: kCIInputImageKey)
         colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
@@ -543,8 +633,13 @@ final class FilmProcessor: Sendable {
         metadata[kCGImageDestinationLossyCompressionQuality as String] = outputQuality
         CGImageDestinationAddImageFromSource(destination, renderedSource, 0, metadata as CFDictionary)
 
-        guard CGImageDestinationFinalize(destination) else { return nil }
-        return mutableData as Data
+        guard CGImageDestinationFinalize(destination) else {
+            Log.lut.error("lut_apply_failed reason=destination_finalize")
+            return nil
+        }
+        let finalData = mutableData as Data
+        timer.end("in=\(imageData.count)B out=\(finalData.count)B gps=\(location != nil)")
+        return finalData
     }
 
 }

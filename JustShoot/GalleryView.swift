@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import ImageIO
+import UIKit
 
 // MARK: - 图片加载器
 class ImageLoader: ObservableObject {
@@ -24,11 +25,13 @@ class ImageLoader: ObservableObject {
            let data = try? Data(contentsOf: url),
            let img = UIImage(data: data) {
             cache.setObject(img, forKey: key)
+            Log.gallery.debug("preview_disk_hit id=\(photoId.uuidString, privacy: .public) max=\(maxPixel)")
             return img
         }
 
         // Extract imageData on calling actor before dispatching to background
         let imageData = photo.imageData
+        let timer = Log.perf("preview_decode", logger: Log.gallery)
 
         return await Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return nil }
@@ -49,6 +52,7 @@ class ImageLoader: ObservableObject {
                 try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try? jpeg.write(to: url, options: .atomic)
             }
+            timer.end("id=\(photoId.uuidString) max=\(maxPixel) px=\(cgThumb.width)x\(cgThumb.height)")
             return image
         }.value
     }
@@ -569,6 +573,7 @@ struct PhotoDetailView: View {
         modelContext.delete(photoToDelete)
         do {
             try modelContext.save()
+            Log.save.info("photo_deleted id=\(deletedId.uuidString, privacy: .public) remaining=\(self.photos.count - 1)")
             UINotificationFeedbackGenerator().notificationOccurred(.success)
 
             photos.remove(at: currentIndex)
@@ -581,7 +586,7 @@ struct PhotoDetailView: View {
                 currentIndex = photos.count - 1
             }
         } catch {
-            print("Failed to delete photo: \(error)")
+            Log.save.error("photo_delete_failed error=\(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -619,10 +624,13 @@ struct PhotoDetailView: View {
         saveStatus = .saving
         let imageData = photo.imageData
         let photoRef = photo
+        let timer = Log.perf("photos_export", logger: Log.save)
+        Log.save.info("photos_export_begin bytes=\(imageData.count) id=\(photo.id.uuidString, privacy: .public)")
 
         Task {
             let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
             guard status == .authorized || status == .limited else {
+                Log.save.error("photos_auth_denied status=\(status.rawValue)")
                 await MainActor.run {
                     saveStatus = .failed
                     resetSaveStatus()
@@ -650,12 +658,14 @@ struct PhotoDetailView: View {
                     request.addResource(with: .photo, data: imageData, options: options)
                 }
 
+                timer.end("result=ok")
                 await MainActor.run {
                     saveStatus = .success
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     resetSaveStatus()
                 }
             } catch {
+                Log.save.error("photos_export_failed error=\(error.localizedDescription, privacy: .public)")
                 await MainActor.run {
                     saveStatus = .failed
                     UINotificationFeedbackGenerator().notificationOccurred(.error)
@@ -730,7 +740,9 @@ struct ZoomablePhotoView: View {
                                     offset.height = min(max(offset.height, -maxOff), maxOff)
                                 }
                                 lastOffset = offset
-                            }
+                            },
+                        // scale==1 时关闭本手势，TabView 获得左右翻页的触摸
+                        including: scale > 1.0 ? .all : .none
                     )
                     .onTapGesture(count: 2) {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
