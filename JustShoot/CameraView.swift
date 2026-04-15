@@ -143,7 +143,7 @@ struct CameraView: View {
                     focalInfo: cameraManager.focalInfo,
                     current: cameraManager.currentFocalLength
                 ) { option in
-                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                    cameraManager.hapticSoft.impactOccurred()
                     cameraManager.setFocalLength(option)
                 }
 
@@ -258,7 +258,7 @@ struct CameraView: View {
 
         isCapturing = true
         shutterPressed = true
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        cameraManager.hapticMedium.impactOccurred()
 
         let currentSource = source
         let manager = cameraManager
@@ -351,7 +351,7 @@ struct CameraView: View {
 
     @MainActor
     private func handleTapToFocus(at location: CGPoint, in size: CGSize) {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        cameraManager.hapticLight.impactOccurred()
 
         focusPoint = location
 
@@ -560,11 +560,6 @@ class CameraManager: NSObject, ObservableObject {
     /// 专用会话队列（AVCaptureSession 操作必须在同一串行队列）
     private let sessionQueue = DispatchQueue(label: "camera.session.queue")
 
-    /// CVPixelBuffer 的 Sendable 包装（CVBuffer 本身不符合 Sendable，但通过锁保护是安全的）
-    private struct SendableBuffer: @unchecked Sendable {
-        var buffer: CVPixelBuffer?
-    }
-
     /// 线程安全的像素缓冲区（用 os_unfair_lock 保护跨线程访问）
     private struct PreviewState: @unchecked Sendable {
         var buffer: CVPixelBuffer?
@@ -578,11 +573,6 @@ class CameraManager: NSObject, ObservableObject {
             guard let buf = state.buffer else { return nil }
             return (buf, state.frameId)
         }
-    }
-
-    /// 兼容旧调用
-    nonisolated func getLatestPixelBuffer() -> CVPixelBuffer? {
-        pixelBufferLock.withLockUnchecked { $0.buffer }
     }
 
     nonisolated func setLatestPixelBuffer(_ buffer: CVPixelBuffer) {
@@ -614,6 +604,11 @@ class CameraManager: NSObject, ObservableObject {
     private var photoDataHandler: ((Data?) -> Void)?
     private var exposureCompleteHandler: (() -> Void)?
     @Published var flashMode: FlashMode = .off
+
+    // 震动反馈（预创建复用，减少首次延迟）
+    let hapticLight = UIImpactFeedbackGenerator(style: .light)
+    let hapticMedium = UIImpactFeedbackGenerator(style: .medium)
+    let hapticSoft = UIImpactFeedbackGenerator(style: .soft)
 
     // 等效焦距
     private var device35mmEquivalentFocalLength: Float = 0.0
@@ -666,6 +661,8 @@ class CameraManager: NSObject, ObservableObject {
     private var focusHoldTimer: Timer?
     private let tapFocusHoldDuration: TimeInterval = 3.0
     private var focusObservation: NSKeyValueObservation?
+    private var pressureObservation: NSKeyValueObservation?
+    nonisolated(unsafe) private var nominalFPS: Double = 30.0  // 正常情况下的目标帧率
     @Published var isFocusLocked = false
 
     override init() {
@@ -705,6 +702,7 @@ class CameraManager: NSObject, ObservableObject {
         }
         focusObservation?.invalidate()
         zoomObservation?.invalidate()
+        pressureObservation?.invalidate()
     }
 
     // MARK: - 方向监控
@@ -981,6 +979,7 @@ class CameraManager: NSObject, ObservableObject {
                         .map(\.maxFrameRate)
                         .max() ?? 30.0
                     let targetFPS = min(maxRate, 60.0)
+                    self.nominalFPS = targetFPS
                     device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(targetFPS))
                     device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(targetFPS))
                     Log.session.info("preview_fps target=\(Int(targetFPS)) max_supported=\(Int(maxRate))")
@@ -1069,6 +1068,42 @@ class CameraManager: NSObject, ObservableObject {
                     self.onFocusCompleted()
                 }
             }
+        }
+
+        // KVO: 系统压力监控 — 高温时降帧，恢复时提帧
+        if let device = videoCaptureDevice {
+            pressureObservation = device.observe(\.systemPressureState, options: [.new]) { [weak self] device, _ in
+                guard let self else { return }
+                let level = device.systemPressureState.level
+                self.sessionQueue.async {
+                    self.adjustFrameRateForPressure(device: device, level: level)
+                }
+            }
+        }
+    }
+
+    // MARK: - 系统压力自适应帧率
+
+    /// 根据系统压力等级动态调整预览帧率，防止过热降频
+    nonisolated private func adjustFrameRateForPressure(device: AVCaptureDevice, level: AVCaptureDevice.SystemPressureState.Level) {
+        let adjustedFPS: Double
+        if level == .nominal || level == .fair {
+            adjustedFPS = nominalFPS
+        } else if level == .serious {
+            adjustedFPS = min(nominalFPS, 30.0)
+        } else {
+            // .critical, .shutdown, or unknown
+            adjustedFPS = 24.0
+        }
+
+        do {
+            try device.lockForConfiguration()
+            device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(adjustedFPS))
+            device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(adjustedFPS))
+            device.unlockForConfiguration()
+            Log.session.info("pressure_adjusted fps=\(Int(adjustedFPS))")
+        } catch {
+            Log.session.error("pressure_adjust_failed error=\(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -1225,11 +1260,11 @@ class CameraManager: NSObject, ObservableObject {
 
         if scale > threshold, currentIdx + 1 < options.count {
             pinchDidSwitch = true
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            hapticMedium.impactOccurred()
             setFocalLength(options[currentIdx + 1])
         } else if scale < 1.0 / threshold, currentIdx > 0 {
             pinchDidSwitch = true
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            hapticMedium.impactOccurred()
             setFocalLength(options[currentIdx - 1])
         }
     }
@@ -1301,6 +1336,10 @@ class CameraManager: NSObject, ObservableObject {
     /// 停止 session 并释放相机资源（导航离开时调用，防止多 session 竞争）
     func stopSession() {
         stopLocationServices()
+        focusHoldTimer?.invalidate()
+        focusHoldTimer = nil
+        pressureObservation?.invalidate()
+        pressureObservation = nil
         previewMTKView = nil
         let captureSession = session
         sessionQueue.async {
