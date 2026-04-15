@@ -128,7 +128,16 @@ struct CameraView: View {
         }
         // 底部控制栏
         .safeAreaInset(edge: .bottom) {
-            HStack {
+            VStack(spacing: 14) {
+                FocalLengthStrip(
+                    focalInfo: cameraManager.focalInfo,
+                    current: cameraManager.currentFocalLength
+                ) { option in
+                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                    cameraManager.setFocalLength(option)
+                }
+
+                HStack {
                 // 左：最近照片缩略图
                 Button { if !presetPhotos.isEmpty { showPhotoDetail = true } } label: {
                     if let thumb = lastPhotoThumbnail {
@@ -170,8 +179,9 @@ struct CameraView: View {
                 // 右：占位（保持快门居中）
                 Color.clear
                     .frame(width: 46, height: 46)
+                }
+                .padding(.horizontal, 30)
             }
-            .padding(.horizontal, 30)
             .padding(.bottom, 10)
         }
         .onAppear {
@@ -263,6 +273,7 @@ struct CameraView: View {
             }
             Log.capture.info("photo_data_received bytes=\(data.count) dt_from_tap=\(Log.ms(since: tapTime))ms")
 
+            let focalMm = cameraManager.currentFocalLength.rawValue
             Task.detached(priority: .userInitiated) {
                 let location = await manager.cachedOrFreshLocation()
                 Log.gps.info("gps_resolved present=\(location != nil) age=\(location.map { String(format: "%.1fs", Date().timeIntervalSince($0.timestamp)) } ?? "nil", privacy: .public)")
@@ -271,7 +282,8 @@ struct CameraView: View {
                     imageData: data,
                     lutCacheKey: currentSource.lutCacheKey,
                     outputQuality: 0.95,
-                    location: location
+                    location: location,
+                    focalLengthIn35mm: focalMm
                 )
 
                 let finalData = processedData ?? data
@@ -331,38 +343,180 @@ struct CameraView: View {
             showFocusIndicator = true
         }
 
+        // 坐标转换：视图坐标 → AVFoundation 归一化坐标
+        // AVFoundation 使用横屏坐标系：{0,0} 左上，{1,1} 右下（Home 键在右）
         let normalizedX = location.y / size.height
         let normalizedY = 1.0 - (location.x / size.width)
         let normalizedPoint = CGPoint(x: normalizedX, y: normalizedY)
 
         cameraManager.setFocusAndExposure(normalizedPoint: normalizedPoint)
 
+        // 对焦框跟随 focusHoldTimer 消失（3s 后恢复连续对焦时隐藏）
         Task {
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            withAnimation(.easeOut(duration: 0.3)) {
-                showFocusIndicator = false
+            try? await Task.sleep(for: .seconds(3.5))
+            if !cameraManager.isFocusLocked {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    showFocusIndicator = false
+                }
             }
         }
     }
 }
 
-// MARK: - 对焦框视图
+// MARK: - 焦段切换条（仿 iPhone 相机样式）
+struct FocalLengthStrip: View {
+    let focalInfo: DeviceFocalInfo
+    let current: FocalLengthOption
+    let onSelect: (FocalLengthOption) -> Void
+
+    var body: some View {
+        if focalInfo.options.count <= 1 {
+            EmptyView()
+        } else {
+            HStack(spacing: 0) {
+                ForEach(focalInfo.options) { option in
+                    Button { onSelect(option) } label: {
+                        focalButton(for: option)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func focalButton(for option: FocalLengthOption) -> some View {
+        let isSelected = option == current
+        let isCrop = focalInfo.isDigitalCrop(option)
+
+        Text(option.label)
+            .font(.system(size: 13, weight: isSelected ? .bold : .regular, design: .rounded))
+            .foregroundStyle(isSelected ? .yellow : isCrop ? .white.opacity(0.4) : .white.opacity(0.65))
+            .frame(width: 40, height: 40)
+            .background {
+                if isSelected {
+                    Circle()
+                        .fill(.white.opacity(0.15))
+                        .frame(width: 36, height: 36)
+                }
+            }
+            .contentShape(Circle())
+            .animation(.spring(duration: 0.25, bounce: 0.1), value: isSelected)
+    }
+}
+
+// MARK: - 对焦完成通知
+extension Notification.Name {
+    static let focusDidComplete = Notification.Name("JustShoot.focusDidComplete")
+}
+
+// MARK: - 对焦框视图（响应对焦完成 KVO）
 struct FocusIndicatorView: View {
-    @State private var scale: CGFloat = 1.5
+    @State private var scale: CGFloat = 1.4
     @State private var opacity: Double = 0.0
+    @State private var focusLocked = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: 2)
-            .stroke(Color.yellow, lineWidth: 1)
+            .stroke(Color.yellow, lineWidth: focusLocked ? 1.5 : 1)
             .frame(width: 70, height: 70)
             .scaleEffect(scale)
             .opacity(opacity)
             .onAppear {
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.65)) {
                     scale = 1.0
                     opacity = 1.0
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .focusDidComplete)) { _ in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    focusLocked = true
+                    scale = 0.9
+                }
+                withAnimation(.easeOut(duration: 0.1).delay(0.15)) {
+                    scale = 1.0
+                }
+            }
+    }
+}
+
+// MARK: - 等效焦距档位
+enum FocalLengthOption: Int, CaseIterable, Identifiable {
+    case mm13 = 13
+    case mm24 = 24
+    case mm35 = 35
+    case mm50 = 50
+    case mm100 = 100
+    case mm200 = 200
+
+    var id: Int { rawValue }
+    var mm: Float { Float(rawValue) }
+    var label: String { "\(rawValue)" }
+}
+
+// MARK: - 设备焦段信息（session 配置后计算，使用实际 zoom 范围）
+struct DeviceFocalInfo {
+    /// 可用焦段选项
+    let options: [FocalLengthOption]
+    /// 每个物理镜头的原生 zoom factor（switchover 点），用于判断是否数字裁切
+    let nativeZoomFactors: [CGFloat]
+    /// 设备基准等效焦距（zoom 1.0 对应的 mm）
+    let baseMm: Float
+
+    /// 判断某焦段是否为纯数字裁切
+    func isDigitalCrop(_ option: FocalLengthOption) -> Bool {
+        let zoom = CGFloat(option.mm / baseMm)
+        for nz in nativeZoomFactors {
+            if abs(zoom - nz) / nz < 0.08 { return false }
+        }
+        return true
+    }
+
+    /// 默认值（session 未配置前的临时占位）
+    static let placeholder = DeviceFocalInfo(options: [.mm24, .mm35], nativeZoomFactors: [1.0], baseMm: 24.0)
+
+    /// 在 session 配置后调用，使用设备的实际 zoom 范围
+    static func from(device: AVCaptureDevice, baseMm: Float) -> DeviceFocalInfo {
+        let base = baseMm > 0 ? baseMm : 26.0
+        let hasTele = device.constituentDevices.contains { $0.deviceType == .builtInTelephotoCamera }
+
+        let switchovers = device.virtualDeviceSwitchOverVideoZoomFactors.map { CGFloat($0.doubleValue) }
+        let minZoom = device.minAvailableVideoZoomFactor
+        let maxZoom = device.activeFormat.videoMaxZoomFactor
+
+        // 物理镜头原生 zoom 点
+        var nativeZooms: [CGFloat] = []
+        if minZoom < 0.99 { nativeZooms.append(minZoom) }  // 超广角
+        nativeZooms.append(1.0)  // 主摄
+        nativeZooms.append(contentsOf: switchovers)
+
+        // 长焦原生等效 mm
+        let teleNativeMm: Float = switchovers.last.map { base * Float($0) } ?? 0
+
+        // 所有候选焦段
+        let allCandidates: [FocalLengthOption] = [.mm13, .mm24, .mm35, .mm50, .mm100, .mm200]
+
+        // 过滤：zoom 必须在设备实际可用范围内
+        var options = allCandidates.filter { opt in
+            let zoom = CGFloat(opt.mm / base)
+            return zoom >= minZoom - 0.01 && zoom <= maxZoom + 0.01
+        }
+
+        // 如果没有长焦，移除 100/200（纯数字裁切太多不实用）
+        if !hasTele {
+            options.removeAll { $0 == .mm100 || $0 == .mm200 }
+        } else {
+            // 有长焦但原生焦距不够的，也移除
+            if teleNativeMm < 70 { options.removeAll { $0 == .mm100 } }
+            if teleNativeMm < 100 { options.removeAll { $0 == .mm200 } }
+        }
+
+        // 确保至少有 24mm
+        if !options.contains(.mm24) { options.insert(.mm24, at: 0) }
+
+        Log.session.info("focal_info baseMm=\(base) minZoom=\(String(format: "%.2f", minZoom)) maxZoom=\(String(format: "%.1f", maxZoom)) native=\(nativeZooms.map { String(format: "%.2f", $0) }) options=\(options.map { $0.rawValue })")
+
+        return DeviceFocalInfo(options: options, nativeZoomFactors: nativeZooms, baseMm: base)
     }
 }
 
@@ -396,15 +550,34 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     /// 线程安全的像素缓冲区（用 os_unfair_lock 保护跨线程访问）
-    private let pixelBufferLock = OSAllocatedUnfairLock(initialState: SendableBuffer())
+    private struct PreviewState: @unchecked Sendable {
+        var buffer: CVPixelBuffer?
+        var frameId: UInt64 = 0  // 递增帧号，用于去重
+    }
+    private let pixelBufferLock = OSAllocatedUnfairLock(initialState: PreviewState())
 
+    /// 获取最新帧和帧号（用于去重检测）
+    nonisolated func getLatestFrame() -> (CVPixelBuffer, UInt64)? {
+        pixelBufferLock.withLockUnchecked { state in
+            guard let buf = state.buffer else { return nil }
+            return (buf, state.frameId)
+        }
+    }
+
+    /// 兼容旧调用
     nonisolated func getLatestPixelBuffer() -> CVPixelBuffer? {
         pixelBufferLock.withLockUnchecked { $0.buffer }
     }
 
     nonisolated func setLatestPixelBuffer(_ buffer: CVPixelBuffer) {
-        pixelBufferLock.withLockUnchecked { $0.buffer = buffer }
+        pixelBufferLock.withLockUnchecked {
+            $0.buffer = buffer
+            $0.frameId &+= 1
+        }
     }
+
+    /// 弱引用 MTKView，用于从相机回调触发渲染
+    weak var previewMTKView: MTKView?
 
     /// 首帧到达标记（线程安全，仅打印一次）
     private let firstFrameFlag = OSAllocatedUnfairLock<Bool>(initialState: false)
@@ -426,11 +599,11 @@ class CameraManager: NSObject, ObservableObject {
     private var exposureCompleteHandler: (() -> Void)?
     @Published var flashMode: FlashMode = .off
 
-    // 35mm 等效焦距
+    // 等效焦距
     private var device35mmEquivalentFocalLength: Float = 0.0
-    @Published var targetFocalLength: Float = 35.0
+    @Published var currentFocalLength: FocalLengthOption = .mm35
+    @Published var focalInfo: DeviceFocalInfo = .placeholder
     @Published var currentZoomFactor: CGFloat = 1.0
-    private var requiredZoomFactor: CGFloat = 1.0
 
     // 位置管理器
     private let locationManager = CLLocationManager()
@@ -474,15 +647,33 @@ class CameraManager: NSObject, ObservableObject {
     private var lockedExposureForFlashCapture: Bool = false
     private var focusHoldTimer: Timer?
     private let tapFocusHoldDuration: TimeInterval = 3.0
+    private var focusObservation: NSKeyValueObservation?
+    @Published var isFocusLocked = false
 
     override init() {
         super.init()
-        // Lightweight init: only find device and read specs, no session configuration
-        if let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
+        if let device = Self.bestAvailableBackCamera() {
             videoCaptureDevice = device
             readCameraSpecs(device: device)
+            Log.session.info("camera_device_selected name=\(device.localizedName, privacy: .public) constituents=\(device.constituentDevices.count)")
         }
         setupOrientationMonitoring()
+    }
+
+    /// 按优先级选择后置相机：三摄 > 双广 > 双摄 > 单广
+    private static func bestAvailableBackCamera() -> AVCaptureDevice? {
+        let priorities: [AVCaptureDevice.DeviceType] = [
+            .builtInTripleCamera,
+            .builtInDualWideCamera,
+            .builtInDualCamera,
+            .builtInWideAngleCamera
+        ]
+        for type in priorities {
+            if let device = AVCaptureDevice.default(type, for: .video, position: .back) {
+                return device
+            }
+        }
+        return nil
     }
 
     deinit {
@@ -492,6 +683,7 @@ class CameraManager: NSObject, ObservableObject {
         if let subjectObserver = subjectAreaObserver {
             NotificationCenter.default.removeObserver(subjectObserver)
         }
+        focusObservation?.invalidate()
     }
 
     // MARK: - 方向监控
@@ -578,10 +770,18 @@ class CameraManager: NSObject, ObservableObject {
             }
 
             device.unlockForConfiguration()
+
+            isFocusLocked = true
             startFocusHoldTimer()
         } catch {
-            print("❌ 设置对焦失败: \(error)")
+            Log.session.error("focus_set_failed error=\(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// 对焦完成回调（KVO isAdjustingFocus → false）
+    private func onFocusCompleted() {
+        // 对焦完成后可用于触发 UI 更新（如对焦框缩小动画）
+        NotificationCenter.default.post(name: .focusDidComplete, object: nil)
     }
 
     private func startFocusHoldTimer() {
@@ -589,12 +789,14 @@ class CameraManager: NSObject, ObservableObject {
         focusHoldTimer = Timer.scheduledTimer(withTimeInterval: tapFocusHoldDuration, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 self?.restoreContinuousFocus()
+                self?.isFocusLocked = false
             }
         }
     }
 
-    private func restoreContinuousFocus() {
+    func restoreContinuousFocus() {
         guard let device = videoCaptureDevice else { return }
+        focusHoldTimer?.invalidate()
         do {
             try device.lockForConfiguration()
             if device.isFocusModeSupported(.continuousAutoFocus) {
@@ -767,15 +969,53 @@ class CameraManager: NSObject, ObservableObject {
         // Back on MainActor — set up delegates and properties that need main thread
         rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
         videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
-        calculateZoomFactorFor35mm()
+
+        // Session 已配置，此时 minAvailableVideoZoomFactor 准确
+        focalInfo = DeviceFocalInfo.from(device: device, baseMm: device35mmEquivalentFocalLength)
+        if !focalInfo.options.contains(currentFocalLength) {
+            currentFocalLength = focalInfo.options.contains(.mm35) ? .mm35 : (focalInfo.options.first ?? .mm24)
+        }
+
+        applyFocalLength(currentFocalLength, animated: false)
         applyVideoOrientationToOutputs()
         configTimer.end("zoom=\(String(format: "%.2f", currentZoomFactor))x")
 
+        // Camera Control 硬件支持（iPhone 16+）
+        if let device = videoCaptureDevice {
+            let zoomSlider = AVCaptureSystemZoomSlider(device: device) { [weak self] zoomFactor in
+                guard let self else { return }
+                self.currentZoomFactor = zoomFactor
+                // 同步 UI：找到最接近的焦段档位
+                let mm = Float(zoomFactor) * self.focalInfo.baseMm
+                let closest = self.focalInfo.options.min { abs($0.mm - mm) < abs($1.mm - mm) }
+                if let closest { self.currentFocalLength = closest }
+            }
+            if session.canAddControl(zoomSlider) {
+                session.addControl(zoomSlider)
+                Log.session.info("camera_control_zoom_slider_added")
+            }
+        }
+
+        // 场景变化时自动恢复连续对焦/曝光
         subjectAreaObserver = NotificationCenter.default.addObserver(
             forName: AVCaptureDevice.subjectAreaDidChangeNotification,
             object: device,
             queue: .main
-        ) { _ in }
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.restoreContinuousFocus()
+            self.isFocusLocked = false
+        }
+
+        // KVO: 对焦完成通知
+        if let device = videoCaptureDevice {
+            focusObservation = device.observe(\.isAdjustingFocus, options: [.new]) { [weak self] device, change in
+                guard let self, let isAdjusting = change.newValue, !isAdjusting else { return }
+                Task { @MainActor in
+                    self.onFocusCompleted()
+                }
+            }
+        }
     }
 
     // MARK: - 拍照
@@ -913,26 +1153,45 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    private func calculateZoomFactorFor35mm() {
+    /// 外部入口：切换等效焦距
+    func setFocalLength(_ option: FocalLengthOption, animated: Bool = true) {
+        guard focalInfo.options.contains(option) else { return }
+        let previousZoom = currentZoomFactor
+        currentFocalLength = option
+        applyFocalLength(option, animated: animated, fromZoom: previousZoom)
+    }
+
+    private func applyFocalLength(_ option: FocalLengthOption, animated: Bool = true, fromZoom: CGFloat? = nil) {
         guard let device = videoCaptureDevice else { return }
-        let baseEquivalent: Float = device35mmEquivalentFocalLength > 0 ? device35mmEquivalentFocalLength : 26.0
-        requiredZoomFactor = CGFloat(targetFocalLength / baseEquivalent)
+        let base = focalInfo.baseMm
+        var zoom = CGFloat(option.mm / base)
 
         let maxZoom = device.activeFormat.videoMaxZoomFactor
         let minZoom = device.minAvailableVideoZoomFactor
-        requiredZoomFactor = max(minZoom, min(maxZoom, requiredZoomFactor))
+        zoom = max(minZoom, min(maxZoom, zoom))
 
-        applyZoomFactor(requiredZoomFactor)
-    }
-
-    private func applyZoomFactor(_ zoomFactor: CGFloat) {
-        guard let device = videoCaptureDevice else { return }
         do {
             try device.lockForConfiguration()
-            device.videoZoomFactor = zoomFactor
-            currentZoomFactor = zoomFactor
+            if animated {
+                // 自适应速率：跨度越大越快，小幅切换更柔和，接近 iPhone 原相机体验
+                let ratio = fromZoom.map { max(zoom / $0, $0 / zoom) } ?? 2.0
+                let rate: Float = if ratio < 1.5 {
+                    4.0    // 小幅切换（如 24→35）：柔和
+                } else if ratio < 3.0 {
+                    8.0    // 中等跨度（如 24→50）
+                } else {
+                    16.0   // 大幅跨度（如 24→200）：快速
+                }
+                device.ramp(toVideoZoomFactor: zoom, withRate: rate)
+            } else {
+                device.videoZoomFactor = zoom
+            }
+            currentZoomFactor = zoom
             device.unlockForConfiguration()
-        } catch {}
+            Log.session.info("focal_applied target=\(option.rawValue)mm zoom=\(String(format: "%.2f", zoom))x base=\(base)mm animated=\(animated)")
+        } catch {
+            Log.session.error("focal_apply_failed error=\(error.localizedDescription, privacy: .public)")
+        }
     }
 
     // MARK: - 位置服务
@@ -1043,9 +1302,12 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
 extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
     @preconcurrency nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         guard let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        // 直接在 delegate 线程写入（锁保护），避免 MainActor 中转延迟
         self.setLatestPixelBuffer(buffer)
         self.logFirstFrameOnce(width: CVPixelBufferGetWidth(buffer), height: CVPixelBufferGetHeight(buffer))
+        // 事件驱动：新帧到达时触发 MTKView 重绘（替代定时器轮询）
+        DispatchQueue.main.async { [weak self] in
+            self?.previewMTKView?.setNeedsDisplay()
+        }
     }
 }
 
@@ -1061,11 +1323,14 @@ struct RealtimePreviewView: UIViewRepresentable {
             return fallback
         }
         let view = MTKView(frame: .zero, device: device)
-        view.isPaused = false
-        view.enableSetNeedsDisplay = false
+        // 事件驱动渲染：只在新帧到达时绘制（由相机回调触发 setNeedsDisplay）
+        view.isPaused = true
+        view.enableSetNeedsDisplay = true
         view.framebufferOnly = false  // 允许 compute shader 写入 drawable
-        view.preferredFramesPerSecond = 30
+        // 预览降分辨率：2x 而非 3x，减少 55% 像素量
+        view.contentScaleFactor = min(UIScreen.main.scale, 2.0)
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
+        view.autoResizeDrawable = true
         context.coordinator.setup(view: view)
         return view
     }
@@ -1073,6 +1338,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     func updateUIView(_ uiView: MTKView, context: Context) {
         context.coordinator.lutCacheKey = lutCacheKey
         context.coordinator.manager = manager
+        manager.previewMTKView = uiView
     }
 
     func makeCoordinator() -> Coordinator {
@@ -1096,6 +1362,15 @@ struct RealtimePreviewView: UIViewRepresentable {
         private var lutTextures: [String: MTLTexture] = [:]
         private var lutDimensions: [String: Int] = [:]
 
+        // Triple-buffer 信号量：限制 GPU 最多 3 帧 in-flight，防止命令堆积
+        private let inflightSemaphore = DispatchSemaphore(value: 3)
+
+        // 帧去重：避免同一相机帧被渲染两次
+        private var lastRenderedFrameId: UInt64 = 0
+
+        // 纹理缓存刷新计数器
+        private var frameCount: UInt32 = 0
+
         // Shader 参数结构（必须与 LUTShader.metal 中的 PreviewParams 一致）
         private struct PreviewParams {
             var scale: Float
@@ -1111,6 +1386,8 @@ struct RealtimePreviewView: UIViewRepresentable {
             guard let device = view.device else { return }
             metalDevice = device
             commandQueue = device.makeCommandQueue()
+            // 设置最大 in-flight command buffers
+            commandQueue?.label = "com.justshoot.preview"
             view.delegate = self
 
             // 创建 CVMetalTextureCache（零拷贝访问相机像素缓冲区）
@@ -1121,7 +1398,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             // 加载 compute shader
             guard let library = device.makeDefaultLibrary(),
                   let function = library.makeFunction(name: "previewLUT") else {
-                print("[Metal] Failed to load previewLUT shader")
+                Log.session.error("metal_shader_load_failed")
                 return
             }
             computePipeline = try? device.makeComputePipelineState(function: function)
@@ -1136,25 +1413,40 @@ struct RealtimePreviewView: UIViewRepresentable {
         private var didLogFirstDraw: Bool = false
 
         func draw(in view: MTKView) {
-            guard let pixelBuffer = manager?.getLatestPixelBuffer(),
-                  let drawable = view.currentDrawable,
+            // 帧去重：如果相机没有产生新帧，跳过渲染
+            guard let (pixelBuffer, frameId) = manager?.getLatestFrame(),
+                  frameId != lastRenderedFrameId else {
+                return
+            }
+
+            // Triple-buffer 背压控制：如果 GPU 有 3 帧在队列中，跳过当前帧
+            guard inflightSemaphore.wait(timeout: .now()) == .success else {
+                return
+            }
+
+            guard let drawable = view.currentDrawable,
                   let commandBuffer = commandQueue?.makeCommandBuffer(),
                   let pipeline = computePipeline,
                   let cache = textureCache else {
+                inflightSemaphore.signal()
                 skipFrameCount += 1
-                // 每 60 帧（约 2s）打一次 skip 原因，避免日志洪水
                 if skipFrameCount % 60 == 1 {
-                    let hasBuffer = manager?.getLatestPixelBuffer() != nil
-                    let hasDrawable = view.currentDrawable != nil
-                    let hasPipeline = computePipeline != nil
-                    let hasCache = textureCache != nil
-                    Log.session.error("preview_skip n=\(self.skipFrameCount) buf=\(hasBuffer) drawable=\(hasDrawable) pipeline=\(hasPipeline) cache=\(hasCache)")
+                    Log.session.error("preview_skip n=\(self.skipFrameCount)")
                 }
                 return
             }
+
+            lastRenderedFrameId = frameId
+
             if !didLogFirstDraw {
                 didLogFirstDraw = true
                 Log.session.info("preview_first_draw skipped=\(self.skipFrameCount) lut_key=\(self.lutCacheKey, privacy: .public)")
+            }
+
+            // 定期刷新纹理缓存，释放不再使用的 CVMetalTexture（每 300 帧 ≈ 10s）
+            frameCount &+= 1
+            if frameCount % 300 == 0 {
+                CVMetalTextureCacheFlush(cache, 0)
             }
 
             let inW = CVPixelBufferGetWidth(pixelBuffer)
@@ -1168,10 +1460,16 @@ struct RealtimePreviewView: UIViewRepresentable {
             )
             guard status == kCVReturnSuccess,
                   let cvTex = cvTexture,
-                  let inputTexture = CVMetalTextureGetTexture(cvTex) else { return }
+                  let inputTexture = CVMetalTextureGetTexture(cvTex) else {
+                inflightSemaphore.signal()
+                return
+            }
 
             // 获取或创建 3D LUT 纹理
-            guard let lutTexture = getOrCreateLUTTexture(cacheKey: lutCacheKey) else { return }
+            guard let lutTexture = getOrCreateLUTTexture(cacheKey: lutCacheKey) else {
+                inflightSemaphore.signal()
+                return
+            }
             let lutDim = lutDimensions[lutCacheKey] ?? 25
 
             let outW = drawable.texture.width
@@ -1215,19 +1513,27 @@ struct RealtimePreviewView: UIViewRepresentable {
             )
 
             // 编码 compute 命令
-            guard let encoder = commandBuffer.makeComputeCommandEncoder() else { return }
+            guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
+                inflightSemaphore.signal()
+                return
+            }
             encoder.setComputePipelineState(pipeline)
             encoder.setTexture(inputTexture, index: 0)
             encoder.setTexture(lutTexture, index: 1)
             encoder.setTexture(drawable.texture, index: 2)
             encoder.setBytes(&params, length: MemoryLayout<PreviewParams>.size, index: 0)
 
-            // 使用 dispatchThreads（iOS 11+ / A11+，精确线程数）
             let threadsPerGroup = MTLSize(width: 16, height: 16, depth: 1)
             let gridSize = MTLSize(width: outW, height: outH, depth: 1)
             encoder.dispatchThreads(gridSize, threadsPerThreadgroup: threadsPerGroup)
 
             encoder.endEncoding()
+
+            // GPU 完成后释放信号量，允许下一帧排队
+            commandBuffer.addCompletedHandler { [weak self] _ in
+                self?.inflightSemaphore.signal()
+            }
+
             commandBuffer.present(drawable)
             commandBuffer.commit()
         }

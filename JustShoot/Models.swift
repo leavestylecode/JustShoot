@@ -521,7 +521,7 @@ final class FilmProcessor: Sendable {
     }
 
     /// 应用 LUT 并保留/添加元数据（拍照用，统一 sRGB 色彩空间）
-    func applyLUTPreservingMetadata(imageData: Data, lutCacheKey: String, outputQuality: CGFloat = 0.95, location: CLLocation? = nil) -> Data? {
+    func applyLUTPreservingMetadata(imageData: Data, lutCacheKey: String, outputQuality: CGFloat = 0.95, location: CLLocation? = nil, focalLengthIn35mm: Int? = nil) -> Data? {
         // 读取原始 EXIF 方向（AVCapture 写入时通常为 6/3/8，像素保留在传感器原始横向朝向）
         let sourceProps: [String: Any]? = {
             guard let src = CGImageSourceCreateWithData(imageData as CFData, nil) else { return nil }
@@ -620,6 +620,13 @@ final class FilmProcessor: Sendable {
                 gps[kCGImagePropertyGPSImgDirectionRef as String] = "T"
             }
             metadata[kCGImagePropertyGPSDictionary as String] = gps
+        }
+
+        // 覆写等效焦距（EXIF：FocalLenIn35mmFilm）
+        if let fl35 = focalLengthIn35mm {
+            var exif = metadata[kCGImagePropertyExifDictionary as String] as? [String: Any] ?? [:]
+            exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] = fl35
+            metadata[kCGImagePropertyExifDictionary as String] = exif
         }
 
         // 写入最终图像
