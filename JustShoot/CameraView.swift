@@ -614,7 +614,7 @@ class CameraManager: NSObject, ObservableObject {
     @Published var focalInfo: DeviceFocalInfo = .placeholder
     @Published var currentZoomFactor: CGFloat = 1.0
     private var zoomObservation: NSKeyValueObservation?
-    private var pinchBaseZoom: CGFloat?  // pinch 手势起始时的 zoom，nil 表示未开始
+    private var pinchDidSwitch = false  // 一次捏合手势只切换一档
 
     // 位置管理器
     private let locationManager = CLLocationManager()
@@ -1206,26 +1206,27 @@ class CameraManager: NSObject, ObservableObject {
         applyFocalLength(option, animated: animated, fromZoom: previousZoom)
     }
 
-    // MARK: - 捏合缩放
+    // MARK: - 捏合切换焦段（一次手势只切换一档）
 
     func handlePinchZoom(scale: CGFloat) {
-        guard let device = videoCaptureDevice else { return }
-        let base = pinchBaseZoom ?? device.videoZoomFactor
-        if pinchBaseZoom == nil { pinchBaseZoom = base }
+        guard !pinchDidSwitch else { return }
+        let threshold: CGFloat = 1.15  // 缩放超过 15% 触发切换
+        let options = focalInfo.options
+        guard let currentIdx = options.firstIndex(of: currentFocalLength) else { return }
 
-        let maxZoom = device.activeFormat.videoMaxZoomFactor
-        let minZoom = device.minAvailableVideoZoomFactor
-        let newZoom = max(minZoom, min(maxZoom, base * scale))
-
-        do {
-            try device.lockForConfiguration()
-            device.videoZoomFactor = newZoom
-            device.unlockForConfiguration()
-        } catch {}
+        if scale > threshold, currentIdx + 1 < options.count {
+            pinchDidSwitch = true
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            setFocalLength(options[currentIdx + 1])
+        } else if scale < 1.0 / threshold, currentIdx > 0 {
+            pinchDidSwitch = true
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            setFocalLength(options[currentIdx - 1])
+        }
     }
 
     func finishPinchZoom() {
-        pinchBaseZoom = nil
+        pinchDidSwitch = false
     }
 
     private func applyFocalLength(_ option: FocalLengthOption, animated: Bool = true, fromZoom: CGFloat? = nil) {
