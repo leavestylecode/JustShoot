@@ -1004,9 +1004,11 @@ class CameraManager: NSObject, ObservableObject {
             object: device,
             queue: .main
         ) { [weak self] _ in
-            guard let self else { return }
-            self.restoreContinuousFocus()
-            self.isFocusLocked = false
+            Task { @MainActor in
+                guard let self else { return }
+                self.restoreContinuousFocus()
+                self.isFocusLocked = false
+            }
         }
 
         // KVO: 对焦完成通知
