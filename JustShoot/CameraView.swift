@@ -190,7 +190,7 @@ struct CameraView: View {
             loadLastPhotoThumbnail()
         }
         .onDisappear {
-            cameraManager.stopLocationServices()
+            cameraManager.stopSession()
         }
         .onChange(of: presetPhotos.count) { _, _ in
             loadLastPhotoThumbnail()
@@ -677,6 +677,8 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     deinit {
+        // 确保 session 释放相机资源（onDisappear 已调用，这里是保底）
+        session.stopRunning()
         if let observer = orientationObserver {
             NotificationCenter.default.removeObserver(observer)
         }
@@ -1219,6 +1221,19 @@ class CameraManager: NSObject, ObservableObject {
 
     func stopLocationServices() {
         locationManager.stopUpdatingLocation()
+    }
+
+    /// 停止 session 并释放相机资源（导航离开时调用，防止多 session 竞争）
+    func stopSession() {
+        stopLocationServices()
+        previewMTKView = nil
+        let captureSession = session
+        sessionQueue.async {
+            if captureSession.isRunning {
+                captureSession.stopRunning()
+                Log.session.info("session_stopped")
+            }
+        }
     }
 }
 
