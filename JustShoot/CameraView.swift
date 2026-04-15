@@ -956,6 +956,16 @@ class CameraManager: NSObject, ObservableObject {
                         device.isSmoothAutoFocusEnabled = true
                     }
                     device.isSubjectAreaChangeMonitoringEnabled = true
+
+                    // 提升预览帧率：查询当前 format 支持的最高帧率（通常 60fps）
+                    let maxRate = device.activeFormat.videoSupportedFrameRateRanges
+                        .map(\.maxFrameRate)
+                        .max() ?? 30.0
+                    let targetFPS = min(maxRate, 60.0)
+                    device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(targetFPS))
+                    device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(targetFPS))
+                    Log.session.info("preview_fps target=\(Int(targetFPS)) max_supported=\(Int(maxRate))")
+
                     device.unlockForConfiguration()
                 } catch {
                     Log.session.error("session_setup_error error=\(error.localizedDescription, privacy: .public)")
