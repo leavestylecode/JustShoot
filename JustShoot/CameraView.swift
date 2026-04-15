@@ -55,6 +55,15 @@ struct CameraView: View {
                 .onTapGesture { location in
                     handleTapToFocus(at: location, in: geometry.size)
                 }
+                .gesture(
+                    MagnifyGesture()
+                        .onChanged { value in
+                            cameraManager.handlePinchZoom(scale: value.magnification)
+                        }
+                        .onEnded { _ in
+                            cameraManager.finishPinchZoom()
+                        }
+                )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .aspectRatio(3.0/4.0, contentMode: .fit)
@@ -604,6 +613,8 @@ class CameraManager: NSObject, ObservableObject {
     @Published var currentFocalLength: FocalLengthOption = .mm35
     @Published var focalInfo: DeviceFocalInfo = .placeholder
     @Published var currentZoomFactor: CGFloat = 1.0
+    private var zoomObservation: NSKeyValueObservation?
+    private var pinchBaseZoom: CGFloat?  // pinch 手势起始时的 zoom，nil 表示未开始
 
     // 位置管理器
     private let locationManager = CLLocationManager()
@@ -686,6 +697,7 @@ class CameraManager: NSObject, ObservableObject {
             NotificationCenter.default.removeObserver(subjectObserver)
         }
         focusObservation?.invalidate()
+        zoomObservation?.invalidate()
     }
 
     // MARK: - 方向监控
@@ -992,19 +1004,38 @@ class CameraManager: NSObject, ObservableObject {
         applyVideoOrientationToOutputs()
         configTimer.end("zoom=\(String(format: "%.2f", currentZoomFactor))x")
 
-        // Camera Control 硬件支持（iPhone 16+）
-        if let device = videoCaptureDevice {
-            let zoomSlider = AVCaptureSystemZoomSlider(device: device) { [weak self] zoomFactor in
-                guard let self else { return }
-                self.currentZoomFactor = zoomFactor
-                // 同步 UI：找到最接近的焦段档位
-                let mm = Float(zoomFactor) * self.focalInfo.baseMm
-                let closest = self.focalInfo.options.min { abs($0.mm - mm) < abs($1.mm - mm) }
-                if let closest { self.currentFocalLength = closest }
+        // Camera Control 硬件支持（iPhone 16+）：离散焦段选择器
+        if videoCaptureDevice != nil {
+            let titles = focalInfo.options.map { "\($0.rawValue)mm" }
+            let picker = AVCaptureIndexPicker("焦距", symbolName: "camera.metering.spot", localizedIndexTitles: titles)
+            // 设置初始选中项
+            if let idx = focalInfo.options.firstIndex(of: currentFocalLength) {
+                picker.selectedIndex = idx
             }
-            if session.canAddControl(zoomSlider) {
-                session.addControl(zoomSlider)
-                Log.session.info("camera_control_zoom_slider_added")
+            picker.setActionQueue(.main) { [weak self] index in
+                guard let self, index < self.focalInfo.options.count else { return }
+                let option = self.focalInfo.options[index]
+                self.setFocalLength(option)
+            }
+            if session.canAddControl(picker) {
+                session.addControl(picker)
+                Log.session.info("camera_control_index_picker_added options=\(titles)")
+            }
+        }
+
+        // KVO: 实时追踪 videoZoomFactor（ramp 动画、捏合缩放、Camera Control 等来源）
+        if let device = videoCaptureDevice {
+            zoomObservation = device.observe(\.videoZoomFactor, options: [.new]) { [weak self] device, change in
+                guard let self, let newZoom = change.newValue else { return }
+                Task { @MainActor in
+                    self.currentZoomFactor = newZoom
+                    // 同步最近焦段档位到 UI
+                    let mm = Float(newZoom) * self.focalInfo.baseMm
+                    let closest = self.focalInfo.options.min { abs($0.mm - mm) < abs($1.mm - mm) }
+                    if let closest, closest != self.currentFocalLength {
+                        self.currentFocalLength = closest
+                    }
+                }
             }
         }
 
@@ -1173,6 +1204,28 @@ class CameraManager: NSObject, ObservableObject {
         let previousZoom = currentZoomFactor
         currentFocalLength = option
         applyFocalLength(option, animated: animated, fromZoom: previousZoom)
+    }
+
+    // MARK: - 捏合缩放
+
+    func handlePinchZoom(scale: CGFloat) {
+        guard let device = videoCaptureDevice else { return }
+        let base = pinchBaseZoom ?? device.videoZoomFactor
+        if pinchBaseZoom == nil { pinchBaseZoom = base }
+
+        let maxZoom = device.activeFormat.videoMaxZoomFactor
+        let minZoom = device.minAvailableVideoZoomFactor
+        let newZoom = max(minZoom, min(maxZoom, base * scale))
+
+        do {
+            try device.lockForConfiguration()
+            device.videoZoomFactor = newZoom
+            device.unlockForConfiguration()
+        } catch {}
+    }
+
+    func finishPinchZoom() {
+        pinchBaseZoom = nil
     }
 
     private func applyFocalLength(_ option: FocalLengthOption, animated: Bool = true, fromZoom: CGFloat? = nil) {
