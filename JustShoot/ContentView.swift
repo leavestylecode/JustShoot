@@ -34,8 +34,9 @@ struct ContentView: View {
                     if !customLUTs.isEmpty {
                         HStack {
                             Text("自定义滤镜")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.caption.weight(.medium))
                                 .foregroundColor(.white.opacity(0.4))
+                                .accessibilityAddTraits(.isHeader)
                             Spacer()
                         }
                         .padding(.top, 8)
@@ -73,6 +74,8 @@ struct ContentView: View {
                         Image(systemName: "plus.circle")
                             .font(.system(size: 17, weight: .medium))
                     }
+                    .accessibilityLabel("导入 LUT")
+                    .accessibilityHint("选择一个 .cube 文件作为自定义滤镜")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink(value: "gallery") {
@@ -85,6 +88,7 @@ struct ContentView: View {
                             }
                         }
                     }
+                    .accessibilityLabel(totalPhotoCount > 0 ? "相册 — 共 \(totalPhotoCount) 张" : "相册")
                 }
             }
             .navigationDestination(for: String.self) { _ in
@@ -152,7 +156,7 @@ struct ContentView: View {
 
     // MARK: - File Import
 
-    private func handleFileImport(_ result: Result<[URL], Error>) {
+    private func handleFileImport(_ result: Result<[URL], any Error>) {
         switch result {
         case .success(let urls):
             guard let url = urls.first else { return }
@@ -243,21 +247,21 @@ struct ContentView: View {
     // MARK: - Preload
 
     private func preloadResources() async {
+        // 在主 actor 上把 @Model 的 CustomLUT 投影为 Sendable 的 FilmSource，
+        // 避免把非 Sendable 的 SwiftData 模型带入 Task.detached
+        let customSources: [FilmSource] = customLUTs.map { FilmSource.from($0) }
+
+        // LUT 解析彼此独立，并行加载减少冷启动耗时（FilmProcessor 内部有锁保护缓存）
         await Task.detached(priority: .userInitiated) {
-            for preset in FilmPreset.allCases {
-                FilmProcessor.shared.preload(preset: preset)
+            await withTaskGroup(of: Void.self) { group in
+                for preset in FilmPreset.allCases {
+                    group.addTask { FilmProcessor.shared.preload(preset: preset) }
+                }
+                for source in customSources {
+                    group.addTask { FilmProcessor.shared.preload(source: source) }
+                }
             }
         }.value
-
-        // 预加载自定义 LUT
-        let luts = customLUTs
-        if !luts.isEmpty {
-            await Task.detached(priority: .utility) {
-                for lut in luts {
-                    FilmProcessor.shared.preload(source: .from(lut))
-                }
-            }.value
-        }
 
         let cameraStatus = AVCaptureDevice.authorizationStatus(for: .video)
         if cameraStatus == .notDetermined {
@@ -305,7 +309,71 @@ struct ImportLUTSheet: View {
     }
 }
 
-// MARK: - 胶片卡片
+// MARK: - 胶片 / 自定义滤镜卡片（共用布局）
+struct PresetCardView: View {
+    let title: String
+    let iso: Float
+    let photoCount: Int
+    let accentColor: Color
+    let iconSystemName: String
+    /// VoiceOver 标签前缀，比如"自定义滤镜 "。内置胶片传空字符串。
+    let a11yLabelPrefix: String
+    /// VoiceOver 提示（不要带"双击"—— iOS 会自动朗读激活手势）
+    let a11yHint: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(accentColor)
+                .frame(width: 48, height: 48)
+                .overlay(
+                    Image(systemName: iconSystemName)
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.white)
+                )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundColor(.white)
+
+                HStack(spacing: 8) {
+                    Text("ISO \(Int(iso))")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.5))
+
+                    if photoCount > 0 {
+                        Text("\(photoCount) 张")
+                            .font(.caption.weight(.medium))
+                            .foregroundColor(accentColor)
+                    }
+                }
+            }
+
+            Spacer()
+
+            Image(systemName: "camera.fill")
+                .font(.title3)
+                .foregroundColor(.white.opacity(0.3))
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(Color.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(photoCount > 0
+            ? "\(a11yLabelPrefix)\(title)，ISO \(Int(iso))，已拍 \(photoCount) 张"
+            : "\(a11yLabelPrefix)\(title)，ISO \(Int(iso))")
+        .accessibilityHint(a11yHint)
+    }
+}
+
+// MARK: - 内置胶片卡片
 struct FilmPresetCard: View {
     let preset: FilmPreset
     let photoCount: Int
@@ -324,47 +392,14 @@ struct FilmPresetCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(accentColor)
-                .frame(width: 48, height: 48)
-                .overlay(
-                    Image(systemName: "film")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.white)
-                )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(preset.displayName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-
-                HStack(spacing: 8) {
-                    Text("ISO \(Int(preset.iso))")
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.5))
-
-                    if photoCount > 0 {
-                        Text("\(photoCount) 张")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(accentColor)
-                    }
-                }
-            }
-
-            Spacer()
-
-            Image(systemName: "camera.fill")
-                .font(.system(size: 18))
-                .foregroundColor(.white.opacity(0.3))
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(Color.white.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        PresetCardView(
+            title: preset.displayName,
+            iso: preset.iso,
+            photoCount: photoCount,
+            accentColor: accentColor,
+            iconSystemName: "film",
+            a11yLabelPrefix: "",
+            a11yHint: "开始使用此胶片拍摄"
         )
     }
 }
@@ -374,48 +409,17 @@ struct CustomLUTCard: View {
     let lut: CustomLUT
     let photoCount: Int
 
+    private static let accent = Color(red: 0.6, green: 0.5, blue: 0.8)
+
     var body: some View {
-        HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(red: 0.6, green: 0.5, blue: 0.8))
-                .frame(width: 48, height: 48)
-                .overlay(
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.white)
-                )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(lut.displayName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-
-                HStack(spacing: 8) {
-                    Text("ISO \(Int(lut.iso))")
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.5))
-
-                    if photoCount > 0 {
-                        Text("\(photoCount) 张")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(Color(red: 0.6, green: 0.5, blue: 0.8))
-                    }
-                }
-            }
-
-            Spacer()
-
-            Image(systemName: "camera.fill")
-                .font(.system(size: 18))
-                .foregroundColor(.white.opacity(0.3))
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(Color.white.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        PresetCardView(
+            title: lut.displayName,
+            iso: lut.iso,
+            photoCount: photoCount,
+            accentColor: Self.accent,
+            iconSystemName: "slider.horizontal.3",
+            a11yLabelPrefix: "自定义滤镜 ",
+            a11yHint: "开始使用此滤镜拍摄"
         )
     }
 }

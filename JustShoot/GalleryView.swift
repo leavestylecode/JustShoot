@@ -5,18 +5,47 @@ import ImageIO
 import UIKit
 
 // MARK: - 图片加载器
-class ImageLoader: ObservableObject {
+// @unchecked Sendable：NSCache 和 FileManager.default 本身线程安全，
+// init 后所有可变状态都仅通过线程安全 API 写入
+final class ImageLoader: ObservableObject, @unchecked Sendable {
     static let shared = ImageLoader()
     private let cache = NSCache<NSString, UIImage>()
     private let fileManager = FileManager.default
 
-    init() {
-        cache.countLimit = 50
-        cache.totalCostLimit = 50 * 1024 * 1024 // 50MB
+    /// 按设备物理内存自适应：上限 = min(128MB, RAM/32)
+    /// 低端设备（2GB RAM）约 64MB；高端设备（8GB RAM）封顶 128MB
+    private static func defaultCostLimit() -> Int {
+        let mem = Int(ProcessInfo.processInfo.physicalMemory)
+        return min(128 * 1024 * 1024, mem / 32)
     }
 
+    private init() {
+        cache.countLimit = 50
+        cache.totalCostLimit = Self.defaultCostLimit()
+    }
+
+    /// UIImage 的近似内存占用（字节）：解码后按 RGBA8 估算，未解码也安全
+    private func memoryCost(of image: UIImage) -> Int {
+        guard let cg = image.cgImage else {
+            let pixels = Int(image.size.width * image.size.height * image.scale * image.scale)
+            return max(pixels * 4, 4096)
+        }
+        return max(cg.bytesPerRow * cg.height, 4096)
+    }
+
+    private func cacheImage(_ image: UIImage, forKey key: NSString) {
+        cache.setObject(image, forKey: key, cost: memoryCost(of: image))
+    }
+
+    /// 便捷重载：在主 actor 上预取 `Photo` 的 imageData/id，再转发到 Sendable 版本。
+    /// 调用点仍然写 `loadPreview(for: photo, ...)`，但 Sendable 契约由 @MainActor 担保。
+    @MainActor
     func loadPreview(for photo: Photo, maxPixel: Int) async -> UIImage? {
-        let photoId = photo.id
+        await loadPreview(imageData: photo.imageData, photoId: photo.id, maxPixel: maxPixel)
+    }
+
+    /// 加载大图预览。imageData/photoId 必须在调用者所在的 actor 上预取，避免跨 actor 传递非 Sendable 的 `Photo`。
+    func loadPreview(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
         let key = "preview_\(photoId.uuidString)_\(maxPixel)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
 
@@ -24,13 +53,11 @@ class ImageLoader: ObservableObject {
            fileManager.fileExists(atPath: url.path),
            let data = try? Data(contentsOf: url),
            let img = UIImage(data: data) {
-            cache.setObject(img, forKey: key)
+            cacheImage(img, forKey: key)
             Log.gallery.debug("preview_disk_hit id=\(photoId.uuidString, privacy: .public) max=\(maxPixel)")
             return img
         }
 
-        // Extract imageData on calling actor before dispatching to background
-        let imageData = photo.imageData
         let timer = Log.perf("preview_decode", logger: Log.gallery)
 
         return await Task.detached(priority: .userInitiated) { [weak self] in
@@ -47,7 +74,7 @@ class ImageLoader: ObservableObject {
             ]
             guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
             let image = UIImage(cgImage: cgThumb)
-            self.cache.setObject(image, forKey: key)
+            self.cacheImage(image, forKey: key)
             if let url = self.previewURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
                 try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try? jpeg.write(to: url, options: .atomic)
@@ -57,8 +84,14 @@ class ImageLoader: ObservableObject {
         }.value
     }
 
+    /// 便捷重载：在主 actor 上预取 `Photo` 的 imageData/id。
+    @MainActor
     func loadThumbnail(for photo: Photo, maxPixel: Int) async -> UIImage? {
-        let photoId = photo.id
+        await loadThumbnail(imageData: photo.imageData, photoId: photo.id, maxPixel: maxPixel)
+    }
+
+    /// 加载缩略图。调用者须在 actor 上预取 imageData/photoId，避免跨 actor 传递 SwiftData `Photo` 模型。
+    func loadThumbnail(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
         let key = "thumb_\(photoId.uuidString)_\(maxPixel)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
 
@@ -66,12 +99,9 @@ class ImageLoader: ObservableObject {
            fileManager.fileExists(atPath: url.path),
            let data = try? Data(contentsOf: url),
            let img = UIImage(data: data) {
-            cache.setObject(img, forKey: key)
+            cacheImage(img, forKey: key)
             return img
         }
-
-        // Extract imageData on calling actor before dispatching to background
-        let imageData = photo.imageData
 
         return await Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return nil }
@@ -87,7 +117,7 @@ class ImageLoader: ObservableObject {
             ]
             guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
             let image = UIImage(cgImage: cgThumb)
-            self.cache.setObject(image, forKey: key)
+            self.cacheImage(image, forKey: key)
             if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.85) {
                 try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try? jpeg.write(to: url, options: .atomic)
@@ -231,7 +261,7 @@ struct GalleryView: View {
                             } else {
                                 let screenBounds = UIScreen.main.bounds
                                 let maxPixel = Int(max(screenBounds.width, screenBounds.height) * UIScreen.main.scale)
-                                Task {
+                                Task { @MainActor in
                                     _ = await ImageLoader.shared.loadPreview(for: photo, maxPixel: maxPixel)
                                 }
                                 selectedDetail = DetailPayload(startPhoto: photo, photos: Array(photos))
@@ -316,8 +346,9 @@ struct GalleryView: View {
             for id in deletedIds {
                 ImageLoader.shared.removeDiskCache(for: id)
             }
+            Log.save.info("photos_deleted count=\(deletedIds.count)")
         } catch {
-            print("Failed to delete photos: \(error)")
+            Log.save.error("photo_delete_failed count=\(deletedIds.count) error=\(error.localizedDescription, privacy: .public)")
         }
 
         selectedPhotos.removeAll()
@@ -395,6 +426,14 @@ struct PhotoThumbnailView: View {
             }
         }
         .aspectRatio(1, contentMode: .fit)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(isSelecting ? "切换选中状态" : "查看照片")
+        .accessibilityAddTraits(isSelected ? [.isImage, .isSelected] : .isImage)
+    }
+
+    private var accessibilityLabel: String {
+        let dateStr = photo.timestamp.formatted(.dateTime.year().month().day().hour().minute())
+        return "\(photo.filmDisplayName) · \(dateStr)"
     }
 }
 
@@ -553,6 +592,9 @@ struct PhotoDetailView: View {
             }
             .tint(saveButtonColor)
             .disabled(saveStatus == .saving)
+            .accessibilityLabel(saveStatus == .saving ? "保存中" :
+                                  saveStatus == .success ? "保存成功" :
+                                  saveStatus == .failed ? "保存失败" : "保存到相册")
 
             Spacer()
 
@@ -561,6 +603,7 @@ struct PhotoDetailView: View {
             } label: {
                 Image(systemName: "trash")
             }
+            .accessibilityLabel("删除这张照片")
         }
     }
 

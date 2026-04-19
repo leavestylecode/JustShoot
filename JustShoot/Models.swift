@@ -565,7 +565,9 @@ final class FilmProcessor: Sendable {
         }
 
         // 应用 LUT 滤镜（每次创建新 CIFilter，避免线程竞争）
-        guard let colorCube = CIFilter(name: "CIColorCube"),
+        // 使用 CIColorCubeWithColorSpace 显式指定输入色彩空间为 sRGB，
+        // 保证在 P3/HDR 源像素上应用 LUT 时的颜色一致性
+        guard let colorCube = CIFilter(name: "CIColorCubeWithColorSpace"),
               let lut = getCachedLUT(cacheKey: lutCacheKey) else {
             Log.lut.error("lut_apply_failed reason=lut_missing key=\(lutCacheKey, privacy: .public)")
             return nil
@@ -574,6 +576,7 @@ final class FilmProcessor: Sendable {
         colorCube.setValue(ciInput, forKey: kCIInputImageKey)
         colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
         colorCube.setValue(lut.data, forKey: "inputCubeData")
+        colorCube.setValue(srgbColorSpace, forKey: "inputColorSpace")
 
         guard let output = colorCube.outputImage else { return nil }
 
@@ -605,7 +608,7 @@ final class FilmProcessor: Sendable {
             gps[kCGImagePropertyGPSAltitude as String] = abs(loc.altitude)
             gps[kCGImagePropertyGPSAltitudeRef as String] = loc.altitude >= 0 ? 0 : 1
 
-            let utc = TimeZone(secondsFromGMT: 0)!
+            let utc = TimeZone(identifier: "UTC") ?? TimeZone(secondsFromGMT: 0) ?? .current
             let dateFmt = DateFormatter(); dateFmt.dateFormat = "yyyy:MM:dd"; dateFmt.timeZone = utc
             let timeFmt = DateFormatter(); timeFmt.dateFormat = "HH:mm:ss.SS"; timeFmt.timeZone = utc
             gps[kCGImagePropertyGPSDateStamp as String] = dateFmt.string(from: loc.timestamp)

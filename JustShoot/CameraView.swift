@@ -11,6 +11,14 @@ import MetalKit
 import AVKit
 import os
 
+/// 跳转到当前 App 的系统设置页。两处权限被拒流程（相机、定位）共用。
+@MainActor
+private func openAppSettings() {
+    if let url = URL(string: UIApplication.openSettingsURLString) {
+        UIApplication.shared.open(url)
+    }
+}
+
 struct CameraView: View {
     let source: FilmSource
     @Environment(\.dismiss) private var dismiss
@@ -83,11 +91,7 @@ struct CameraView: View {
                         .font(.subheadline)
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
-                    Button("打开设置") {
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
-                        }
-                    }
+                    Button("打开设置", action: openAppSettings)
                     .buttonStyle(.borderedProminent)
                     .tint(.white)
                     .foregroundColor(.black)
@@ -113,16 +117,30 @@ struct CameraView: View {
                         .fontWeight(.semibold)
                 }
                 .tint(.white)
+                .accessibilityLabel("返回")
             }
 
-            // 中间：胶片名 + 拍摄计数
+            // 中间：胶片名 + 拍摄计数 + 可选的位置状态
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
                     Text(source.displayName)
                         .font(.subheadline.weight(.semibold))
-                    Text("\(presetPhotos.count) 张")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        Text("\(presetPhotos.count) 张")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        if cameraManager.locationPermissionDenied {
+                            Button(action: openAppSettings) {
+                                Label("位置已关闭", systemImage: "location.slash.fill")
+                                    .font(.caption2.weight(.medium))
+                                    .labelStyle(.titleAndIcon)
+                                    .foregroundStyle(.orange.opacity(0.85))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("位置已关闭")
+                            .accessibilityHint("前往系统设置，允许定位以给照片添加地理位置")
+                        }
+                    }
                 }
             }
 
@@ -134,6 +152,8 @@ struct CameraView: View {
                     Image(systemName: cameraManager.flashMode == .on ? "bolt.fill" : "bolt.slash.fill")
                 }
                 .tint(cameraManager.flashMode == .on ? .yellow : .white)
+                .accessibilityLabel(cameraManager.flashMode == .on ? "闪光灯：开启" : "闪光灯：关闭")
+                .accessibilityHint("切换闪光灯开关")
             }
         }
         // 底部控制栏
@@ -166,6 +186,9 @@ struct CameraView: View {
                             }
                     }
                 }
+                .accessibilityLabel(presetPhotos.isEmpty ? "最近的照片" : "最近的照片 — 共 \(presetPhotos.count) 张")
+                .accessibilityHint(presetPhotos.isEmpty ? "暂无照片" : "查看大图")
+                .disabled(presetPhotos.isEmpty)
 
                 Spacer()
 
@@ -183,12 +206,15 @@ struct CameraView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("拍照")
+                .accessibilityHint("拍摄一张照片")
 
                 Spacer()
 
                 // 右：占位（保持快门居中）
                 Color.clear
                     .frame(width: 46, height: 46)
+                    .accessibilityHidden(true)
                 }
                 .padding(.horizontal, 30)
             }
@@ -238,11 +264,9 @@ struct CameraView: View {
             lastPhotoThumbnail = nil
             return
         }
-        Task {
+        Task { @MainActor in
             let thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: 88)
-            await MainActor.run {
-                lastPhotoThumbnail = thumb
-            }
+            lastPhotoThumbnail = thumb
         }
     }
 
@@ -262,12 +286,15 @@ struct CameraView: View {
 
         let currentSource = source
         let manager = cameraManager
-        let context = modelContext
+        // ModelContainer 是 Sendable；ModelContext 不是。跨 Task.detached 边界只能传 container，
+        // 保存时再 hop 回 @MainActor 读取 mainContext。
+        let container = modelContext.container
 
-        cameraManager.capturePhoto(onExposureComplete: { [self] in
+        let focalMm = cameraManager.currentFocalLength.rawValue
+        cameraManager.capturePhoto(onExposureComplete: {
             Log.capture.info("exposure_complete dt_from_tap=\(Log.ms(since: tapTime))ms")
+            // 曝光已完成：立刻释放按钮按压视觉，贴近原生相机手感
             Task { @MainActor in
-                // 曝光已完成：立刻释放按钮按压视觉，贴近原生相机手感
                 shutterPressed = false
                 withAnimation(.easeOut(duration: 0.05)) {
                     showFlash = true
@@ -277,7 +304,7 @@ struct CameraView: View {
                     showFlash = false
                 }
             }
-        }) { [self] imageData in
+        }) { imageData in
             Task { @MainActor in
                 isCapturing = false
                 shutterPressed = false
@@ -289,7 +316,6 @@ struct CameraView: View {
             }
             Log.capture.info("photo_data_received bytes=\(data.count) dt_from_tap=\(Log.ms(since: tapTime))ms")
 
-            let focalMm = cameraManager.currentFocalLength.rawValue
             Task.detached(priority: .userInitiated) {
                 let location = await manager.cachedOrFreshLocation()
                 Log.gps.info("gps_resolved present=\(location != nil) age=\(location.map { String(format: "%.1fs", Date().timeIntervalSince($0.timestamp)) } ?? "nil", privacy: .public)")
@@ -307,26 +333,25 @@ struct CameraView: View {
                     Log.capture.error("lut_fallback_raw bytes=\(finalData.count)")
                 }
 
-                await MainActor.run {
-                    Self.savePhotoToContext(
-                        imageData: finalData,
-                        source: currentSource,
-                        location: location,
-                        context: context
-                    )
-                    Log.capture.info("capture_pipeline_complete total_dt=\(Log.ms(since: tapTime))ms")
-                }
+                await Self.savePhotoToContainer(
+                    imageData: finalData,
+                    source: currentSource,
+                    location: location,
+                    container: container
+                )
+                Log.capture.info("capture_pipeline_complete total_dt=\(Log.ms(since: tapTime))ms")
             }
         }
     }
 
     @MainActor
-    private static func savePhotoToContext(
+    private static func savePhotoToContainer(
         imageData: Data,
         source: FilmSource,
         location: CLLocation?,
-        context: ModelContext
+        container: ModelContainer
     ) {
+        let context = container.mainContext
         let newPhoto = Photo(imageData: imageData, filmPresetName: source.photoFilterName)
         // 自定义 LUT 存储显示名称
         if case .custom(_, let name, _, _) = source {
@@ -395,8 +420,12 @@ struct FocalLengthStrip: View {
                         focalButton(for: option)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(option.rawValue) 毫米等效焦距")
+                    .accessibilityAddTraits(option == current ? [.isButton, .isSelected] : .isButton)
                 }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("焦距选择")
         }
     }
 
@@ -649,11 +678,21 @@ class CameraManager: NSObject, ObservableObject {
     // iOS 18 方向管理
     fileprivate var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
     private var currentDeviceOrientation: UIDeviceOrientation = .portrait
-    private var orientationObserver: NSObjectProtocol?
-    private var subjectAreaObserver: NSObjectProtocol?
+    private var orientationObserver: (any NSObjectProtocol)?
+    private var subjectAreaObserver: (any NSObjectProtocol)?
 
     // 权限状态
     @Published var cameraPermissionDenied: Bool = false
+    /// 定位权限被拒绝或受限时，UI 显示「位置已关闭」提示
+    @Published var locationPermissionDenied: Bool = false
+
+    /// 仅在值真正变化时写入 @Published 属性，避免无意义的 objectWillChange 发布
+    private func setCameraDenied(_ denied: Bool) {
+        if cameraPermissionDenied != denied { cameraPermissionDenied = denied }
+    }
+    private func setLocationDenied(_ denied: Bool) {
+        if locationPermissionDenied != denied { locationPermissionDenied = denied }
+    }
 
     // 拍照曝光补偿
     private var previousExposureTargetBias: Float = 0
@@ -662,7 +701,8 @@ class CameraManager: NSObject, ObservableObject {
     private let tapFocusHoldDuration: TimeInterval = 3.0
     private var focusObservation: NSKeyValueObservation?
     private var pressureObservation: NSKeyValueObservation?
-    nonisolated(unsafe) private var nominalFPS: Double = 30.0  // 正常情况下的目标帧率
+    /// 正常情况下的目标帧率；由 sessionQueue 写入、压力回调 KVO 读取，用锁保护避免数据竞争
+    private let nominalFPSLock = OSAllocatedUnfairLock<Double>(initialState: 30.0)
     @Published var isFocusLocked = false
 
     override init() {
@@ -692,17 +732,10 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     deinit {
-        // 确保 session 释放相机资源（onDisappear 已调用，这里是保底）
+        // @MainActor class 的 deinit 在 Swift 6 中是 nonisolated，无法访问 @MainActor 隔离的属性。
+        // observer / KVO 的生命周期已由 stopSession() 在 onDisappear 时托管。
+        // AVCaptureSession.stopRunning() 在文档中明确允许从任意线程调用，作为 session 释放的最后兜底。
         session.stopRunning()
-        if let observer = orientationObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        if let subjectObserver = subjectAreaObserver {
-            NotificationCenter.default.removeObserver(subjectObserver)
-        }
-        focusObservation?.invalidate()
-        zoomObservation?.invalidate()
-        pressureObservation?.invalidate()
     }
 
     // MARK: - 方向监控
@@ -887,22 +920,22 @@ class CameraManager: NSObject, ObservableObject {
             Log.session.info("permission_camera_status status=\(status.rawValue)")
             switch status {
             case .authorized:
-                cameraPermissionDenied = false
+                setCameraDenied(false)
                 await configureAndStartSession()
                 startLocationServices()
             case .notDetermined:
                 let granted = await AVCaptureDevice.requestAccess(for: .video)
                 Log.session.info("permission_camera_result granted=\(granted)")
                 if granted {
-                    cameraPermissionDenied = false
+                    setCameraDenied(false)
                     await configureAndStartSession()
                     startLocationServices()
                 } else {
-                    cameraPermissionDenied = true
+                    setCameraDenied(true)
                 }
             case .denied, .restricted:
                 Log.session.error("permission_camera_denied")
-                cameraPermissionDenied = true
+                setCameraDenied(true)
             @unknown default:
                 break
             }
@@ -940,6 +973,10 @@ class CameraManager: NSObject, ObservableObject {
                         output.maxPhotoQualityPrioritization = .speed
                         output.isResponsiveCaptureEnabled = true
                         output.isFastCapturePrioritizationEnabled = true
+                        // iOS 18+：零快门延迟（ZSL）在支持设备上再减少 ~20ms 快门感知延迟
+                        if #available(iOS 18.0, *), output.isZeroShutterLagSupported {
+                            output.isZeroShutterLagEnabled = true
+                        }
 
                         let format = device.activeFormat
                         let supportedDimensions = format.supportedMaxPhotoDimensions
@@ -979,7 +1016,7 @@ class CameraManager: NSObject, ObservableObject {
                         .map(\.maxFrameRate)
                         .max() ?? 30.0
                     let targetFPS = min(maxRate, 60.0)
-                    self.nominalFPS = targetFPS
+                    self.nominalFPSLock.withLock { $0 = targetFPS }
                     device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(targetFPS))
                     device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(targetFPS))
                     Log.session.info("preview_fps target=\(Int(targetFPS)) max_supported=\(Int(maxRate))")
@@ -1086,11 +1123,12 @@ class CameraManager: NSObject, ObservableObject {
 
     /// 根据系统压力等级动态调整预览帧率，防止过热降频
     nonisolated private func adjustFrameRateForPressure(device: AVCaptureDevice, level: AVCaptureDevice.SystemPressureState.Level) {
+        let currentNominal = nominalFPSLock.withLock { $0 }
         let adjustedFPS: Double
         if level == .nominal || level == .fair {
-            adjustedFPS = nominalFPS
+            adjustedFPS = currentNominal
         } else if level == .serious {
-            adjustedFPS = min(nominalFPS, 30.0)
+            adjustedFPS = min(currentNominal, 30.0)
         } else {
             // .critical, .shutdown, or unknown
             adjustedFPS = 24.0
@@ -1138,6 +1176,12 @@ class CameraManager: NSObject, ObservableObject {
         settings.embedsDepthDataInPhoto = false
         settings.embedsPortraitEffectsMatteInPhoto = false
         settings.embedsSemanticSegmentationMattesInPhoto = false
+        // iOS 18+：闪光灯下恒定色彩（Constant Color）减少白平衡偏移
+        if #available(iOS 18.0, *),
+           photoOutput.isConstantColorSupported,
+           flashMode == .on {
+            settings.isConstantColorEnabled = true
+        }
 
         // 抓取当前 rotation 角度（避免在 sessionQueue 跨 actor 访问）
         let rotationAngle = rotationCoordinator?.videoRotationAngleForHorizonLevelCapture
@@ -1310,16 +1354,20 @@ class CameraManager: NSObject, ObservableObject {
 
     private func startLocationServices() {
         locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.distanceFilter = 5
+        // 相片地标 ±100m 足够，`Best` 会触发系统更严格的隐私审查并增加功耗
+        locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        locationManager.distanceFilter = 20
 
         let status = locationManager.authorizationStatus
         switch status {
         case .authorizedAlways, .authorizedWhenInUse:
+            setLocationDenied(false)
             startLocationUpdates()
         case .notDetermined:
             // 请求授权后等待 delegate 回调 didChangeAuthorization 再启动
             locationManager.requestWhenInUseAuthorization()
+        case .denied, .restricted:
+            setLocationDenied(true)
         default:
             break
         }
@@ -1338,8 +1386,24 @@ class CameraManager: NSObject, ObservableObject {
         stopLocationServices()
         focusHoldTimer?.invalidate()
         focusHoldTimer = nil
+        // 及早失效所有 KVO，避免 session 停止期间仍有回调被派发到已释放的闭包
+        focusObservation?.invalidate()
+        focusObservation = nil
+        zoomObservation?.invalidate()
+        zoomObservation = nil
         pressureObservation?.invalidate()
         pressureObservation = nil
+        // 取消 NotificationCenter observer（deinit 因 Swift 6 隔离规则无法访问这些属性）
+        if let observer = orientationObserver {
+            NotificationCenter.default.removeObserver(observer)
+            orientationObserver = nil
+        }
+        if let subjectObserver = subjectAreaObserver {
+            NotificationCenter.default.removeObserver(subjectObserver)
+            subjectAreaObserver = nil
+        }
+        // 提前解绑 sample buffer delegate，避免 session 停止过程中仍派发预览帧
+        videoDataOutput.setSampleBufferDelegate(nil, queue: nil)
         previewMTKView = nil
         let captureSession = session
         sessionQueue.async {
@@ -1362,7 +1426,7 @@ extension CameraManager: CLLocationManagerDelegate {
         }
     }
 
-    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: any Error) {
         Log.gps.error("gps_fail error=\(error.localizedDescription, privacy: .public)")
     }
 
@@ -1371,8 +1435,10 @@ extension CameraManager: CLLocationManagerDelegate {
             Log.gps.info("gps_auth_changed status=\(status.rawValue)")
             switch status {
             case .authorizedWhenInUse, .authorizedAlways:
+                self.setLocationDenied(false)
                 self.startLocationUpdates()
             case .denied, .restricted:
+                self.setLocationDenied(true)
                 self.stopLocationServices()
             default:
                 break
@@ -1391,7 +1457,7 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         }
     }
 
-    nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+    nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: (any Error)?) {
         if let error = error {
             Log.capture.error("delegate_process_error error=\(error.localizedDescription, privacy: .public)")
             Task { @MainActor in self.photoDataHandler?(nil) }
@@ -1487,24 +1553,28 @@ struct RealtimePreviewView: UIViewRepresentable {
     }
 
     // MARK: - Metal Preview Coordinator
+    // @MainActor：MTKViewDelegate.draw 在主线程触发（enableSetNeedsDisplay=true），
+    // 同时需要访问 @MainActor 的 CameraManager 属性（previewRotationAngle 等）
+    @MainActor
     final class Coordinator: NSObject, MTKViewDelegate {
         var lutCacheKey: String = ""
         weak var manager: CameraManager?
 
         // Metal 核心对象
-        private var metalDevice: MTLDevice?
-        private var commandQueue: MTLCommandQueue?
-        private var computePipeline: MTLComputePipelineState?
+        private var metalDevice: (any MTLDevice)?
+        private var commandQueue: (any MTLCommandQueue)?
+        private var computePipeline: (any MTLComputePipelineState)?
 
         // CVPixelBuffer → MTLTexture 零拷贝缓存
         private var textureCache: CVMetalTextureCache?
 
         // 3D LUT 纹理缓存（每个预设一个，首次使用时创建）
-        private var lutTextures: [String: MTLTexture] = [:]
+        private var lutTextures: [String: any MTLTexture] = [:]
         private var lutDimensions: [String: Int] = [:]
 
         // Triple-buffer 信号量：限制 GPU 最多 3 帧 in-flight，防止命令堆积
-        private let inflightSemaphore = DispatchSemaphore(value: 3)
+        // nonisolated：`DispatchSemaphore` 线程安全，且 GPU completion handler 在后台线程触发
+        nonisolated private let inflightSemaphore = DispatchSemaphore(value: 3)
 
         // 帧去重：避免同一相机帧被渲染两次
         private var lastRenderedFrameId: UInt64 = 0
@@ -1671,8 +1741,10 @@ struct RealtimePreviewView: UIViewRepresentable {
             encoder.endEncoding()
 
             // GPU 完成后释放信号量，允许下一帧排队
-            commandBuffer.addCompletedHandler { [weak self] _ in
-                self?.inflightSemaphore.signal()
+            // 捕获 semaphore 本身（值语义 nonisolated），避免把 @MainActor self 带入 Sendable 闭包
+            let semaphore = self.inflightSemaphore
+            commandBuffer.addCompletedHandler { _ in
+                semaphore.signal()
             }
 
             commandBuffer.present(drawable)
@@ -1681,7 +1753,7 @@ struct RealtimePreviewView: UIViewRepresentable {
 
         // MARK: - 3D LUT 纹理管理
 
-        private func getOrCreateLUTTexture(cacheKey: String) -> MTLTexture? {
+        private func getOrCreateLUTTexture(cacheKey: String) -> (any MTLTexture)? {
             if let cached = lutTextures[cacheKey] { return cached }
 
             guard let device = metalDevice else { return nil }
