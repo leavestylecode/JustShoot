@@ -576,7 +576,8 @@ struct PhotoDetailView: View {
             Button {
                 showingInfo.toggle()
             } label: {
-                Image(systemName: showingInfo ? "info.circle.fill" : "info.circle")
+                Image(systemName: "info")
+                    .fontWeight(showingInfo ? .bold : .regular)
             }
             .tint(showingInfo ? .yellow : .white)
         }
@@ -637,7 +638,7 @@ struct PhotoDetailView: View {
         switch saveStatus {
         case .none: return "square.and.arrow.down"
         case .saving: return "arrow.triangle.2.circlepath"
-        case .success: return "checkmark.circle.fill"
+        case .success: return "checkmark"
         case .failed: return "exclamationmark.triangle"
         }
     }

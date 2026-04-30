@@ -77,7 +77,7 @@ struct ContentView: View {
                     Button {
                         showFileImporter = true
                     } label: {
-                        Image(systemName: "plus.circle")
+                        Image(systemName: "plus")
                             .font(.system(size: 17, weight: .medium))
                     }
                     .accessibilityLabel("导入 LUT")

@@ -92,11 +92,12 @@ enum CardColorPalette {
 
 struct FilmCardLibraryView: View {
     @State private var library = FilmCardLibrary.shared
+    /// 品牌选择。可包含具体品牌名，或常量 `otherKey` 表示"其他（小品牌）"
     @State private var selectedBrands: Set<String> = []
     @State private var selectedFormats: Set<String> = []
     @State private var selectedColors: Set<String> = []
-    @State private var minISO: Int = 0
-    @State private var maxISO: Int = 3200
+    /// ISO 选择。元素是 main 列表里的整数字符串（"50"/"100"/…）或 `otherKey` 表示"其他"
+    @State private var selectedISOs: Set<String> = []
     @State private var showFilterSheet = false
 
     private let columns = [
@@ -104,6 +105,16 @@ struct FilmCardLibraryView: View {
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10)
     ]
+
+    /// 品牌 / 画幅阈值：count > 10 单列展示，其余收纳到"其他"
+    private static let majorBrandThreshold = 10
+    private static let majorFormatThreshold = 10
+    /// 主 ISO 列表（覆盖率 ~73%），其他 ISO 与缺失 ISO 都进"其他"
+    static let mainISOs: [Int] = [50, 100, 200, 400, 800, 1600]
+    /// 颜色阈值：count >= 30 才显示为可选项；purple / brown 这种少量样本不进入筛选 UI
+    private static let majorColorThreshold = 30
+    /// "其他" 桶的字符串键。普通品牌/画幅/ISO 名称不会和这个字符串撞名。
+    static let otherKey = "__OTHER__"
 
     var body: some View {
         ScrollView {
@@ -127,26 +138,25 @@ struct FilmCardLibraryView: View {
                 Button {
                     showFilterSheet = true
                 } label: {
-                    Image(systemName: hasActiveFilter
-                          ? "line.3.horizontal.decrease.circle.fill"
-                          : "line.3.horizontal.decrease.circle")
-                        .font(.system(size: 17, weight: .medium))
+                    Image(systemName: "line.3.horizontal.decrease")
+                        .font(.system(size: 17, weight: hasActiveFilter ? .semibold : .medium))
+                        .foregroundStyle(hasActiveFilter ? Color.accentColor : Color.primary)
                 }
                 .accessibilityLabel(hasActiveFilter ? "筛选（已启用）" : "筛选")
             }
         }
         .sheet(isPresented: $showFilterSheet) {
             FilmCardFilterSheet(
-                brandsByCount: brandsByCount,
-                availableFormats: availableFormats,
+                brandChips: brandChips,
+                formatChips: formatChips,
                 availableColors: availableColors,
+                isoChips: isoChips,
                 selectedBrands: $selectedBrands,
                 selectedFormats: $selectedFormats,
                 selectedColors: $selectedColors,
-                minISO: $minISO,
-                maxISO: $maxISO
+                selectedISOs: $selectedISOs
             )
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.medium])
         }
         .navigationDestination(for: FilmCard.self) { card in
             FilmCardDetailView(card: card)
@@ -161,7 +171,7 @@ struct FilmCardLibraryView: View {
                     .tint(.white)
             } else if filteredCards.isEmpty {
                 ContentUnavailableView {
-                    Label("没有匹配", systemImage: "line.3.horizontal.decrease.circle")
+                    Label("没有匹配", systemImage: "line.3.horizontal.decrease")
                 } description: {
                     Text("调整筛选条件试试")
                 }
@@ -178,52 +188,156 @@ struct FilmCardLibraryView: View {
         let brands = selectedBrands
         let formats = selectedFormats
         let colors = selectedColors
-        let isoLo = minISO
-        let isoHi = maxISO
-        let isoFiltered = isoLo > 0 || isoHi < 3200
+        let isos = selectedISOs
+        let majorBrands = majorBrandSet
+        let majorFormats = majorFormatSet
+        let mainISOSet = Set(Self.mainISOs)
 
         return library.all.filter { card in
             if !brands.isEmpty {
-                guard let b = card.brand, brands.contains(b) else { return false }
+                if !brandMatches(card, selected: brands, majors: majorBrands) { return false }
             }
             if !formats.isEmpty {
-                guard let f = card.format, formats.contains(f) else { return false }
+                if !formatMatches(card, selected: formats, majors: majorFormats) { return false }
             }
             if !colors.isEmpty {
                 guard let c = card.color, colors.contains(c) else { return false }
             }
-            if isoFiltered {
-                guard let iso = card.iso, iso >= isoLo, iso <= isoHi else { return false }
+            if !isos.isEmpty {
+                if !isoMatches(card, selected: isos, mainISOSet: mainISOSet) { return false }
             }
             return true
         }
     }
 
-    /// (品牌, 数量) 按数量降序，同数量按字母升序
-    private var brandsByCount: [(brand: String, count: Int)] {
-        library.sortedBrands.compactMap { brand in
-            guard let cards = library.byBrand[brand] else { return nil }
-            return (brand, cards.count)
+    private func brandMatches(_ card: FilmCard, selected: Set<String>, majors: Set<String>) -> Bool {
+        if let b = card.brand, majors.contains(b) {
+            return selected.contains(b)
         }
+        // 小品牌或无品牌 → 看是否选中"其他"
+        return selected.contains(Self.otherKey)
     }
 
-    private var availableFormats: [String] {
-        Array(Set(library.all.compactMap { $0.format })).sorted()
+    private func formatMatches(_ card: FilmCard, selected: Set<String>, majors: Set<String>) -> Bool {
+        if let f = card.format, majors.contains(f) {
+            return selected.contains(f)
+        }
+        // 非主流画幅或无画幅 → 看是否选中"其他"
+        return selected.contains(Self.otherKey)
     }
 
-    /// 仅显示实际出现过的颜色，按调色板顺序
+    private func isoMatches(_ card: FilmCard, selected: Set<String>, mainISOSet: Set<Int>) -> Bool {
+        if let iso = card.iso, mainISOSet.contains(iso) {
+            return selected.contains(String(iso))
+        }
+        // 长尾 ISO 或缺失 ISO → 看是否选中"其他"
+        return selected.contains(Self.otherKey)
+    }
+
+    /// 主品牌集合（count > 阈值）
+    private var majorBrandSet: Set<String> {
+        Set(library.sortedBrands.filter { (library.byBrand[$0]?.count ?? 0) > Self.majorBrandThreshold })
+    }
+
+    /// 主画幅集合（count > 阈值）
+    private var majorFormatSet: Set<String> {
+        var counts: [String: Int] = [:]
+        for c in library.all {
+            if let f = c.format { counts[f, default: 0] += 1 }
+        }
+        return Set(counts.filter { $0.value > Self.majorFormatThreshold }.keys)
+    }
+
+    /// 用于品牌 chip 渲染：主品牌按数量降序，再追加一个"其他"汇总
+    private var brandChips: [BrandChipEntry] {
+        var majors: [BrandChipEntry] = []
+        var otherTotal = 0
+        for brand in library.sortedBrands {
+            let count = library.byBrand[brand]?.count ?? 0
+            if count > Self.majorBrandThreshold {
+                majors.append(BrandChipEntry(key: brand, displayName: brand, count: count))
+            } else {
+                otherTotal += count
+            }
+        }
+        // 加上无 brand 的卡片
+        let untagged = library.all.filter { $0.brand == nil }.count
+        otherTotal += untagged
+        if otherTotal > 0 {
+            majors.append(BrandChipEntry(key: Self.otherKey, displayName: "其他", count: otherTotal))
+        }
+        return majors
+    }
+
+    /// ISO chip 列表：固定主 ISO 顺序 + "其他"
+    private var isoChips: [BrandChipEntry] {
+        guard library.isLoaded else { return [] }
+        var counts: [Int: Int] = [:]
+        var otherTotal = 0
+        let mainSet = Set(Self.mainISOs)
+        for card in library.all {
+            if let iso = card.iso, mainSet.contains(iso) {
+                counts[iso, default: 0] += 1
+            } else {
+                otherTotal += 1
+            }
+        }
+        var entries: [BrandChipEntry] = Self.mainISOs.compactMap { iso in
+            let n = counts[iso] ?? 0
+            return n > 0 ? BrandChipEntry(key: String(iso), displayName: "ISO \(iso)", count: n) : nil
+        }
+        if otherTotal > 0 {
+            entries.append(BrandChipEntry(key: Self.otherKey, displayName: "其他", count: otherTotal))
+        }
+        return entries
+    }
+
+    /// 用于画幅 chip 渲染：count > 阈值的画幅按数量降序，再追加"其他"
+    private var formatChips: [BrandChipEntry] {
+        var counts: [String: Int] = [:]
+        var untagged = 0
+        for card in library.all {
+            if let f = card.format { counts[f, default: 0] += 1 }
+            else { untagged += 1 }
+        }
+        let majors = counts
+            .filter { $0.value > Self.majorFormatThreshold }
+            .sorted { lhs, rhs in
+                if lhs.value != rhs.value { return lhs.value > rhs.value }
+                return lhs.key.localizedCaseInsensitiveCompare(rhs.key) == .orderedAscending
+            }
+            .map { BrandChipEntry(key: $0.key, displayName: $0.key, count: $0.value) }
+
+        let majorKeys = Set(majors.map { $0.key })
+        let otherTotal = counts.filter { !majorKeys.contains($0.key) }.values.reduce(0, +) + untagged
+        if otherTotal > 0 {
+            return majors + [BrandChipEntry(key: Self.otherKey, displayName: "其他", count: otherTotal)]
+        }
+        return majors
+    }
+
+    /// 仅显示主流颜色（count >= 阈值），按调色板顺序。purple/brown 等少量样本不进 UI。
     private var availableColors: [String] {
-        let present = Set(library.all.compactMap { $0.color })
-        return CardColorPalette.order.filter { present.contains($0) }
+        var counts: [String: Int] = [:]
+        for card in library.all {
+            if let c = card.color { counts[c, default: 0] += 1 }
+        }
+        return CardColorPalette.order.filter { (counts[$0] ?? 0) >= Self.majorColorThreshold }
     }
 
     private var hasActiveFilter: Bool {
         !selectedBrands.isEmpty
             || !selectedFormats.isEmpty
             || !selectedColors.isEmpty
-            || minISO > 0
-            || maxISO < 3200
+            || !selectedISOs.isEmpty
     }
+}
+
+/// 品牌 / 画幅 / ISO 这种"名称 + 数量徽标 + 其他"模式的 chip 数据。
+struct BrandChipEntry: Hashable {
+    let key: String
+    let displayName: String
+    let count: Int
 }
 
 // MARK: - 缩略图单元
@@ -383,24 +497,24 @@ struct FilmCardDetailView: View {
 // MARK: - 筛选 Sheet
 
 struct FilmCardFilterSheet: View {
-    let brandsByCount: [(brand: String, count: Int)]
-    let availableFormats: [String]
+    let brandChips: [BrandChipEntry]
+    let formatChips: [BrandChipEntry]
     let availableColors: [String]
+    let isoChips: [BrandChipEntry]
     @Binding var selectedBrands: Set<String>
     @Binding var selectedFormats: Set<String>
     @Binding var selectedColors: Set<String>
-    @Binding var minISO: Int
-    @Binding var maxISO: Int
+    @Binding var selectedISOs: Set<String>
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    brandSection
-                    chipSection(title: "画幅", items: availableFormats, selected: $selectedFormats)
+                    countedChipSection(title: "品牌", chips: brandChips, selection: $selectedBrands)
+                    countedChipSection(title: "画幅", chips: formatChips, selection: $selectedFormats)
                     colorSection
-                    isoSection
+                    countedChipSection(title: "ISO", chips: isoChips, selection: $selectedISOs)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
@@ -418,23 +532,24 @@ struct FilmCardFilterSheet: View {
         }
     }
 
+    /// 统一渲染品牌 / 画幅 / ISO 这种"名称 + 数量徽标"的 chip 组
     @ViewBuilder
-    private var brandSection: some View {
+    private func countedChipSection(title: String, chips: [BrandChipEntry], selection: Binding<Set<String>>) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("品牌")
+            Text(title)
                 .font(.headline)
             FlowLayout(spacing: 6, lineSpacing: 6) {
-                ForEach(brandsByCount, id: \.brand) { entry in
-                    let isOn = selectedBrands.contains(entry.brand)
+                ForEach(chips, id: \.key) { entry in
+                    let isOn = selection.wrappedValue.contains(entry.key)
                     Button {
-                        if isOn { selectedBrands.remove(entry.brand) }
-                        else { selectedBrands.insert(entry.brand) }
+                        if isOn { selection.wrappedValue.remove(entry.key) }
+                        else { selection.wrappedValue.insert(entry.key) }
                     } label: {
-                        BrandCountChipLabel(brand: entry.brand, count: entry.count, selected: isOn)
+                        BrandCountChipLabel(brand: entry.displayName, count: entry.count, selected: isOn)
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(isOn ? .isSelected : [])
-                    .accessibilityLabel("\(entry.brand)，\(entry.count) 张")
+                    .accessibilityLabel("\(entry.displayName)，\(entry.count) 张")
                 }
             }
         }
@@ -445,14 +560,14 @@ struct FilmCardFilterSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("颜色")
                 .font(.headline)
-            FlowLayout(spacing: 6, lineSpacing: 6) {
+            FlowLayout(spacing: 8, lineSpacing: 8) {
                 ForEach(availableColors, id: \.self) { key in
                     let isOn = selectedColors.contains(key)
                     Button {
                         if isOn { selectedColors.remove(key) }
                         else { selectedColors.insert(key) }
                     } label: {
-                        ColorChipLabel(colorKey: key, selected: isOn)
+                        ColorSwatchChip(colorKey: key, selected: isOn)
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(isOn ? .isSelected : [])
@@ -462,58 +577,11 @@ struct FilmCardFilterSheet: View {
         }
     }
 
-    @ViewBuilder
-    private func chipSection(title: String, items: [String], selected: Binding<Set<String>>) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
-            ChipFlow(items: items, selected: selected)
-        }
-    }
-
-    @ViewBuilder
-    private var isoSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("ISO 范围")
-                    .font(.headline)
-                Spacer()
-                Text("\(minISO) – \(maxISO)")
-                    .font(.callout.monospacedDigit())
-                    .foregroundColor(.secondary)
-            }
-
-            HStack(spacing: 8) {
-                Text("最低").font(.caption).foregroundColor(.secondary).frame(width: 32, alignment: .leading)
-                Slider(
-                    value: Binding(
-                        get: { Double(minISO) },
-                        set: { minISO = min(Int($0), maxISO) }
-                    ),
-                    in: 0...3200,
-                    step: 25
-                )
-            }
-            HStack(spacing: 8) {
-                Text("最高").font(.caption).foregroundColor(.secondary).frame(width: 32, alignment: .leading)
-                Slider(
-                    value: Binding(
-                        get: { Double(maxISO) },
-                        set: { maxISO = max(Int($0), minISO) }
-                    ),
-                    in: 0...3200,
-                    step: 25
-                )
-            }
-        }
-    }
-
     private func reset() {
         selectedBrands = []
         selectedFormats = []
         selectedColors = []
-        minISO = 0
-        maxISO = 3200
+        selectedISOs = []
     }
 }
 
@@ -529,8 +597,10 @@ struct BrandCountChipLabel: View {
         HStack(spacing: 6) {
             Text(brand)
                 .font(.system(size: 13, weight: .medium))
+                .lineLimit(1)
             Text("\(count)")
                 .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                .lineLimit(1)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(
@@ -547,64 +617,32 @@ struct BrandCountChipLabel: View {
                            : Color.secondary.opacity(0.15))
         )
         .foregroundColor(selected ? .white : .primary)
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 
-/// 颜色 chip：色块 + 名称
-struct ColorChipLabel: View {
+/// 颜色 chip：仅色块，无文字。选中态用粗白圈+轻微放大表示。
+struct ColorSwatchChip: View {
     let colorKey: String
     let selected: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(CardColorPalette.swatch(colorKey))
-                .frame(width: 12, height: 12)
-                .overlay(Circle().stroke(Color.white.opacity(0.3), lineWidth: 0.5))
-            Text(CardColorPalette.chineseName(colorKey))
-                .font(.system(size: 13, weight: .medium))
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            Capsule().fill(selected
-                           ? Color.accentColor
-                           : Color.secondary.opacity(0.15))
-        )
-        .foregroundColor(selected ? .white : .primary)
+        Circle()
+            .fill(CardColorPalette.swatch(colorKey))
+            .frame(width: 32, height: 32)
+            .overlay(
+                Circle().stroke(
+                    selected ? Color.white : Color.white.opacity(0.18),
+                    lineWidth: selected ? 2.5 : 0.5
+                )
+            )
+            .scaleEffect(selected ? 1.08 : 1.0)
+            .animation(.spring(duration: 0.18), value: selected)
+            .padding(2) // 扩大点击热区
     }
 }
 
 // MARK: - 通用 Chip 流式布局
-
-struct ChipFlow: View {
-    let items: [String]
-    @Binding var selected: Set<String>
-
-    var body: some View {
-        FlowLayout(spacing: 6, lineSpacing: 6) {
-            ForEach(items, id: \.self) { item in
-                Button {
-                    if selected.contains(item) { selected.remove(item) }
-                    else { selected.insert(item) }
-                } label: {
-                    Text(item)
-                        .font(.system(size: 13, weight: .medium))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule().fill(selected.contains(item)
-                                           ? Color.accentColor
-                                           : Color.secondary.opacity(0.15))
-                        )
-                        .foregroundColor(selected.contains(item) ? .white : .primary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selected.contains(item) ? .isSelected : [])
-            }
-        }
-    }
-}
 
 struct FlowLayout: Layout {
     var spacing: CGFloat = 6
@@ -618,6 +656,8 @@ struct FlowLayout: Layout {
 
         for sub in subviews {
             let size = sub.sizeThatFits(.unspecified)
+            // Wrap only if we're not at the start of a row — otherwise let an
+            // oversized item overflow on its own row, matching placeSubviews.
             if x > 0 && x + size.width > maxWidth {
                 x = 0
                 y += rowHeight + lineSpacing

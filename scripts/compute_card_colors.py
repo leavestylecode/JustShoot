@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Compute a coarse dominant-color label for each card image and inject it into cards.json.
+"""Compute a coarse background-color label for each card image and inject it into cards.json.
 
 Algorithm: downsample HEIC -> 48x48 RGB -> classify each pixel into one of 10 buckets
-(red/orange/yellow/green/blue/purple/brown/black/white/gray). Each pixel votes weighted
-by S**1.5 + 0.05 so colored regions outweigh near-neutral background. The bucket with
-the highest total weight wins.
+(red/orange/yellow/green/blue/purple/brown/black/white/gray). Each pixel votes UNWEIGHTED
+so the dominant area (i.e. the box background) wins over small foreground logos and
+text. The bucket with the highest pixel count wins.
 
 Run from project root:
     python3 scripts/compute_card_colors.py
@@ -67,18 +67,14 @@ def dominant_color(image_path: Path) -> str | None:
         print(f"  ! failed to read {image_path.name}: {exc}", file=sys.stderr)
         return None
 
-    weights: dict[str, float] = {}
+    counts: dict[str, int] = {}
     for r, g, b in img.getdata():
-        h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
-        # Weight chromatic pixels more so colored brand elements outvote
-        # neutral backgrounds. Floor of 0.05 keeps fully neutral boxes scored.
-        w = (s ** 1.5) + 0.05
         bucket = classify_pixel(r, g, b)
-        weights[bucket] = weights.get(bucket, 0.0) + w
+        counts[bucket] = counts.get(bucket, 0) + 1
 
-    if not weights:
+    if not counts:
         return None
-    return max(weights.items(), key=lambda kv: kv[1])[0]
+    return max(counts.items(), key=lambda kv: kv[1])[0]
 
 
 def main() -> int:
