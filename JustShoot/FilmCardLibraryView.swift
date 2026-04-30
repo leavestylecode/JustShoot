@@ -21,7 +21,7 @@ struct FilmCardLibraryEntryCard: View {
                 Text("胶片图鉴")
                     .font(.headline)
                     .foregroundColor(.white)
-                Text("浏览 629 款胶片包装")
+                Text("浏览 550 款胶片包装")
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.5))
             }

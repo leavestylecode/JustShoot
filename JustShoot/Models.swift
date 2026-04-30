@@ -662,7 +662,7 @@ final class FilmProcessor: Sendable {
 
 // MARK: - 胶片包装卡片图鉴
 //
-// Resources/cards.json + Resources/cards/*.heic 共 629 张。
+// Resources/cards.json + Resources/cards/*.heic 共 550 张（去重后）。
 // JSON 含 96 个品牌的元数据，所有可空字段均可能为 null。
 
 struct FilmCard: Codable, Identifiable, Hashable, Sendable {
