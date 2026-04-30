@@ -1,63 +1,6 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Entry card (shown at the bottom of ContentView's main menu)
-
-struct FilmCardLibraryEntryCard: View {
-    private static let accent = Color(red: 0.85, green: 0.6, blue: 0.3)
-    @State private var library = FilmCardLibrary.shared
-
-    var body: some View {
-        HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Self.accent)
-                .frame(width: 48, height: 48)
-                .overlay(
-                    Image(systemName: "books.vertical.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.white)
-                )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Film Library")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                // The library file is hashed at compile time — even before the JSON
-                // parses, we know the bundled count. Falls back to the static figure
-                // when the catalog hasn't loaded yet.
-                Text("Browse \(displayCount) film packs")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.5))
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(.white.opacity(0.3))
-                .accessibilityHidden(true)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(Color.white.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("Film Library"))
-        .accessibilityHint(Text("Browse all film packaging cards"))
-        .task {
-            await library.loadIfNeeded()
-        }
-    }
-
-    private var displayCount: Int {
-        library.isLoaded ? library.all.count : 550
-    }
-}
-
 // MARK: - Color palette (matches the bucket names emitted by the offline script)
 
 enum CardColorPalette {
@@ -365,6 +308,7 @@ struct BrandChipEntry: Hashable {
 struct FilmCardThumbnail: View {
     let card: FilmCard
     @State private var image: UIImage?
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -414,9 +358,9 @@ struct FilmCardThumbnail: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .task(id: card.id) {
-            // Grid cell ~120pt; multiply by screen scale, floor at 300 to satisfy
-            // the thumbnail API's minimum.
-            let pixel = max(Int(120.0 * UIScreen.main.scale), 300)
+            // Grid cell ~120pt; multiply by display scale, floor at 300 to
+            // satisfy the thumbnail API's minimum.
+            let pixel = max(Int(120.0 * displayScale), 300)
             image = await FilmCardLibrary.shared.image(for: card, maxPixel: pixel)
         }
     }
@@ -490,14 +434,11 @@ struct FilmCardDetailView: View {
         }
     }
 
-    /// Round the corners directly on the image; on iOS 26 overlay `glassEffect` on the
-    /// same shape so the material aligns with the image edge. On older systems we
-    /// just keep the rounded image.
-    @ViewBuilder
+    /// Rounded image with `glassEffect` overlaid on the same shape so the
+    /// material aligns with the image edge.
     private var glassImageCard: some View {
         let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-
-        let roundedImage = Group {
+        return Group {
             if let image {
                 Image(uiImage: image)
                     .resizable()
@@ -510,12 +451,7 @@ struct FilmCardDetailView: View {
         .aspectRatio(1, contentMode: .fit)
         .frame(maxWidth: .infinity)
         .clipShape(shape)
-
-        if #available(iOS 26.0, *) {
-            roundedImage.glassEffect(.regular, in: shape)
-        } else {
-            roundedImage
-        }
+        .glassEffect(.regular, in: shape)
     }
 
     @ViewBuilder

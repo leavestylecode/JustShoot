@@ -285,6 +285,23 @@ enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
         case .harmanPhoenix200: return "HarmanPhoenix200"
         }
     }
+
+    /// Filename of the bundled film-card image used as this preset's cover.
+    /// Hand-picked from `Resources/cards/*.heic` to match each LUT's stock —
+    /// 5203 falls back to CineStill 50D since the catalog has no Kodak-branded
+    /// Vision3 50D card.
+    var libraryCardImage: String {
+        switch self {
+        case .fujiC200:         return "00202_000.heic"
+        case .fujiPro400H:      return "00022_000.heic"
+        case .fujiProvia100F:   return "00055_000.heic"
+        case .kodakPortra400:   return "00200_000.heic"
+        case .kodakVision5219:  return "00185_000.heic"
+        case .kodakVision5203:  return "00254_000.heic"
+        case .kodak5207:        return "00001_000.heic"
+        case .harmanPhoenix200: return "00004_000.heic"
+        }
+    }
 }
 
 extension Photo {
@@ -718,11 +735,15 @@ final class FilmCardImageCache: @unchecked Sendable {
     /// Async downsampled load. Returns the cached image on hit; otherwise
     /// produces a CGImageSource thumbnail on a detached task.
     func loadImage(card: FilmCard, maxPixel: Int) async -> UIImage? {
-        let key = "\(card.id)_\(maxPixel)" as NSString
-        if let cached = cache.object(forKey: key) { return cached }
+        await loadImage(imageName: card.image, cacheKey: card.id, maxPixel: maxPixel)
+    }
 
-        let cardId = card.id
-        let imageName = card.image
+    /// Same downsampling pipeline keyed by raw filename. Used by callers that
+    /// don't have a `FilmCard` (e.g., the home grid mapping each preset to
+    /// a hand-picked card image).
+    func loadImage(imageName: String, cacheKey: String, maxPixel: Int) async -> UIImage? {
+        let key = "\(cacheKey)_\(maxPixel)" as NSString
+        if let cached = cache.object(forKey: key) { return cached }
 
         return await Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return nil }
@@ -736,7 +757,7 @@ final class FilmCardImageCache: @unchecked Sendable {
             let url = Bundle.main.url(forResource: nameNoExt, withExtension: ext)
                 ?? Bundle.main.url(forResource: nameNoExt, withExtension: ext, subdirectory: "cards")
             guard let url else {
-                Log.gallery.error("filmcard_image_missing id=\(cardId, privacy: .public) name=\(imageName, privacy: .public)")
+                Log.gallery.error("filmcard_image_missing key=\(cacheKey, privacy: .public) name=\(imageName, privacy: .public)")
                 return nil
             }
 

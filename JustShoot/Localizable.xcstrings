@@ -1,223 +1,755 @@
 {
   "sourceLanguage" : "en",
-  "version" : "1.0",
   "strings" : {
+    "" : {
+
+    },
+    "%@ %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@，ISO %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@，ISO %2$lld"
+          }
+        }
+      }
+    },
+    "%@，ISO %lld，已拍 %lld 张" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@，ISO %2$lld，已拍 %3$lld 张"
+          }
+        }
+      }
+    },
+    "%lld / %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "%lld 张" : {
+
+    },
+    "%lld 毫米等效焦距" : {
+
+    },
+    "200" : {
+
+    },
     "Black" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Black" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "黑" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Black"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "黑"
+          }
+        }
       }
     },
     "Blue" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Blue" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "蓝" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "蓝"
+          }
+        }
       }
     },
     "Brand" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Brand" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "品牌" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brand"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "品牌"
+          }
+        }
       }
     },
     "Brown" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Brown" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "棕" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brown"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "棕"
+          }
+        }
       }
     },
     "Browse %lld film packs" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Browse %lld film packs" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "浏览 %lld 款胶片包装" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Browse %lld film packs"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浏览 %lld 款胶片包装"
+          }
+        }
       }
     },
     "Browse all film packaging cards" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Browse all film packaging cards" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "浏览所有胶片包装卡片" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Browse all film packaging cards"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浏览所有胶片包装卡片"
+          }
+        }
       }
     },
     "Color" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Color" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "颜色" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Color"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "颜色"
+          }
+        }
       }
     },
     "Done" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Done" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "完成" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
+          }
+        }
       }
     },
     "Exposures" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Exposures" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "张数" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposures"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "张数"
+          }
+        }
       }
     },
     "Film Card" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Film Card" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "胶片卡片" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Film Card"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶片卡片"
+          }
+        }
       }
     },
     "Film Library" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Film Library" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "胶片图鉴" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Film Library"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶片图鉴"
+          }
+        }
       }
     },
     "Filter" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Filter" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "筛选" } }
-      }
-    },
-    "Filter (active)" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Filter (active)" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "筛选（已启用）" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筛选"
+          }
+        }
       }
     },
     "Filter · %lld" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Filter · %lld" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "筛选 · %lld" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter · %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筛选 · %lld"
+          }
+        }
+      }
+    },
+    "Filter (active)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter (active)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筛选（已启用）"
+          }
+        }
       }
     },
     "Format" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Format" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "画幅" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Format"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画幅"
+          }
+        }
       }
     },
     "Gray" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Gray" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "灰" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gray"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "灰"
+          }
+        }
       }
     },
     "Green" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Green" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "绿" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Green"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "绿"
+          }
+        }
       }
     },
     "ISO" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "ISO" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "ISO" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ISO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ISO"
+          }
+        }
       }
+    },
+    "ISO %lld" : {
+
+    },
+    "JustShoot" : {
+
     },
     "No matches" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No matches" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "没有匹配" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No matches"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有匹配"
+          }
+        }
       }
     },
     "Notes" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notes" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "备注" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备注"
+          }
+        }
       }
     },
     "Orange" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Orange" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "橙" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Orange"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "橙"
+          }
+        }
       }
     },
     "Other" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Other" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "其他" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他"
+          }
+        }
       }
     },
     "Process" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Process" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "冲洗工艺" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Process"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冲洗工艺"
+          }
+        }
       }
     },
     "Purple" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Purple" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "紫" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purple"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "紫"
+          }
+        }
       }
     },
     "Red" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Red" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "红" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Red"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "红"
+          }
+        }
       }
     },
     "Reset" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reset" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重置" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置"
+          }
+        }
       }
     },
     "Subtype" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Subtype" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "规格" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subtype"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "规格"
+          }
+        }
       }
     },
     "Try adjusting the filters" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Try adjusting the filters" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "调整筛选条件试试" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try adjusting the filters"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "调整筛选条件试试"
+          }
+        }
       }
     },
     "Unknown" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unknown" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未知" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知"
+          }
+        }
       }
     },
     "White" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "White" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "白" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "White"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "白"
+          }
+        }
       }
     },
     "Yellow" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Yellow" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "黄" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yellow"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "黄"
+          }
+        }
       }
+    },
+    "位置已关闭" : {
+
+    },
+    "保存中" : {
+
+    },
+    "保存到相册" : {
+
+    },
+    "保存失败" : {
+
+    },
+    "保存成功" : {
+
+    },
+    "全选" : {
+
+    },
+    "最近的照片" : {
+
+    },
+    "最近的照片 — 共 %lld 张" : {
+
+    },
+    "切换选中状态" : {
+
+    },
+    "切换闪光灯开关" : {
+
+    },
+    "删除" : {
+
+    },
+    "删除照片" : {
+
+    },
+    "删除这张照片" : {
+
+    },
+    "前往拍摄页面开始拍照" : {
+
+    },
+    "前往系统设置，允许定位以给照片添加地理位置" : {
+
+    },
+    "取消" : {
+
+    },
+    "名称" : {
+
+    },
+    "导入" : {
+
+    },
+    "导入 LUT" : {
+
+    },
+    "导入失败" : {
+
+    },
+    "已选择 %lld 张" : {
+
+    },
+    "开始使用此滤镜拍摄" : {
+
+    },
+    "开始使用此胶片拍摄" : {
+
+    },
+    "打开设置" : {
+
+    },
+    "拍摄一张照片" : {
+
+    },
+    "拍照" : {
+
+    },
+    "暂无照片" : {
+
+    },
+    "查看大图" : {
+
+    },
+    "查看照片" : {
+
+    },
+    "正在准备相机..." : {
+
+    },
+    "没有照片" : {
+
+    },
+    "海拔 %@m" : {
+
+    },
+    "滤镜名称" : {
+
+    },
+    "焦距选择" : {
+
+    },
+    "相册" : {
+
+    },
+    "确定" : {
+
+    },
+    "确定要删除这张照片吗？此操作不可撤销。" : {
+
+    },
+    "确定要删除选中的 %lld 张照片吗？此操作不可撤销。" : {
+
+    },
+    "确认删除" : {
+
+    },
+    "胶片图鉴" : {
+
+    },
+    "自定义滤镜" : {
+
+    },
+    "自定义滤镜 %@，ISO %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "自定义滤镜 %1$@，ISO %2$lld"
+          }
+        }
+      }
+    },
+    "自定义滤镜 %@，ISO %lld，已拍 %lld 张" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "自定义滤镜 %1$@，ISO %2$lld，已拍 %3$lld 张"
+          }
+        }
+      }
+    },
+    "请在系统设置中允许 JustShoot 访问相机" : {
+
+    },
+    "返回" : {
+
+    },
+    "选择" : {
+
+    },
+    "选择一个 .cube 文件作为自定义滤镜" : {
+
+    },
+    "闪光灯：关闭" : {
+
+    },
+    "闪光灯：开启" : {
+
+    },
+    "需要相机权限" : {
+
     }
-  }
+  },
+  "version" : "1.0"
 }

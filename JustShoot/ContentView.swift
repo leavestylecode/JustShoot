@@ -17,55 +17,57 @@ struct ContentView: View {
     @State private var importError: String?
     @State private var showImportError = false
 
+    /// Three-column grid of preset / custom-LUT tiles.
+    private let gridColumns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ]
+
     var body: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
-                LazyVStack(spacing: 12) {
-                    let counts = presetCountMap
+                let counts = presetCountMap
 
-                    // 内置胶片
-                    ForEach(FilmPreset.allCases) { preset in
-                        NavigationLink(value: FilmSource.preset(preset)) {
-                            FilmPresetCard(preset: preset, photoCount: counts[preset.rawValue] ?? 0)
+                VStack(alignment: .leading, spacing: 14) {
+                    LazyVGrid(columns: gridColumns, spacing: 12) {
+                        ForEach(FilmPreset.allCases) { preset in
+                            NavigationLink(value: FilmSource.preset(preset)) {
+                                FilmPresetTile(preset: preset, photoCount: counts[preset.rawValue] ?? 0)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
 
-                    // 自定义 LUT 区域
                     if !customLUTs.isEmpty {
-                        HStack {
-                            Text("自定义滤镜")
-                                .font(.caption.weight(.medium))
-                                .foregroundColor(.white.opacity(0.4))
-                                .accessibilityAddTraits(.isHeader)
-                            Spacer()
-                        }
-                        .padding(.top, 8)
+                        Text("自定义滤镜")
+                            .font(.caption.weight(.medium))
+                            .foregroundColor(.white.opacity(0.4))
+                            .accessibilityAddTraits(.isHeader)
+                            .padding(.top, 4)
 
-                        ForEach(customLUTs) { lut in
-                            let source = FilmSource.from(lut)
-                            NavigationLink(value: source) {
-                                CustomLUTCard(
-                                    lut: lut,
-                                    photoCount: counts[source.photoFilterName] ?? 0
-                                )
-                            }
-                            .contextMenu {
-                                Button(role: .destructive) {
-                                    deleteCustomLUT(lut)
-                                } label: {
-                                    Label("删除", systemImage: "trash")
+                        LazyVGrid(columns: gridColumns, spacing: 12) {
+                            ForEach(customLUTs) { lut in
+                                let source = FilmSource.from(lut)
+                                NavigationLink(value: source) {
+                                    CustomLUTTile(
+                                        lut: lut,
+                                        photoCount: counts[source.photoFilterName] ?? 0
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        deleteCustomLUT(lut)
+                                    } label: {
+                                        Label("删除", systemImage: "trash")
+                                    }
                                 }
                             }
                         }
                     }
-
-                    // Film library entry
-                    NavigationLink(value: "cards") {
-                        FilmCardLibraryEntryCard()
-                    }
-                    .padding(.top, 12)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 14)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
             }
@@ -84,17 +86,18 @@ struct ContentView: View {
                     .accessibilityHint("选择一个 .cube 文件作为自定义滤镜")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(value: "gallery") {
-                        HStack(spacing: 6) {
-                            Image(systemName: "photo.stack")
-                                .font(.system(size: 15, weight: .medium))
-                            if totalPhotoCount > 0 {
-                                Text("\(totalPhotoCount)")
-                                    .font(.system(size: 13, weight: .semibold))
-                            }
-                        }
+                    NavigationLink(value: "cards") {
+                        Image(systemName: "books.vertical")
+                            .font(.system(size: 15, weight: .medium))
                     }
-                    .accessibilityLabel(totalPhotoCount > 0 ? "相册 — 共 \(totalPhotoCount) 张" : "相册")
+                    .accessibilityLabel("胶片图鉴")
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink(value: "gallery") {
+                        Image(systemName: "photo.stack")
+                            .font(.system(size: 15, weight: .medium))
+                    }
+                    .accessibilityLabel("相册")
                 }
             }
             .navigationDestination(for: String.self) { value in
@@ -147,10 +150,6 @@ struct ContentView: View {
         .task {
             await preloadResources()
         }
-    }
-
-    private var totalPhotoCount: Int {
-        photos.count
     }
 
     private var presetCountMap: [String: Int] {
@@ -318,74 +317,15 @@ struct ImportLUTSheet: View {
     }
 }
 
-// MARK: - 胶片 / 自定义滤镜卡片（共用布局）
-struct PresetCardView: View {
-    let title: String
-    let iso: Float
-    let photoCount: Int
-    let accentColor: Color
-    let iconSystemName: String
-    /// VoiceOver 标签前缀，比如"自定义滤镜 "。内置胶片传空字符串。
-    let a11yLabelPrefix: String
-    /// VoiceOver 提示（不要带"双击"—— iOS 会自动朗读激活手势）
-    let a11yHint: String
+// MARK: - Grid tiles
 
-    var body: some View {
-        HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(accentColor)
-                .frame(width: 48, height: 48)
-                .overlay(
-                    Image(systemName: iconSystemName)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.white)
-                )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(.white)
-
-                HStack(spacing: 8) {
-                    Text("ISO \(Int(iso))")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.5))
-
-                    if photoCount > 0 {
-                        Text("\(photoCount) 张")
-                            .font(.caption.weight(.medium))
-                            .foregroundColor(accentColor)
-                    }
-                }
-            }
-
-            Spacer()
-
-            Image(systemName: "camera.fill")
-                .font(.title3)
-                .foregroundColor(.white.opacity(0.3))
-                .accessibilityHidden(true)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(Color.white.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(photoCount > 0
-            ? "\(a11yLabelPrefix)\(title)，ISO \(Int(iso))，已拍 \(photoCount) 张"
-            : "\(a11yLabelPrefix)\(title)，ISO \(Int(iso))")
-        .accessibilityHint(a11yHint)
-    }
-}
-
-// MARK: - 内置胶片卡片
-struct FilmPresetCard: View {
+/// Cover-art tile for a built-in film preset. The image is sourced from the
+/// bundled film-card library via `FilmPreset.libraryCardImage`.
+struct FilmPresetTile: View {
     let preset: FilmPreset
     let photoCount: Int
+    @State private var image: UIImage?
+    @Environment(\.displayScale) private var displayScale
 
     private var accentColor: Color {
         switch preset {
@@ -401,34 +341,115 @@ struct FilmPresetCard: View {
     }
 
     var body: some View {
-        PresetCardView(
-            title: preset.displayName,
-            iso: preset.iso,
-            photoCount: photoCount,
-            accentColor: accentColor,
-            iconSystemName: "film",
-            a11yLabelPrefix: "",
-            a11yHint: "开始使用此胶片拍摄"
-        )
+        VStack(alignment: .leading, spacing: 6) {
+            coverArt
+                .aspectRatio(1, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(preset.displayName)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+
+                HStack(spacing: 4) {
+                    Text("ISO \(Int(preset.iso))")
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.5))
+                    if photoCount > 0 {
+                        Text("\(photoCount) 张")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(accentColor)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .task(id: preset.rawValue) {
+            // 3-column grid → tiles ~120pt; multiply by display scale,
+            // floor at 300 to match the film-card library cells.
+            let pixel = max(Int(140.0 * displayScale), 300)
+            image = await FilmCardImageCache.shared.loadImage(
+                imageName: preset.libraryCardImage,
+                cacheKey: "preset_\(preset.rawValue)",
+                maxPixel: pixel
+            )
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(photoCount > 0
+            ? "\(preset.displayName)，ISO \(Int(preset.iso))，已拍 \(photoCount) 张"
+            : "\(preset.displayName)，ISO \(Int(preset.iso))")
+        .accessibilityHint("开始使用此胶片拍摄")
+    }
+
+    private var coverArt: some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        return ZStack {
+            Color.white.opacity(0.05)
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: "film")
+                    .font(.title3)
+                    .foregroundColor(.white.opacity(0.25))
+            }
+        }
+        .clipShape(shape)
+        .glassEffect(.regular, in: shape)
     }
 }
 
-// MARK: - 自定义 LUT 卡片
-struct CustomLUTCard: View {
+/// Cover-art tile for a custom LUT. No matching catalog image, so we
+/// render an accent-tinted icon in the same square cell shape.
+struct CustomLUTTile: View {
     let lut: CustomLUT
     let photoCount: Int
 
     private static let accent = Color(red: 0.6, green: 0.5, blue: 0.8)
 
     var body: some View {
-        PresetCardView(
-            title: lut.displayName,
-            iso: lut.iso,
-            photoCount: photoCount,
-            accentColor: Self.accent,
-            iconSystemName: "slider.horizontal.3",
-            a11yLabelPrefix: "自定义滤镜 ",
-            a11yHint: "开始使用此滤镜拍摄"
-        )
+        VStack(alignment: .leading, spacing: 6) {
+            coverArt
+                .aspectRatio(1, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(lut.displayName)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+
+                HStack(spacing: 4) {
+                    Text("ISO \(Int(lut.iso))")
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.5))
+                    if photoCount > 0 {
+                        Text("\(photoCount) 张")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(Self.accent)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(photoCount > 0
+            ? "自定义滤镜 \(lut.displayName)，ISO \(Int(lut.iso))，已拍 \(photoCount) 张"
+            : "自定义滤镜 \(lut.displayName)，ISO \(Int(lut.iso))")
+        .accessibilityHint("开始使用此滤镜拍摄")
+    }
+
+    private var coverArt: some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        return ZStack {
+            Self.accent.opacity(0.18)
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 26, weight: .medium))
+                .foregroundColor(Self.accent)
+        }
+        .clipShape(shape)
+        .glassEffect(.regular, in: shape)
     }
 }

@@ -4,6 +4,18 @@ import PhotosUI
 import ImageIO
 import UIKit
 
+/// iOS 26 deprecated `UIScreen.main`. For non-view contexts we still need
+/// a screen handle for full-resolution preview sizing — fish it out of the
+/// active window scene.
+@MainActor
+private func currentScreen() -> UIScreen? {
+    UIApplication.shared.connectedScenes
+        .lazy
+        .compactMap { $0 as? UIWindowScene }
+        .first?
+        .screen
+}
+
 // MARK: - 图片加载器
 // @unchecked Sendable：NSCache 和 FileManager.default 本身线程安全，
 // init 后所有可变状态都仅通过线程安全 API 写入
@@ -185,7 +197,10 @@ class PhotoDetailViewModel {
         let photoId = photo.id
         if loadedImages[photoId] != nil { return }
 
-        let maxPixel = Int(max(UIScreen.main.bounds.width, UIScreen.main.bounds.height) * UIScreen.main.scale)
+        let screen = currentScreen()
+        let bounds = screen?.bounds ?? .zero
+        let scale = screen?.scale ?? 2.0
+        let maxPixel = Int(max(bounds.width, bounds.height) * scale)
         Task { @MainActor [weak self] in
             guard let self else { return }
             let image = await self.imageLoader.loadPreview(for: photo, maxPixel: maxPixel)
@@ -259,8 +274,10 @@ struct GalleryView: View {
                                     selectedPhotos.insert(photo.id)
                                 }
                             } else {
-                                let screenBounds = UIScreen.main.bounds
-                                let maxPixel = Int(max(screenBounds.width, screenBounds.height) * UIScreen.main.scale)
+                                let screen = currentScreen()
+                                let bounds = screen?.bounds ?? .zero
+                                let scale = screen?.scale ?? 2.0
+                                let maxPixel = Int(max(bounds.width, bounds.height) * scale)
                                 Task { @MainActor in
                                     _ = await ImageLoader.shared.loadPreview(for: photo, maxPixel: maxPixel)
                                 }
@@ -370,6 +387,7 @@ struct PhotoThumbnailView: View {
     var isSelecting: Bool = false
     var isSelected: Bool = false
     @State private var thumb: UIImage?
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         GeometryReader { geometry in
@@ -420,7 +438,9 @@ struct PhotoThumbnailView: View {
             }
             .task {
                 if thumb == nil {
-                    let maxPixel = Int(UIScreen.main.bounds.width / 3.0 * UIScreen.main.scale)
+                    // Cell width is the exact tile size from GeometryReader;
+                    // multiply by display scale to get pixels.
+                    let maxPixel = Int(geometry.size.width * displayScale)
                     thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: maxPixel)
                 }
             }

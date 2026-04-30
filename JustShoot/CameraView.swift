@@ -782,7 +782,7 @@ class CameraManager: NSObject, ObservableObject {
     private func bootstrapInitialOrientationIfNeeded() {
         if previewDeviceOrientation == nil || previewDeviceOrientation == .unknown {
             if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                let io = scene.interfaceOrientation
+                let io = scene.effectiveGeometry.interfaceOrientation
                 let dev: UIDeviceOrientation
                 switch io {
                 case .portrait: dev = .portrait
@@ -991,8 +991,8 @@ class CameraManager: NSObject, ObservableObject {
                         output.maxPhotoQualityPrioritization = .speed
                         output.isResponsiveCaptureEnabled = true
                         output.isFastCapturePrioritizationEnabled = true
-                        // iOS 18+：零快门延迟（ZSL）在支持设备上再减少 ~20ms 快门感知延迟
-                        if #available(iOS 18.0, *), output.isZeroShutterLagSupported {
+                        // 零快门延迟（ZSL）在支持设备上再减少 ~20ms 快门感知延迟
+                        if output.isZeroShutterLagSupported {
                             output.isZeroShutterLagEnabled = true
                         }
 
@@ -1199,10 +1199,8 @@ class CameraManager: NSObject, ObservableObject {
         settings.embedsDepthDataInPhoto = false
         settings.embedsPortraitEffectsMatteInPhoto = false
         settings.embedsSemanticSegmentationMattesInPhoto = false
-        // iOS 18+：闪光灯下恒定色彩（Constant Color）减少白平衡偏移
-        if #available(iOS 18.0, *),
-           photoOutput.isConstantColorSupported,
-           flashMode == .on {
+        // 闪光灯下恒定色彩（Constant Color）减少白平衡偏移
+        if photoOutput.isConstantColorSupported, flashMode == .on {
             settings.isConstantColorEnabled = true
         }
 
@@ -1581,7 +1579,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         view.enableSetNeedsDisplay = true
         view.framebufferOnly = false  // 允许 compute shader 写入 drawable
         // 预览降分辨率：2x 而非 3x，减少 55% 像素量
-        view.contentScaleFactor = min(UIScreen.main.scale, 2.0)
+        view.contentScaleFactor = min(context.environment.displayScale, 2.0)
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         view.autoResizeDrawable = true
         context.coordinator.setup(view: view)
