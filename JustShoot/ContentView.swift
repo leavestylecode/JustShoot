@@ -58,6 +58,12 @@ struct ContentView: View {
                             }
                         }
                     }
+
+                    // 胶片图鉴入口
+                    NavigationLink(value: "cards") {
+                        FilmCardLibraryEntryCard()
+                    }
+                    .padding(.top, 12)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -91,8 +97,11 @@ struct ContentView: View {
                     .accessibilityLabel(totalPhotoCount > 0 ? "相册 — 共 \(totalPhotoCount) 张" : "相册")
                 }
             }
-            .navigationDestination(for: String.self) { _ in
-                GalleryView()
+            .navigationDestination(for: String.self) { value in
+                switch value {
+                case "cards": FilmCardLibraryView()
+                default:      GalleryView()
+                }
             }
             .navigationDestination(for: FilmSource.self) { source in
                 CameraView(source: source)

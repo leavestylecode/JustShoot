@@ -226,6 +226,12 @@ final class Photo: Identifiable {
     var lensInfo: String { parsedExif.lensInfo }
 }
 
+// 让 `#Predicate` 宏展开里的 `\Photo.filmPresetName`（`KeyPath<Photo, String?>`）
+// 满足 Swift 6 完全并发对捕获 Sendable 的要求。Swift 标准库没有声明
+// `AnyKeyPath: Sendable`，但属性 KeyPath 本身是不可变值；此处放宽到所有 KeyPath
+// 子类（KeyPath/WritableKeyPath/ReferenceWritableKeyPath 都继承自 AnyKeyPath）。
+extension AnyKeyPath: @retroactive @unchecked Sendable {}
+
 // MARK: - 胶片预设与处理
 enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
     case fujiC200
@@ -652,4 +658,151 @@ final class FilmProcessor: Sendable {
         return finalData
     }
 
+}
+
+// MARK: - 胶片包装卡片图鉴
+//
+// Resources/cards.json + Resources/cards/*.heic 共 629 张。
+// JSON 含 96 个品牌的元数据，所有可空字段均可能为 null。
+
+struct FilmCard: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let image: String
+    let brand: String?
+    let product: String?
+    let format: String?
+    let iso: Int?
+    let process: String?
+    let expiry: String?
+    let type: String?
+    let subtype: String?
+    let quantity: String?
+    let notes: String?
+    let author: String?
+    /// 离线脚本（scripts/compute_card_colors.py）按主色粗略归类，10 桶之一：
+    /// red / orange / yellow / green / blue / purple / brown / black / white / gray
+    let color: String?
+}
+
+struct FilmCardBundle: Codable, Sendable {
+    let version: Int
+    let generatedAt: String
+    let count: Int
+    let imageSize: Int
+    let cards: [FilmCard]
+}
+
+/// 卡片图像 NSCache + 磁盘下采样（与 ImageLoader 同模式，单独一份缓存避免互相挤占）
+final class FilmCardImageCache: @unchecked Sendable {
+    static let shared = FilmCardImageCache()
+    private let cache = NSCache<NSString, UIImage>()
+
+    private init() {
+        cache.countLimit = 50
+        cache.totalCostLimit = 50 * 1024 * 1024
+    }
+
+    private func memoryCost(of image: UIImage) -> Int {
+        guard let cg = image.cgImage else { return 4096 }
+        return max(cg.bytesPerRow * cg.height, 4096)
+    }
+
+    func cachedImage(cardId: String, maxPixel: Int) -> UIImage? {
+        cache.object(forKey: "\(cardId)_\(maxPixel)" as NSString)
+    }
+
+    /// 异步下采样加载。命中缓存直接返回；否则在 detached 任务里用 CGImageSource 缩略图。
+    func loadImage(card: FilmCard, maxPixel: Int) async -> UIImage? {
+        let key = "\(card.id)_\(maxPixel)" as NSString
+        if let cached = cache.object(forKey: key) { return cached }
+
+        let cardId = card.id
+        let imageName = card.image
+
+        return await Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { return nil }
+
+            let nameNoExt = (imageName as NSString).deletingPathExtension
+            let ext = (imageName as NSString).pathExtension
+            // Xcode 16 同步文件夹默认按 group 处理，资源会平铺到 bundle 根；
+            // 但若被识别为 folder reference，则需要 subdirectory: "cards"。两种都尝试。
+            let url = Bundle.main.url(forResource: nameNoExt, withExtension: ext)
+                ?? Bundle.main.url(forResource: nameNoExt, withExtension: ext, subdirectory: "cards")
+            guard let url else {
+                Log.gallery.error("filmcard_image_missing id=\(cardId, privacy: .public) name=\(imageName, privacy: .public)")
+                return nil
+            }
+
+            let opts: [CFString: Any] = [
+                kCGImageSourceShouldCache: false,
+                kCGImageSourceShouldCacheImmediately: false
+            ]
+            guard let src = CGImageSourceCreateWithURL(url as CFURL, opts as CFDictionary) else { return nil }
+            let down: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 96),
+                kCGImageSourceCreateThumbnailWithTransform: true
+            ]
+            guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, down as CFDictionary) else { return nil }
+            let image = UIImage(cgImage: cg)
+            self.cache.setObject(image, forKey: key, cost: self.memoryCost(of: image))
+            return image
+        }.value
+    }
+}
+
+@MainActor
+@Observable
+final class FilmCardLibrary {
+    static let shared = FilmCardLibrary()
+
+    private(set) var all: [FilmCard] = []
+    private(set) var byBrand: [String: [FilmCard]] = [:]
+    /// 按卡片数量降序的品牌名（同数量按字母升序）
+    private(set) var sortedBrands: [String] = []
+    private(set) var isLoaded = false
+
+    private init() {}
+
+    /// 解析 cards.json 并构建索引（detached 解析，主 actor 写入状态）。
+    func loadIfNeeded() async {
+        guard !isLoaded else { return }
+
+        let timer = Log.perf("filmcard_load", logger: Log.gallery)
+        let parsed: FilmCardBundle? = await Task.detached(priority: .userInitiated) { () -> FilmCardBundle? in
+            let url = Bundle.main.url(forResource: "cards", withExtension: "json")
+                ?? Bundle.main.url(forResource: "cards", withExtension: "json", subdirectory: "cards")
+            guard let url, let data = try? Data(contentsOf: url) else { return nil }
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            return try? decoder.decode(FilmCardBundle.self, from: data)
+        }.value
+
+        guard let parsed else {
+            Log.gallery.error("filmcard_bundle_missing")
+            isLoaded = true
+            timer.end("missing")
+            return
+        }
+
+        let grouped = Dictionary(grouping: parsed.cards) { ($0.brand?.isEmpty == false ? $0.brand! : "未知品牌") }
+        let brandOrder = grouped
+            .map { ($0.key, $0.value.count) }
+            .sorted { lhs, rhs in
+                if lhs.1 != rhs.1 { return lhs.1 > rhs.1 }
+                return lhs.0.localizedCaseInsensitiveCompare(rhs.0) == .orderedAscending
+            }
+            .map { $0.0 }
+
+        self.all = parsed.cards
+        self.byBrand = grouped
+        self.sortedBrands = brandOrder
+        self.isLoaded = true
+        timer.end("count=\(parsed.cards.count) brands=\(brandOrder.count)")
+    }
+
+    /// 异步加载下采样后的卡片图（命中 NSCache 直接返回）。
+    func image(for card: FilmCard, maxPixel: Int = 300) async -> UIImage? {
+        await FilmCardImageCache.shared.loadImage(card: card, maxPixel: maxPixel)
+    }
 }
