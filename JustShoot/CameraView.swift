@@ -530,10 +530,13 @@ struct DeviceFocalInfo {
         let maxZoom = device.activeFormat.videoMaxZoomFactor
 
         // 物理镜头原生 zoom 点
+        // virtualDeviceSwitchOverVideoZoomFactors 是策略性切换阈值，不是物理镜头 zoom——
+        // 中间值（如 Triple Camera 的 [2.0, 5.0] 中的 2.0）没有对应物理镜头。
+        // 经验上 last 等于 Tele 的物理 zoom（11 Pro=2x、13/14/15/16 Pro=3x、Pro Max 5x、17 Pro=4x）。
         var nativeZooms: [CGFloat] = []
         if minZoom < 0.99 { nativeZooms.append(minZoom) }  // 超广角
         nativeZooms.append(1.0)  // 主摄
-        nativeZooms.append(contentsOf: switchovers)
+        if let tele = switchovers.last, tele > 1.0 { nativeZooms.append(tele) }  // 长焦
 
         // 长焦原生等效 mm
         let teleNativeMm: Float = switchovers.last.map { base * Float($0) } ?? 0
@@ -646,6 +649,7 @@ class CameraManager: NSObject, ObservableObject {
     @Published var currentZoomFactor: CGFloat = 1.0
     private var zoomObservation: NSKeyValueObservation?
     private var pinchDidSwitch = false  // 一次捏合手势只切换一档
+    private var focalLengthPicker: AVCaptureIndexPicker?
 
     // 位置管理器
     private let locationManager = CLLocationManager()
@@ -701,6 +705,8 @@ class CameraManager: NSObject, ObservableObject {
     private let tapFocusHoldDuration: TimeInterval = 3.0
     private var focusObservation: NSKeyValueObservation?
     private var pressureObservation: NSKeyValueObservation?
+    /// 进入相机时启动 session 的任务句柄；离开时取消，避免在 sessionQueue 上做完整 startRunning 后又被立即停止
+    private var startupTask: Task<Void, Never>?
     /// 正常情况下的目标帧率；由 sessionQueue 写入、压力回调 KVO 读取，用锁保护避免数据竞争
     private let nominalFPSLock = OSAllocatedUnfairLock<Double>(initialState: 30.0)
     @Published var isFocusLocked = false
@@ -734,8 +740,15 @@ class CameraManager: NSObject, ObservableObject {
     deinit {
         // @MainActor class 的 deinit 在 Swift 6 中是 nonisolated，无法访问 @MainActor 隔离的属性。
         // observer / KVO 的生命周期已由 stopSession() 在 onDisappear 时托管。
-        // AVCaptureSession.stopRunning() 在文档中明确允许从任意线程调用，作为 session 释放的最后兜底。
-        session.stopRunning()
+        // 注意：stopRunning() 虽然线程安全，但是**阻塞调用**（Apple 文档：don't call on main thread）。
+        // SwiftUI 释放 @StateObject 时 deinit 通常运行在主线程，若同步调用会阻塞导航返回动画。
+        // 因此这里只做异步兜底；真正的停止已由 onDisappear → stopSession() 在 sessionQueue 处理。
+        let captureSession = session
+        DispatchQueue.global(qos: .userInitiated).async {
+            if captureSession.isRunning {
+                captureSession.stopRunning()
+            }
+        }
     }
 
     // MARK: - 方向监控
@@ -915,27 +928,32 @@ class CameraManager: NSObject, ObservableObject {
     // MARK: - 权限与会话
 
     func requestCameraPermission() {
-        Task {
+        startupTask?.cancel()
+        startupTask = Task { [weak self] in
+            guard let self else { return }
             let status = AVCaptureDevice.authorizationStatus(for: .video)
             Log.session.info("permission_camera_status status=\(status.rawValue)")
             switch status {
             case .authorized:
-                setCameraDenied(false)
-                await configureAndStartSession()
-                startLocationServices()
+                self.setCameraDenied(false)
+                await self.configureAndStartSession()
+                if Task.isCancelled { return }
+                self.startLocationServices()
             case .notDetermined:
                 let granted = await AVCaptureDevice.requestAccess(for: .video)
                 Log.session.info("permission_camera_result granted=\(granted)")
+                if Task.isCancelled { return }
                 if granted {
-                    setCameraDenied(false)
-                    await configureAndStartSession()
-                    startLocationServices()
+                    self.setCameraDenied(false)
+                    await self.configureAndStartSession()
+                    if Task.isCancelled { return }
+                    self.startLocationServices()
                 } else {
-                    setCameraDenied(true)
+                    self.setCameraDenied(true)
                 }
             case .denied, .restricted:
                 Log.session.error("permission_camera_denied")
-                setCameraDenied(true)
+                self.setCameraDenied(true)
             @unknown default:
                 break
             }
@@ -1062,6 +1080,7 @@ class CameraManager: NSObject, ObservableObject {
             }
             if session.canAddControl(picker) {
                 session.addControl(picker)
+                focalLengthPicker = picker
                 Log.session.info("camera_control_index_picker_added options=\(titles)")
             }
             // 设置 controls delegate（控件激活的必要条件）
@@ -1072,13 +1091,17 @@ class CameraManager: NSObject, ObservableObject {
         if let device = videoCaptureDevice {
             zoomObservation = device.observe(\.videoZoomFactor, options: [.new]) { [weak self] device, change in
                 guard let self, let newZoom = change.newValue else { return }
+                // 在 KVO 线程上读 isRamping，捕获和 newZoom 同时刻的状态。
+                // ramp 中跳过"snap 到最近档位"——否则 24→50 经过 ~35mm 时会把 UI
+                // 高亮抢占到 35，再跳回 50。
+                let isRamping = device.isRampingVideoZoom
                 Task { @MainActor in
                     self.currentZoomFactor = newZoom
-                    // 同步最近焦段档位到 UI
+                    if isRamping { return }
                     let mm = Float(newZoom) * self.focalInfo.baseMm
                     let closest = self.focalInfo.options.min { abs($0.mm - mm) < abs($1.mm - mm) }
                     if let closest, closest != self.currentFocalLength {
-                        self.currentFocalLength = closest
+                        self.syncCurrentFocalLength(closest)
                     }
                 }
             }
@@ -1290,8 +1313,21 @@ class CameraManager: NSObject, ObservableObject {
     func setFocalLength(_ option: FocalLengthOption, animated: Bool = true) {
         guard focalInfo.options.contains(option) else { return }
         let previousZoom = currentZoomFactor
-        currentFocalLength = option
+        syncCurrentFocalLength(option)
         applyFocalLength(option, animated: animated, fromZoom: previousZoom)
+    }
+
+    /// 单点更新 currentFocalLength 并同步 Camera Control picker 的选中索引。
+    /// 程序化设置 selectedIndex 不会回调 picker action，因此安全无重入。
+    private func syncCurrentFocalLength(_ option: FocalLengthOption) {
+        if currentFocalLength != option {
+            currentFocalLength = option
+        }
+        if let picker = focalLengthPicker,
+           let idx = focalInfo.options.firstIndex(of: option),
+           picker.selectedIndex != idx {
+            picker.selectedIndex = idx
+        }
     }
 
     // MARK: - 捏合切换焦段（一次手势只切换一档）
@@ -1383,6 +1419,11 @@ class CameraManager: NSObject, ObservableObject {
 
     /// 停止 session 并释放相机资源（导航离开时调用，防止多 session 竞争）
     func stopSession() {
+        // 取消可能仍在 await configureAndStartSession 的启动任务，
+        // 避免它在 sessionQueue 上把 startRunning 跑完后我们又得排队 stopRunning。
+        startupTask?.cancel()
+        startupTask = nil
+
         stopLocationServices()
         focusHoldTimer?.invalidate()
         focusHoldTimer = nil
@@ -1402,11 +1443,16 @@ class CameraManager: NSObject, ObservableObject {
             NotificationCenter.default.removeObserver(subjectObserver)
             subjectAreaObserver = nil
         }
-        // 提前解绑 sample buffer delegate，避免 session 停止过程中仍派发预览帧
-        videoDataOutput.setSampleBufferDelegate(nil, queue: nil)
+        // 平衡 setupOrientationMonitoring 中的 begin 调用
+        UIDevice.current.endGeneratingDeviceOrientationNotifications()
         previewMTKView = nil
+
+        // setSampleBufferDelegate(nil) 与 stopRunning() 都是阻塞调用——主线程同步执行
+        // 会让左滑返回动画卡顿。整体下放到 sessionQueue。
         let captureSession = session
+        let videoOutput = videoDataOutput
         sessionQueue.async {
+            videoOutput.setSampleBufferDelegate(nil, queue: nil)
             if captureSession.isRunning {
                 captureSession.stopRunning()
                 Log.session.info("session_stopped")
