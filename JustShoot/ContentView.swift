@@ -59,7 +59,7 @@ struct ContentView: View {
                         }
                     }
 
-                    // 胶片图鉴入口
+                    // Film library entry
                     NavigationLink(value: "cards") {
                         FilmCardLibraryEntryCard()
                     }

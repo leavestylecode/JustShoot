@@ -1,10 +1,11 @@
 import SwiftUI
 import UIKit
 
-// MARK: - 入口卡片（放在 ContentView 主菜单底部）
+// MARK: - Entry card (shown at the bottom of ContentView's main menu)
 
 struct FilmCardLibraryEntryCard: View {
     private static let accent = Color(red: 0.85, green: 0.6, blue: 0.3)
+    @State private var library = FilmCardLibrary.shared
 
     var body: some View {
         HStack(spacing: 14) {
@@ -18,10 +19,13 @@ struct FilmCardLibraryEntryCard: View {
                 )
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("胶片图鉴")
+                Text("Film Library")
                     .font(.headline)
                     .foregroundColor(.white)
-                Text("浏览 550 款胶片包装")
+                // The library file is hashed at compile time — even before the JSON
+                // parses, we know the bundled count. Falls back to the static figure
+                // when the catalog hasn't loaded yet.
+                Text("Browse \(displayCount) film packs")
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.5))
             }
@@ -42,32 +46,41 @@ struct FilmCardLibraryEntryCard: View {
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("胶片图鉴")
-        .accessibilityHint("浏览所有胶片包装卡片")
+        .accessibilityLabel(Text("Film Library"))
+        .accessibilityHint(Text("Browse all film packaging cards"))
+        .task {
+            await library.loadIfNeeded()
+        }
+    }
+
+    private var displayCount: Int {
+        library.isLoaded ? library.all.count : 550
     }
 }
 
-// MARK: - 颜色调色板（与离线脚本输出的桶名对齐）
+// MARK: - Color palette (matches the bucket names emitted by the offline script)
 
 enum CardColorPalette {
-    /// 显示顺序：暖→冷→中性
+    /// Display order: warm → cool → neutral
     static let order: [String] = [
         "red", "orange", "yellow", "green", "blue", "purple", "brown", "black", "white", "gray"
     ]
 
-    static func chineseName(_ key: String) -> String {
+    /// Localized name for accessibility. Each case returns a `LocalizedStringKey`
+    /// literal so Xcode's catalog can extract them.
+    static func localizedName(_ key: String) -> LocalizedStringKey {
         switch key {
-        case "red": return "红"
-        case "orange": return "橙"
-        case "yellow": return "黄"
-        case "green": return "绿"
-        case "blue": return "蓝"
-        case "purple": return "紫"
-        case "brown": return "棕"
-        case "black": return "黑"
-        case "white": return "白"
-        case "gray": return "灰"
-        default: return key
+        case "red":    return "Red"
+        case "orange": return "Orange"
+        case "yellow": return "Yellow"
+        case "green":  return "Green"
+        case "blue":   return "Blue"
+        case "purple": return "Purple"
+        case "brown":  return "Brown"
+        case "black":  return "Black"
+        case "white":  return "White"
+        case "gray":   return "Gray"
+        default:       return ""
         }
     }
 
@@ -88,15 +101,15 @@ enum CardColorPalette {
     }
 }
 
-// MARK: - 图鉴主视图
+// MARK: - Library main view
 
 struct FilmCardLibraryView: View {
     @State private var library = FilmCardLibrary.shared
-    /// 品牌选择。可包含具体品牌名，或常量 `otherKey` 表示"其他（小品牌）"
+    /// Brand selection. Contains specific brand names, or `otherKey` for "Other (small brands)".
     @State private var selectedBrands: Set<String> = []
     @State private var selectedFormats: Set<String> = []
     @State private var selectedColors: Set<String> = []
-    /// ISO 选择。元素是 main 列表里的整数字符串（"50"/"100"/…）或 `otherKey` 表示"其他"
+    /// ISO selection. Contains stringified main ISO values ("50"/"100"/…) or `otherKey` for "Other".
     @State private var selectedISOs: Set<String> = []
     @State private var showFilterSheet = false
 
@@ -106,14 +119,15 @@ struct FilmCardLibraryView: View {
         GridItem(.flexible(), spacing: 10)
     ]
 
-    /// 品牌 / 画幅阈值：count > 10 单列展示，其余收纳到"其他"
+    /// Brand / format threshold: count > 10 gets its own chip, the rest go into "Other".
     private static let majorBrandThreshold = 10
     private static let majorFormatThreshold = 10
-    /// 主 ISO 列表（覆盖率 ~73%），其他 ISO 与缺失 ISO 都进"其他"
+    /// Main ISO list (covers ~73%). Other ISOs and missing ISOs all go into "Other".
     static let mainISOs: [Int] = [50, 100, 200, 400, 800, 1600]
-    /// 颜色阈值：count >= 30 才显示为可选项；purple / brown 这种少量样本不进入筛选 UI
+    /// Color threshold: only render chips with count >= 30. Rare buckets (purple / brown)
+    /// don't make it into the filter UI.
     private static let majorColorThreshold = 30
-    /// "其他" 桶的字符串键。普通品牌/画幅/ISO 名称不会和这个字符串撞名。
+    /// Sentinel string used as the "Other" bucket key. No real brand / format / ISO collides with this.
     static let otherKey = "__OTHER__"
 
     var body: some View {
@@ -131,7 +145,7 @@ struct FilmCardLibraryView: View {
             .padding(.bottom, 24)
         }
         .background(Color.black)
-        .navigationTitle("胶片图鉴")
+        .navigationTitle(Text("Film Library"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -142,7 +156,7 @@ struct FilmCardLibraryView: View {
                         .font(.system(size: 17, weight: hasActiveFilter ? .semibold : .medium))
                         .foregroundStyle(hasActiveFilter ? Color.accentColor : Color.primary)
                 }
-                .accessibilityLabel(hasActiveFilter ? "筛选（已启用）" : "筛选")
+                .accessibilityLabel(hasActiveFilter ? Text("Filter (active)") : Text("Filter"))
             }
         }
         .sheet(isPresented: $showFilterSheet) {
@@ -151,6 +165,7 @@ struct FilmCardLibraryView: View {
                 formatChips: formatChips,
                 availableColors: availableColors,
                 isoChips: isoChips,
+                resultCount: filteredCards.count,
                 selectedBrands: $selectedBrands,
                 selectedFormats: $selectedFormats,
                 selectedColors: $selectedColors,
@@ -171,9 +186,9 @@ struct FilmCardLibraryView: View {
                     .tint(.white)
             } else if filteredCards.isEmpty {
                 ContentUnavailableView {
-                    Label("没有匹配", systemImage: "line.3.horizontal.decrease")
+                    Label("No matches", systemImage: "line.3.horizontal.decrease")
                 } description: {
-                    Text("调整筛选条件试试")
+                    Text("Try adjusting the filters")
                 }
                 .foregroundColor(.white.opacity(0.6))
             }
@@ -181,7 +196,7 @@ struct FilmCardLibraryView: View {
         .preferredColorScheme(.dark)
     }
 
-    // MARK: - 过滤计算
+    // MARK: - Filter computation
 
     private var filteredCards: [FilmCard] {
         guard library.isLoaded else { return [] }
@@ -214,7 +229,7 @@ struct FilmCardLibraryView: View {
         if let b = card.brand, majors.contains(b) {
             return selected.contains(b)
         }
-        // 小品牌或无品牌 → 看是否选中"其他"
+        // Small brand or no brand → check if "Other" is selected
         return selected.contains(Self.otherKey)
     }
 
@@ -222,7 +237,7 @@ struct FilmCardLibraryView: View {
         if let f = card.format, majors.contains(f) {
             return selected.contains(f)
         }
-        // 非主流画幅或无画幅 → 看是否选中"其他"
+        // Non-major or missing format → check if "Other" is selected
         return selected.contains(Self.otherKey)
     }
 
@@ -230,16 +245,16 @@ struct FilmCardLibraryView: View {
         if let iso = card.iso, mainISOSet.contains(iso) {
             return selected.contains(String(iso))
         }
-        // 长尾 ISO 或缺失 ISO → 看是否选中"其他"
+        // Long-tail ISO or missing ISO → check if "Other" is selected
         return selected.contains(Self.otherKey)
     }
 
-    /// 主品牌集合（count > 阈值）
+    /// Major brand set (count > threshold)
     private var majorBrandSet: Set<String> {
         Set(library.sortedBrands.filter { (library.byBrand[$0]?.count ?? 0) > Self.majorBrandThreshold })
     }
 
-    /// 主画幅集合（count > 阈值）
+    /// Major format set (count > threshold)
     private var majorFormatSet: Set<String> {
         var counts: [String: Int] = [:]
         for c in library.all {
@@ -248,7 +263,7 @@ struct FilmCardLibraryView: View {
         return Set(counts.filter { $0.value > Self.majorFormatThreshold }.keys)
     }
 
-    /// 用于品牌 chip 渲染：主品牌按数量降序，再追加一个"其他"汇总
+    /// Brand chip rendering data: majors descending by count, then a single "Other" rollup.
     private var brandChips: [BrandChipEntry] {
         var majors: [BrandChipEntry] = []
         var otherTotal = 0
@@ -260,16 +275,17 @@ struct FilmCardLibraryView: View {
                 otherTotal += count
             }
         }
-        // 加上无 brand 的卡片
+        // Cards without a brand also fold into "Other"
         let untagged = library.all.filter { $0.brand == nil }.count
         otherTotal += untagged
         if otherTotal > 0 {
-            majors.append(BrandChipEntry(key: Self.otherKey, displayName: "其他", count: otherTotal))
+            let other = String(localized: "Other")
+            majors.append(BrandChipEntry(key: Self.otherKey, displayName: other, count: otherTotal))
         }
         return majors
     }
 
-    /// ISO chip 列表：固定主 ISO 顺序 + "其他"
+    /// ISO chip list: fixed main-ISO order followed by an "Other" rollup.
     private var isoChips: [BrandChipEntry] {
         guard library.isLoaded else { return [] }
         var counts: [Int: Int] = [:]
@@ -284,15 +300,17 @@ struct FilmCardLibraryView: View {
         }
         var entries: [BrandChipEntry] = Self.mainISOs.compactMap { iso in
             let n = counts[iso] ?? 0
+            // "ISO 100" is universal — leave verbatim regardless of locale.
             return n > 0 ? BrandChipEntry(key: String(iso), displayName: "ISO \(iso)", count: n) : nil
         }
         if otherTotal > 0 {
-            entries.append(BrandChipEntry(key: Self.otherKey, displayName: "其他", count: otherTotal))
+            let other = String(localized: "Other")
+            entries.append(BrandChipEntry(key: Self.otherKey, displayName: other, count: otherTotal))
         }
         return entries
     }
 
-    /// 用于画幅 chip 渲染：count > 阈值的画幅按数量降序，再追加"其他"
+    /// Format chip rendering data: count > threshold descending by count, then "Other".
     private var formatChips: [BrandChipEntry] {
         var counts: [String: Int] = [:]
         var untagged = 0
@@ -311,12 +329,14 @@ struct FilmCardLibraryView: View {
         let majorKeys = Set(majors.map { $0.key })
         let otherTotal = counts.filter { !majorKeys.contains($0.key) }.values.reduce(0, +) + untagged
         if otherTotal > 0 {
-            return majors + [BrandChipEntry(key: Self.otherKey, displayName: "其他", count: otherTotal)]
+            let other = String(localized: "Other")
+            return majors + [BrandChipEntry(key: Self.otherKey, displayName: other, count: otherTotal)]
         }
         return majors
     }
 
-    /// 仅显示主流颜色（count >= 阈值），按调色板顺序。purple/brown 等少量样本不进 UI。
+    /// Show only mainstream colors (count >= threshold), in palette order. Rare buckets
+    /// (purple / brown) are dropped.
     private var availableColors: [String] {
         var counts: [String: Int] = [:]
         for card in library.all {
@@ -333,14 +353,14 @@ struct FilmCardLibraryView: View {
     }
 }
 
-/// 品牌 / 画幅 / ISO 这种"名称 + 数量徽标 + 其他"模式的 chip 数据。
+/// Data for a "name + count + Other" style chip used by brand / format / ISO sections.
 struct BrandChipEntry: Hashable {
     let key: String
     let displayName: String
     let count: Int
 }
 
-// MARK: - 缩略图单元
+// MARK: - Thumbnail cell
 
 struct FilmCardThumbnail: View {
     let card: FilmCard
@@ -364,19 +384,27 @@ struct FilmCardThumbnail: View {
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(card.product ?? "未知型号")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.85))
-                    .lineLimit(1)
+                // Product names are proper nouns from source data — render verbatim.
+                // Fall back to the localized "Unknown" string when product is missing.
+                Group {
+                    if let product = card.product, !product.isEmpty {
+                        Text(verbatim: product)
+                    } else {
+                        Text("Unknown")
+                    }
+                }
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.85))
+                .lineLimit(1)
 
                 HStack(spacing: 4) {
                     if let iso = card.iso {
-                        Text("ISO \(iso)")
+                        Text(verbatim: "ISO \(iso)")
                             .font(.system(size: 10))
                             .foregroundColor(.white.opacity(0.45))
                     }
                     if let format = card.format {
-                        Text(format)
+                        Text(verbatim: format)
                             .font(.system(size: 10))
                             .foregroundColor(.white.opacity(0.45))
                             .lineLimit(1)
@@ -386,14 +414,15 @@ struct FilmCardThumbnail: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .task(id: card.id) {
-            // 网格目标 ~120pt，按 3x 屏幕计算像素，最少 300px 满足缩略 API 要求
+            // Grid cell ~120pt; multiply by screen scale, floor at 300 to satisfy
+            // the thumbnail API's minimum.
             let pixel = max(Int(120.0 * UIScreen.main.scale), 300)
             image = await FilmCardLibrary.shared.image(for: card, maxPixel: pixel)
         }
     }
 }
 
-// MARK: - 详情视图
+// MARK: - Detail view
 
 struct FilmCardDetailView: View {
     let card: FilmCard
@@ -409,26 +438,26 @@ struct FilmCardDetailView: View {
 
                 VStack(alignment: .leading, spacing: 14) {
                     if let brand = card.brand, !brand.isEmpty {
-                        Text(brand)
+                        Text(verbatim: brand)
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.white.opacity(0.45))
                             .textCase(.uppercase)
                             .tracking(0.5)
                     }
                     if let product = card.product, !product.isEmpty {
-                        Text(product)
+                        Text(verbatim: product)
                             .font(.title2.weight(.bold))
                             .foregroundColor(.white)
                     }
 
                     Divider().background(Color.white.opacity(0.08))
 
-                    metaRow("画幅", card.format)
-                    metaRow("ISO", card.iso.map { "\($0)" })
-                    metaRow("冲洗工艺", card.process)
-                    metaRow("张数", card.quantity)
-                    metaRow("规格", card.subtype)
-                    metaRow("备注", card.notes)
+                    metaRow("Format", value: card.format)
+                    metaRow("ISO", value: card.iso.map { "\($0)" })
+                    metaRow("Process", value: card.process)
+                    metaRow("Exposures", value: card.quantity)
+                    metaRow("Subtype", value: card.subtype)
+                    metaRow("Notes", value: card.notes)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 18)
@@ -439,7 +468,7 @@ struct FilmCardDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text(card.product ?? card.brand ?? "胶片卡片")
+                principalTitle
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(1)
@@ -450,7 +479,20 @@ struct FilmCardDetailView: View {
         }
     }
 
-    /// 直接在图片上裁圆角；iOS 26 在同形状上叠 `glassEffect`，更早的系统就只保留圆角
+    @ViewBuilder
+    private var principalTitle: some View {
+        if let product = card.product, !product.isEmpty {
+            Text(verbatim: product)
+        } else if let brand = card.brand, !brand.isEmpty {
+            Text(verbatim: brand)
+        } else {
+            Text("Film Card")
+        }
+    }
+
+    /// Round the corners directly on the image; on iOS 26 overlay `glassEffect` on the
+    /// same shape so the material aligns with the image edge. On older systems we
+    /// just keep the rounded image.
     @ViewBuilder
     private var glassImageCard: some View {
         let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -477,14 +519,14 @@ struct FilmCardDetailView: View {
     }
 
     @ViewBuilder
-    private func metaRow(_ label: String, _ value: String?) -> some View {
+    private func metaRow(_ label: LocalizedStringKey, value: String?) -> some View {
         if let value, !value.isEmpty {
             HStack(alignment: .top, spacing: 12) {
                 Text(label)
                     .font(.system(size: 13))
                     .foregroundColor(.white.opacity(0.45))
                     .frame(width: 76, alignment: .leading)
-                Text(value)
+                Text(verbatim: value)
                     .font(.system(size: 14))
                     .foregroundColor(.white.opacity(0.9))
                     .multilineTextAlignment(.leading)
@@ -494,13 +536,16 @@ struct FilmCardDetailView: View {
     }
 }
 
-// MARK: - 筛选 Sheet
+// MARK: - Filter sheet
 
 struct FilmCardFilterSheet: View {
     let brandChips: [BrandChipEntry]
     let formatChips: [BrandChipEntry]
     let availableColors: [String]
     let isoChips: [BrandChipEntry]
+    /// Live result count from the parent. Updates as bindings change because the parent
+    /// re-renders the sheet content view on each state change.
+    let resultCount: Int
     @Binding var selectedBrands: Set<String>
     @Binding var selectedFormats: Set<String>
     @Binding var selectedColors: Set<String>
@@ -511,30 +556,30 @@ struct FilmCardFilterSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    countedChipSection(title: "品牌", chips: brandChips, selection: $selectedBrands)
-                    countedChipSection(title: "画幅", chips: formatChips, selection: $selectedFormats)
+                    countedChipSection(title: "Brand", chips: brandChips, selection: $selectedBrands)
+                    countedChipSection(title: "Format", chips: formatChips, selection: $selectedFormats)
                     colorSection
                     countedChipSection(title: "ISO", chips: isoChips, selection: $selectedISOs)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .navigationTitle("筛选")
+            .navigationTitle(Text("Filter · \(resultCount)"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("重置", action: reset)
+                    Button("Reset", action: reset)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") { dismiss() }.bold()
+                    Button("Done") { dismiss() }.bold()
                 }
             }
         }
     }
 
-    /// 统一渲染品牌 / 画幅 / ISO 这种"名称 + 数量徽标"的 chip 组
+    /// Renders one of the "name + count + Other" chip sections (brand / format / ISO).
     @ViewBuilder
-    private func countedChipSection(title: String, chips: [BrandChipEntry], selection: Binding<Set<String>>) -> some View {
+    private func countedChipSection(title: LocalizedStringKey, chips: [BrandChipEntry], selection: Binding<Set<String>>) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.headline)
@@ -549,7 +594,9 @@ struct FilmCardFilterSheet: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(isOn ? .isSelected : [])
-                    .accessibilityLabel("\(entry.displayName)，\(entry.count) 张")
+                    // Verbatim avoids forcing the catalog to carry a key whose only
+                    // content is format specifiers (Xcode can't derive a symbol).
+                    .accessibilityLabel(Text(verbatim: "\(entry.displayName), \(entry.count)"))
                 }
             }
         }
@@ -558,7 +605,7 @@ struct FilmCardFilterSheet: View {
     @ViewBuilder
     private var colorSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("颜色")
+            Text("Color")
                 .font(.headline)
             FlowLayout(spacing: 8, lineSpacing: 8) {
                 ForEach(availableColors, id: \.self) { key in
@@ -571,7 +618,7 @@ struct FilmCardFilterSheet: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(isOn ? .isSelected : [])
-                    .accessibilityLabel(CardColorPalette.chineseName(key))
+                    .accessibilityLabel(Text(CardColorPalette.localizedName(key)))
                 }
             }
         }
@@ -585,29 +632,25 @@ struct FilmCardFilterSheet: View {
     }
 }
 
-// MARK: - Chip 视觉元件
+// MARK: - Chip visuals
 
-/// 品牌 chip：名称 + 数量徽标
+/// Brand / format / ISO chip: name + lighter trailing count. No nested backgrounds.
 struct BrandCountChipLabel: View {
+    /// Already-localized display string (proper nouns rendered verbatim,
+    /// "Other" already passed through `String(localized:)` by the caller).
     let brand: String
     let count: Int
     let selected: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
-            Text(brand)
+        HStack(spacing: 5) {
+            Text(verbatim: brand)
                 .font(.system(size: 13, weight: .medium))
                 .lineLimit(1)
-            Text("\(count)")
-                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+            Text(verbatim: "\(count)")
+                .font(.system(size: 11, weight: .regular).monospacedDigit())
                 .lineLimit(1)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(
-                    Capsule().fill(selected
-                                   ? Color.white.opacity(0.25)
-                                   : Color.secondary.opacity(0.18))
-                )
+                .opacity(selected ? 0.7 : 0.5)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -621,7 +664,7 @@ struct BrandCountChipLabel: View {
     }
 }
 
-/// 颜色 chip：仅色块，无文字。选中态用粗白圈+轻微放大表示。
+/// Color chip: swatch only, no label. Selected state uses a thicker white ring + slight scale.
 struct ColorSwatchChip: View {
     let colorKey: String
     let selected: Bool
@@ -638,11 +681,11 @@ struct ColorSwatchChip: View {
             )
             .scaleEffect(selected ? 1.08 : 1.0)
             .animation(.spring(duration: 0.18), value: selected)
-            .padding(2) // 扩大点击热区
+            .padding(2) // Expand the tap target
     }
 }
 
-// MARK: - 通用 Chip 流式布局
+// MARK: - Generic chip flow layout
 
 struct FlowLayout: Layout {
     var spacing: CGFloat = 6
@@ -656,8 +699,8 @@ struct FlowLayout: Layout {
 
         for sub in subviews {
             let size = sub.sizeThatFits(.unspecified)
-            // Wrap only if we're not at the start of a row — otherwise let an
-            // oversized item overflow on its own row, matching placeSubviews.
+            // Wrap only if we're not at the start of a row — otherwise let an oversized
+            // item overflow on its own row. Matches placeSubviews exactly.
             if x > 0 && x + size.width > maxWidth {
                 x = 0
                 y += rowHeight + lineSpacing

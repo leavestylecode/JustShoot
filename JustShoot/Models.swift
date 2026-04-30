@@ -226,13 +226,15 @@ final class Photo: Identifiable {
     var lensInfo: String { parsedExif.lensInfo }
 }
 
-// 让 `#Predicate` 宏展开里的 `\Photo.filmPresetName`（`KeyPath<Photo, String?>`）
-// 满足 Swift 6 完全并发对捕获 Sendable 的要求。Swift 标准库没有声明
-// `AnyKeyPath: Sendable`，但属性 KeyPath 本身是不可变值；此处放宽到所有 KeyPath
-// 子类（KeyPath/WritableKeyPath/ReferenceWritableKeyPath 都继承自 AnyKeyPath）。
+// Lets the `KeyPath<Photo, String?>` captured by the `#Predicate` macro
+// expansion satisfy Swift 6 strict-concurrency's Sendable requirement on
+// captures. The standard library does not declare `AnyKeyPath: Sendable`,
+// but property KeyPaths are immutable values. The conformance here covers
+// every KeyPath subclass (KeyPath / WritableKeyPath / ReferenceWritableKeyPath
+// all inherit from AnyKeyPath).
 extension AnyKeyPath: @retroactive @unchecked Sendable {}
 
-// MARK: - 胶片预设与处理
+// MARK: - Film presets & processor
 enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
     case fujiC200
     case fujiPro400H
@@ -660,10 +662,10 @@ final class FilmProcessor: Sendable {
 
 }
 
-// MARK: - 胶片包装卡片图鉴
+// MARK: - Film packaging card library
 //
-// Resources/cards.json + Resources/cards/*.heic 共 550 张（去重后）。
-// JSON 含 96 个品牌的元数据，所有可空字段均可能为 null。
+// Resources/cards.json + Resources/cards/*.heic — 550 cards after dedup,
+// 96 distinct brands. Every optional field in the JSON may be null.
 
 struct FilmCard: Codable, Identifiable, Hashable, Sendable {
     let id: String
@@ -679,8 +681,8 @@ struct FilmCard: Codable, Identifiable, Hashable, Sendable {
     let quantity: String?
     let notes: String?
     let author: String?
-    /// 离线脚本（scripts/compute_card_colors.py）按主色粗略归类，10 桶之一：
-    /// red / orange / yellow / green / blue / purple / brown / black / white / gray
+    /// Coarse dominant-color classification produced by scripts/compute_card_colors.py.
+    /// One of 10 buckets: red / orange / yellow / green / blue / purple / brown / black / white / gray.
     let color: String?
 }
 
@@ -692,7 +694,9 @@ struct FilmCardBundle: Codable, Sendable {
     let cards: [FilmCard]
 }
 
-/// 卡片图像 NSCache + 磁盘下采样（与 ImageLoader 同模式，单独一份缓存避免互相挤占）
+/// NSCache-backed image loader for cards. Mirrors `ImageLoader`'s pattern but uses
+/// its own cache so the gallery's loaded photos and library card thumbnails don't
+/// evict each other.
 final class FilmCardImageCache: @unchecked Sendable {
     static let shared = FilmCardImageCache()
     private let cache = NSCache<NSString, UIImage>()
@@ -711,7 +715,8 @@ final class FilmCardImageCache: @unchecked Sendable {
         cache.object(forKey: "\(cardId)_\(maxPixel)" as NSString)
     }
 
-    /// 异步下采样加载。命中缓存直接返回；否则在 detached 任务里用 CGImageSource 缩略图。
+    /// Async downsampled load. Returns the cached image on hit; otherwise
+    /// produces a CGImageSource thumbnail on a detached task.
     func loadImage(card: FilmCard, maxPixel: Int) async -> UIImage? {
         let key = "\(card.id)_\(maxPixel)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
@@ -724,8 +729,10 @@ final class FilmCardImageCache: @unchecked Sendable {
 
             let nameNoExt = (imageName as NSString).deletingPathExtension
             let ext = (imageName as NSString).pathExtension
-            // Xcode 16 同步文件夹默认按 group 处理，资源会平铺到 bundle 根；
-            // 但若被识别为 folder reference，则需要 subdirectory: "cards"。两种都尝试。
+            // Xcode 16 synchronized groups treat subfolders as logical groups by
+            // default, so resources end up flat at bundle root. If the catalog
+            // were ever flipped to folder-reference mode the lookup would need
+            // `subdirectory: "cards"` — try that as a fallback.
             let url = Bundle.main.url(forResource: nameNoExt, withExtension: ext)
                 ?? Bundle.main.url(forResource: nameNoExt, withExtension: ext, subdirectory: "cards")
             guard let url else {
@@ -758,13 +765,16 @@ final class FilmCardLibrary {
 
     private(set) var all: [FilmCard] = []
     private(set) var byBrand: [String: [FilmCard]] = [:]
-    /// 按卡片数量降序的品牌名（同数量按字母升序）
+    /// Brand names sorted by card count descending; ties broken alphabetically.
+    /// Cards with no brand are kept in `all` but excluded from `byBrand` /
+    /// `sortedBrands`, so callers must aggregate untagged cards separately.
     private(set) var sortedBrands: [String] = []
     private(set) var isLoaded = false
 
     private init() {}
 
-    /// 解析 cards.json 并构建索引（detached 解析，主 actor 写入状态）。
+    /// Parses cards.json and builds the indexes (parse runs detached; the main
+    /// actor writes the resulting state).
     func loadIfNeeded() async {
         guard !isLoaded else { return }
 
@@ -785,7 +795,11 @@ final class FilmCardLibrary {
             return
         }
 
-        let grouped = Dictionary(grouping: parsed.cards) { ($0.brand?.isEmpty == false ? $0.brand! : "未知品牌") }
+        // Cards with nil/empty brand are intentionally not grouped — chip rendering
+        // surfaces them via a separate "untagged" count under the "Other" bucket.
+        let grouped = Dictionary(grouping: parsed.cards.filter { ($0.brand ?? "").isEmpty == false }) {
+            $0.brand!
+        }
         let brandOrder = grouped
             .map { ($0.key, $0.value.count) }
             .sorted { lhs, rhs in
@@ -801,7 +815,7 @@ final class FilmCardLibrary {
         timer.end("count=\(parsed.cards.count) brands=\(brandOrder.count)")
     }
 
-    /// 异步加载下采样后的卡片图（命中 NSCache 直接返回）。
+    /// Async downsampled card image load; cache hits return immediately.
     func image(for card: FilmCard, maxPixel: Int = 300) async -> UIImage? {
         await FilmCardImageCache.shared.loadImage(card: card, maxPixel: maxPixel)
     }
