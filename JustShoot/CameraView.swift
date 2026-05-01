@@ -985,12 +985,56 @@ class CameraManager: NSObject, ObservableObject {
                         captureSession.addInput(videoInput)
                     }
 
+                    // 选「最高分辨率的 4:3 active format」（要求 ≥30fps 预览支持）。
+                    // 数字裁切（35mm 模拟在 24mm 主摄上要 1.46×）需要充足原生像素垫底，
+                    // 否则 iOS 必须升采样输出，画面发软、噪点放大。高分辨率 active format
+                    // + 12MP 输出 = 降采样得到的 12MP 自然锐利、噪点低，不依赖 Deep Fusion
+                    // 后期补救（避免锐化过渡和涂抹痕迹）。
+                    // 顺带解决了 .photo preset 在某些机型把 activeFormat 落到 16:9 的兼容问题。
+                    let currentDims = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription)
+                    let bestFormat = device.formats
+                        .filter { fmt in
+                            let d = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
+                            guard d.width > 0, d.height > 0 else { return false }
+                            let aspect = Float(d.width) / Float(d.height)
+                            let supports30 = fmt.videoSupportedFrameRateRanges.contains { $0.maxFrameRate >= 30.0 }
+                            return abs(aspect - 4.0 / 3.0) < 0.02 && supports30
+                        }
+                        .max { lhs, rhs in
+                            let l = CMVideoFormatDescriptionGetDimensions(lhs.formatDescription)
+                            let r = CMVideoFormatDescriptionGetDimensions(rhs.formatDescription)
+                            return Int(l.width) * Int(l.height) < Int(r.width) * Int(r.height)
+                        }
+                    if let fmt = bestFormat {
+                        let newDims = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
+                        if newDims.width != currentDims.width || newDims.height != currentDims.height {
+                            do {
+                                try device.lockForConfiguration()
+                                device.activeFormat = fmt
+                                device.unlockForConfiguration()
+                                Log.session.info("active_format_switched from=\(currentDims.width)x\(currentDims.height) to=\(newDims.width)x\(newDims.height)")
+                            } catch {
+                                Log.session.error("active_format_lock_failed error=\(error.localizedDescription, privacy: .public)")
+                            }
+                        } else {
+                            Log.session.info("active_format_kept dims=\(currentDims.width)x\(currentDims.height)")
+                        }
+                    } else {
+                        Log.session.error("active_format_no_4_3_30fps_candidate dims=\(currentDims.width)x\(currentDims.height)")
+                    }
+
                     if captureSession.canAddOutput(output) {
                         captureSession.addOutput(output)
 
+                        // 胶片模拟只需要干净的传感器数据 + LUT；不走 Deep Fusion 的多帧合成路径
+                        // （它在数字裁切场景下容易锐化过渡、留下涂抹式低频降噪痕迹）。
+                        // 锐度由上面选好的高分辨率 active format 提供——大传感器降采样到 12MP，
+                        // 自然锐利、噪点低，无需后期算法补救。
+                        // isResponsiveCaptureEnabled 仅优化快门手感、不影响画质，保留。
+                        // isFastCapturePrioritizationEnabled 专为连拍设计、显式以画质换响应；单张拍摄关掉。
                         output.maxPhotoQualityPrioritization = .speed
                         output.isResponsiveCaptureEnabled = true
-                        output.isFastCapturePrioritizationEnabled = true
+                        output.isFastCapturePrioritizationEnabled = false
                         // 零快门延迟（ZSL）在支持设备上再减少 ~20ms 快门感知延迟
                         if output.isZeroShutterLagSupported {
                             output.isZeroShutterLagEnabled = true
@@ -999,15 +1043,24 @@ class CameraManager: NSObject, ObservableObject {
                         let format = device.activeFormat
                         let supportedDimensions = format.supportedMaxPhotoDimensions
 
-                        let preferred = supportedDimensions.filter { dim in
-                            let ratio = Float(dim.width) / Float(dim.height)
-                            return dim.width <= 4000 && abs(ratio - 4.0/3.0) < 0.1
-                        }.max { $0.width < $1.width }
+                        // 输出锁定 12MP 附近（4032×3024）。锐度来自 active format 高分辨率
+                        // 传感器数据的降采样；输出本身不需要更大——LUT/JPEG/磁盘压力都跟着大文件成倍长。
+                        let target = 4032 * 3024
+                        let preferred = supportedDimensions
+                            .filter { dim in
+                                let ratio = Float(dim.width) / Float(dim.height)
+                                return abs(ratio - 4.0/3.0) < 0.05
+                            }
+                            .min { lhs, rhs in
+                                let lDelta = abs(Int(lhs.width) * Int(lhs.height) - target)
+                                let rDelta = abs(Int(rhs.width) * Int(rhs.height) - target)
+                                return lDelta < rDelta
+                            }
 
                         if let selected = preferred {
                             output.maxPhotoDimensions = selected
-                        } else if let largest = supportedDimensions.max(by: { $0.width < $1.width }) {
-                            output.maxPhotoDimensions = largest
+                        } else if let smallest = supportedDimensions.min(by: { $0.width < $1.width }) {
+                            output.maxPhotoDimensions = smallest
                         }
                     }
 
@@ -1176,6 +1229,8 @@ class CameraManager: NSObject, ObservableObject {
 
         let issueTime = Log.now()
         let settings = AVCapturePhotoSettings()
+        // 与 photoOutput.maxPhotoQualityPrioritization 一致。.speed 跳过 Deep Fusion——
+        // 锐度依靠高分辨率 active format 降采样到 12MP，无需多帧合成补救，画面更干净。
         settings.photoQualityPrioritization = .speed
 
         if let device = videoCaptureDevice, device.hasFlash {
