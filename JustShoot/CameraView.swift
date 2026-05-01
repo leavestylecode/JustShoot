@@ -75,7 +75,10 @@ struct CameraView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .aspectRatio(3.0/4.0, contentMode: .fit)
+            // 2:3 纵向 = 135 全画幅胶片画幅。预览与成片对齐（在 applyLUTPreservingMetadata
+            // 里同步裁 4:3 → 2:3），35mm 档拍出来的视场和真 135/35mm 一致：横向、纵向、画幅
+            // 三件套全对得上，不再是「同对角 FOV 的 4:3 框」。
+            .aspectRatio(2.0/3.0, contentMode: .fit)
             .padding(.horizontal, 4)
 
             // 权限被拒绝时的引导
@@ -499,72 +502,114 @@ enum FocalLengthOption: Int, CaseIterable, Identifiable {
     var label: String { "\(rawValue)" }
 }
 
-// MARK: - 设备焦段信息（session 配置后计算，使用实际 zoom 范围）
+// MARK: - AVCaptureDevice 焦距/镜头辅助（iOS 26+）
+extension AVCaptureDevice {
+    /// 物理镜头的真实 35mm 等效焦距。虚拟设备本身返回 0，此处遍历
+    /// `constituentDevices` 拿指定类型的物理镜头读 `nominalFocalLengthIn35mmFilm`。
+    /// 单一物理设备返回自身（如果类型匹配）。
+    func physicalFocalLength(for type: AVCaptureDevice.DeviceType) -> Float? {
+        if isVirtualDevice {
+            guard let constituent = constituentDevices.first(where: { $0.deviceType == type }) else {
+                return nil
+            }
+            let v = constituent.nominalFocalLengthIn35mmFilm
+            return v > 0 ? v : nil
+        }
+        if deviceType == type {
+            let v = nominalFocalLengthIn35mmFilm
+            return v > 0 ? v : nil
+        }
+        return nil
+    }
+
+    /// 预测给定 zoom 在虚拟设备上会激活哪颗物理 constituent。
+    /// 算法：按 `virtualDeviceSwitchOverVideoZoomFactors` 数索引，再跳过当前 format 不可达的镜头
+    /// （如某些 4:3 高分辨率 format 下 ultra wide 不可用）。
+    /// 单一物理设备返回 self。
+    func predictedConstituent(forZoom zoom: CGFloat, baseMm: Float) -> AVCaptureDevice {
+        guard isVirtualDevice, !constituentDevices.isEmpty else { return self }
+        let switchovers = virtualDeviceSwitchOverVideoZoomFactors.map { CGFloat($0.doubleValue) }
+        let minZoom = minAvailableVideoZoomFactor
+
+        var idx = 0
+        for sw in switchovers where zoom >= sw { idx += 1 }
+        idx = min(idx, constituentDevices.count - 1)
+
+        // 当前 constituent 的原生 zoom 若 < minZoom（典型：UW 在高分辨率 4:3 format 下不可达），
+        // 推进到下一颗可达的
+        while idx < constituentDevices.count - 1 {
+            let mm = constituentDevices[idx].nominalFocalLengthIn35mmFilm
+            guard mm > 0, baseMm > 0 else { break }
+            let nativeZoom = CGFloat(mm / baseMm)
+            if nativeZoom >= minZoom - 0.01 { break }
+            idx += 1
+        }
+        return constituentDevices[idx]
+    }
+}
+
+// MARK: - 设备焦段信息（session 配置后计算，使用 iOS 26 真实焦距 API）
 struct DeviceFocalInfo {
     /// 可用焦段选项
     let options: [FocalLengthOption]
-    /// 每个物理镜头的原生 zoom factor（switchover 点），用于判断是否数字裁切
-    let nativeZoomFactors: [CGFloat]
-    /// 设备基准等效焦距（zoom 1.0 对应的 mm）
+    /// 设备基准等效焦距（zoom 1.0 对应的 mm，即主摄 wide 的 35mm 等效）
     let baseMm: Float
+    /// 这些档位是物理镜头原生焦距（不是数字裁切）。预计算，UI 层直接查询。
+    private let opticalOptions: Set<FocalLengthOption>
 
     /// 判断某焦段是否为纯数字裁切
     func isDigitalCrop(_ option: FocalLengthOption) -> Bool {
-        let zoom = CGFloat(option.mm / baseMm)
-        for nz in nativeZoomFactors {
-            if abs(zoom - nz) / nz < 0.08 { return false }
-        }
-        return true
+        !opticalOptions.contains(option)
     }
 
     /// 默认值（session 未配置前的临时占位）
-    static let placeholder = DeviceFocalInfo(options: [.mm24, .mm35], nativeZoomFactors: [1.0], baseMm: 24.0)
+    static let placeholder = DeviceFocalInfo(options: [.mm24, .mm35], baseMm: 24.0, opticalOptions: [.mm24])
 
-    /// 在 session 配置后调用，使用设备的实际 zoom 范围
-    static func from(device: AVCaptureDevice, baseMm: Float) -> DeviceFocalInfo {
-        let base = baseMm > 0 ? baseMm : 26.0
-        let hasTele = device.constituentDevices.contains { $0.deviceType == .builtInTelephotoCamera }
+    /// 在 session 配置后调用：从设备和 active format 读出真实可用档位。
+    static func from(device: AVCaptureDevice) -> DeviceFocalInfo {
+        // baseMm = 主摄 wide 的真实 35mm 等效。虚拟设备走 constituent，单镜头走 self。
+        let baseMm = device.physicalFocalLength(for: .builtInWideAngleCamera)
+            ?? (device.nominalFocalLengthIn35mmFilm > 0 ? device.nominalFocalLengthIn35mmFilm : 26.0)
 
-        let switchovers = device.virtualDeviceSwitchOverVideoZoomFactors.map { CGFloat($0.doubleValue) }
+        let teleNativeMm = device.physicalFocalLength(for: .builtInTelephotoCamera) ?? 0
+        let uwNativeMm = device.physicalFocalLength(for: .builtInUltraWideCamera) ?? 0
         let minZoom = device.minAvailableVideoZoomFactor
         let maxZoom = device.activeFormat.videoMaxZoomFactor
 
-        // 物理镜头原生 zoom 点
-        // virtualDeviceSwitchOverVideoZoomFactors 是策略性切换阈值，不是物理镜头 zoom——
-        // 中间值（如 Triple Camera 的 [2.0, 5.0] 中的 2.0）没有对应物理镜头。
-        // 经验上 last 等于 Tele 的物理 zoom（11 Pro=2x、13/14/15/16 Pro=3x、Pro Max 5x、17 Pro=4x）。
-        var nativeZooms: [CGFloat] = []
-        if minZoom < 0.99 { nativeZooms.append(minZoom) }  // 超广角
-        nativeZooms.append(1.0)  // 主摄
-        if let tele = switchovers.last, tele > 1.0 { nativeZooms.append(tele) }  // 长焦
-
-        // 长焦原生等效 mm
-        let teleNativeMm: Float = switchovers.last.map { base * Float($0) } ?? 0
-
-        // 所有候选焦段
         let allCandidates: [FocalLengthOption] = [.mm13, .mm24, .mm35, .mm50, .mm100, .mm200]
 
-        // 过滤：zoom 必须在设备实际可用范围内
+        // 1) zoom 必须在当前 format 范围内
         var options = allCandidates.filter { opt in
-            let zoom = CGFloat(opt.mm / base)
+            let zoom = CGFloat(opt.mm / baseMm)
             return zoom >= minZoom - 0.01 && zoom <= maxZoom + 0.01
         }
 
-        // 如果没有长焦，移除 100/200（纯数字裁切太多不实用）
-        if !hasTele {
+        // 2) 长焦不存在或太短：移除依赖长焦的档位
+        if teleNativeMm <= 0 {
             options.removeAll { $0 == .mm100 || $0 == .mm200 }
         } else {
-            // 有长焦但原生焦距不够的，也移除
             if teleNativeMm < 70 { options.removeAll { $0 == .mm100 } }
             if teleNativeMm < 100 { options.removeAll { $0 == .mm200 } }
         }
-
-        // 确保至少有 24mm
         if !options.contains(.mm24) { options.insert(.mm24, at: 0) }
 
-        Log.session.info("focal_info baseMm=\(base) minZoom=\(String(format: "%.2f", minZoom)) maxZoom=\(String(format: "%.1f", maxZoom)) native=\(nativeZooms.map { String(format: "%.2f", $0) }) options=\(options.map { $0.rawValue })")
+        // 3) 计算每个档位实际会用哪颗物理镜头，用其原生焦距判断是否 optical native。
+        // 这里考虑了 switchover 策略：例如 17 Pro 的 100mm（zoom 4.17×）在 switchover [2,8] 下
+        // 实际用 wide 数字裁切，而不是长焦原生（长焦在 ≥8× 才激活）。
+        var opticalOptions: Set<FocalLengthOption> = []
+        for opt in options {
+            let zoom = CGFloat(opt.mm / baseMm)
+            let constituent = device.predictedConstituent(forZoom: zoom, baseMm: baseMm)
+            let nativeMm = constituent.nominalFocalLengthIn35mmFilm
+            let effective = nativeMm > 0 ? nativeMm : (constituent === device ? baseMm : 0)
+            if effective > 0, abs(opt.mm - effective) / effective < 0.08 {
+                opticalOptions.insert(opt)
+            }
+        }
 
-        return DeviceFocalInfo(options: options, nativeZoomFactors: nativeZooms, baseMm: base)
+        Log.session.info("focal_info baseMm=\(baseMm) tele=\(teleNativeMm)mm uw=\(uwNativeMm)mm switchovers=\(device.virtualDeviceSwitchOverVideoZoomFactors.map { String(format: "%.2f", $0.doubleValue) }) minZoom=\(String(format: "%.2f", minZoom)) maxZoom=\(String(format: "%.1f", maxZoom)) options=\(options.map { $0.rawValue }) optical=\(opticalOptions.map { $0.rawValue }.sorted())")
+
+        return DeviceFocalInfo(options: options, baseMm: baseMm, opticalOptions: opticalOptions)
     }
 }
 
@@ -643,7 +688,6 @@ class CameraManager: NSObject, ObservableObject {
     let hapticSoft = UIImpactFeedbackGenerator(style: .soft)
 
     // 等效焦距
-    private var device35mmEquivalentFocalLength: Float = 0.0
     @Published var currentFocalLength: FocalLengthOption = .mm35
     @Published var focalInfo: DeviceFocalInfo = .placeholder
     @Published var currentZoomFactor: CGFloat = 1.0
@@ -705,6 +749,7 @@ class CameraManager: NSObject, ObservableObject {
     private let tapFocusHoldDuration: TimeInterval = 3.0
     private var focusObservation: NSKeyValueObservation?
     private var pressureObservation: NSKeyValueObservation?
+    private var constituentObservation: NSKeyValueObservation?
     /// 进入相机时启动 session 的任务句柄；离开时取消，避免在 sessionQueue 上做完整 startRunning 后又被立即停止
     private var startupTask: Task<Void, Never>?
     /// 正常情况下的目标帧率；由 sessionQueue 写入、压力回调 KVO 读取，用锁保护避免数据竞争
@@ -715,7 +760,6 @@ class CameraManager: NSObject, ObservableObject {
         super.init()
         if let device = Self.bestAvailableBackCamera() {
             videoCaptureDevice = device
-            readCameraSpecs(device: device)
             Log.session.info("camera_device_selected name=\(device.localizedName, privacy: .public) constituents=\(device.constituentDevices.count)")
         }
         setupOrientationMonitoring()
@@ -1108,8 +1152,8 @@ class CameraManager: NSObject, ObservableObject {
         rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
         videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
 
-        // Session 已配置，此时 minAvailableVideoZoomFactor 准确
-        focalInfo = DeviceFocalInfo.from(device: device, baseMm: device35mmEquivalentFocalLength)
+        // Session 已配置，此时 minAvailableVideoZoomFactor 准确，nominalFocalLengthIn35mmFilm 也已可用
+        focalInfo = DeviceFocalInfo.from(device: device)
         if !focalInfo.options.contains(currentFocalLength) {
             currentFocalLength = focalInfo.options.contains(.mm35) ? .mm35 : (focalInfo.options.first ?? .mm24)
         }
@@ -1117,6 +1161,8 @@ class CameraManager: NSObject, ObservableObject {
         applyFocalLength(currentFocalLength, animated: false)
         applyVideoOrientationToOutputs()
         configTimer.end("zoom=\(String(format: "%.2f", currentZoomFactor))x")
+
+        dumpLensSpecs(device: device)
 
         // Camera Control 硬件支持（iPhone 16+）：离散焦段选择器
         if videoCaptureDevice != nil {
@@ -1180,6 +1226,18 @@ class CameraManager: NSObject, ObservableObject {
                 Task { @MainActor in
                     self.onFocusCompleted()
                 }
+            }
+        }
+
+        // KVO: 实际激活的物理 constituent（iOS 16+）。zoom 跨过 switchover、弱光降级、自动微距
+        // 都会改变它。日志可看到「当前到底是哪颗镜头在拍」，便于校准 isDigitalCrop 判断。
+        if let device = videoCaptureDevice {
+            constituentObservation = device.observe(
+                \.activePrimaryConstituent, options: [.new, .initial]
+            ) { dev, _ in
+                let lens = dev.activePrimaryConstituent?.localizedName ?? "nil"
+                let mm = dev.activePrimaryConstituent?.nominalFocalLengthIn35mmFilm ?? 0
+                Log.session.info("active_lens lens=\(lens, privacy: .public) native_mm=\(String(format: "%.1f", mm)) zoom=\(String(format: "%.2f", dev.videoZoomFactor))")
             }
         }
 
@@ -1284,82 +1342,104 @@ class CameraManager: NSObject, ObservableObject {
         flashMode = (flashMode == .on) ? .off : .on
     }
 
-    // MARK: - 35mm 焦距
+    // MARK: - 设备数据 dump（调试用）
 
-    private func readCameraSpecs(device: AVCaptureDevice) {
-        device35mmEquivalentFocalLength = estimate35mmEquivalentFocalLength()
+    /// 一次性打印当前后置镜头/会话的所有可读数据，便于调试与设备适配。
+    /// 必须在 session 配置完成后调用，否则 activeFormat / 缩放范围 / maxPhotoDimensions 会读到默认值。
+    private func dumpLensSpecs(device: AVCaptureDevice) {
+        let log = Log.session
+        let modelID = Self.hardwareModelIdentifier()
+        let pos: String = {
+            switch device.position {
+            case .back: return "back"
+            case .front: return "front"
+            case .unspecified: return "unspecified"
+            @unknown default: return "unknown"
+            }
+        }()
+
+        log.info("📷 lens_dump_begin hw=\(modelID, privacy: .public)")
+
+        // 1) 设备身份
+        log.info("📷 device id=\(device.uniqueID, privacy: .public) name=\(device.localizedName, privacy: .public) modelID=\(device.modelID, privacy: .public) manufacturer=\(device.manufacturer, privacy: .public) type=\(device.deviceType.rawValue, privacy: .public) position=\(pos, privacy: .public) virtual=\(device.isVirtualDevice)")
+
+        // 2) 多摄系统的物理子镜头（包含 iOS 26 的真实 35mm 等效焦距）
+        if !device.constituentDevices.isEmpty {
+            for (i, sub) in device.constituentDevices.enumerated() {
+                let subDims = CMVideoFormatDescriptionGetDimensions(sub.activeFormat.formatDescription)
+                log.info("📷 constituent[\(i)] type=\(sub.deviceType.rawValue, privacy: .public) name=\(sub.localizedName, privacy: .public) focal35mm=\(String(format: "%.1f", sub.nominalFocalLengthIn35mmFilm))mm aperture=f/\(String(format: "%.2f", sub.lensAperture)) fov=\(String(format: "%.2f", sub.activeFormat.videoFieldOfView))° dims=\(subDims.width)x\(subDims.height)")
+            }
+            let switchovers = device.virtualDeviceSwitchOverVideoZoomFactors.map { String(format: "%.2f", $0.doubleValue) }
+            log.info("📷 virtual_switchovers=\(switchovers, privacy: .public)")
+        }
+
+        // 3) 镜头光学（baseMm 来自 iOS 26 的 nominalFocalLengthIn35mmFilm）
+        let activeLens = device.activePrimaryConstituent?.localizedName ?? "n/a"
+        let activeMm = device.activePrimaryConstituent?.nominalFocalLengthIn35mmFilm ?? 0
+        log.info("📷 optics aperture=f/\(String(format: "%.2f", device.lensAperture)) baseMm=\(self.focalInfo.baseMm) active_lens=\(activeLens, privacy: .public) active_focal35mm=\(String(format: "%.1f", activeMm))mm focalOptions=\(self.focalInfo.options.map { $0.rawValue }, privacy: .public)")
+
+        // 4) 缩放范围 / 当前缩放
+        let fmt = device.activeFormat
+        log.info("📷 zoom min=\(String(format: "%.2f", device.minAvailableVideoZoomFactor)) max=\(String(format: "%.2f", device.maxAvailableVideoZoomFactor)) format_max=\(String(format: "%.2f", fmt.videoMaxZoomFactor)) current=\(String(format: "%.3f", device.videoZoomFactor)) upscale_threshold=\(String(format: "%.2f", fmt.videoZoomFactorUpscaleThreshold))")
+
+        // 5) 当前 active format
+        let dims = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
+        let fpsRanges = fmt.videoSupportedFrameRateRanges
+            .map { "\(Int($0.minFrameRate))–\(Int($0.maxFrameRate))" }
+            .joined(separator: ",")
+        let colorSpaces = fmt.supportedColorSpaces.map { String(describing: $0) }.joined(separator: ",")
+        log.info("📷 active_format dims=\(dims.width)x\(dims.height) fov=\(String(format: "%.2f", fmt.videoFieldOfView))° fps=[\(fpsRanges, privacy: .public)] iso=\(Int(fmt.minISO))–\(Int(fmt.maxISO)) exposure=\(CMTimeGetSeconds(fmt.minExposureDuration))s–\(CMTimeGetSeconds(fmt.maxExposureDuration))s binned=\(fmt.isVideoBinned) hdr=\(fmt.isVideoHDRSupported) color_spaces=[\(colorSpaces, privacy: .public)] active_color=\(String(describing: device.activeColorSpace), privacy: .public)")
+
+        // 6) 照片输出能力
+        let photoDims = fmt.supportedMaxPhotoDimensions
+            .map { "\($0.width)x\($0.height)" }
+            .joined(separator: ",")
+        let outDims = photoOutput.maxPhotoDimensions
+        log.info("📷 photo_caps supported=[\(photoDims, privacy: .public)] selected=\(outDims.width)x\(outDims.height) responsive=\(self.photoOutput.isResponsiveCaptureEnabled) fast_capture=\(self.photoOutput.isFastCapturePrioritizationEnabled) zsl=\(self.photoOutput.isZeroShutterLagEnabled) constant_color=\(self.photoOutput.isConstantColorSupported)")
+
+        // 7) 闪光灯/低光增强
+        log.info("📷 flash has_flash=\(device.hasFlash) flash_available=\(device.isFlashAvailable) torch=\(device.hasTorch) low_light_supported=\(device.isLowLightBoostSupported) low_light_active=\(device.isLowLightBoostEnabled)")
+
+        // 8) 对焦/曝光/白平衡 模式
+        let focusModes: [(AVCaptureDevice.FocusMode, String)] = [(.locked, "locked"), (.autoFocus, "auto"), (.continuousAutoFocus, "continuous")]
+        let supportedFocus = focusModes.filter { device.isFocusModeSupported($0.0) }.map { $0.1 }.joined(separator: ",")
+        let exposureModes: [(AVCaptureDevice.ExposureMode, String)] = [(.locked, "locked"), (.autoExpose, "auto"), (.continuousAutoExposure, "continuous"), (.custom, "custom")]
+        let supportedExposure = exposureModes.filter { device.isExposureModeSupported($0.0) }.map { $0.1 }.joined(separator: ",")
+        let wbModes: [(AVCaptureDevice.WhiteBalanceMode, String)] = [(.locked, "locked"), (.autoWhiteBalance, "auto"), (.continuousAutoWhiteBalance, "continuous")]
+        let supportedWB = wbModes.filter { device.isWhiteBalanceModeSupported($0.0) }.map { $0.1 }.joined(separator: ",")
+        log.info("📷 modes focus_supported=[\(supportedFocus, privacy: .public)] focus_current=\(device.focusMode.rawValue) exposure_supported=[\(supportedExposure, privacy: .public)] exposure_current=\(device.exposureMode.rawValue) wb_supported=[\(supportedWB, privacy: .public)] wb_current=\(device.whiteBalanceMode.rawValue) smooth_focus=\(device.isSmoothAutoFocusEnabled) subject_area_monitor=\(device.isSubjectAreaChangeMonitoringEnabled)")
+
+        // 9) 实时曝光/对焦读数（瞬时值，仅供参考）
+        let expSec = CMTimeGetSeconds(device.exposureDuration)
+        let expReadable = expSec > 0 && expSec < 1 ? "1/\(Int(round(1.0 / expSec)))s" : String(format: "%.3fs", expSec)
+        let wbGains = device.deviceWhiteBalanceGains
+        log.info("📷 live iso=\(Int(device.iso)) exposure=\(expReadable, privacy: .public) lens_position=\(String(format: "%.3f", device.lensPosition)) target_bias=\(String(format: "%.2f", device.exposureTargetBias))ev target_offset=\(String(format: "%.2f", device.exposureTargetOffset))ev bias_range=\(String(format: "%.1f", device.minExposureTargetBias))–\(String(format: "%.1f", device.maxExposureTargetBias)) wb_gains=[r=\(String(format: "%.2f", wbGains.redGain)) g=\(String(format: "%.2f", wbGains.greenGain)) b=\(String(format: "%.2f", wbGains.blueGain))] wb_max_gain=\(String(format: "%.2f", device.maxWhiteBalanceGain)) pressure=\(device.systemPressureState.level.rawValue, privacy: .public)")
+
+        // 10) 全部 format 列表（精简：dims + fov + 最大帧率）
+        for (i, f) in device.formats.enumerated() {
+            let d = CMVideoFormatDescriptionGetDimensions(f.formatDescription)
+            let maxFPS = f.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 0
+            let isActive = (f === fmt) ? " *" : ""
+            log.info("📷 format[\(i)]\(isActive, privacy: .public) dims=\(d.width)x\(d.height) fov=\(String(format: "%.1f", f.videoFieldOfView))° max_fps=\(Int(maxFPS)) binned=\(f.isVideoBinned) hdr=\(f.isVideoHDRSupported)")
+        }
+
+        log.info("📷 lens_dump_end")
     }
 
-    private func estimate35mmEquivalentFocalLength() -> Float {
-        let modelName = getModelIdentifier()
-        if modelName.contains("17 Pro") { return 24.0 }
-        if modelName.contains("17") { return 24.0 }
-        if modelName.contains("16e") { return 26.0 }
-        if modelName.contains("16 Pro") { return 24.0 }
-        if modelName.contains("16") { return 26.0 }
-        if modelName.contains("15 Pro") { return 24.0 }
-        if modelName.contains("15") { return 26.0 }
-        if modelName.contains("14") || modelName.contains("13") || modelName.contains("12") ||
-           modelName.contains("11") || modelName.contains("XS") || modelName.contains("XR") { return 26.0 }
-        if modelName.contains("8") || modelName.contains("7") || modelName.contains("6") { return 28.0 }
-        return 26.0
-    }
-
-    private func getModelIdentifier() -> String {
+    /// 原始硬件标识（如 "iPhone18,3"）。仅用于日志排查，不再参与焦距推算
+    /// （iOS 26 的 `nominalFocalLengthIn35mmFilm` 已让查表式硬编码彻底过时）。
+    private static func hardwareModelIdentifier() -> String {
         #if targetEnvironment(simulator)
-        return "iPhone 15 Pro (Simulator)"
+        return ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "Simulator"
         #else
         var systemInfo = utsname()
         uname(&systemInfo)
-        let machineMirror = Mirror(reflecting: systemInfo.machine)
-        let identifier = machineMirror.children.reduce("") { identifier, element in
-            guard let value = element.value as? Int8, value != 0 else { return identifier }
-            return identifier + String(Character(UnicodeScalar(UInt8(value))))
+        let mirror = Mirror(reflecting: systemInfo.machine)
+        return mirror.children.reduce("") { acc, el in
+            guard let v = el.value as? Int8, v != 0 else { return acc }
+            return acc + String(Character(UnicodeScalar(UInt8(v))))
         }
-        return deviceModelName(from: identifier)
         #endif
-    }
-
-    private func deviceModelName(from identifier: String) -> String {
-        switch identifier {
-        case "iPhone18,1": return "iPhone 17"
-        case "iPhone18,2": return "iPhone 17 Air"
-        case "iPhone18,3": return "iPhone 17 Pro"
-        case "iPhone18,4": return "iPhone 17 Pro Max"
-        case "iPhone17,5": return "iPhone 16e"
-        case "iPhone17,1": return "iPhone 16"
-        case "iPhone17,2": return "iPhone 16 Plus"
-        case "iPhone17,3": return "iPhone 16 Pro"
-        case "iPhone17,4": return "iPhone 16 Pro Max"
-        case "iPhone16,1": return "iPhone 15"
-        case "iPhone16,2": return "iPhone 15 Plus"
-        case "iPhone16,3": return "iPhone 15 Pro"
-        case "iPhone16,4": return "iPhone 15 Pro Max"
-        case "iPhone15,4": return "iPhone 14"
-        case "iPhone15,5": return "iPhone 14 Plus"
-        case "iPhone15,2": return "iPhone 14 Pro"
-        case "iPhone15,3": return "iPhone 14 Pro Max"
-        case "iPhone14,4": return "iPhone 13 mini"
-        case "iPhone14,5": return "iPhone 13"
-        case "iPhone14,6", "iPhone14,2": return "iPhone 13 Pro"
-        case "iPhone14,3": return "iPhone 13 Pro Max"
-        case "iPhone13,1": return "iPhone 12 mini"
-        case "iPhone13,2": return "iPhone 12"
-        case "iPhone13,3": return "iPhone 12 Pro"
-        case "iPhone13,4": return "iPhone 12 Pro Max"
-        case "iPhone12,1": return "iPhone 11"
-        case "iPhone12,3": return "iPhone 11 Pro"
-        case "iPhone12,5": return "iPhone 11 Pro Max"
-        case "iPhone11,2": return "iPhone XS"
-        case "iPhone11,4", "iPhone11,6": return "iPhone XS Max"
-        case "iPhone11,8": return "iPhone XR"
-        case "iPhone10,3", "iPhone10,6": return "iPhone X"
-        case "iPhone10,1", "iPhone10,4": return "iPhone 8"
-        case "iPhone10,2", "iPhone10,5": return "iPhone 8 Plus"
-        case "iPhone9,1", "iPhone9,3": return "iPhone 7"
-        case "iPhone9,2", "iPhone9,4": return "iPhone 7 Plus"
-        default: return "iPhone (\(identifier))"
-        }
     }
 
     /// 外部入口：切换等效焦距
@@ -1487,6 +1567,8 @@ class CameraManager: NSObject, ObservableObject {
         zoomObservation = nil
         pressureObservation?.invalidate()
         pressureObservation = nil
+        constituentObservation?.invalidate()
+        constituentObservation = nil
         // 取消 NotificationCenter observer（deinit 因 Swift 6 隔离规则无法访问这些属性）
         if let observer = orientationObserver {
             NotificationCenter.default.removeObserver(observer)
