@@ -502,114 +502,73 @@ enum FocalLengthOption: Int, CaseIterable, Identifiable {
     var label: String { "\(rawValue)" }
 }
 
-// MARK: - AVCaptureDevice 焦距/镜头辅助（iOS 26+）
-extension AVCaptureDevice {
-    /// 物理镜头的真实 35mm 等效焦距。虚拟设备本身返回 0，此处遍历
-    /// `constituentDevices` 拿指定类型的物理镜头读 `nominalFocalLengthIn35mmFilm`。
-    /// 单一物理设备返回自身（如果类型匹配）。
-    func physicalFocalLength(for type: AVCaptureDevice.DeviceType) -> Float? {
-        if isVirtualDevice {
-            guard let constituent = constituentDevices.first(where: { $0.deviceType == type }) else {
-                return nil
-            }
-            let v = constituent.nominalFocalLengthIn35mmFilm
-            return v > 0 ? v : nil
-        }
-        if deviceType == type {
-            let v = nominalFocalLengthIn35mmFilm
-            return v > 0 ? v : nil
-        }
-        return nil
-    }
-
-    /// 预测给定 zoom 在虚拟设备上会激活哪颗物理 constituent。
-    /// 算法：按 `virtualDeviceSwitchOverVideoZoomFactors` 数索引，再跳过当前 format 不可达的镜头
-    /// （如某些 4:3 高分辨率 format 下 ultra wide 不可用）。
-    /// 单一物理设备返回 self。
-    func predictedConstituent(forZoom zoom: CGFloat, baseMm: Float) -> AVCaptureDevice {
-        guard isVirtualDevice, !constituentDevices.isEmpty else { return self }
-        let switchovers = virtualDeviceSwitchOverVideoZoomFactors.map { CGFloat($0.doubleValue) }
-        let minZoom = minAvailableVideoZoomFactor
-
-        var idx = 0
-        for sw in switchovers where zoom >= sw { idx += 1 }
-        idx = min(idx, constituentDevices.count - 1)
-
-        // 当前 constituent 的原生 zoom 若 < minZoom（典型：UW 在高分辨率 4:3 format 下不可达），
-        // 推进到下一颗可达的
-        while idx < constituentDevices.count - 1 {
-            let mm = constituentDevices[idx].nominalFocalLengthIn35mmFilm
-            guard mm > 0, baseMm > 0 else { break }
-            let nativeZoom = CGFloat(mm / baseMm)
-            if nativeZoom >= minZoom - 0.01 { break }
-            idx += 1
-        }
-        return constituentDevices[idx]
-    }
-}
-
-// MARK: - 设备焦段信息（session 配置后计算，使用 iOS 26 真实焦距 API）
+// MARK: - 设备焦段信息（基于物理 wide + telephoto，不走虚拟设备）
 struct DeviceFocalInfo {
     /// 可用焦段选项
     let options: [FocalLengthOption]
-    /// 设备基准等效焦距（zoom 1.0 对应的 mm，即主摄 wide 的 35mm 等效）
-    let baseMm: Float
-    /// 这些档位是物理镜头原生焦距（不是数字裁切）。预计算，UI 层直接查询。
-    private let opticalOptions: Set<FocalLengthOption>
+    /// 主摄 W 的 35mm 等效焦距（如 17 Pro = 24mm）
+    let wideMm: Float
+    /// 长焦 T 的 35mm 等效焦距（0 表示无长焦）
+    let teleMm: Float
 
-    /// 判断某焦段是否为纯数字裁切
+    /// 该档位应使用哪颗物理镜头。100mm/200mm 优先 telephoto；其余用 wide。
+    func deviceType(for option: FocalLengthOption) -> AVCaptureDevice.DeviceType {
+        if (option == .mm100 || option == .mm200) && teleMm > 0 {
+            return .builtInTelephotoCamera
+        }
+        return .builtInWideAngleCamera
+    }
+
+    /// 该档位在目标镜头上的 zoom factor（mm ÷ 该镜头原生 mm）
+    func zoomFactor(for option: FocalLengthOption) -> CGFloat {
+        let nativeMm = (deviceType(for: option) == .builtInTelephotoCamera) ? teleMm : wideMm
+        guard nativeMm > 0 else { return 1.0 }
+        return CGFloat(option.mm / nativeMm)
+    }
+
+    /// 是否纯数字裁切（zoom 显著大于 1.0× = 不是镜头原生视野）
     func isDigitalCrop(_ option: FocalLengthOption) -> Bool {
-        !opticalOptions.contains(option)
+        zoomFactor(for: option) > 1.05
     }
 
     /// 默认值（session 未配置前的临时占位）
-    static let placeholder = DeviceFocalInfo(options: [.mm24, .mm35], baseMm: 24.0, opticalOptions: [.mm24])
+    static let placeholder = DeviceFocalInfo(options: [.mm24, .mm35], wideMm: 24, teleMm: 0)
 
-    /// 在 session 配置后调用：从设备和 active format 读出真实可用档位。
-    static func from(device: AVCaptureDevice) -> DeviceFocalInfo {
-        // baseMm = 主摄 wide 的真实 35mm 等效。虚拟设备走 constituent，单镜头走 self。
-        let baseMm = device.physicalFocalLength(for: .builtInWideAngleCamera)
-            ?? (device.nominalFocalLengthIn35mmFilm > 0 ? device.nominalFocalLengthIn35mmFilm : 26.0)
+    /// 在 wide/tele 设备 activeFormat 已配置好之后调用。
+    /// - Parameter wide: 必须存在；用于读 wideMm 和 zoom 上限
+    /// - Parameter tele: 可选；存在则启用 100/200mm 档位
+    static func from(wide: AVCaptureDevice, tele: AVCaptureDevice?) -> DeviceFocalInfo {
+        let wideMm = wide.nominalFocalLengthIn35mmFilm > 0 ? wide.nominalFocalLengthIn35mmFilm : 26.0
+        let teleMm = (tele?.nominalFocalLengthIn35mmFilm ?? 0) > 0 ? (tele?.nominalFocalLengthIn35mmFilm ?? 0) : 0
+        let wideMaxZoom = wide.activeFormat.videoMaxZoomFactor
+        let teleMaxZoom = tele?.activeFormat.videoMaxZoomFactor ?? 0
 
-        let teleNativeMm = device.physicalFocalLength(for: .builtInTelephotoCamera) ?? 0
-        let uwNativeMm = device.physicalFocalLength(for: .builtInUltraWideCamera) ?? 0
-        let minZoom = device.minAvailableVideoZoomFactor
-        let maxZoom = device.activeFormat.videoMaxZoomFactor
+        let info = DeviceFocalInfo(
+            options: [.mm24, .mm35, .mm50, .mm100, .mm200],
+            wideMm: wideMm,
+            teleMm: teleMm
+        )
 
-        let allCandidates: [FocalLengthOption] = [.mm13, .mm24, .mm35, .mm50, .mm100, .mm200]
-
-        // 1) zoom 必须在当前 format 范围内
-        var options = allCandidates.filter { opt in
-            let zoom = CGFloat(opt.mm / baseMm)
-            return zoom >= minZoom - 0.01 && zoom <= maxZoom + 0.01
+        // 过滤掉超出物理可达 zoom 的档位
+        var options: [FocalLengthOption] = info.options.filter { opt in
+            let zoom = info.zoomFactor(for: opt)
+            let maxZ = (info.deviceType(for: opt) == .builtInTelephotoCamera) ? teleMaxZoom : wideMaxZoom
+            return zoom >= 0.99 && zoom <= maxZ + 0.01
         }
 
-        // 2) 长焦不存在或太短：移除依赖长焦的档位
-        if teleNativeMm <= 0 {
+        // 长焦缺失或原生焦距不够，移除依赖长焦的档位
+        if teleMm <= 0 {
             options.removeAll { $0 == .mm100 || $0 == .mm200 }
         } else {
-            if teleNativeMm < 70 { options.removeAll { $0 == .mm100 } }
-            if teleNativeMm < 100 { options.removeAll { $0 == .mm200 } }
+            if teleMm < 70 { options.removeAll { $0 == .mm100 } }
+            if teleMm < 100 { options.removeAll { $0 == .mm200 } }
         }
         if !options.contains(.mm24) { options.insert(.mm24, at: 0) }
 
-        // 3) 计算每个档位实际会用哪颗物理镜头，用其原生焦距判断是否 optical native。
-        // 这里考虑了 switchover 策略：例如 17 Pro 的 100mm（zoom 4.17×）在 switchover [2,8] 下
-        // 实际用 wide 数字裁切，而不是长焦原生（长焦在 ≥8× 才激活）。
-        var opticalOptions: Set<FocalLengthOption> = []
-        for opt in options {
-            let zoom = CGFloat(opt.mm / baseMm)
-            let constituent = device.predictedConstituent(forZoom: zoom, baseMm: baseMm)
-            let nativeMm = constituent.nominalFocalLengthIn35mmFilm
-            let effective = nativeMm > 0 ? nativeMm : (constituent === device ? baseMm : 0)
-            if effective > 0, abs(opt.mm - effective) / effective < 0.08 {
-                opticalOptions.insert(opt)
-            }
-        }
+        let optical = options.filter { !info.isDigitalCrop($0) }.map { $0.rawValue }
+        Log.session.info("focal_info wide=\(wideMm)mm tele=\(teleMm)mm wide_maxZoom=\(String(format: "%.1f", wideMaxZoom)) tele_maxZoom=\(String(format: "%.1f", teleMaxZoom)) options=\(options.map { $0.rawValue }) optical=\(optical)")
 
-        Log.session.info("focal_info baseMm=\(baseMm) tele=\(teleNativeMm)mm uw=\(uwNativeMm)mm switchovers=\(device.virtualDeviceSwitchOverVideoZoomFactors.map { String(format: "%.2f", $0.doubleValue) }) minZoom=\(String(format: "%.2f", minZoom)) maxZoom=\(String(format: "%.1f", maxZoom)) options=\(options.map { $0.rawValue }) optical=\(opticalOptions.map { $0.rawValue }.sorted())")
-
-        return DeviceFocalInfo(options: options, baseMm: baseMm, opticalOptions: opticalOptions)
+        return DeviceFocalInfo(options: options, wideMm: wideMm, teleMm: teleMm)
     }
 }
 
@@ -631,7 +590,14 @@ enum FlashMode: String, CaseIterable {
 class CameraManager: NSObject, ObservableObject {
     let session = AVCaptureSession()
     private var photoOutput = AVCapturePhotoOutput()
-    private var videoCaptureDevice: AVCaptureDevice?
+    /// 后置主摄（24mm 等效），始终存在
+    private var wideDevice: AVCaptureDevice?
+    /// 后置长焦（100mm 等效），可能为 nil（无长焦机型）
+    private var teleDevice: AVCaptureDevice?
+    /// 当前 session 的视频输入；通过 swapToDevice 在 W ⇄ T 之间切换
+    private var currentVideoInput: AVCaptureDeviceInput?
+    /// 当前激活的设备（基于 currentVideoInput 派生）
+    private var videoCaptureDevice: AVCaptureDevice? { currentVideoInput?.device }
     private let videoDataOutput = AVCaptureVideoDataOutput()
     private let previewQueue = DispatchQueue(label: "preview.lut.queue")
     /// 专用会话队列（AVCaptureSession 操作必须在同一串行队列）
@@ -749,7 +715,6 @@ class CameraManager: NSObject, ObservableObject {
     private let tapFocusHoldDuration: TimeInterval = 3.0
     private var focusObservation: NSKeyValueObservation?
     private var pressureObservation: NSKeyValueObservation?
-    private var constituentObservation: NSKeyValueObservation?
     /// 进入相机时启动 session 的任务句柄；离开时取消，避免在 sessionQueue 上做完整 startRunning 后又被立即停止
     private var startupTask: Task<Void, Never>?
     /// 正常情况下的目标帧率；由 sessionQueue 写入、压力回调 KVO 读取，用锁保护避免数据竞争
@@ -758,27 +723,26 @@ class CameraManager: NSObject, ObservableObject {
 
     override init() {
         super.init()
-        if let device = Self.bestAvailableBackCamera() {
-            videoCaptureDevice = device
-            Log.session.info("camera_device_selected name=\(device.localizedName, privacy: .public) constituents=\(device.constituentDevices.count)")
-        }
+        let (wide, tele) = Self.discoverPhysicalCameras()
+        wideDevice = wide
+        teleDevice = tele
+        Log.session.info("camera_devices_discovered wide=\(wide?.localizedName ?? "nil", privacy: .public) tele=\(tele?.localizedName ?? "nil", privacy: .public)")
         setupOrientationMonitoring()
     }
 
-    /// 按优先级选择后置相机：三摄 > 双广 > 双摄 > 单广
-    private static func bestAvailableBackCamera() -> AVCaptureDevice? {
-        let priorities: [AVCaptureDevice.DeviceType] = [
-            .builtInTripleCamera,
-            .builtInDualWideCamera,
-            .builtInDualCamera,
-            .builtInWideAngleCamera
-        ]
-        for type in priorities {
-            if let device = AVCaptureDevice.default(type, for: .video, position: .back) {
-                return device
-            }
-        }
-        return nil
+    /// 用 DiscoverySession 查找后置物理 wide 与 telephoto。
+    /// 不再用虚拟设备（TripleCamera 等），因为它的 switchover 策略会让 zoom < 2× 时
+    /// 落到 ultra wide 上，且 .locked behavior 受 pipeline 时序影响不可靠。
+    /// 物理设备一颗就是一颗，selecting which device == selecting which lens。
+    private static func discoverPhysicalCameras() -> (wide: AVCaptureDevice?, tele: AVCaptureDevice?) {
+        let session = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.builtInWideAngleCamera, .builtInTelephotoCamera],
+            mediaType: .video,
+            position: .back
+        )
+        let wide = session.devices.first { $0.deviceType == .builtInWideAngleCamera }
+        let tele = session.devices.first { $0.deviceType == .builtInTelephotoCamera }
+        return (wide, tele)
     }
 
     deinit {
@@ -1006,8 +970,8 @@ class CameraManager: NSObject, ObservableObject {
 
     /// 在专用串行队列上配置并启动 AVCaptureSession，避免阻塞主线程
     private func configureAndStartSession() async {
-        guard !session.isRunning, let device = videoCaptureDevice else {
-            Log.session.debug("session_config_skip running=\(self.session.isRunning) has_device=\(self.videoCaptureDevice != nil)")
+        guard !session.isRunning, let device = wideDevice else {
+            Log.session.debug("session_config_skip running=\(self.session.isRunning) has_wide=\(self.wideDevice != nil)")
             return
         }
         let configTimer = Log.perf("session_configure", logger: Log.session)
@@ -1149,11 +1113,18 @@ class CameraManager: NSObject, ObservableObject {
         }
 
         // Back on MainActor — set up delegates and properties that need main thread
+        currentVideoInput = captureSession.inputs.first as? AVCaptureDeviceInput
         rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
         videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
 
-        // Session 已配置，此时 minAvailableVideoZoomFactor 准确，nominalFocalLengthIn35mmFilm 也已可用
-        focalInfo = DeviceFocalInfo.from(device: device)
+        // 预配置 telephoto 的 activeFormat（一次性，与 wide 同样选 4:3 高分辨率）。
+        // 这样后续 swapInputDevice(to: tele) 时 format 已经就绪，无需在 swap 路径上选 format。
+        if let tele = teleDevice {
+            await preconfigureFormat(on: tele)
+        }
+
+        // Session 已配置，wide 和 tele 的 activeFormat / nominalFocalLengthIn35mmFilm 都已可用
+        focalInfo = DeviceFocalInfo.from(wide: device, tele: teleDevice)
         if !focalInfo.options.contains(currentFocalLength) {
             currentFocalLength = focalInfo.options.contains(.mm35) ? .mm35 : (focalInfo.options.first ?? .mm24)
         }
@@ -1165,7 +1136,7 @@ class CameraManager: NSObject, ObservableObject {
         dumpLensSpecs(device: device)
 
         // Camera Control 硬件支持（iPhone 16+）：离散焦段选择器
-        if videoCaptureDevice != nil {
+        if currentVideoInput != nil {
             let titles = focalInfo.options.map { "\($0.rawValue)mm" }
             let picker = AVCaptureIndexPicker("焦距", symbolName: "camera.metering.spot", localizedIndexTitles: titles)
             // 设置初始选中项
@@ -1186,30 +1157,13 @@ class CameraManager: NSObject, ObservableObject {
             session.setControlsDelegate(self, queue: .main)
         }
 
-        // KVO: 实时追踪 videoZoomFactor（ramp 动画、捏合缩放、Camera Control 等来源）
-        if let device = videoCaptureDevice {
-            zoomObservation = device.observe(\.videoZoomFactor, options: [.new]) { [weak self] device, change in
-                guard let self, let newZoom = change.newValue else { return }
-                // 在 KVO 线程上读 isRamping，捕获和 newZoom 同时刻的状态。
-                // ramp 中跳过"snap 到最近档位"——否则 24→50 经过 ~35mm 时会把 UI
-                // 高亮抢占到 35，再跳回 50。
-                let isRamping = device.isRampingVideoZoom
-                Task { @MainActor in
-                    self.currentZoomFactor = newZoom
-                    if isRamping { return }
-                    let mm = Float(newZoom) * self.focalInfo.baseMm
-                    let closest = self.focalInfo.options.min { abs($0.mm - mm) < abs($1.mm - mm) }
-                    if let closest, closest != self.currentFocalLength {
-                        self.syncCurrentFocalLength(closest)
-                    }
-                }
-            }
-        }
+        // 一次性绑定 zoom / focus / pressure KVO 到当前设备（swap 后会重绑）
+        bindDeviceObservers(to: device)
 
-        // 场景变化时自动恢复连续对焦/曝光
+        // 场景变化时自动恢复连续对焦/曝光（subjectArea 通知不随设备变，绑一次即可）
         subjectAreaObserver = NotificationCenter.default.addObserver(
             forName: AVCaptureDevice.subjectAreaDidChangeNotification,
-            object: device,
+            object: nil,  // nil = 任意 device，避免 swap 后失效
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
@@ -1218,37 +1172,170 @@ class CameraManager: NSObject, ObservableObject {
                 self.isFocusLocked = false
             }
         }
+    }
 
-        // KVO: 对焦完成通知
-        if let device = videoCaptureDevice {
-            focusObservation = device.observe(\.isAdjustingFocus, options: [.new]) { [weak self] device, change in
-                guard let self, let isAdjusting = change.newValue, !isAdjusting else { return }
-                Task { @MainActor in
-                    self.onFocusCompleted()
+    // MARK: - 物理镜头切换（W ⇄ T）
+
+    /// 给指定设备选好 4:3 高分辨率 format 并设置焦点/曝光/帧率。
+    /// 必须在 sessionQueue 调用。设备不必在 session 中（用于预配置 telephoto）。
+    nonisolated private func applyBestFormatAndModes(on device: AVCaptureDevice) {
+        let currentDims = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription)
+        let bestFormat = device.formats
+            .filter { fmt in
+                let d = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
+                guard d.width > 0, d.height > 0 else { return false }
+                let aspect = Float(d.width) / Float(d.height)
+                let supports30 = fmt.videoSupportedFrameRateRanges.contains { $0.maxFrameRate >= 30.0 }
+                return abs(aspect - 4.0 / 3.0) < 0.02 && supports30
+            }
+            .max { lhs, rhs in
+                let l = CMVideoFormatDescriptionGetDimensions(lhs.formatDescription)
+                let r = CMVideoFormatDescriptionGetDimensions(rhs.formatDescription)
+                return Int(l.width) * Int(l.height) < Int(r.width) * Int(r.height)
+            }
+
+        do {
+            try device.lockForConfiguration()
+            if let fmt = bestFormat {
+                let newDims = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
+                if newDims.width != currentDims.width || newDims.height != currentDims.height {
+                    device.activeFormat = fmt
+                    Log.session.info("active_format_set device=\(device.localizedName, privacy: .public) dims=\(newDims.width)x\(newDims.height)")
+                }
+            }
+            if device.isFocusModeSupported(.continuousAutoFocus) {
+                device.focusMode = .continuousAutoFocus
+            }
+            if device.isExposureModeSupported(.continuousAutoExposure) {
+                device.exposureMode = .continuousAutoExposure
+            }
+            if device.isSmoothAutoFocusSupported {
+                device.isSmoothAutoFocusEnabled = true
+            }
+            device.isSubjectAreaChangeMonitoringEnabled = true
+
+            let maxRate = device.activeFormat.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 30.0
+            let targetFPS = min(maxRate, 60.0)
+            nominalFPSLock.withLock { $0 = targetFPS }
+            device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(targetFPS))
+            device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(targetFPS))
+
+            device.unlockForConfiguration()
+        } catch {
+            Log.session.error("apply_format_lock_failed device=\(device.localizedName, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// 在启动时为后备 telephoto 预配置 format（避免 swap 路径上做这件事）
+    private func preconfigureFormat(on device: AVCaptureDevice) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            sessionQueue.async {
+                self.applyBestFormatAndModes(on: device)
+                continuation.resume()
+            }
+        }
+    }
+
+    /// 切换 session 输入到指定物理设备。负责：
+    /// 1) 在 sessionQueue 做 begin/removeInput/addInput/format/photoOutputDims/commit
+    /// 2) 回到 MainActor 重建 rotationCoordinator、重绑 zoom/focus/pressure KVO
+    private func swapInputDevice(to target: AVCaptureDevice) async {
+        if currentVideoInput?.device === target { return }
+
+        let captureSession = session
+        let output = photoOutput
+        let from = currentVideoInput?.device.localizedName ?? "nil"
+        let swapTimer = Log.perf("swap_input", logger: Log.session)
+        Log.session.info("swap_input_begin from=\(from, privacy: .public) to=\(target.localizedName, privacy: .public)")
+
+        let newInput: AVCaptureDeviceInput? = await withCheckedContinuation { (continuation: CheckedContinuation<AVCaptureDeviceInput?, Never>) in
+            sessionQueue.async {
+                captureSession.beginConfiguration()
+
+                for input in captureSession.inputs {
+                    captureSession.removeInput(input)
+                }
+
+                var added: AVCaptureDeviceInput?
+                do {
+                    let inp = try AVCaptureDeviceInput(device: target)
+                    if captureSession.canAddInput(inp) {
+                        captureSession.addInput(inp)
+                        added = inp
+                    } else {
+                        Log.session.error("swap_input_cannot_add target=\(target.localizedName, privacy: .public)")
+                    }
+                } catch {
+                    Log.session.error("swap_input_create_failed error=\(error.localizedDescription, privacy: .public)")
+                }
+
+                self.applyBestFormatAndModes(on: target)
+
+                let supportedDims = target.activeFormat.supportedMaxPhotoDimensions
+                let targetArea = 4032 * 3024
+                let preferred = supportedDims
+                    .filter { dim in
+                        let ratio = Float(dim.width) / Float(dim.height)
+                        return abs(ratio - 4.0/3.0) < 0.05
+                    }
+                    .min { lhs, rhs in
+                        abs(Int(lhs.width) * Int(lhs.height) - targetArea) < abs(Int(rhs.width) * Int(rhs.height) - targetArea)
+                    }
+                if let selected = preferred {
+                    output.maxPhotoDimensions = selected
+                } else if let smallest = supportedDims.min(by: { $0.width < $1.width }) {
+                    output.maxPhotoDimensions = smallest
+                }
+
+                captureSession.commitConfiguration()
+                continuation.resume(returning: added)
+            }
+        }
+
+        currentVideoInput = newInput
+        rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: target, previewLayer: nil)
+        bindDeviceObservers(to: target)
+        applyVideoOrientationToOutputs()
+
+        swapTimer.end("device=\(target.localizedName)")
+    }
+
+    /// 把 zoom / focus / pressure KVO 重新绑到当前激活设备。
+    /// swap 后必须调用，否则 KVO 还指向旧设备。
+    private func bindDeviceObservers(to device: AVCaptureDevice) {
+        zoomObservation?.invalidate()
+        focusObservation?.invalidate()
+        pressureObservation?.invalidate()
+
+        zoomObservation = device.observe(\.videoZoomFactor, options: [.new]) { [weak self] dev, change in
+            guard let self, let newZoom = change.newValue else { return }
+            let isRamping = dev.isRampingVideoZoom
+            Task { @MainActor in
+                self.currentZoomFactor = newZoom
+                if isRamping { return }
+                // 当前设备是 wide 还是 tele 决定换算基准
+                let nativeMm = (dev.deviceType == .builtInTelephotoCamera) ? self.focalInfo.teleMm : self.focalInfo.wideMm
+                guard nativeMm > 0 else { return }
+                let mm = Float(newZoom) * nativeMm
+                let closest = self.focalInfo.options.min { abs($0.mm - mm) < abs($1.mm - mm) }
+                if let closest, closest != self.currentFocalLength {
+                    self.syncCurrentFocalLength(closest)
                 }
             }
         }
 
-        // KVO: 实际激活的物理 constituent（iOS 16+）。zoom 跨过 switchover、弱光降级、自动微距
-        // 都会改变它。日志可看到「当前到底是哪颗镜头在拍」，便于校准 isDigitalCrop 判断。
-        if let device = videoCaptureDevice {
-            constituentObservation = device.observe(
-                \.activePrimaryConstituent, options: [.new, .initial]
-            ) { dev, _ in
-                let lens = dev.activePrimaryConstituent?.localizedName ?? "nil"
-                let mm = dev.activePrimaryConstituent?.nominalFocalLengthIn35mmFilm ?? 0
-                Log.session.info("active_lens lens=\(lens, privacy: .public) native_mm=\(String(format: "%.1f", mm)) zoom=\(String(format: "%.2f", dev.videoZoomFactor))")
+        focusObservation = device.observe(\.isAdjustingFocus, options: [.new]) { [weak self] _, change in
+            guard let self, let isAdjusting = change.newValue, !isAdjusting else { return }
+            Task { @MainActor in
+                self.onFocusCompleted()
             }
         }
 
-        // KVO: 系统压力监控 — 高温时降帧，恢复时提帧
-        if let device = videoCaptureDevice {
-            pressureObservation = device.observe(\.systemPressureState, options: [.new]) { [weak self] device, _ in
-                guard let self else { return }
-                let level = device.systemPressureState.level
-                self.sessionQueue.async {
-                    self.adjustFrameRateForPressure(device: device, level: level)
-                }
+        pressureObservation = device.observe(\.systemPressureState, options: [.new]) { [weak self] dev, _ in
+            guard let self else { return }
+            let level = dev.systemPressureState.level
+            self.sessionQueue.async {
+                self.adjustFrameRateForPressure(device: dev, level: level)
             }
         }
     }
@@ -1363,20 +1450,11 @@ class CameraManager: NSObject, ObservableObject {
         // 1) 设备身份
         log.info("📷 device id=\(device.uniqueID, privacy: .public) name=\(device.localizedName, privacy: .public) modelID=\(device.modelID, privacy: .public) manufacturer=\(device.manufacturer, privacy: .public) type=\(device.deviceType.rawValue, privacy: .public) position=\(pos, privacy: .public) virtual=\(device.isVirtualDevice)")
 
-        // 2) 多摄系统的物理子镜头（包含 iOS 26 的真实 35mm 等效焦距）
-        if !device.constituentDevices.isEmpty {
-            for (i, sub) in device.constituentDevices.enumerated() {
-                let subDims = CMVideoFormatDescriptionGetDimensions(sub.activeFormat.formatDescription)
-                log.info("📷 constituent[\(i)] type=\(sub.deviceType.rawValue, privacy: .public) name=\(sub.localizedName, privacy: .public) focal35mm=\(String(format: "%.1f", sub.nominalFocalLengthIn35mmFilm))mm aperture=f/\(String(format: "%.2f", sub.lensAperture)) fov=\(String(format: "%.2f", sub.activeFormat.videoFieldOfView))° dims=\(subDims.width)x\(subDims.height)")
-            }
-            let switchovers = device.virtualDeviceSwitchOverVideoZoomFactors.map { String(format: "%.2f", $0.doubleValue) }
-            log.info("📷 virtual_switchovers=\(switchovers, privacy: .public)")
-        }
-
-        // 3) 镜头光学（baseMm 来自 iOS 26 的 nominalFocalLengthIn35mmFilm）
-        let activeLens = device.activePrimaryConstituent?.localizedName ?? "n/a"
-        let activeMm = device.activePrimaryConstituent?.nominalFocalLengthIn35mmFilm ?? 0
-        log.info("📷 optics aperture=f/\(String(format: "%.2f", device.lensAperture)) baseMm=\(self.focalInfo.baseMm) active_lens=\(activeLens, privacy: .public) active_focal35mm=\(String(format: "%.1f", activeMm))mm focalOptions=\(self.focalInfo.options.map { $0.rawValue }, privacy: .public)")
+        // 2) 物理镜头清单（W + T，可能 T 为 nil）
+        let wMm = self.wideDevice?.nominalFocalLengthIn35mmFilm ?? 0
+        let tMm = self.teleDevice?.nominalFocalLengthIn35mmFilm ?? 0
+        log.info("📷 physical_cameras wide=\(self.wideDevice?.localizedName ?? "nil", privacy: .public)/\(String(format: "%.1f", wMm))mm tele=\(self.teleDevice?.localizedName ?? "nil", privacy: .public)/\(String(format: "%.1f", tMm))mm")
+        log.info("📷 optics current_device=\(device.localizedName, privacy: .public) aperture=f/\(String(format: "%.2f", device.lensAperture)) wideMm=\(self.focalInfo.wideMm) teleMm=\(self.focalInfo.teleMm) focalOptions=\(self.focalInfo.options.map { $0.rawValue }, privacy: .public)")
 
         // 4) 缩放范围 / 当前缩放
         let fmt = device.activeFormat
@@ -1486,34 +1564,65 @@ class CameraManager: NSObject, ObservableObject {
         pinchDidSwitch = false
     }
 
-    private func applyFocalLength(_ option: FocalLengthOption, animated: Bool = true, fromZoom: CGFloat? = nil) {
-        guard let device = videoCaptureDevice else { return }
-        let base = focalInfo.baseMm
-        var zoom = CGFloat(option.mm / base)
+    /// 序号用来识别"最新一次 applyFocalLength 调用"——快速来回点档位时，
+    /// 旧 swap 完成回调中的 zoom 应用必须被丢弃，否则会把过时的 zoom 应用到错误设备上。
+    private var focalApplySeq: UInt64 = 0
 
+    private func applyFocalLength(_ option: FocalLengthOption, animated: Bool = true, fromZoom: CGFloat? = nil) {
+        focalApplySeq &+= 1
+        let mySeq = focalApplySeq
+
+        // 决定目标设备
+        let targetType = focalInfo.deviceType(for: option)
+        let target: AVCaptureDevice? = (targetType == .builtInTelephotoCamera) ? teleDevice : wideDevice
+        guard let target else {
+            Log.session.error("focal_apply_no_device type=\(targetType.rawValue, privacy: .public) option=\(option.rawValue)")
+            return
+        }
+
+        let needSwap = (currentVideoInput?.device !== target)
+        let zoomOnTarget = focalInfo.zoomFactor(for: option)
+
+        if needSwap {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.swapInputDevice(to: target)
+                guard self.focalApplySeq == mySeq else {
+                    Log.session.info("focal_apply_obsolete option=\(option.rawValue) seq=\(mySeq) latest=\(self.focalApplySeq)")
+                    return
+                }
+                self.applyZoomOnly(zoomOnTarget, on: target, animated: animated, fromZoom: fromZoom, option: option)
+            }
+        } else {
+            applyZoomOnly(zoomOnTarget, on: target, animated: animated, fromZoom: fromZoom, option: option)
+        }
+    }
+
+    /// 在已经是目标设备的前提下，单纯设置 zoom（带 ramp 动画）。
+    private func applyZoomOnly(_ zoom: CGFloat, on device: AVCaptureDevice, animated: Bool, fromZoom: CGFloat?, option: FocalLengthOption) {
         let maxZoom = device.activeFormat.videoMaxZoomFactor
         let minZoom = device.minAvailableVideoZoomFactor
-        zoom = max(minZoom, min(maxZoom, zoom))
+        let clamped = max(minZoom, min(maxZoom, zoom))
 
         do {
             try device.lockForConfiguration()
             if animated {
                 // 自适应速率：跨度越大越快，小幅切换更柔和，接近 iPhone 原相机体验
-                let ratio = fromZoom.map { max(zoom / $0, $0 / zoom) } ?? 2.0
+                let ratio = fromZoom.map { max(clamped / $0, $0 / clamped) } ?? 2.0
                 let rate: Float = if ratio < 1.5 {
                     4.0    // 小幅切换（如 24→35）：柔和
                 } else if ratio < 3.0 {
                     8.0    // 中等跨度（如 24→50）
                 } else {
-                    16.0   // 大幅跨度（如 24→200）：快速
+                    16.0   // 大幅跨度
                 }
-                device.ramp(toVideoZoomFactor: zoom, withRate: rate)
+                device.ramp(toVideoZoomFactor: clamped, withRate: rate)
             } else {
-                device.videoZoomFactor = zoom
+                device.videoZoomFactor = clamped
             }
-            currentZoomFactor = zoom
+            currentZoomFactor = clamped
             device.unlockForConfiguration()
-            Log.session.info("focal_applied target=\(option.rawValue)mm zoom=\(String(format: "%.2f", zoom))x base=\(base)mm animated=\(animated)")
+            Log.session.info("focal_applied target=\(option.rawValue)mm zoom=\(String(format: "%.2f", clamped))x device=\(device.localizedName, privacy: .public) animated=\(animated)")
         } catch {
             Log.session.error("focal_apply_failed error=\(error.localizedDescription, privacy: .public)")
         }
@@ -1567,8 +1676,7 @@ class CameraManager: NSObject, ObservableObject {
         zoomObservation = nil
         pressureObservation?.invalidate()
         pressureObservation = nil
-        constituentObservation?.invalidate()
-        constituentObservation = nil
+        currentVideoInput = nil
         // 取消 NotificationCenter observer（deinit 因 Swift 6 隔离规则无法访问这些属性）
         if let observer = orientationObserver {
             NotificationCenter.default.removeObserver(observer)
