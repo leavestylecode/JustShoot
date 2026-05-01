@@ -571,8 +571,11 @@ final class FilmProcessor: Sendable {
         let isLandscape = inputExtent.width > inputExtent.height
         Log.lut.info("lut_apply_begin key=\(lutCacheKey, privacy: .public) exif=\(exifOrientation) w=\(Int(inputExtent.width)) h=\(Int(inputExtent.height)) landscape=\(isLandscape)")
 
-        // 根据照片方向裁剪为对应比例（横拍4:3，竖拍3:4）
-        let targetAspect: CGFloat = isLandscape ? (4.0 / 3.0) : (3.0 / 4.0)
+        // 裁成 135 全画幅画幅（3:2 横 / 2:3 纵）。iPhone 传感器原生 4:3，多出来的上下
+        // ~11% 在这里裁掉——焦段标 35mm 时拍出来的 FOV 才与真 135/35mm 完全对齐
+        // （横向、纵向、画幅三件套都对得上，不再只是「同对角线 FOV 的 4:3」）。
+        // 预览侧 .aspectRatio(2.0/3.0) 同步收窄，保持所见即所得。
+        let targetAspect: CGFloat = isLandscape ? (3.0 / 2.0) : (2.0 / 3.0)
         let currentAspect = inputExtent.width / inputExtent.height
 
         if abs(currentAspect - targetAspect) > 0.01 {
