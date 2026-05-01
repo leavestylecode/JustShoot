@@ -54,6 +54,16 @@ struct CameraView: View {
                 ZStack {
                     RealtimePreviewView(manager: cameraManager, lutCacheKey: source.lutCacheKey)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay {
+                            // 跨 W/T 物理镜头交换期间，preview 会有 ~280ms 黑屏。
+                            // 用 ultraThinMaterial 模糊罩盖住这段过渡，淡入淡出更顺滑。
+                            if cameraManager.isSwappingLens {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(.ultraThinMaterial)
+                                    .transition(.opacity)
+                            }
+                        }
+                        .animation(.easeInOut(duration: 0.18), value: cameraManager.isSwappingLens)
 
                     if showFocusIndicator, let point = focusPoint {
                         FocusIndicatorView()
@@ -657,6 +667,8 @@ class CameraManager: NSObject, ObservableObject {
     @Published var currentFocalLength: FocalLengthOption = .mm35
     @Published var focalInfo: DeviceFocalInfo = .placeholder
     @Published var currentZoomFactor: CGFloat = 1.0
+    /// 跨 W/T 物理镜头交换中——SwiftUI 据此显示模糊遮罩，遮住预览短暂的黑屏
+    @Published var isSwappingLens: Bool = false
     private var zoomObservation: NSKeyValueObservation?
     private var pinchDidSwitch = false  // 一次捏合手势只切换一档
     private var focalLengthPicker: AVCaptureIndexPicker?
@@ -1239,8 +1251,11 @@ class CameraManager: NSObject, ObservableObject {
     /// 切换 session 输入到指定物理设备。负责：
     /// 1) 在 sessionQueue 做 begin/removeInput/addInput/format/photoOutputDims/commit
     /// 2) 回到 MainActor 重建 rotationCoordinator、重绑 zoom/focus/pressure KVO
+    /// 3) 期间 isSwappingLens=true，UI 用模糊遮罩盖住短暂黑屏
     private func swapInputDevice(to target: AVCaptureDevice) async {
         if currentVideoInput?.device === target { return }
+
+        isSwappingLens = true
 
         let captureSession = session
         let output = photoOutput
@@ -1296,6 +1311,16 @@ class CameraManager: NSObject, ObservableObject {
         rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: target, previewLayer: nil)
         bindDeviceObservers(to: target)
         applyVideoOrientationToOutputs()
+
+        // 紧凑的 swap-后状态行：哪个设备 + active format dims + photoOutput dims + zoom
+        let activeDims = CMVideoFormatDescriptionGetDimensions(target.activeFormat.formatDescription)
+        let outDims = photoOutput.maxPhotoDimensions
+        Log.session.info("swap_complete device=\(target.localizedName, privacy: .public) active_dims=\(activeDims.width)x\(activeDims.height) photo_dims=\(outDims.width)x\(outDims.height) zoom=\(String(format: "%.2f", target.videoZoomFactor))")
+
+        // 等几帧让新设备的预览出来再撤遮罩，避免淡出后还是黑屏。
+        // 30fps ≈ 33ms/frame，等 4 帧 ≈ 130ms，对用户感知是顺滑过渡。
+        try? await Task.sleep(for: .milliseconds(130))
+        isSwappingLens = false
 
         swapTimer.end("device=\(target.localizedName)")
     }
