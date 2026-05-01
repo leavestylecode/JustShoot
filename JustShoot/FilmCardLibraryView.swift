@@ -55,6 +55,10 @@ struct FilmCardLibraryView: View {
     /// ISO selection. Contains stringified main ISO values ("50"/"100"/…) or `otherKey` for "Other".
     @State private var selectedISOs: Set<String> = []
     @State private var showFilterSheet = false
+    /// Shared namespace for the iOS 18 zoom navigation transition. The grid
+    /// thumbnail tagged with `card.id` morphs into the detail view tagged with
+    /// the same id when the user pushes.
+    @Namespace private var zoomNamespace
 
     private let columns = [
         GridItem(.flexible(), spacing: 10),
@@ -81,6 +85,7 @@ struct FilmCardLibraryView: View {
                         FilmCardThumbnail(card: card)
                     }
                     .buttonStyle(.plain)
+                    .matchedTransitionSource(id: card.id, in: zoomNamespace)
                 }
             }
             .padding(.horizontal, 14)
@@ -118,6 +123,7 @@ struct FilmCardLibraryView: View {
         }
         .navigationDestination(for: FilmCard.self) { card in
             FilmCardDetailView(card: card)
+                .navigationTransition(.zoom(sourceID: card.id, in: zoomNamespace))
         }
         .task {
             await library.loadIfNeeded()
@@ -371,54 +377,57 @@ struct FilmCardThumbnail: View {
 struct FilmCardDetailView: View {
     let card: FilmCard
     @State private var image: UIImage?
+    @State private var colorManager = FilmCardCoverColorManager()
+
+    /// Foreground ink + chip tints derived from the cover's dominant luminance.
+    /// Recomputed on every body pass; cheap (a single comparison + Color inits).
+    private var palette: FilmCardForegroundPalette {
+        FilmCardForegroundPalette(luminance: colorManager.luminance)
+    }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 22) {
                 glassImageCard
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
-                    .padding(.bottom, 4)
 
-                VStack(alignment: .leading, spacing: 14) {
-                    if let brand = card.brand, !brand.isEmpty {
-                        Text(verbatim: brand)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.white.opacity(0.45))
-                            .textCase(.uppercase)
-                            .tracking(0.5)
-                    }
-                    if let product = card.product, !product.isEmpty {
-                        Text(verbatim: product)
-                            .font(.title2.weight(.bold))
-                            .foregroundColor(.white)
-                    }
+                headerSection
+                    .padding(.horizontal, 22)
 
-                    Divider().background(Color.white.opacity(0.08))
-
-                    metaRow("Format", value: card.format)
-                    metaRow("ISO", value: card.iso.map { "\($0)" })
-                    metaRow("Process", value: card.process)
-                    metaRow("Exposures", value: card.quantity)
-                    metaRow("Subtype", value: card.subtype)
-                    metaRow("Notes", value: card.notes)
+                if hasSpecChips {
+                    specChips
+                        .padding(.horizontal, 22)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 18)
-                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if let notes = card.notes, !notes.isEmpty {
+                    notesSection(notes)
+                        .padding(.horizontal, 22)
+                }
             }
+            .padding(.bottom, 28)
         }
-        .background(Color.black)
+        .background(
+            FilmCardCoverBackdrop(
+                dominantColor: colorManager.dominantColor,
+                luminance: colorManager.luminance
+            )
+        )
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 principalTitle
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(palette.primary)
                     .lineLimit(1)
             }
         }
-        .task {
+        .toolbarColorScheme(palette.prefersDarkInk ? .light : .dark, for: .navigationBar)
+        .onAppear {
+            colorManager.prefetchFromCache(cardId: card.id)
+        }
+        .task(id: card.id) {
+            colorManager.refresh(for: card)
             image = await FilmCardLibrary.shared.image(for: card, maxPixel: 1024)
         }
     }
@@ -444,8 +453,8 @@ struct FilmCardDetailView: View {
                     .resizable()
                     .scaledToFit()
             } else {
-                Color.white.opacity(0.05)
-                    .overlay(ProgressView().tint(.white).scaleEffect(0.9))
+                palette.chipFill
+                    .overlay(ProgressView().tint(palette.primary).scaleEffect(0.9))
             }
         }
         .aspectRatio(1, contentMode: .fit)
@@ -454,20 +463,89 @@ struct FilmCardDetailView: View {
         .glassEffect(.regular, in: shape)
     }
 
+    /// Brand (small uppercase) stacked above the product name (large bold).
     @ViewBuilder
-    private func metaRow(_ label: LocalizedStringKey, value: String?) -> some View {
-        if let value, !value.isEmpty {
-            HStack(alignment: .top, spacing: 12) {
-                Text(label)
-                    .font(.system(size: 13))
-                    .foregroundColor(.white.opacity(0.45))
-                    .frame(width: 76, alignment: .leading)
-                Text(verbatim: value)
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.9))
-                    .multilineTextAlignment(.leading)
-                Spacer(minLength: 0)
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let brand = card.brand, !brand.isEmpty {
+                Text(verbatim: brand)
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(1.2)
+                    .textCase(.uppercase)
+                    .foregroundStyle(palette.tertiary)
             }
+            if let product = card.product, !product.isEmpty {
+                Text(verbatim: product)
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(palette.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Chip-style spec tags. Each entry skipped when the value is missing,
+    /// empty, or a placeholder ("N/A") that source data uses when unspecified.
+    private var hasSpecChips: Bool {
+        !specChipEntries.isEmpty
+    }
+
+    private var specChipEntries: [String] {
+        var entries: [String] = []
+        if let iso = card.iso {
+            entries.append("ISO \(iso)")
+        }
+        if let format = card.format, !format.isEmpty {
+            entries.append(format)
+        }
+        if let process = card.process, !process.isEmpty {
+            entries.append(process)
+        }
+        if let qty = card.quantity, !qty.isEmpty,
+           qty.caseInsensitiveCompare("N/A") != .orderedSame {
+            entries.append(qty)
+        }
+        if let subtype = card.subtype, !subtype.isEmpty {
+            entries.append(subtype)
+        }
+        return entries
+    }
+
+    private var specChips: some View {
+        FlowLayout(spacing: 6, lineSpacing: 6) {
+            ForEach(specChipEntries, id: \.self) { entry in
+                Text(verbatim: entry)
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(palette.primary)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(palette.chipFill))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Notes block — rendered as a paragraph under a small section label so
+    /// long-form copy doesn't get squeezed into a "label : value" row.
+    private func notesSection(_ notes: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Rectangle()
+                .fill(palette.divider)
+                .frame(height: 1)
+                .padding(.bottom, 4)
+
+            Text("Notes")
+                .font(.system(size: 11, weight: .semibold))
+                .tracking(1.0)
+                .textCase(.uppercase)
+                .foregroundStyle(palette.tertiary)
+
+            Text(verbatim: notes)
+                .font(.system(size: 14))
+                .foregroundStyle(palette.secondary)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
