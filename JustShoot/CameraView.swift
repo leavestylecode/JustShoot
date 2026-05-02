@@ -227,10 +227,11 @@ struct CameraView: View {
 
                 Spacer()
 
-                // 右：占位（保持快门居中）
-                Color.clear
+                // 右：当前胶片封面缩略图（与左侧最近照片对称）。
+                // 列表 tile 通过 navigationTransition(.zoom) 放大成本页时，封面落位在这里。
+                // 暂作展示用；后续会挂点击扩展功能。
+                FilmSourceCoverThumbnail(source: source)
                     .frame(width: 46, height: 46)
-                    .accessibilityHidden(true)
                 }
                 .padding(.horizontal, 30)
             }
@@ -499,6 +500,55 @@ struct FocusIndicatorView: View {
                     scale = 1.0
                 }
             }
+    }
+}
+
+// MARK: - 拍摄页右下角胶片封面缩略图
+/// 拍摄页右下角的胶片封面缩略图（与左下最近照片缩略图对称）。
+/// FilmSource.preset → 加载胶片图鉴的 libraryCardImage；FilmSource.custom → 配色 + 滤镜图标
+/// （和列表 CustomLUTTile 一致）。列表 tile 通过 navigationTransition(.zoom) 放大成本页时，
+/// 视觉上封面落位在这里。当前仅展示，后续会挂点击交互。
+struct FilmSourceCoverThumbnail: View {
+    let source: FilmSource
+    @State private var image: UIImage?
+    @Environment(\.displayScale) private var displayScale
+
+    private static let customAccent = Color(red: 0.6, green: 0.5, blue: 0.8)
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 8, style: .continuous) }
+
+    var body: some View {
+        ZStack {
+            switch source {
+            case .preset:
+                Color.white.opacity(0.05)
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                }
+            case .custom:
+                Self.customAccent.opacity(0.18)
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(Self.customAccent)
+            }
+        }
+        .clipShape(shape)
+        .glassEffect(.regular, in: shape)
+        .task(id: source.id) {
+            // 46pt × scale ≈ 138 px；预留余量取 200，与列表缓存的 cacheKey 解耦避免反复解码。
+            guard case .preset(let preset) = source else {
+                image = nil
+                return
+            }
+            let pixel = max(Int(46.0 * displayScale * 1.5), 100)
+            image = await FilmCardImageCache.shared.loadImage(
+                imageName: preset.libraryCardImage,
+                cacheKey: "thumb_\(preset.rawValue)",
+                maxPixel: pixel
+            )
+        }
+        .accessibilityLabel("当前胶片：\(source.displayName)")
     }
 }
 

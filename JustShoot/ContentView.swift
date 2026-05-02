@@ -16,6 +16,9 @@ struct ContentView: View {
     @State private var importISO = "200"
     @State private var importError: String?
     @State private var showImportError = false
+    /// 命名空间用于把列表 tile 的封面与拍摄页通过 zoom 过渡关联。
+    /// 每个 tile 用 source.id 作为匹配键；拍摄页 destination 同 id 应用 navigationTransition(.zoom)。
+    @Namespace private var coverZoom
 
     /// Three-column grid of preset / custom-LUT tiles.
     private let gridColumns = [
@@ -32,10 +35,12 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     LazyVGrid(columns: gridColumns, spacing: 12) {
                         ForEach(FilmPreset.allCases) { preset in
-                            NavigationLink(value: FilmSource.preset(preset)) {
+                            let source = FilmSource.preset(preset)
+                            NavigationLink(value: source) {
                                 FilmPresetTile(preset: preset, photoCount: counts[preset.rawValue] ?? 0)
                             }
                             .buttonStyle(.plain)
+                            .matchedTransitionSource(id: source.id, in: coverZoom)
                         }
                     }
 
@@ -56,6 +61,7 @@ struct ContentView: View {
                                     )
                                 }
                                 .buttonStyle(.plain)
+                                .matchedTransitionSource(id: source.id, in: coverZoom)
                                 .contextMenu {
                                     Button(role: .destructive) {
                                         deleteCustomLUT(lut)
@@ -108,6 +114,7 @@ struct ContentView: View {
             }
             .navigationDestination(for: FilmSource.self) { source in
                 CameraView(source: source)
+                    .navigationTransition(.zoom(sourceID: source.id, in: coverZoom))
             }
             .safeAreaInset(edge: .bottom) {
                 if isPreloading {
