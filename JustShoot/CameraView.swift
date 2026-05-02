@@ -52,18 +52,21 @@ struct CameraView: View {
             // 预览区
             GeometryReader { geometry in
                 ZStack {
+                    // 单镜头 + 帧桥接：W↔T swap 时 cameraManager.bridgeImage 先盖一帧 LUT 后的快照，
+                    // swap + AE 收敛 ~250ms 后再淡出。比之前 ultraThinMaterial 干净，比 multi-cam 保留 12MP。
                     RealtimePreviewView(manager: cameraManager, lutCacheKey: source.lutCacheKey)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .overlay {
-                            // 跨 W/T 物理镜头交换期间，preview 会有 ~280ms 黑屏。
-                            // 用 ultraThinMaterial 模糊罩盖住这段过渡，淡入淡出更顺滑。
-                            if cameraManager.isSwappingLens {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(.ultraThinMaterial)
+                            if let bridge = cameraManager.bridgeImage {
+                                Image(uiImage: bridge)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .clipped()
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                                     .transition(.opacity)
                             }
                         }
-                        .animation(.easeInOut(duration: 0.18), value: cameraManager.isSwappingLens)
+                        .animation(.easeOut(duration: 0.22), value: cameraManager.bridgeImage != nil)
 
                     if showFocusIndicator, let point = focusPoint {
                         FocusIndicatorView()
@@ -235,6 +238,7 @@ struct CameraView: View {
         }
         .onAppear {
             FilmProcessor.shared.preload(source: source)
+            cameraManager.currentLutCacheKey = source.lutCacheKey
             cameraManager.requestCameraPermission()
             loadLastPhotoThumbnail()
         }
@@ -598,15 +602,17 @@ enum FlashMode: String, CaseIterable {
 // MARK: - 相机管理器
 @MainActor
 class CameraManager: NSObject, ObservableObject {
+    /// 单镜头 AVCaptureSession：保留 12MP 4:3 全画幅；W↔T 物理切换通过 swapInputDevice 完成，
+    /// 用 bridgeImage 帧桥接遮住 swap+AE 收敛的 ~250ms 过渡，视觉接近 iPhone 原相机。
     let session = AVCaptureSession()
     private var photoOutput = AVCapturePhotoOutput()
     /// 后置主摄（24mm 等效），始终存在
     private var wideDevice: AVCaptureDevice?
     /// 后置长焦（100mm 等效），可能为 nil（无长焦机型）
     private var teleDevice: AVCaptureDevice?
-    /// 当前 session 的视频输入；通过 swapToDevice 在 W ⇄ T 之间切换
+    /// 当前 session 的视频输入；通过 swapInputDevice 在 W ⇄ T 之间切换
     private var currentVideoInput: AVCaptureDeviceInput?
-    /// 当前激活的设备（基于 currentVideoInput 派生）
+    /// 当前激活的设备（focus / exposure / zoom 都打在它身上）
     private var videoCaptureDevice: AVCaptureDevice? { currentVideoInput?.device }
     private let videoDataOutput = AVCaptureVideoDataOutput()
     private let previewQueue = DispatchQueue(label: "preview.lut.queue")
@@ -616,11 +622,11 @@ class CameraManager: NSObject, ObservableObject {
     /// 线程安全的像素缓冲区（用 os_unfair_lock 保护跨线程访问）
     private struct PreviewState: @unchecked Sendable {
         var buffer: CVPixelBuffer?
-        var frameId: UInt64 = 0  // 递增帧号，用于去重
+        var frameId: UInt64 = 0
     }
     private let pixelBufferLock = OSAllocatedUnfairLock(initialState: PreviewState())
 
-    /// 获取最新帧和帧号（用于去重检测）
+    /// 获取最新帧（用于 MTKView 渲染 + bridgeImage 抓帧）
     nonisolated func getLatestFrame() -> (CVPixelBuffer, UInt64)? {
         pixelBufferLock.withLockUnchecked { state in
             guard let buf = state.buffer else { return nil }
@@ -633,6 +639,57 @@ class CameraManager: NSObject, ObservableObject {
             $0.buffer = buffer
             $0.frameId &+= 1
         }
+    }
+
+    /// W↔T 切镜过渡桥：物理 swap 之前抓当前预览帧（已套用 LUT + 旋转），盖在 MTKView 上。
+    /// swap + AE 收敛完成后再淡出，把 ~280ms 黑屏 + AE 突跳合并成一次干净的 cross-fade。
+    @Published private(set) var bridgeImage: UIImage?
+
+    /// 当前 LUT 缓存 key（CameraView 在 onAppear 时写入）。bridgeImage 渲染时用它套色。
+    var currentLutCacheKey: String = ""
+
+    /// 单调递增 token：用于丢弃过时 swap 的清理回调（用户快速来回点档位时不会让旧任务把
+    /// bridgeImage 提前撤掉）。
+    private var swapToken: UInt64 = 0
+
+    /// 用于桥接帧渲染的 CIContext（首次访问时初始化，~50ms 一次性成本）
+    private lazy var bridgeContext: CIContext = {
+        let srgb = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        if let mtl = MTLCreateSystemDefaultDevice() {
+            return CIContext(mtlDevice: mtl, options: [
+                .workingColorSpace: srgb,
+                .outputColorSpace: srgb
+            ])
+        }
+        return CIContext(options: [.workingColorSpace: srgb, .outputColorSpace: srgb])
+    }()
+
+    /// 抓取最新预览帧并套用当前 LUT + 旋转，渲染成 UIImage 用作切镜桥接遮罩。
+    /// 与 MTKView 渲染管线视觉一致——cross-fade 不会出现颜色跳变。
+    @MainActor
+    private func makeBridgeImage(lutCacheKey: String) -> UIImage? {
+        guard let (buffer, _) = getLatestFrame() else { return nil }
+        var ciImage = CIImage(cvPixelBuffer: buffer)
+
+        if let lut = FilmProcessor.shared.getCachedLUT(cacheKey: lutCacheKey),
+           let colorCube = CIFilter(name: "CIColorCubeWithColorSpace") {
+            colorCube.setValue(ciImage, forKey: kCIInputImageKey)
+            colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
+            colorCube.setValue(lut.data, forKey: "inputCubeData")
+            if let srgb = CGColorSpace(name: CGColorSpace.sRGB) {
+                colorCube.setValue(srgb, forKey: "inputColorSpace")
+            }
+            if let out = colorCube.outputImage {
+                ciImage = out
+            }
+        }
+
+        if let angle = previewRotationAngle, Int(angle) % 360 != 0 {
+            ciImage = ciImage.oriented(orientationFromRotationAngle(angle))
+        }
+
+        guard let cgImage = bridgeContext.createCGImage(ciImage, from: ciImage.extent) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
 
     /// 弱引用 MTKView，用于从相机回调触发渲染
@@ -667,8 +724,6 @@ class CameraManager: NSObject, ObservableObject {
     @Published var currentFocalLength: FocalLengthOption = .mm35
     @Published var focalInfo: DeviceFocalInfo = .placeholder
     @Published var currentZoomFactor: CGFloat = 1.0
-    /// 跨 W/T 物理镜头交换中——SwiftUI 据此显示模糊遮罩，遮住预览短暂的黑屏
-    @Published var isSwappingLens: Bool = false
     private var zoomObservation: NSKeyValueObservation?
     private var pinchDidSwitch = false  // 一次捏合手势只切换一档
     private var focalLengthPicker: AVCaptureIndexPicker?
@@ -701,7 +756,7 @@ class CameraManager: NSObject, ObservableObject {
         return nil
     }
 
-    // iOS 18 方向管理
+    // iOS 18 方向管理（每次 swap 后重建 RotationCoordinator）
     fileprivate var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
     private var currentDeviceOrientation: UIDeviceOrientation = .portrait
     private var orientationObserver: (any NSObjectProtocol)?
@@ -980,7 +1035,8 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// 在专用串行队列上配置并启动 AVCaptureSession，避免阻塞主线程
+    /// 在专用串行队列上配置并启动 AVCaptureSession。单镜头模式：wide 启动、tele 预热 format（启动期就把
+    /// tele 的 4:3 高分辨率 format 选好，swap 路径上零 reconfig）。切镜走 swapInputDevice + bridgeImage cross-fade。
     private func configureAndStartSession() async {
         guard !session.isRunning, let device = wideDevice else {
             Log.session.debug("session_config_skip running=\(self.session.isRunning) has_wide=\(self.wideDevice != nil)")
@@ -1000,88 +1056,33 @@ class CameraManager: NSObject, ObservableObject {
 
                 do {
                     let videoInput = try AVCaptureDeviceInput(device: device)
-
                     if captureSession.canAddInput(videoInput) {
                         captureSession.addInput(videoInput)
                     }
 
-                    // 选「最高分辨率的 4:3 active format」（要求 ≥30fps 预览支持）。
-                    // 数字裁切（35mm 模拟在 24mm 主摄上要 1.46×）需要充足原生像素垫底，
-                    // 否则 iOS 必须升采样输出，画面发软、噪点放大。高分辨率 active format
-                    // + 12MP 输出 = 降采样得到的 12MP 自然锐利、噪点低，不依赖 Deep Fusion
-                    // 后期补救（避免锐化过渡和涂抹痕迹）。
-                    // 顺带解决了 .photo preset 在某些机型把 activeFormat 落到 16:9 的兼容问题。
-                    let currentDims = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription)
-                    let bestFormat = device.formats
-                        .filter { fmt in
-                            let d = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
-                            guard d.width > 0, d.height > 0 else { return false }
-                            let aspect = Float(d.width) / Float(d.height)
-                            let supports30 = fmt.videoSupportedFrameRateRanges.contains { $0.maxFrameRate >= 30.0 }
-                            return abs(aspect - 4.0 / 3.0) < 0.02 && supports30
-                        }
-                        .max { lhs, rhs in
-                            let l = CMVideoFormatDescriptionGetDimensions(lhs.formatDescription)
-                            let r = CMVideoFormatDescriptionGetDimensions(rhs.formatDescription)
-                            return Int(l.width) * Int(l.height) < Int(r.width) * Int(r.height)
-                        }
-                    if let fmt = bestFormat {
-                        let newDims = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
-                        if newDims.width != currentDims.width || newDims.height != currentDims.height {
-                            do {
-                                try device.lockForConfiguration()
-                                device.activeFormat = fmt
-                                device.unlockForConfiguration()
-                                Log.session.info("active_format_switched from=\(currentDims.width)x\(currentDims.height) to=\(newDims.width)x\(newDims.height)")
-                            } catch {
-                                Log.session.error("active_format_lock_failed error=\(error.localizedDescription, privacy: .public)")
-                            }
-                        } else {
-                            Log.session.info("active_format_kept dims=\(currentDims.width)x\(currentDims.height)")
-                        }
-                    } else {
-                        Log.session.error("active_format_no_4_3_30fps_candidate dims=\(currentDims.width)x\(currentDims.height)")
-                    }
+                    self.applyBestFormatAndModes(on: device)
 
                     if captureSession.canAddOutput(output) {
                         captureSession.addOutput(output)
 
-                        // 胶片模拟只需要干净的传感器数据 + LUT；不走 Deep Fusion 的多帧合成路径
-                        // （它在数字裁切场景下容易锐化过渡、留下涂抹式低频降噪痕迹）。
-                        // 锐度由上面选好的高分辨率 active format 提供——大传感器降采样到 12MP，
-                        // 自然锐利、噪点低，无需后期算法补救。
-                        // isResponsiveCaptureEnabled 仅优化快门手感、不影响画质，保留。
-                        // isFastCapturePrioritizationEnabled 专为连拍设计、显式以画质换响应；单张拍摄关掉。
-                        output.maxPhotoQualityPrioritization = .speed
-                        output.isResponsiveCaptureEnabled = true
-                        output.isFastCapturePrioritizationEnabled = false
-                        // 零快门延迟（ZSL）在支持设备上再减少 ~20ms 快门感知延迟
+                        // .balanced 启用 Deep Fusion / Smart HDR / Photonic Engine 同步处理：
+                        // 暗光降噪、动态范围、纹理细节都接入原生计算摄影管线，回调延迟 +100–300ms
+                        // 但 ZSL + ResponsiveCapture 让快门手感不变，LUT 又是异步跑，整体无感。
+                        // 注意：不开 isAutoDeferredPhotoDeliveryEnabled——其 deferred 结果只交付
+                        // PhotoKit，自定义 SwiftData 存储拿不到，开启反而只拿到早期低质版本。
+                        output.maxPhotoQualityPrioritization = .balanced
+                        if output.isResponsiveCaptureSupported {
+                            output.isResponsiveCaptureEnabled = true
+                        }
+                        if output.isFastCapturePrioritizationSupported {
+                            output.isFastCapturePrioritizationEnabled = false
+                        }
                         if output.isZeroShutterLagSupported {
                             output.isZeroShutterLagEnabled = true
                         }
 
-                        let format = device.activeFormat
-                        let supportedDimensions = format.supportedMaxPhotoDimensions
-
-                        // 输出锁定 12MP 附近（4032×3024）。锐度来自 active format 高分辨率
-                        // 传感器数据的降采样；输出本身不需要更大——LUT/JPEG/磁盘压力都跟着大文件成倍长。
-                        let target = 4032 * 3024
-                        let preferred = supportedDimensions
-                            .filter { dim in
-                                let ratio = Float(dim.width) / Float(dim.height)
-                                return abs(ratio - 4.0/3.0) < 0.05
-                            }
-                            .min { lhs, rhs in
-                                let lDelta = abs(Int(lhs.width) * Int(lhs.height) - target)
-                                let rDelta = abs(Int(rhs.width) * Int(rhs.height) - target)
-                                return lDelta < rDelta
-                            }
-
-                        if let selected = preferred {
-                            output.maxPhotoDimensions = selected
-                        } else if let smallest = supportedDimensions.min(by: { $0.width < $1.width }) {
-                            output.maxPhotoDimensions = smallest
-                        }
+                        // 输出锁定 12MP 附近（4032×3024）。锐度来自 active format 降采样。
+                        self.applyMaxPhotoDimensions(output: output, device: device)
                     }
 
                     videoOutput.alwaysDiscardsLateVideoFrames = true
@@ -1089,30 +1090,6 @@ class CameraManager: NSObject, ObservableObject {
                     if captureSession.canAddOutput(videoOutput) {
                         captureSession.addOutput(videoOutput)
                     }
-
-                    try device.lockForConfiguration()
-                    if device.isFocusModeSupported(.continuousAutoFocus) {
-                        device.focusMode = .continuousAutoFocus
-                    }
-                    if device.isExposureModeSupported(.continuousAutoExposure) {
-                        device.exposureMode = .continuousAutoExposure
-                    }
-                    if device.isSmoothAutoFocusSupported {
-                        device.isSmoothAutoFocusEnabled = true
-                    }
-                    device.isSubjectAreaChangeMonitoringEnabled = true
-
-                    // 提升预览帧率：查询当前 format 支持的最高帧率（通常 60fps）
-                    let maxRate = device.activeFormat.videoSupportedFrameRateRanges
-                        .map(\.maxFrameRate)
-                        .max() ?? 30.0
-                    let targetFPS = min(maxRate, 60.0)
-                    self.nominalFPSLock.withLock { $0 = targetFPS }
-                    device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(targetFPS))
-                    device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: CMTimeScale(targetFPS))
-                    Log.session.info("preview_fps target=\(Int(targetFPS)) max_supported=\(Int(maxRate))")
-
-                    device.unlockForConfiguration()
                 } catch {
                     Log.session.error("session_setup_error error=\(error.localizedDescription, privacy: .public)")
                 }
@@ -1130,7 +1107,7 @@ class CameraManager: NSObject, ObservableObject {
         videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
 
         // 预配置 telephoto 的 activeFormat（一次性，与 wide 同样选 4:3 高分辨率）。
-        // 这样后续 swapInputDevice(to: tele) 时 format 已经就绪，无需在 swap 路径上选 format。
+        // 这样后续 swapInputDevice(to: tele) 时 format 已经就绪，swap 路径只做 input 切换。
         if let tele = teleDevice {
             await preconfigureFormat(on: tele)
         }
@@ -1151,21 +1128,18 @@ class CameraManager: NSObject, ObservableObject {
         if currentVideoInput != nil {
             let titles = focalInfo.options.map { "\($0.rawValue)mm" }
             let picker = AVCaptureIndexPicker("焦距", symbolName: "camera.metering.spot", localizedIndexTitles: titles)
-            // 设置初始选中项
             if let idx = focalInfo.options.firstIndex(of: currentFocalLength) {
                 picker.selectedIndex = idx
             }
             picker.setActionQueue(.main) { [weak self] index in
                 guard let self, index < self.focalInfo.options.count else { return }
-                let option = self.focalInfo.options[index]
-                self.setFocalLength(option)
+                self.setFocalLength(self.focalInfo.options[index])
             }
             if session.canAddControl(picker) {
                 session.addControl(picker)
                 focalLengthPicker = picker
                 Log.session.info("camera_control_index_picker_added options=\(titles)")
             }
-            // 设置 controls delegate（控件激活的必要条件）
             session.setControlsDelegate(self, queue: .main)
         }
 
@@ -1175,7 +1149,7 @@ class CameraManager: NSObject, ObservableObject {
         // 场景变化时自动恢复连续对焦/曝光（subjectArea 通知不随设备变，绑一次即可）
         subjectAreaObserver = NotificationCenter.default.addObserver(
             forName: AVCaptureDevice.subjectAreaDidChangeNotification,
-            object: nil,  // nil = 任意 device，避免 swap 后失效
+            object: nil,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
@@ -1186,7 +1160,7 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - 物理镜头切换（W ⇄ T）
+    // MARK: - 设备配置 / 物理镜头切换（W ⇄ T）
 
     /// 给指定设备选好 4:3 高分辨率 format 并设置焦点/曝光/帧率。
     /// 必须在 sessionQueue 调用。设备不必在 session 中（用于预配置 telephoto）。
@@ -1215,6 +1189,13 @@ class CameraManager: NSObject, ObservableObject {
                     Log.session.info("active_format_set device=\(device.localizedName, privacy: .public) dims=\(newDims.width)x\(newDims.height)")
                 }
             }
+            // 锁 sRGB：胶片 LUT 是按 sRGB 训练的，跳过 P3→sRGB 转换路径让色彩更稳定可预测。
+            // supportedColorSpaces 几乎所有 format 都包含 sRGB，找不到就保持默认。
+            if device.activeFormat.supportedColorSpaces.contains(.sRGB),
+               device.activeColorSpace != .sRGB {
+                device.activeColorSpace = .sRGB
+                Log.session.info("color_space_set device=\(device.localizedName, privacy: .public) space=sRGB")
+            }
             if device.isFocusModeSupported(.continuousAutoFocus) {
                 device.focusMode = .continuousAutoFocus
             }
@@ -1238,6 +1219,29 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
+    /// 给 photo output 选 4:3 输出尺寸（device 必须已 connect 到 photo output）。
+    /// 策略：挑 ≤28M 像素的最大 4:3 dim——优先 24MP（5712×4284 类），次选 12MP，拒 48MP。
+    /// 24MP 让 35/50/200mm 的数字裁切保留 ~10MP 真实细节；24/100mm 也享受 sensor 高分辨率
+    /// 读出再下采样的过采样锐度。48MP 文件膨胀 4×、LUT 处理时间 3×，边际增益不值。
+    nonisolated private func applyMaxPhotoDimensions(output: AVCapturePhotoOutput, device: AVCaptureDevice) {
+        let supportedDimensions = device.activeFormat.supportedMaxPhotoDimensions
+        let cap = 28_000_000
+        let aspect43 = supportedDimensions.filter { dim in
+            let ratio = Float(dim.width) / Float(dim.height)
+            return abs(ratio - 4.0/3.0) < 0.05
+        }
+        if let selected = aspect43
+            .filter({ Int($0.width) * Int($0.height) <= cap })
+            .max(by: { Int($0.width) * Int($0.height) < Int($1.width) * Int($1.height) })
+        {
+            output.maxPhotoDimensions = selected
+        } else if let fallback = aspect43.min(by: { Int($0.width) * Int($0.height) < Int($1.width) * Int($1.height) }) {
+            output.maxPhotoDimensions = fallback
+        } else if let smallest = supportedDimensions.min(by: { $0.width < $1.width }) {
+            output.maxPhotoDimensions = smallest
+        }
+    }
+
     /// 在启动时为后备 telephoto 预配置 format（避免 swap 路径上做这件事）
     private func preconfigureFormat(on device: AVCaptureDevice) async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -1249,13 +1253,11 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     /// 切换 session 输入到指定物理设备。负责：
-    /// 1) 在 sessionQueue 做 begin/removeInput/addInput/format/photoOutputDims/commit
+    /// 1) sessionQueue 上做 begin/removeInput/addInput/photoOutputDims/commit（format 已预配置过）
     /// 2) 回到 MainActor 重建 rotationCoordinator、重绑 zoom/focus/pressure KVO
-    /// 3) 期间 isSwappingLens=true，UI 用模糊遮罩盖住短暂黑屏
+    /// 3) UI 端在调用前已抓 bridgeImage 盖住预览，swap 完成后再淡出，整体接近 iPhone 原相机切焦体验
     private func swapInputDevice(to target: AVCaptureDevice) async {
         if currentVideoInput?.device === target { return }
-
-        isSwappingLens = true
 
         let captureSession = session
         let output = photoOutput
@@ -1284,23 +1286,8 @@ class CameraManager: NSObject, ObservableObject {
                     Log.session.error("swap_input_create_failed error=\(error.localizedDescription, privacy: .public)")
                 }
 
-                self.applyBestFormatAndModes(on: target)
-
-                let supportedDims = target.activeFormat.supportedMaxPhotoDimensions
-                let targetArea = 4032 * 3024
-                let preferred = supportedDims
-                    .filter { dim in
-                        let ratio = Float(dim.width) / Float(dim.height)
-                        return abs(ratio - 4.0/3.0) < 0.05
-                    }
-                    .min { lhs, rhs in
-                        abs(Int(lhs.width) * Int(lhs.height) - targetArea) < abs(Int(rhs.width) * Int(rhs.height) - targetArea)
-                    }
-                if let selected = preferred {
-                    output.maxPhotoDimensions = selected
-                } else if let smallest = supportedDims.min(by: { $0.width < $1.width }) {
-                    output.maxPhotoDimensions = smallest
-                }
+                // format 启动时已为 wide/tele 各配过；swap 路径只重置 photoOutput 输出尺寸即可
+                self.applyMaxPhotoDimensions(output: output, device: target)
 
                 captureSession.commitConfiguration()
                 continuation.resume(returning: added)
@@ -1312,21 +1299,14 @@ class CameraManager: NSObject, ObservableObject {
         bindDeviceObservers(to: target)
         applyVideoOrientationToOutputs()
 
-        // 紧凑的 swap-后状态行：哪个设备 + active format dims + photoOutput dims + zoom
         let activeDims = CMVideoFormatDescriptionGetDimensions(target.activeFormat.formatDescription)
         let outDims = photoOutput.maxPhotoDimensions
         Log.session.info("swap_complete device=\(target.localizedName, privacy: .public) active_dims=\(activeDims.width)x\(activeDims.height) photo_dims=\(outDims.width)x\(outDims.height) zoom=\(String(format: "%.2f", target.videoZoomFactor))")
 
-        // 等几帧让新设备的预览出来再撤遮罩，避免淡出后还是黑屏。
-        // 30fps ≈ 33ms/frame，等 4 帧 ≈ 130ms，对用户感知是顺滑过渡。
-        try? await Task.sleep(for: .milliseconds(130))
-        isSwappingLens = false
-
         swapTimer.end("device=\(target.localizedName)")
     }
 
-    /// 把 zoom / focus / pressure KVO 重新绑到当前激活设备。
-    /// swap 后必须调用，否则 KVO 还指向旧设备。
+    /// 把 zoom / focus / pressure KVO 重新绑到当前激活设备。swap 后必须调用。
     private func bindDeviceObservers(to device: AVCaptureDevice) {
         zoomObservation?.invalidate()
         focusObservation?.invalidate()
@@ -1338,7 +1318,6 @@ class CameraManager: NSObject, ObservableObject {
             Task { @MainActor in
                 self.currentZoomFactor = newZoom
                 if isRamping { return }
-                // 当前设备是 wide 还是 tele 决定换算基准
                 let nativeMm = (dev.deviceType == .builtInTelephotoCamera) ? self.focalInfo.teleMm : self.focalInfo.wideMm
                 guard nativeMm > 0 else { return }
                 let mm = Float(newZoom) * nativeMm
@@ -1399,9 +1378,9 @@ class CameraManager: NSObject, ObservableObject {
 
         let issueTime = Log.now()
         let settings = AVCapturePhotoSettings()
-        // 与 photoOutput.maxPhotoQualityPrioritization 一致。.speed 跳过 Deep Fusion——
-        // 锐度依靠高分辨率 active format 降采样到 12MP，无需多帧合成补救，画面更干净。
-        settings.photoQualityPrioritization = .speed
+        // 与 photoOutput.maxPhotoQualityPrioritization 一致：.balanced 走完整原生管线
+        // （Deep Fusion / Smart HDR / Photonic Engine），同步交付高质量数据再过 LUT。
+        settings.photoQualityPrioritization = .balanced
 
         if let device = videoCaptureDevice, device.hasFlash {
             settings.flashMode = (flashMode == .on) ? .on : .off
@@ -1498,7 +1477,15 @@ class CameraManager: NSObject, ObservableObject {
             .map { "\($0.width)x\($0.height)" }
             .joined(separator: ",")
         let outDims = photoOutput.maxPhotoDimensions
-        log.info("📷 photo_caps supported=[\(photoDims, privacy: .public)] selected=\(outDims.width)x\(outDims.height) responsive=\(self.photoOutput.isResponsiveCaptureEnabled) fast_capture=\(self.photoOutput.isFastCapturePrioritizationEnabled) zsl=\(self.photoOutput.isZeroShutterLagEnabled) constant_color=\(self.photoOutput.isConstantColorSupported)")
+        let qPri: String = {
+            switch self.photoOutput.maxPhotoQualityPrioritization {
+            case .speed: return "speed"
+            case .balanced: return "balanced"
+            case .quality: return "quality"
+            @unknown default: return "unknown"
+            }
+        }()
+        log.info("📷 photo_caps supported=[\(photoDims, privacy: .public)] selected=\(outDims.width)x\(outDims.height) responsive=\(self.photoOutput.isResponsiveCaptureEnabled) fast_capture=\(self.photoOutput.isFastCapturePrioritizationEnabled) zsl=\(self.photoOutput.isZeroShutterLagEnabled) constant_color=\(self.photoOutput.isConstantColorSupported) quality_pri=\(qPri, privacy: .public)")
 
         // 7) 闪光灯/低光增强
         log.info("📷 flash has_flash=\(device.hasFlash) flash_available=\(device.isFlashAvailable) torch=\(device.hasTorch) low_light_supported=\(device.isLowLightBoostSupported) low_light_active=\(device.isLowLightBoostEnabled)")
@@ -1589,15 +1576,10 @@ class CameraManager: NSObject, ObservableObject {
         pinchDidSwitch = false
     }
 
-    /// 序号用来识别"最新一次 applyFocalLength 调用"——快速来回点档位时，
-    /// 旧 swap 完成回调中的 zoom 应用必须被丢弃，否则会把过时的 zoom 应用到错误设备上。
-    private var focalApplySeq: UInt64 = 0
-
+    /// 切焦距：需要换物理镜头时先抓 bridgeImage 盖住预览，sessionQueue 上完成 swap，
+    /// 等 ~250ms 让新镜头 AE/WB 收敛 + 1-2 帧抵达 MTKView，再清空 bridgeImage 触发 SwiftUI 淡出。
+    /// 视觉效果：用户看到的是「上一帧定格 → 平滑过渡到新镜头」，没有黑帧、没有 AE 突跳。
     private func applyFocalLength(_ option: FocalLengthOption, animated: Bool = true, fromZoom: CGFloat? = nil) {
-        focalApplySeq &+= 1
-        let mySeq = focalApplySeq
-
-        // 决定目标设备
         let targetType = focalInfo.deviceType(for: option)
         let target: AVCaptureDevice? = (targetType == .builtInTelephotoCamera) ? teleDevice : wideDevice
         guard let target else {
@@ -1609,14 +1591,29 @@ class CameraManager: NSObject, ObservableObject {
         let zoomOnTarget = focalInfo.zoomFactor(for: option)
 
         if needSwap {
+            // 用户快速来回点档位时，旧 swap 完成回调中的 bridgeImage 清理必须被丢弃，
+            // 否则会把过时回调把 bridge 提前撤掉，露出还没收敛好的画面。
+            swapToken &+= 1
+            let myToken = swapToken
+
+            // 1. 抓 bridge 帧（与当前预览像素级一致）
+            if let bridge = makeBridgeImage(lutCacheKey: currentLutCacheKey) {
+                bridgeImage = bridge
+            }
+
+            // 2. swap → ramp zoom → 等 AE 收敛 → 淡出 bridge
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 await self.swapInputDevice(to: target)
-                guard self.focalApplySeq == mySeq else {
-                    Log.session.info("focal_apply_obsolete option=\(option.rawValue) seq=\(mySeq) latest=\(self.focalApplySeq)")
+                guard self.swapToken == myToken else {
+                    Log.session.info("focal_apply_obsolete option=\(option.rawValue) token=\(myToken) latest=\(self.swapToken)")
                     return
                 }
                 self.applyZoomOnly(zoomOnTarget, on: target, animated: animated, fromZoom: fromZoom, option: option)
+                // 30fps ≈ 33ms/frame；250ms ≈ 7-8 帧。新镜头 AE/WB 收敛 + 几帧到达 MTKView。
+                try? await Task.sleep(for: .milliseconds(250))
+                guard self.swapToken == myToken else { return }
+                self.bridgeImage = nil
             }
         } else {
             applyZoomOnly(zoomOnTarget, on: target, animated: animated, fromZoom: fromZoom, option: option)
@@ -1702,6 +1699,9 @@ class CameraManager: NSObject, ObservableObject {
         pressureObservation?.invalidate()
         pressureObservation = nil
         currentVideoInput = nil
+        bridgeImage = nil
+        // 清空 buffer（避免 stopRunning 后 MTKView 还显示上次的 frame）
+        pixelBufferLock.withLockUnchecked { $0.buffer = nil }
         // 取消 NotificationCenter observer（deinit 因 Swift 6 隔离规则无法访问这些属性）
         if let observer = orientationObserver {
             NotificationCenter.default.removeObserver(observer)
