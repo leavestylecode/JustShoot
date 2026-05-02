@@ -414,18 +414,21 @@ final class FilmProcessor: Sendable {
     private init() {
         let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         self.srgbColorSpace = colorSpace
-        // 显式使用 Metal 设备，确保 LUT 处理走 GPU 加速路径
+        // 显式使用 Metal 设备，确保 LUT 处理走 GPU 加速路径。
+        // highQualityDownsample: 任何隐式缩放都走 Lanczos（保高频细节），不开默认走廉价 linear。
+        // cacheIntermediates: 48MP 路径中间步骤缓存可达数百 MB；关掉后按需重算，避免低内存设备 jetsam。
+        let baseOptions: [CIContextOption: Any] = [
+            CIContextOption.workingColorSpace: colorSpace,
+            CIContextOption.outputColorSpace: colorSpace,
+            CIContextOption.highQualityDownsample: true,
+            CIContextOption.cacheIntermediates: false
+        ]
         if let mtlDevice = MTLCreateSystemDefaultDevice() {
-            self.ciContext = CIContext(mtlDevice: mtlDevice, options: [
-                CIContextOption.workingColorSpace: colorSpace,
-                CIContextOption.outputColorSpace: colorSpace
-            ])
+            self.ciContext = CIContext(mtlDevice: mtlDevice, options: baseOptions)
         } else {
-            self.ciContext = CIContext(options: [
-                CIContextOption.useSoftwareRenderer: false,
-                CIContextOption.workingColorSpace: colorSpace,
-                CIContextOption.outputColorSpace: colorSpace
-            ])
+            var opts = baseOptions
+            opts[CIContextOption.useSoftwareRenderer] = false
+            self.ciContext = CIContext(options: opts)
         }
     }
 
@@ -547,15 +550,16 @@ final class FilmProcessor: Sendable {
 
     /// 应用 LUT 并保留/添加元数据（拍照用，统一 sRGB 色彩空间）
     func applyLUTPreservingMetadata(imageData: Data, lutCacheKey: String, outputQuality: CGFloat = 0.95, location: CLLocation? = nil, focalLengthIn35mm: Int? = nil) -> Data? {
-        // 读取原始 EXIF 方向（AVCapture 写入时通常为 6/3/8，像素保留在传感器原始横向朝向）
-        let sourceProps: [String: Any]? = {
-            guard let src = CGImageSourceCreateWithData(imageData as CFData, nil) else { return nil }
-            return CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [String: Any]
+        // 读取原始 metadata（AVCapture 写入的完整 EXIF / TIFF / Maker / 色彩空间字典）。
+        // 一次读取，后面 orientation 判断 + metadata 注入都复用，避免重复打开 CGImageSource。
+        let sourceProps: [String: Any] = {
+            guard let src = CGImageSourceCreateWithData(imageData as CFData, nil) else { return [:] }
+            return CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [String: Any] ?? [:]
         }()
         let exifOrientation: Int32 = {
-            if let v = sourceProps?[kCGImagePropertyOrientation as String] as? Int32 { return v }
-            if let v = sourceProps?[kCGImagePropertyOrientation as String] as? Int { return Int32(v) }
-            if let v = sourceProps?[kCGImagePropertyOrientation as String] as? UInt32 { return Int32(v) }
+            if let v = sourceProps[kCGImagePropertyOrientation as String] as? Int32 { return v }
+            if let v = sourceProps[kCGImagePropertyOrientation as String] as? Int { return Int32(v) }
+            if let v = sourceProps[kCGImagePropertyOrientation as String] as? UInt32 { return Int32(v) }
             return 1
         }()
 
@@ -571,11 +575,10 @@ final class FilmProcessor: Sendable {
         let isLandscape = inputExtent.width > inputExtent.height
         Log.lut.info("lut_apply_begin key=\(lutCacheKey, privacy: .public) exif=\(exifOrientation) w=\(Int(inputExtent.width)) h=\(Int(inputExtent.height)) landscape=\(isLandscape)")
 
-        // 裁成 135 全画幅画幅（3:2 横 / 2:3 纵）。iPhone 传感器原生 4:3，多出来的上下
-        // ~11% 在这里裁掉——焦段标 35mm 时拍出来的 FOV 才与真 135/35mm 完全对齐
-        // （横向、纵向、画幅三件套都对得上，不再只是「同对角线 FOV 的 4:3」）。
-        // 预览侧 .aspectRatio(2.0/3.0) 同步收窄，保持所见即所得。
-        let targetAspect: CGFloat = isLandscape ? (3.0 / 2.0) : (2.0 / 3.0)
+        // 出片保持 sensor 原生 4:3（横）/ 3:4（纵）画幅，与预览 viewport `.aspectRatio(3.0/4.0)`
+        // 完全对齐。sensor 输出已经是 4:3，下面的 crop 在 |差异| ≤ 0.01 时是 no-op；保留这段代码
+        // 是为了万一上游格式选择给出非 4:3 的 active format（罕见）也能兜底裁回标称比例。
+        let targetAspect: CGFloat = isLandscape ? (4.0 / 3.0) : (3.0 / 4.0)
         let currentAspect = inputExtent.width / inputExtent.height
 
         if abs(currentAspect - targetAspect) > 0.01 {
@@ -608,25 +611,42 @@ final class FilmProcessor: Sendable {
 
         guard let output = colorCube.outputImage else { return nil }
 
-        // 渲染为 JPEG（统一 sRGB）
-        guard let renderedJPEG = ciContext.jpegRepresentation(
+        // 渲染为 HEIF/HEVC（与拍摄端 codec 对齐，相同质量下文件 ~50% of JPEG）。
+        // .RGBA8 = 8-bit HEIF——和原 JPEG 比特深度一致，肉眼无差异；上 16-bit 在 8-bit 源上无增益。
+        // HEVC 编码失败极少见（仅极旧设备），fallback 到 JPEG 保证总能产出。
+        let rendered: Data
+        if let heif = ciContext.heifRepresentation(
+            of: output,
+            format: .RGBA8,
+            colorSpace: srgbColorSpace,
+            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
+        ) {
+            rendered = heif
+        } else if let jpeg = ciContext.jpegRepresentation(
             of: output,
             colorSpace: srgbColorSpace,
             options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
-        ) else { return nil }
+        ) {
+            Log.lut.info("lut_render_fallback codec=jpeg reason=heif_unavailable")
+            rendered = jpeg
+        } else {
+            Log.lut.error("lut_apply_failed reason=render_failed")
+            return nil
+        }
 
-        // 提取原始元数据
-        guard let originalSource = CGImageSourceCreateWithData(imageData as CFData, nil) else { return nil }
-        var metadata = CGImageSourceCopyPropertiesAtIndex(originalSource, 0, nil) as? [String: Any] ?? [:]
+        // 注入 metadata：把原始 source props 中的 EXIF/TIFF/GPS 等字典通过 CGImageDestination 写到
+        // 已编码的图像上。**source 和 destination 是同一 imageType 时，AddImageFromSource 是 fast copy +
+        // metadata replace**（Apple docs 原话），不会重新压缩——画质零损失。
+        var metadata = sourceProps
 
-        // 方向标记为 .up（像素已物理旋转）
+        // 方向：像素已通过 .oriented(forExifOrientation:) 物理旋转到正向，输出标记为 .up
         metadata[kCGImagePropertyOrientation as String] = 1
         if var tiff = metadata[kCGImagePropertyTIFFDictionary as String] as? [String: Any] {
             tiff[kCGImagePropertyTIFFOrientation as String] = 1
             metadata[kCGImagePropertyTIFFDictionary as String] = tiff
         }
 
-        // 添加 GPS 信息
+        // GPS
         if let loc = location {
             var gps: [String: Any] = metadata[kCGImagePropertyGPSDictionary as String] as? [String: Any] ?? [:]
             gps[kCGImagePropertyGPSLatitude as String] = abs(loc.coordinate.latitude)
@@ -660,15 +680,16 @@ final class FilmProcessor: Sendable {
             metadata[kCGImagePropertyExifDictionary as String] = exif
         }
 
-        // 写入最终图像
-        guard let renderedSource = CGImageSourceCreateWithData(renderedJPEG as CFData, nil),
+        // CGImageSourceGetType 自动识别 HEIC/JPEG，destination 用同一 type 写回 → fast copy 路径。
+        // metadata 字典中的 PixelWidth/Height 等 size 字段会被 destination 用 LUT 渲染后的真实尺寸覆盖，
+        // 不会和实际图像 dim 冲突。
+        guard let renderedSource = CGImageSourceCreateWithData(rendered as CFData, nil),
               let mutableData = CFDataCreateMutable(nil, 0),
               let imageType = CGImageSourceGetType(renderedSource),
               let destination = CGImageDestinationCreateWithData(mutableData, imageType, 1, nil) else {
             return nil
         }
 
-        metadata[kCGImageDestinationLossyCompressionQuality as String] = outputQuality
         CGImageDestinationAddImageFromSource(destination, renderedSource, 0, metadata as CFDictionary)
 
         guard CGImageDestinationFinalize(destination) else {

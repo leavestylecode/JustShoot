@@ -74,6 +74,20 @@ Uses `AVCaptureDevice.RotationCoordinator.videoRotationAngleForHorizonLevelCaptu
 - Temporary exposure lock during capture to prevent AE from canceling bias
 - Automatic restoration of previous exposure settings after capture
 
+### Stabilization Strategy (iOS 18)
+
+Mirrors iPhone Camera's split-path approach: stabilize the viewfinder, leave still capture to OIS + multi-frame fusion.
+
+**Preview path (`videoDataOutput`)**: `applyPreviewStabilization(output:device:)` sets `connection.preferredVideoStabilizationMode` with priority `.previewOptimized` → `.standard` → `.off`, gated by `format.isVideoStabilizationModeSupported`. `.previewOptimized` (iOS 17+) is purpose-built for camera-app viewfinders — it stabilizes the preview without adding shutter latency. Long telephoto (100/200mm cropped) benefits most.
+
+**Photo path (`photoOutput`)**: **never set** `preferredVideoStabilizationMode`. Still capture relies on:
+- **OIS / sensor-shift IS** — hardware, always on
+- **Multi-frame fusion** (Smart HDR, Deep Fusion, Photonic Engine) — engaged automatically by `maxPhotoQualityPrioritization = .balanced`
+
+Setting a stabilization mode on the photo connection introduces warping/cropping that conflicts with Deep Fusion frame alignment and degrades 24MP output.
+
+**Re-apply on input swap**: W↔T have different active formats with potentially different stabilization mode support, so `applyPreviewStabilization` is called both during initial `configureAndStartSession` and after `swapInputDevice` reconfigures the session.
+
 ## Development Commands
 
 ### Building and Running
@@ -239,13 +253,16 @@ JustShoot/
 ### Performance Improvements
 - **Shutter lag**: Reduced from ~150ms to <50ms (66% improvement)
 - **GPS wait time**: Eliminated 1.5s timeout (100% improvement)
-- **Burst mode**: Enabled via `isFastCapturePrioritizationEnabled`
+- **Single-shot quality priority**: `isFastCapturePrioritizationEnabled = false` — that mode is burst-tuned and trades quality for response; disabled here so `.balanced` + Deep Fusion / Smart HDR / Photonic Engine drive every shot
 - **Concurrent processing**: LUT and GPS fetch in parallel
 
 ### Key API Usage
+- `photoOutput.maxPhotoQualityPrioritization = .balanced` — engages Deep Fusion / Smart HDR / Photonic Engine
 - `photoOutput.isResponsiveCaptureEnabled = true`
-- `photoOutput.isFastCapturePrioritizationEnabled = true`
-- `photoOutput.maxPhotoDimensions` for precise output size
+- `photoOutput.isZeroShutterLagEnabled = true`
+- `photoOutput.isFastCapturePrioritizationEnabled = false` — disabled intentionally (burst-only, hurts single-shot quality)
+- `photoOutput.maxPhotoDimensions` for precise output size (24MP cap)
+- `videoDataOutput.connection.preferredVideoStabilizationMode = .previewOptimized` — iPhone-Camera-style stable viewfinder; **never** set on `photoOutput` (conflicts with Deep Fusion)
 - `cachedOrFreshLocation()` with 30s cache for zero-wait GPS
 
 ### Removed Legacy Support

@@ -49,6 +49,28 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         cache.setObject(image, forKey: key, cost: memoryCost(of: image))
     }
 
+    /// 把带 alpha channel 的 CGImage 重绘成 opaque RGB，去掉无意义的 alpha 字节。
+    /// 触发场景：HEIC 源经 CGImageSourceCreateThumbnailAtIndex 出来的 CGImage 默认带 RGBA，
+    /// 内容明明 opaque——直接 jpegData 会报"opaque image with AlphaLast"且文件多 25%。
+    /// 重绘到 noneSkipFirst（XRGB）后存盘即可消除 ImageIO 警告，同时减小文件、加快解码。
+    static func makeOpaque(_ cgImage: CGImage) -> CGImage {
+        let w = cgImage.width
+        let h = cgImage.height
+        let cs = cgImage.colorSpace ?? CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.noneSkipFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        guard let ctx = CGContext(
+            data: nil,
+            width: w,
+            height: h,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: cs,
+            bitmapInfo: bitmapInfo
+        ) else { return cgImage }
+        ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return ctx.makeImage() ?? cgImage
+    }
+
     /// 便捷重载：在主 actor 上预取 `Photo` 的 imageData/id，再转发到 Sendable 版本。
     /// 调用点仍然写 `loadPreview(for: photo, ...)`，但 Sendable 契约由 @MainActor 担保。
     @MainActor
@@ -85,7 +107,8 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
                 kCGImageSourceCreateThumbnailWithTransform: true
             ]
             guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
-            let image = UIImage(cgImage: cgThumb)
+            let opaque = ImageLoader.makeOpaque(cgThumb)
+            let image = UIImage(cgImage: opaque)
             self.cacheImage(image, forKey: key)
             if let url = self.previewURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
                 try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -128,7 +151,8 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
                 kCGImageSourceCreateThumbnailWithTransform: true
             ]
             guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
-            let image = UIImage(cgImage: cgThumb)
+            let opaque = ImageLoader.makeOpaque(cgThumb)
+            let image = UIImage(cgImage: opaque)
             self.cacheImage(image, forKey: key)
             if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.85) {
                 try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -718,7 +742,13 @@ struct PhotoDetailView: View {
                     }
 
                     let options = PHAssetResourceCreationOptions()
-                    options.uniformTypeIdentifier = "public.jpeg"
+                    // 用 CGImageSource 自适配检测真实 UTI（HEIC/JPEG），不再硬编码——LUT 管线已切到
+                    // HEIF 后 imageData 是 HEIC，仍写 "public.jpeg" 会让 PhotoKit 报 PHPhotosErrorDomain 3302
+                    // (data 与声明 UTI 不一致)。
+                    if let src = CGImageSourceCreateWithData(imageData as CFData, nil),
+                       let uti = CGImageSourceGetType(src) {
+                        options.uniformTypeIdentifier = uti as String
+                    }
                     request.addResource(with: .photo, data: imageData, options: options)
                 }
 

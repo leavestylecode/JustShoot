@@ -88,10 +88,10 @@ struct CameraView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            // 2:3 纵向 = 135 全画幅胶片画幅。预览与成片对齐（在 applyLUTPreservingMetadata
-            // 里同步裁 4:3 → 2:3），35mm 档拍出来的视场和真 135/35mm 一致：横向、纵向、画幅
-            // 三件套全对得上，不再是「同对角 FOV 的 4:3 框」。
-            .aspectRatio(2.0/3.0, contentMode: .fit)
+            // 3:4 纵向 = iPhone 传感器原生纵横比。预览 viewport 与 sensor 输出对齐，aspect-fill
+            // 在 MTKView 里是无损裁切（scale_x == scale_y），出片也保留全 sensor FOV。
+            // 取消 2:3 (135 胶片) 裁切后：tap-to-focus 坐标无需偏移修正，FOV 也最大化。
+            .aspectRatio(3.0/4.0, contentMode: .fit)
             .padding(.horizontal, 4)
 
             // 权限被拒绝时的引导
@@ -402,8 +402,19 @@ struct CameraView: View {
             showFocusIndicator = true
         }
 
-        // 坐标转换：视图坐标 → AVFoundation 归一化坐标
-        // AVFoundation 使用横屏坐标系：{0,0} 左上，{1,1} 右下（Home 键在右）
+        // 坐标转换：portrait viewport tap → AVF sensor 归一化坐标
+        //
+        // AVF 的 focusPointOfInterest 用 sensor 原生 landscape 坐标系：
+        //   {0,0}=top-left, {1,1}=bottom-right，home 在右。
+        //
+        // viewport 现在是 3:4 portrait，与 sensor 4:3 landscape 旋转 90° CW 后的 3:4 portrait
+        // 完全一致——MTKView aspect-fill 是 1:1 无裁切。所以 vx/vy 在整个 viewport 上线性映射
+        // 到 AVF [0,1]×[0,1]，不需要偏移修正。
+        //
+        // 旋转 90° CW 的映射（sensor landscape → portrait viewport）：
+        //   sensor (sx, sy) ↔ portrait (px, py) where px = H - sy, py = sx
+        //   反推：sx = py = vy * sensorW/vh ; sy = H - px = (1 - vx/vw) * sensorH
+        //   归一化：AVF x = sx/W = vy/vh ; AVF y = sy/H = 1 - vx/vw
         let normalizedX = location.y / size.height
         let normalizedY = 1.0 - (location.x / size.width)
         let normalizedPoint = CGPoint(x: normalizedX, y: normalizedY)
@@ -946,25 +957,25 @@ class CameraManager: NSObject, ObservableObject {
     // MARK: - 对焦
 
     func setFocusAndExposure(normalizedPoint: CGPoint) {
-        guard let device = videoCaptureDevice else { return }
+        guard let device = videoCaptureDevice else {
+            Log.session.error("focus_set_skip reason=no_device")
+            return
+        }
+
+        let focusPointOK = device.isFocusPointOfInterestSupported
+        let exposurePointOK = device.isExposurePointOfInterestSupported
+        let autoFocusOK = device.isFocusModeSupported(.autoFocus)
+        let autoExposeOK = device.isExposureModeSupported(.autoExpose)
 
         do {
             try device.lockForConfiguration()
-
-            if device.isFocusPointOfInterestSupported {
-                device.focusPointOfInterest = normalizedPoint
-            }
-            if device.isExposurePointOfInterestSupported {
-                device.exposurePointOfInterest = normalizedPoint
-            }
-            if device.isFocusModeSupported(.autoFocus) {
-                device.focusMode = .autoFocus
-            }
-            if device.isExposureModeSupported(.autoExpose) {
-                device.exposureMode = .autoExpose
-            }
-
+            if focusPointOK { device.focusPointOfInterest = normalizedPoint }
+            if exposurePointOK { device.exposurePointOfInterest = normalizedPoint }
+            if autoFocusOK { device.focusMode = .autoFocus }
+            if autoExposeOK { device.exposureMode = .autoExpose }
             device.unlockForConfiguration()
+
+            Log.session.info("focus_set device=\(device.localizedName, privacy: .public) avf=(\(String(format: "%.3f", normalizedPoint.x)),\(String(format: "%.3f", normalizedPoint.y))) focus_pt=\(focusPointOK) expo_pt=\(exposurePointOK) auto_focus=\(autoFocusOK) auto_expose=\(autoExposeOK)")
 
             isFocusLocked = true
             startFocusHoldTimer()
@@ -976,6 +987,11 @@ class CameraManager: NSObject, ObservableObject {
     /// 对焦完成回调（KVO isAdjustingFocus → false）
     private func onFocusCompleted() {
         // 对焦完成后可用于触发 UI 更新（如对焦框缩小动画）
+        // 注意：此回调对 continuousAutoFocus 的每次重收敛也会触发，不只是 tap-to-focus。
+        // 日志主要用于诊断 tap 是否真的让镜组动了——lensPosition 会从原值收敛到目标。
+        if let device = videoCaptureDevice {
+            Log.session.debug("focus_completed device=\(device.localizedName, privacy: .public) lens_position=\(String(format: "%.3f", device.lensPosition)) mode=\(device.focusMode.rawValue) locked=\(self.isFocusLocked)")
+        }
         NotificationCenter.default.post(name: .focusDidComplete, object: nil)
     }
 
@@ -1144,6 +1160,9 @@ class CameraManager: NSObject, ObservableObject {
                     videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
                     if captureSession.canAddOutput(videoOutput) {
                         captureSession.addOutput(videoOutput)
+                        // connection 在 addOutput 后才存在；必须在 commitConfiguration 前/后任意时机设置。
+                        // 这里紧跟 addOutput 设置，与其他输出配置一起原子提交，避免首帧抖动可见。
+                        self.applyPreviewStabilization(output: videoOutput, device: device)
                     }
                 } catch {
                     Log.session.error("session_setup_error error=\(error.localizedDescription, privacy: .public)")
@@ -1221,23 +1240,50 @@ class CameraManager: NSObject, ObservableObject {
 
     // MARK: - 设备配置 / 物理镜头切换（W ⇄ T）
 
-    /// 给指定设备选好 4:3 高分辨率 format 并设置焦点/曝光/帧率。
+    /// 给指定设备选好 4:3 format 并设置焦点/曝光/帧率。
     /// 必须在 sessionQueue 调用。设备不必在 session 中（用于预配置 telephoto）。
+    ///
+    /// 选 format 的 ranking 主键：在 ≤cap 区间内，该 format 能解锁的 **最大 4:3 photo dim**。
+    /// 关键事实（日志验证）：iPhone 17 Pro 的 supportedMaxPhotoDimensions 在所有 4:3 format 上
+    /// 都只列 [12MP, 48MP] 两档——**没有 24MP 这一中间档**。Apple iPhone Camera 的"默认 24MP"
+    /// 是私有/系统级路径，第三方 API 拿不到。要拿到 24MP 级别细节，只能走 48MP 输出，让系统在数码
+    /// zoom 时自然裁出对应像素的 cropped 数据（35mm 1.46x → ~22MP 真实细节，对齐 iPhone Camera）。
+    /// cap 设到 60M 容纳 48MP；24mm 1.0x 会拿到完整 48MP 文件（~10-15MB JPEG），是这条路径的代价。
+    /// Tiebreaker 才用 video dim，保留高分辨率预览。
     nonisolated private func applyBestFormatAndModes(on device: AVCaptureDevice) {
+        let cap = 60_000_000  // 48MP 上限；这台 iPhone 17 Pro 没有 24MP 中间档可选
         let currentDims = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription)
-        let bestFormat = device.formats
-            .filter { fmt in
-                let d = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
-                guard d.width > 0, d.height > 0 else { return false }
-                let aspect = Float(d.width) / Float(d.height)
-                let supports30 = fmt.videoSupportedFrameRateRanges.contains { $0.maxFrameRate >= 30.0 }
-                return abs(aspect - 4.0 / 3.0) < 0.02 && supports30
-            }
-            .max { lhs, rhs in
-                let l = CMVideoFormatDescriptionGetDimensions(lhs.formatDescription)
-                let r = CMVideoFormatDescriptionGetDimensions(rhs.formatDescription)
-                return Int(l.width) * Int(l.height) < Int(r.width) * Int(r.height)
-            }
+
+        // 该 format 在 ≤cap 区间内可解锁的最大 4:3 photo dim 像素面积；找不到返回 0。
+        func bestPhotoArea(_ fmt: AVCaptureDevice.Format) -> Int {
+            fmt.supportedMaxPhotoDimensions
+                .filter { dim in
+                    let r = Float(dim.width) / Float(dim.height)
+                    return abs(r - 4.0 / 3.0) < 0.02
+                }
+                .map { Int($0.width) * Int($0.height) }
+                .filter { $0 <= cap }
+                .max() ?? 0
+        }
+
+        let candidates = device.formats.filter { fmt in
+            let d = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
+            guard d.width > 0, d.height > 0 else { return false }
+            let aspect = Float(d.width) / Float(d.height)
+            let supports30 = fmt.videoSupportedFrameRateRanges.contains { $0.maxFrameRate >= 30.0 }
+            return abs(aspect - 4.0 / 3.0) < 0.02 && supports30
+        }
+
+        let bestFormat = candidates.max { lhs, rhs in
+            // 主键：photo 路径上能拿到的最大 4:3 dim（≤24MP）
+            let lp = bestPhotoArea(lhs)
+            let rp = bestPhotoArea(rhs)
+            if lp != rp { return lp < rp }
+            // Tiebreaker：video dim（保高分辨率预览）
+            let l = CMVideoFormatDescriptionGetDimensions(lhs.formatDescription)
+            let r = CMVideoFormatDescriptionGetDimensions(rhs.formatDescription)
+            return Int(l.width) * Int(l.height) < Int(r.width) * Int(r.height)
+        }
 
         do {
             try device.lockForConfiguration()
@@ -1245,7 +1291,10 @@ class CameraManager: NSObject, ObservableObject {
                 let newDims = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
                 if newDims.width != currentDims.width || newDims.height != currentDims.height {
                     device.activeFormat = fmt
-                    Log.session.info("active_format_set device=\(device.localizedName, privacy: .public) dims=\(newDims.width)x\(newDims.height)")
+                    let photoCaps = fmt.supportedMaxPhotoDimensions
+                        .map { "\($0.width)x\($0.height)" }
+                        .joined(separator: ",")
+                    Log.session.info("active_format_set device=\(device.localizedName, privacy: .public) dims=\(newDims.width)x\(newDims.height) photo_caps=[\(photoCaps, privacy: .public)]")
                 }
             }
             // 锁 sRGB：胶片 LUT 是按 sRGB 训练的，跳过 P3→sRGB 转换路径让色彩更稳定可预测。
@@ -1261,10 +1310,27 @@ class CameraManager: NSObject, ObservableObject {
             if device.isExposureModeSupported(.continuousAutoExposure) {
                 device.exposureMode = .continuousAutoExposure
             }
+            // 关键：smoothAutoFocus 必须关。这是视频录制专用优化（让镜组移动平滑、避免观感突兀），
+            // 代价是 AF 收敛"慢慢爬"。叠加 ZSL + ResponsiveCapture 时——系统从 buffered 帧中选一帧交付——
+            // buffered 帧永远落在 AF 过渡途中，出片永远差一点。Apple 默认就是 false，iPhone Camera 也保持
+            // false 才能在 still capture 上拿到真正的"已锁焦"buffered 帧。
             if device.isSmoothAutoFocusSupported {
-                device.isSmoothAutoFocusEnabled = true
+                device.isSmoothAutoFocusEnabled = false
             }
             device.isSubjectAreaChangeMonitoringEnabled = true
+
+            // 安全快门兜底：1/30s 是手持快照下任何焦段都不应放慢的"主体运动地板"。
+            // 后续 applyZoomOnly 会按当前焦段进一步收紧（100mm→1/50s, 200mm→1/100s）；
+            // 这里设默认是覆盖"format 已就绪、focal 还没下来"的早期窗口，避免 AE 在那段时间里
+            // 顶到 format 原生上限（通常 1s）拍出严重运动模糊。
+            let defaultSafeShutter = CMTime(value: 1, timescale: 30)
+            let formatMin = device.activeFormat.minExposureDuration
+            let formatMax = device.activeFormat.maxExposureDuration
+            let clampedDefault: CMTime
+            if CMTimeCompare(defaultSafeShutter, formatMin) < 0 { clampedDefault = formatMin }
+            else if CMTimeCompare(defaultSafeShutter, formatMax) > 0 { clampedDefault = formatMax }
+            else { clampedDefault = defaultSafeShutter }
+            device.activeMaxExposureDuration = clampedDefault
 
             let maxRate = device.activeFormat.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 30.0
             let targetFPS = min(maxRate, 60.0)
@@ -1279,12 +1345,14 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     /// 给 photo output 选 4:3 输出尺寸（device 必须已 connect 到 photo output）。
-    /// 策略：挑 ≤28M 像素的最大 4:3 dim——优先 24MP（5712×4284 类），次选 12MP，拒 48MP。
-    /// 24MP 让 35/50/200mm 的数字裁切保留 ~10MP 真实细节；24/100mm 也享受 sensor 高分辨率
-    /// 读出再下采样的过采样锐度。48MP 文件膨胀 4×、LUT 处理时间 3×，边际增益不值。
+    /// 策略：挑 ≤60M 像素的最大 4:3 dim。iPhone 17 Pro 上选中 48MP（8064×6048），
+    /// 因为该机器不暴露 24MP 中间档（详见 applyBestFormatAndModes 注释）。
+    /// 数码 zoom 工作机制：videoZoomFactor 在 sensor 上 center crop，输出 dim 自动随之缩小，
+    /// 不需要手动按焦段调 maxPhotoDimensions——系统直接交付裁后真实像素。
+    /// 例：48MP cap + 1.46x 数码 zoom → 出片 ~5520×4140 (~22.8MP)，对齐 iPhone Camera 35mm。
     nonisolated private func applyMaxPhotoDimensions(output: AVCapturePhotoOutput, device: AVCaptureDevice) {
         let supportedDimensions = device.activeFormat.supportedMaxPhotoDimensions
-        let cap = 28_000_000
+        let cap = 60_000_000
         let aspect43 = supportedDimensions.filter { dim in
             let ratio = Float(dim.width) / Float(dim.height)
             return abs(ratio - 4.0/3.0) < 0.05
@@ -1299,6 +1367,59 @@ class CameraManager: NSObject, ObservableObject {
         } else if let smallest = supportedDimensions.min(by: { $0.width < $1.width }) {
             output.maxPhotoDimensions = smallest
         }
+    }
+
+    /// 仅对预览/取景路径启用防抖，对齐 iPhone Camera 的"稳定取景"做法。
+    /// photoOutput 不在此设置——静态拍摄走 OIS（硬件常开）+ 多帧融合（Smart HDR / Deep Fusion /
+    /// Photonic Engine），任何在 photo connection 上设置的稳定模式都会与帧对齐冲突，反而劣化出片。
+    /// 优先级：previewOptimized（iOS 17+，专为取景器设计，零快门延迟代价）→ standard → off。
+    /// 100/200mm 长焦端裁切大、抖动放大，这一档对取景手感差异最显著。
+    /// W↔T swap 后 active format 改变，需重新评估并重新设置。
+    nonisolated private func applyPreviewStabilization(output: AVCaptureVideoDataOutput, device: AVCaptureDevice) {
+        guard let conn = output.connection(with: .video) else {
+            Log.session.info("📷 stabilization_skip reason=no_video_connection device=\(device.localizedName, privacy: .public)")
+            return
+        }
+        let fmt = device.activeFormat
+        let mode: AVCaptureVideoStabilizationMode
+        let name: String
+        if fmt.isVideoStabilizationModeSupported(.previewOptimized) {
+            mode = .previewOptimized; name = "preview"
+        } else if fmt.isVideoStabilizationModeSupported(.standard) {
+            mode = .standard; name = "std"
+        } else {
+            mode = .off; name = "off"
+        }
+        conn.preferredVideoStabilizationMode = mode
+        Log.session.info("📷 stabilization_applied device=\(device.localizedName, privacy: .public) preferred=\(name, privacy: .public) active=\(conn.activeVideoStabilizationMode.rawValue)")
+    }
+
+    /// 安全快门：限制 AE 最长曝光时间，严格走经典 1/focal（35mm 等效）防手持模糊。
+    /// 35mm 等效焦距 = `FocalLengthOption.rawValue`，已折算 W/T 物理镜头 + 数码裁切。
+    ///   24mm → 1/24s, 35mm → 1/35s, 50mm → 1/50s, 100mm → 1/100s, 200mm → 1/200s
+    /// 不再叠加 OIS 放宽 / 主体运动地板——经验表明手持快照"宁可抬 ISO 出噪点、不可拉快门糊掉"，
+    /// 1/focal 是这条原则下的经典基线，OIS 在该基线之上只是锦上添花的额外余量。
+    /// activeMaxExposureDuration 是无侵入做法：不破坏 .continuousAutoExposure，AE 在上限内自由调节；
+    /// 触顶时自动改抬 ISO，符合"保锐优先"。
+    /// 上下界用 format.min/maxExposureDuration 兜底，避免越界。
+    nonisolated private func computeSafeShutterDuration(focalMm: Int, format: AVCaptureDevice.Format) -> CMTime {
+        let denom = max(focalMm, 24)
+        let target = CMTime(value: 1, timescale: Int32(denom))
+        let minDur = format.minExposureDuration
+        let maxDur = format.maxExposureDuration
+        if CMTimeCompare(target, minDur) < 0 { return minDur }
+        if CMTimeCompare(target, maxDur) > 0 { return maxDur }
+        return target
+    }
+
+    /// 把 CMTime 曝光时长格式化为人类可读字符串（"1/Ns" / "X.XXXs"）。
+    /// nil / invalid 返回 "n/a"。capture_dispatch 等多处日志复用。
+    nonisolated private func formatExposureCMTime(_ time: CMTime?) -> String {
+        guard let time, time.isValid, !time.isIndefinite else { return "n/a" }
+        let s = CMTimeGetSeconds(time)
+        guard s > 0, s.isFinite else { return "n/a" }
+        if s < 1 { return "1/\(Int(round(1.0 / s)))s" }
+        return String(format: "%.3fs", s)
     }
 
     /// 安装/重装系统 EV 滑块（绑定到指定设备）。AVCaptureSystemExposureBiasSlider 是 device-bound 的，
@@ -1338,6 +1459,7 @@ class CameraManager: NSObject, ObservableObject {
 
         let captureSession = session
         let output = photoOutput
+        let videoOutput = videoDataOutput
         let from = currentVideoInput?.device.localizedName ?? "nil"
         let swapTimer = Log.perf("swap_input", logger: Log.session)
         Log.session.info("swap_input_begin from=\(from, privacy: .public) to=\(target.localizedName, privacy: .public)")
@@ -1365,6 +1487,9 @@ class CameraManager: NSObject, ObservableObject {
 
                 // format 启动时已为 wide/tele 各配过；swap 路径只重置 photoOutput 输出尺寸即可
                 self.applyMaxPhotoDimensions(output: output, device: target)
+                // tele 的 active format 与 wide 不同，对 previewOptimized / standard 的支持也可能不同，
+                // 必须在 input 切换后重新评估并重新设置预览防抖模式。
+                self.applyPreviewStabilization(output: videoOutput, device: target)
 
                 captureSession.commitConfiguration()
                 continuation.resume(returning: added)
@@ -1456,7 +1581,22 @@ class CameraManager: NSObject, ObservableObject {
         exposureCompleteHandler = onExposureComplete
 
         let issueTime = Log.now()
-        let settings = AVCapturePhotoSettings()
+        // HEIF/HEVC 编码：相同视觉质量下文件比 JPEG 小 ~50%，是 iPhone Camera 的默认格式。
+        // 48MP cap 后 24mm 单张 JPEG ~25-35MB，HEIF 直接降到 ~6-10MB；35mm/100mm 等中等焦段也都同步缩。
+        // 系统不支持 HEVC（极少见，旧设备）时 fallback 到 JPEG。
+        let settings: AVCapturePhotoSettings
+        if photoOutput.availablePhotoCodecTypes.contains(.hevc) {
+            settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
+        } else {
+            settings = AVCapturePhotoSettings()
+        }
+        // 关键：必须把 settings.maxPhotoDimensions 显式设到 output 的声明值，否则系统兜底到默认 12MP
+        // (4032×3024)，叠加数码 zoom 后画幅会大幅缩水（如 35mm 1.46x 会从 24MP 退化到 ~10MP）。
+        // output.maxPhotoDimensions 只是 capability 声明，per-capture settings 不继承——这是
+        // iOS 16+ 的标准模式（取代旧的 isHighResolutionPhotoEnabled）。
+        // 真实细节由 active format 决定：48MP active 时 35mm 在 48MP 上裁切到 ~22MP 后交付，
+        // 与 iPhone Camera 在 1.5x 的真实细节对齐。
+        settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
         // 与 photoOutput.maxPhotoQualityPrioritization 一致：.balanced 走完整原生管线
         // （Deep Fusion / Smart HDR / Photonic Engine），同步交付高质量数据再过 LUT。
         settings.photoQualityPrioritization = .balanced
@@ -1502,7 +1642,14 @@ class CameraManager: NSObject, ObservableObject {
 
         // 调度到 sessionQueue：AVCapturePhotoOutput 操作不占用主线程，快门响应更快
         let deadline: DispatchTime = needsFlashDelay ? .now() + 0.20 : .now()
-        Log.capture.info("capture_dispatch flash=\(self.flashMode.rawValue, privacy: .public) flash_delay=\(needsFlashDelay ? 200 : 0)ms rotation=\(rotationAngle.map { "\(Int($0))°" } ?? "nil", privacy: .public)")
+        let reqDims = settings.maxPhotoDimensions
+        // 安全快门可观测性：抓 device 的 activeMaxExposureDuration（我们设的 cap）和 exposureDuration
+        // (AE 当前一帧的实际曝光时间)。两者对比能一眼看出 cap 是否在咬：
+        //   live=cap → AE 顶到上限了（低光场景）
+        //   live<cap → 光线足够，AE 自由调，cap 没起作用
+        let capStr = self.formatExposureCMTime(self.videoCaptureDevice?.activeMaxExposureDuration)
+        let liveStr = self.formatExposureCMTime(self.videoCaptureDevice?.exposureDuration)
+        Log.capture.info("capture_dispatch flash=\(self.flashMode.rawValue, privacy: .public) flash_delay=\(needsFlashDelay ? 200 : 0)ms rotation=\(rotationAngle.map { "\(Int($0))°" } ?? "nil", privacy: .public) max_dims=\(reqDims.width)x\(reqDims.height) safe_shutter=\(capStr, privacy: .public) live_exposure=\(liveStr, privacy: .public)")
         sessionQueue.asyncAfter(deadline: deadline) {
             if let angle = rotationAngle,
                let connection = output.connection(with: .video),
@@ -1623,7 +1770,12 @@ class CameraManager: NSObject, ObservableObject {
             let d = CMVideoFormatDescriptionGetDimensions(f.formatDescription)
             let maxFPS = f.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 0
             let isActive = (f === fmt) ? " *" : ""
-            log.info("📷 format[\(i)]\(isActive, privacy: .public) dims=\(d.width)x\(d.height) fov=\(String(format: "%.1f", f.videoFieldOfView))° max_fps=\(Int(maxFPS)) binned=\(f.isVideoBinned) hdr=\(f.isVideoHDRSupported)")
+            // photo_caps：决定该 format 能不能给 24MP 输出。不同 format 暴露的 photo dim 列表
+            // 不同——是 35mm/50mm 出片画幅退化的根因排查依据。
+            let photoCaps = f.supportedMaxPhotoDimensions
+                .map { "\($0.width)x\($0.height)" }
+                .joined(separator: ",")
+            log.info("📷 format[\(i)]\(isActive, privacy: .public) dims=\(d.width)x\(d.height) fov=\(String(format: "%.1f", f.videoFieldOfView))° max_fps=\(Int(maxFPS)) binned=\(f.isVideoBinned) hdr=\(f.isVideoHDRSupported) photo_caps=[\(photoCaps, privacy: .public)]")
         }
 
         log.info("📷 lens_dump_end")
@@ -1756,8 +1908,14 @@ class CameraManager: NSObject, ObservableObject {
                 device.videoZoomFactor = clamped
             }
             currentZoomFactor = clamped
+            // 安全快门：与 zoom 共用同一把 lock，避免双重 lockForConfiguration。
+            // 焦段切换是触发安全快门更新的唯一场景（24→200 跨 3 stops，不更新会糊）。
+            let safeShutter = self.computeSafeShutterDuration(focalMm: option.rawValue, format: device.activeFormat)
+            device.activeMaxExposureDuration = safeShutter
             device.unlockForConfiguration()
-            Log.session.info("focal_applied target=\(option.rawValue)mm zoom=\(String(format: "%.2f", clamped))x device=\(device.localizedName, privacy: .public) animated=\(animated)")
+            let shutterS = CMTimeGetSeconds(safeShutter)
+            let shutterReadable = shutterS > 0 && shutterS < 1 ? "1/\(Int(round(1.0 / shutterS)))s" : String(format: "%.3fs", shutterS)
+            Log.session.info("focal_applied target=\(option.rawValue)mm zoom=\(String(format: "%.2f", clamped))x device=\(device.localizedName, privacy: .public) animated=\(animated) safe_shutter=\(shutterReadable, privacy: .public)")
         } catch {
             Log.session.error("focal_apply_failed error=\(error.localizedDescription, privacy: .public)")
         }
