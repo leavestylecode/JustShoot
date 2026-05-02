@@ -727,6 +727,8 @@ class CameraManager: NSObject, ObservableObject {
     private var zoomObservation: NSKeyValueObservation?
     private var pinchDidSwitch = false  // 一次捏合手势只切换一档
     private var focalLengthPicker: AVCaptureIndexPicker?
+    /// 系统级 EV 滑块（iOS 18+）；device-bound——swap 时必须 remove + re-add 才能跟到新设备。
+    private var exposureBiasSlider: AVCaptureSystemExposureBiasSlider?
 
     // 位置管理器
     private let locationManager = CLLocationManager()
@@ -778,6 +780,9 @@ class CameraManager: NSObject, ObservableObject {
     // 拍照曝光补偿
     private var previousExposureTargetBias: Float = 0
     private var lockedExposureForFlashCapture: Bool = false
+    /// 闪光灯拍摄期间的 WB 状态：lock 一帧防止白平衡跳变，capture 完成后还原。
+    private var lockedWBForFlashCapture: Bool = false
+    private var previousWBMode: AVCaptureDevice.WhiteBalanceMode = .continuousAutoWhiteBalance
     private var focusHoldTimer: Timer?
     private let tapFocusHoldDuration: TimeInterval = 3.0
     private var focusObservation: NSKeyValueObservation?
@@ -1140,6 +1145,10 @@ class CameraManager: NSObject, ObservableObject {
                 focalLengthPicker = picker
                 Log.session.info("camera_control_index_picker_added options=\(titles)")
             }
+            // 系统 EV 滑块（绑当前设备）。机身 Camera Control 长按可在 picker / slider 间切换。
+            if let device = videoCaptureDevice {
+                installExposureBiasSlider(for: device)
+            }
             session.setControlsDelegate(self, queue: .main)
         }
 
@@ -1242,6 +1251,24 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
+    /// 安装/重装系统 EV 滑块（绑定到指定设备）。AVCaptureSystemExposureBiasSlider 是 device-bound 的，
+    /// 设备 swap 后必须先 remove 旧的再 add 新的，否则滑块仍调旧设备的 exposureTargetBias，新设备无效。
+    /// 安全在 MainActor 调用：和 picker 一样不强制 begin/commitConfiguration（与现有 picker 逻辑一致）。
+    private func installExposureBiasSlider(for device: AVCaptureDevice) {
+        if let old = exposureBiasSlider {
+            session.removeControl(old)
+            exposureBiasSlider = nil
+        }
+        let slider = AVCaptureSystemExposureBiasSlider(device: device)
+        if session.canAddControl(slider) {
+            session.addControl(slider)
+            exposureBiasSlider = slider
+            Log.session.info("camera_control_bias_slider_added device=\(device.localizedName, privacy: .public) range=\(String(format: "%.1f", device.minExposureTargetBias))–\(String(format: "%.1f", device.maxExposureTargetBias))ev")
+        } else {
+            Log.session.info("camera_control_bias_slider_skip device=\(device.localizedName, privacy: .public) reason=can_not_add")
+        }
+    }
+
     /// 在启动时为后备 telephoto 预配置 format（避免 swap 路径上做这件事）
     private func preconfigureFormat(on device: AVCaptureDevice) async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -1297,6 +1324,8 @@ class CameraManager: NSObject, ObservableObject {
         currentVideoInput = newInput
         rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: target, previewLayer: nil)
         bindDeviceObservers(to: target)
+        // EV 滑块绑定到旧设备，重装到新设备
+        installExposureBiasSlider(for: target)
         applyVideoOrientationToOutputs()
 
         let activeDims = CMVideoFormatDescriptionGetDimensions(target.activeFormat.formatDescription)
@@ -1394,6 +1423,13 @@ class CameraManager: NSObject, ObservableObject {
                     if device.isExposureModeSupported(.locked) {
                         device.exposureMode = .locked
                         lockedExposureForFlashCapture = true
+                    }
+                    // 锁 WB：闪光灯触发会让 AWB 突跳一帧，引入色温/染色偏移；锁住后 capture 完成再还原。
+                    // 已锁 AE 的同时也锁 WB，组合出 iPhone 原相机闪光下的稳色感。
+                    if device.isWhiteBalanceModeSupported(.locked), device.whiteBalanceMode != .locked {
+                        previousWBMode = device.whiteBalanceMode
+                        device.whiteBalanceMode = .locked
+                        lockedWBForFlashCapture = true
                     }
                     device.unlockForConfiguration()
                 } catch {}
@@ -1498,6 +1534,33 @@ class CameraManager: NSObject, ObservableObject {
         let wbModes: [(AVCaptureDevice.WhiteBalanceMode, String)] = [(.locked, "locked"), (.autoWhiteBalance, "auto"), (.continuousAutoWhiteBalance, "continuous")]
         let supportedWB = wbModes.filter { device.isWhiteBalanceModeSupported($0.0) }.map { $0.1 }.joined(separator: ",")
         log.info("📷 modes focus_supported=[\(supportedFocus, privacy: .public)] focus_current=\(device.focusMode.rawValue) exposure_supported=[\(supportedExposure, privacy: .public)] exposure_current=\(device.exposureMode.rawValue) wb_supported=[\(supportedWB, privacy: .public)] wb_current=\(device.whiteBalanceMode.rawValue) smooth_focus=\(device.isSmoothAutoFocusEnabled) subject_area_monitor=\(device.isSubjectAreaChangeMonitoringEnabled)")
+
+        // 8.5) 视频防抖（OIS / 软件复合）。photoOutput 没有 stabilization API；只能从 videoDataOutput
+        // 的 connection 上读 active mode。100/200mm tele 端裁切大、抖动放大，调试时这条很有用。
+        let stabModes: [(AVCaptureVideoStabilizationMode, String)] = [
+            (.off, "off"), (.standard, "std"), (.cinematic, "cine"),
+            (.cinematicExtended, "cineExt"), (.cinematicExtendedEnhanced, "cineExtEnh"),
+            (.previewOptimized, "preview"), (.lowLatency, "lowLat"), (.auto, "auto")
+        ]
+        let supportedStab = stabModes.filter { fmt.isVideoStabilizationModeSupported($0.0) }.map { $0.1 }.joined(separator: ",")
+        let stabName: (AVCaptureVideoStabilizationMode) -> String = { mode in
+            switch mode {
+            case .off: return "off"
+            case .standard: return "std"
+            case .cinematic: return "cine"
+            case .cinematicExtended: return "cineExt"
+            case .cinematicExtendedEnhanced: return "cineExtEnh"
+            case .previewOptimized: return "preview"
+            case .lowLatency: return "lowLat"
+            case .auto: return "auto"
+            @unknown default: return "unknown"
+            }
+        }
+        if let conn = videoDataOutput.connection(with: .video) {
+            log.info("📷 stabilization supported=[\(supportedStab, privacy: .public)] active=\(stabName(conn.activeVideoStabilizationMode), privacy: .public) preferred=\(stabName(conn.preferredVideoStabilizationMode), privacy: .public)")
+        } else {
+            log.info("📷 stabilization supported=[\(supportedStab, privacy: .public)] active=no_video_connection")
+        }
 
         // 9) 实时曝光/对焦读数（瞬时值，仅供参考）
         let expSec = CMTimeGetSeconds(device.exposureDuration)
@@ -1799,6 +1862,10 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
                     if self.lockedExposureForFlashCapture, device.isExposureModeSupported(.continuousAutoExposure) {
                         device.exposureMode = .continuousAutoExposure
                         self.lockedExposureForFlashCapture = false
+                    }
+                    if self.lockedWBForFlashCapture, device.isWhiteBalanceModeSupported(self.previousWBMode) {
+                        device.whiteBalanceMode = self.previousWBMode
+                        self.lockedWBForFlashCapture = false
                     }
                     device.unlockForConfiguration()
                 } catch {}
