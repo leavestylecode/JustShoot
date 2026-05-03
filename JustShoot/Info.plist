@@ -4,10 +4,6 @@
 <dict>
 	<key>CADisableMinimumFrameDuration</key>
 	<true/>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>此应用需要访问相机来拍摄照片</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

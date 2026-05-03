@@ -23,15 +23,21 @@ struct CameraView: View {
     let source: FilmSource
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var presetPhotos: [Photo]
     @StateObject private var cameraManager: CameraManager
     @State private var showFlash = false
+    /// 全程持有：tap → 释放在 LUT/save 完成后。覆盖整个后处理 pipeline，
+    /// 防止用户连按导致 N 个 24MP HEIF 编码并发跑（peak 内存 200-400MB×N，触发 jetsam）。
     @State private var isCapturing = false
     @State private var shutterPressed = false
     @State private var lastPhotoThumbnail: UIImage?
     @State private var focusPoint: CGPoint? = nil
     @State private var showFocusIndicator = false
     @State private var showPhotoDetail = false
+    /// 拍照失败提示。photo data nil / LUT 失败 / SwiftData save 失败时弹 alert，
+    /// 不再静默——避免用户以为拍成功而相册没新照片。
+    @State private var captureError: String?
 
     init(source: FilmSource) {
         self.source = source
@@ -115,11 +121,39 @@ struct CameraView: View {
                 .padding(40)
             }
 
-            // 快门闪光效果
+            // 快门闪光效果——模拟柯达 / 富士即时相机的氙气闪光膜质感：
+            // 1) 主层 0.78 不到纯白，给暖色 gradient 留出对比空间
+            // 2) 中心暖色 radial gradient (~3200K 钨丝色温)，模拟氙气 + 琥珀色滤光的真实闪光
+            // 3) 边缘暗角，模拟反射板边缘衰减——只在角落，避免减弱主反馈
+            // 三层用 ZStack 组合，blendMode(.screen) 保证暖光叠加更亮而非覆盖
             if showFlash {
-                Color.white
+                ZStack {
+                    Color.white
+                        .ignoresSafeArea()
+                        .opacity(0.78)
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 1.0, green: 0.94, blue: 0.82).opacity(0.35),
+                            Color.clear
+                        ]),
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 500
+                    )
                     .ignoresSafeArea()
-                    .opacity(0.7)
+                    .blendMode(.screen)
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color.clear,
+                            Color.black.opacity(0.18)
+                        ]),
+                        center: .center,
+                        startRadius: 280,
+                        endRadius: 720
+                    )
+                    .ignoresSafeArea()
+                }
+                .allowsHitTesting(false)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -184,27 +218,43 @@ struct CameraView: View {
                 }
 
                 HStack {
-                // 左：最近照片缩略图
+                // 左：最近照片缩略图。isCapturing 期间叠加 spinner — 拍照后处理 pipeline
+                // 1.5-6s（48MP HEIF 编码 + LUT），用户需要明确"系统在干活"的反馈，否则会
+                // 误以为缩略图卡死。spinner 与缩略图叠加而非替换：上一张照片仍可见，新照片
+                // 一进入 lastPhotoThumbnail 就无缝切换。
                 Button { if !presetPhotos.isEmpty { showPhotoDetail = true } } label: {
-                    if let thumb = lastPhotoThumbnail {
-                        Image(uiImage: thumb)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 46, height: 46)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    } else {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 46, height: 46)
-                            .overlay {
-                                Image(systemName: "photo")
-                                    .foregroundStyle(.secondary)
-                            }
+                    ZStack {
+                        if let thumb = lastPhotoThumbnail {
+                            Image(uiImage: thumb)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 46, height: 46)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        } else {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 46, height: 46)
+                                .overlay {
+                                    Image(systemName: "photo")
+                                        .foregroundStyle(.secondary)
+                                }
+                        }
+                        if isCapturing {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(.black.opacity(0.4))
+                                .frame(width: 46, height: 46)
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .tint(.white)
+                                .scaleEffect(0.7)
+                        }
                     }
                 }
                 .accessibilityLabel(presetPhotos.isEmpty ? "最近的照片" : "最近的照片 — 共 \(presetPhotos.count) 张")
                 .accessibilityHint(presetPhotos.isEmpty ? "暂无照片" : "查看大图")
-                .disabled(presetPhotos.isEmpty)
+                // 处理期间禁用点击：避免详情页拿到的"最新一张"是上一张（新的还没 save 完成），
+                // 与缩略图 spinner 的"还在处理"语义对齐。
+                .disabled(presetPhotos.isEmpty || isCapturing)
 
                 Spacer()
 
@@ -246,6 +296,20 @@ struct CameraView: View {
         .onDisappear {
             cameraManager.stopSession()
         }
+        // 后台/前台切换：按 Home 键 / 切到其他 app → pause；回前台 → resume。
+        // 不在 .background 完整 stopSession，因为 onDisappear 没触发（页面仍在导航栈），
+        // 只调 pauseSessionForBackground 释放摄像头硬件，配置/observers 全部保留。
+        // 没有这条监听，回前台只看到黑屏（pixelBuffer 是 stale 的）+ session 不再产帧。
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .background, .inactive:
+                cameraManager.pauseSessionForBackground()
+            case .active:
+                cameraManager.resumeSessionIfPossible()
+            @unknown default:
+                break
+            }
+        }
         // Camera Control 硬件快门按钮（iPhone 16+）
         .onCameraCaptureEvent { event in
             if event.phase == .ended {
@@ -254,6 +318,14 @@ struct CameraView: View {
         }
         .onChange(of: presetPhotos.count) { _, _ in
             loadLastPhotoThumbnail()
+        }
+        .alert("拍摄失败", isPresented: Binding(
+            get: { captureError != nil },
+            set: { if !$0 { captureError = nil } }
+        )) {
+            Button("好", role: .cancel) { captureError = nil }
+        } message: {
+            Text(captureError ?? "")
         }
         .sheet(isPresented: $showPhotoDetail) {
             if let latest = presetPhotos.last {
@@ -277,19 +349,25 @@ struct CameraView: View {
         }
     }
 
+    /// 与拍照后立即写入的 thumbnail size 对齐——同 key 命中 NSCache，零额外解码。
+    fileprivate static let thumbnailMaxPixel = 88
+
     private func loadLastPhotoThumbnail() {
         guard let photo = presetPhotos.last else {
             lastPhotoThumbnail = nil
             return
         }
         Task { @MainActor in
-            let thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: 88)
+            let thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: Self.thumbnailMaxPixel)
             lastPhotoThumbnail = thumb
         }
     }
 
     private func capturePhoto() {
-        // 防止重复拍摄
+        // isCapturing 守护**整个 pipeline**：tap → exposure → LUT → save → 释放。
+        // 旧实现在 photoDataHandler 拿到 raw data 那一刻就释放，导致用户连按时多个
+        // 24MP HEIF 编码 task 并发跑。新实现下连按时按钮无响应（haptic 也不再触发），
+        // 直到上一张全部完成。手感等价于 iPhone Camera 的快门 throttle。
         guard !isCapturing else {
             Log.capture.debug("shutter_ignored reason=busy")
             return
@@ -302,39 +380,55 @@ struct CameraView: View {
         shutterPressed = true
         cameraManager.hapticMedium.impactOccurred()
 
+        // 白屏 + 按钮回弹与 tap 同步触发，不等 AVF "exposure_complete" 回调。
+        // 动画曲线模仿氙气闪光物理：
+        //   - 起电瞬间（~40ms）快速上升到峰值——`.easeOut` "fast start, slow end"
+        //   - 持峰约 60ms——氙气放电的稳定段
+        //   - 衰减 200ms 余辉，比起初长——也用 `.easeOut` 表达 exponential decay 的初快后慢
+        // shutterPressed 100ms 后回弹（与物理按钮按压时长接近）。
+        Task { @MainActor in
+            withAnimation(.easeOut(duration: 0.04)) {
+                showFlash = true
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            shutterPressed = false
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            withAnimation(.easeOut(duration: 0.20)) {
+                showFlash = false
+            }
+        }
+
         let currentSource = source
         let manager = cameraManager
-        // ModelContainer 是 Sendable；ModelContext 不是。跨 Task.detached 边界只能传 container，
-        // 保存时再 hop 回 @MainActor 读取 mainContext。
+        // ModelContainer 是 Sendable；ModelContext 不是。@ModelActor 在 actor 内部
+        // 创建自己的 modelContext，与主 context 隔离，save 不阻塞主线程。
         let container = modelContext.container
 
         let focalMm = cameraManager.currentFocalLength.rawValue
         cameraManager.capturePhoto(onExposureComplete: {
+            // 仅 log，不再驱动 UI——shutterPressed/showFlash 已在 tap 那一刻处理。
+            // 这条 log 仍有价值：观察 AVF "曝光物理完成" 的实际延迟（首张 ZSL 冷启动诊断）。
             Log.capture.info("exposure_complete dt_from_tap=\(Log.ms(since: tapTime))ms")
-            // 曝光已完成：立刻释放按钮按压视觉，贴近原生相机手感
-            Task { @MainActor in
-                shutterPressed = false
-                withAnimation(.easeOut(duration: 0.05)) {
-                    showFlash = true
-                }
-                try? await Task.sleep(nanoseconds: 80_000_000)
-                withAnimation(.easeIn(duration: 0.1)) {
-                    showFlash = false
-                }
-            }
         }) { imageData in
-            Task { @MainActor in
-                isCapturing = false
-                shutterPressed = false
-            }
-
             guard let data = imageData else {
                 Log.capture.error("photo_data_nil dt_from_tap=\(Log.ms(since: tapTime))ms")
+                Task { @MainActor in
+                    isCapturing = false
+                    shutterPressed = false
+                    captureError = "拍摄失败：未能获取图像数据，请重试"
+                }
                 return
             }
             Log.capture.info("photo_data_received bytes=\(data.count) dt_from_tap=\(Log.ms(since: tapTime))ms")
 
             Task.detached(priority: .userInitiated) {
+                // defer 兜底：即便 LUT/save 抛错，isCapturing 也必须复位，否则按钮永远 disabled。
+                defer {
+                    Task { @MainActor in
+                        isCapturing = false
+                    }
+                }
+
                 let location = await manager.cachedOrFreshLocation()
                 Log.gps.info("gps_resolved present=\(location != nil) age=\(location.map { String(format: "%.1fs", Date().timeIntervalSince($0.timestamp)) } ?? "nil", privacy: .public)")
 
@@ -351,44 +445,47 @@ struct CameraView: View {
                     Log.capture.error("lut_fallback_raw bytes=\(finalData.count)")
                 }
 
-                await Self.savePhotoToContainer(
-                    imageData: finalData,
-                    source: currentSource,
-                    location: location,
-                    container: container
-                )
+                let displayLabel: String? = {
+                    if case .custom(_, let name, _, _) = currentSource { return name }
+                    return nil
+                }()
+
+                do {
+                    let saver = PhotoSaver(modelContainer: container)
+                    let id = try await saver.save(
+                        imageData: finalData,
+                        filmPresetName: currentSource.photoFilterName,
+                        filmDisplayLabel: displayLabel,
+                        latitude: location?.coordinate.latitude,
+                        longitude: location?.coordinate.longitude,
+                        altitude: location?.altitude,
+                        locationTimestamp: location?.timestamp
+                    )
+                    Log.save.info("photo_saved id=\(id.uuidString, privacy: .public) bytes=\(finalData.count) preset=\(currentSource.photoFilterName, privacy: .public) gps=\(location != nil)")
+
+                    // 拍照成功后**立即**生成 88pt 缩略图并赋给左下角，不再等 SwiftData
+                    // @Query 通知链（PhotoSaver actor save → 跨 context 通知 → 主 @Query 重算 →
+                    // onChange → loadLastPhotoThumbnail）。这条链路在日志里隐藏 ~300-500ms 延迟，
+                    // 是用户感知"缩略图刷新慢"的根因。loadThumbnail 内部已做 in-flight dedup
+                    // 和 NSCache 写入，后续 fallback 路径会直接命中。
+                    let thumb = await ImageLoader.shared.loadThumbnail(
+                        imageData: finalData,
+                        photoId: id,
+                        maxPixel: Self.thumbnailMaxPixel
+                    )
+                    if let thumb {
+                        await MainActor.run {
+                            lastPhotoThumbnail = thumb
+                        }
+                    }
+                } catch {
+                    Log.save.error("photo_save_failed error=\(error.localizedDescription, privacy: .public)")
+                    await MainActor.run {
+                        captureError = "保存失败：\(error.localizedDescription)"
+                    }
+                }
                 Log.capture.info("capture_pipeline_complete total_dt=\(Log.ms(since: tapTime))ms")
             }
-        }
-    }
-
-    @MainActor
-    private static func savePhotoToContainer(
-        imageData: Data,
-        source: FilmSource,
-        location: CLLocation?,
-        container: ModelContainer
-    ) {
-        let context = container.mainContext
-        let newPhoto = Photo(imageData: imageData, filmPresetName: source.photoFilterName)
-        // 自定义 LUT 存储显示名称
-        if case .custom(_, let name, _, _) = source {
-            newPhoto.filmDisplayLabel = name
-        }
-        if let loc = location {
-            newPhoto.latitude = loc.coordinate.latitude
-            newPhoto.longitude = loc.coordinate.longitude
-            newPhoto.altitude = loc.altitude
-            newPhoto.locationTimestamp = loc.timestamp
-        }
-
-        context.insert(newPhoto)
-
-        do {
-            try context.save()
-            Log.save.info("photo_saved id=\(newPhoto.id.uuidString, privacy: .public) bytes=\(imageData.count) preset=\(source.photoFilterName, privacy: .public) gps=\(location != nil)")
-        } catch {
-            Log.save.error("photo_save_failed error=\(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -829,6 +926,13 @@ class CameraManager: NSObject, ObservableObject {
     private var currentDeviceOrientation: UIDeviceOrientation = .portrait
     private var orientationObserver: (any NSObjectProtocol)?
     private var subjectAreaObserver: (any NSObjectProtocol)?
+    private var sessionInterruptionObserver: (any NSObjectProtocol)?
+    private var sessionInterruptionEndedObserver: (any NSObjectProtocol)?
+    private var sessionRuntimeErrorObserver: (any NSObjectProtocol)?
+    /// session 是否已完成首次配置；区分"冷启动需要 configureAndStartSession"与"前台返回只 startRunning"
+    private var sessionConfigured: Bool = false
+    /// 系统中断仍在进行中（来电/控制中心/录屏），interruptionEnded 后 resume
+    private var sessionInterrupted: Bool = false
 
     // 权限状态
     @Published var cameraPermissionDenied: Bool = false
@@ -843,12 +947,23 @@ class CameraManager: NSObject, ObservableObject {
         if locationPermissionDenied != denied { locationPermissionDenied = denied }
     }
 
-    // 拍照曝光补偿
-    private var previousExposureTargetBias: Float = 0
-    private var lockedExposureForFlashCapture: Bool = false
-    /// 闪光灯拍摄期间的 WB 状态：lock 一帧防止白平衡跳变，capture 完成后还原。
-    private var lockedWBForFlashCapture: Bool = false
-    private var previousWBMode: AVCaptureDevice.WhiteBalanceMode = .continuousAutoWhiteBalance
+    // 拍照曝光补偿 / WB 还原
+    //
+    // 旧实现把 4 个标量散在 CameraManager 上：previousExposureTargetBias、previousWBMode、
+    // lockedExposureForFlashCapture、lockedWBForFlashCapture。每次 capturePhoto 直接覆盖。
+    // 风险：连按两次闪光灯快门时，第二次 lock 在第一次 didFinishProcessingPhoto 还原之前
+    // 就把 previousExposureTargetBias 覆盖成"调整后的偏置"，还原后从此 AE 永远跑偏。
+    //
+    // 新实现：把"需要还原什么"打包成一个值，pendingFlashRestore 同时只允许 0 或 1 个。
+    // capturePhoto 入口若发现 pendingFlashRestore != nil，说明上一次还原没跑完（异常路径），
+    // 立即先还原再开新的。配合 isCapturing 全程持有，正常路径下 dict 永远只有 0 或 1 个 entry。
+    fileprivate struct FlashRestoreState {
+        let exposureTargetBias: Float
+        let wbMode: AVCaptureDevice.WhiteBalanceMode
+        let lockedExposure: Bool
+        let lockedWB: Bool
+    }
+    fileprivate var pendingFlashRestore: FlashRestoreState?
     private var focusHoldTimer: Timer?
     private let tapFocusHoldDuration: TimeInterval = 3.0
     private var focusObservation: NSKeyValueObservation?
@@ -1227,7 +1342,22 @@ class CameraManager: NSObject, ObservableObject {
         applyVideoOrientationToOutputs()
         configTimer.end("zoom=\(String(format: "%.2f", currentZoomFactor))x")
 
-        dumpLensSpecs(device: device)
+        // dumpLensSpecs 打 70+ 行 os_log + 遍历 device.formats，main actor 上同步执行
+        // 会延迟"主 actor 进入 idle"，让用户首次按下快门时的 Task @MainActor in 排队等待。
+        // 在 main actor 上预取依赖打包成 Sendable struct，然后到 background QoS task 上跑。
+        // AVCaptureDevice / Output 不是 Sendable，但实际上只在后台读 nonisolated 属性，
+        // 与主 actor 上的写入无并发风险——用 @unchecked Sendable wrapper 跳过编译期检查。
+        let args = LensDumpArgs(
+            device: device,
+            wideDevice: wideDevice,
+            teleDevice: teleDevice,
+            focalInfo: focalInfo,
+            photoOutput: photoOutput,
+            videoDataOutput: videoDataOutput
+        )
+        Task.detached(priority: .background) {
+            Self.dumpLensSpecsImpl(args: args)
+        }
 
         // Camera Control 硬件支持（iPhone 16+）：离散焦段选择器
         if currentVideoInput != nil {
@@ -1265,6 +1395,87 @@ class CameraManager: NSObject, ObservableObject {
                 guard let self else { return }
                 self.restoreContinuousFocus()
                 self.isFocusLocked = false
+            }
+        }
+
+        // AVCaptureSession 中断 / 恢复 / runtime error 通知：
+        //   - WasInterrupted: 来电、控制中心录屏、Siri、其他 app 抢占摄像头
+        //     → 系统自动 stopRunning，记一下状态等 InterruptionEnded
+        //   - InterruptionEnded: 中断结束，需要手动 startRunning
+        //   - RuntimeError: 硬件错误、被高优先级 client 抢占等，AVF 已 fail，需重启 session
+        // 没有这套监听，回到前台只看到黑屏（pixelBuffer 是 stale 的）。
+        sessionInterruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVCaptureSession.wasInterruptedNotification,
+            object: session,
+            queue: .main
+        ) { [weak self] note in
+            // 在 nonisolated 闭包里提取 Sendable 值（Int），不要把 Notification 跨 Task 边界发——
+            // Swift 6 strict concurrency 会报 "sending 'note' risks causing data races"。
+            let reason = note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int ?? -1
+            Task { @MainActor in
+                guard let self else { return }
+                self.sessionInterrupted = true
+                Log.session.info("session_was_interrupted reason=\(reason)")
+            }
+        }
+        sessionInterruptionEndedObserver = NotificationCenter.default.addObserver(
+            forName: AVCaptureSession.interruptionEndedNotification,
+            object: session,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.sessionInterrupted = false
+                Log.session.info("session_interruption_ended → resume")
+                self.resumeSessionIfPossible()
+            }
+        }
+        sessionRuntimeErrorObserver = NotificationCenter.default.addObserver(
+            forName: AVCaptureSession.runtimeErrorNotification,
+            object: session,
+            queue: .main
+        ) { [weak self] note in
+            // 同上：把 AVError 拆成 Sendable 标量再跨 Task。
+            let err = note.userInfo?[AVCaptureSessionErrorKey] as? AVError
+            let code = err?.code.rawValue ?? -1
+            let desc = err?.localizedDescription ?? "nil"
+            Task { @MainActor in
+                guard let self else { return }
+                Log.session.error("session_runtime_error code=\(code) desc=\(desc, privacy: .public)")
+                // 大多数 runtime error 是 mediaServicesWereReset / sessionWasInterrupted 类，重启即可恢复
+                self.resumeSessionIfPossible()
+            }
+        }
+
+        sessionConfigured = true
+
+        // ZSL / Deep Fusion / Smart HDR / Photonic Engine 第一次 capture 时会同步初始化 pipeline，
+        // 让用户第一张照片 dt_from_tap 出现 1-3 秒延迟（实测 2988ms vs 第二张 186ms）。
+        // setPreparedPhotoSettingsArray 是 Apple 官方解决方案：用与正式 capture 完全一致的 settings
+        // 提前喂给 AVF，系统会预分配 ring buffer + Smart HDR 多帧融合所需缓冲，第一张瞬间走热路径。
+        prepareForFirstCapture()
+    }
+
+    /// 用与 `capturePhoto` 完全一致的 codec / dims / quality settings 预热 photo pipeline。
+    /// settings 必须与真实拍摄完全匹配，否则系统按"模板未命中"重走冷启动路径。
+    private func prepareForFirstCapture() {
+        let settings: AVCapturePhotoSettings
+        if photoOutput.availablePhotoCodecTypes.contains(.hevc) {
+            settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
+        } else {
+            settings = AVCapturePhotoSettings()
+        }
+        settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
+        settings.photoQualityPrioritization = .balanced
+
+        let output = photoOutput
+        sessionQueue.async {
+            output.setPreparedPhotoSettingsArray([settings]) { prepared, error in
+                if let error {
+                    Log.session.error("photo_pipeline_prepare_failed error=\(error.localizedDescription, privacy: .public)")
+                } else {
+                    Log.session.info("photo_pipeline_prepared ready=\(prepared)")
+                }
             }
         }
     }
@@ -1636,24 +1847,43 @@ class CameraManager: NSObject, ObservableObject {
         if let device = videoCaptureDevice, device.hasFlash {
             settings.flashMode = (flashMode == .on) ? .on : .off
             if flashMode == .on {
+                // 异常路径自愈：上一次的 pendingFlashRestore 没被消费（极少见，比如
+                // didFinishProcessingPhoto 被 dropped），先把旧状态还原再开新的，
+                // 避免 previousExposureTargetBias 被覆盖成"调整后的偏置值"。
+                if let stale = pendingFlashRestore {
+                    Log.capture.error("flash_restore_leaked recovering")
+                    applyFlashRestore(stale, device: device)
+                    pendingFlashRestore = nil
+                }
+
                 let bias = calculateFlashExposureBias(device: device)
                 do {
                     try device.lockForConfiguration()
-                    previousExposureTargetBias = device.exposureTargetBias
+                    let savedBias = device.exposureTargetBias
+                    let savedWBMode = device.whiteBalanceMode
+                    var didLockExposure = false
+                    var didLockWB = false
+
                     let clamped = max(device.minExposureTargetBias, min(device.maxExposureTargetBias, bias))
                     device.setExposureTargetBias(clamped) { _ in }
                     if device.isExposureModeSupported(.locked) {
                         device.exposureMode = .locked
-                        lockedExposureForFlashCapture = true
+                        didLockExposure = true
                     }
                     // 锁 WB：闪光灯触发会让 AWB 突跳一帧，引入色温/染色偏移；锁住后 capture 完成再还原。
                     // 已锁 AE 的同时也锁 WB，组合出 iPhone 原相机闪光下的稳色感。
                     if device.isWhiteBalanceModeSupported(.locked), device.whiteBalanceMode != .locked {
-                        previousWBMode = device.whiteBalanceMode
                         device.whiteBalanceMode = .locked
-                        lockedWBForFlashCapture = true
+                        didLockWB = true
                     }
                     device.unlockForConfiguration()
+
+                    pendingFlashRestore = FlashRestoreState(
+                        exposureTargetBias: savedBias,
+                        wbMode: savedWBMode,
+                        lockedExposure: didLockExposure,
+                        lockedWB: didLockWB
+                    )
                 } catch {}
             }
         }
@@ -1672,7 +1902,8 @@ class CameraManager: NSObject, ObservableObject {
         let rotationAngle = rotationCoordinator?.videoRotationAngleForHorizonLevelCapture
         let output = photoOutput
         let delegate = self
-        let needsFlashDelay = lockedExposureForFlashCapture
+        // 闪光灯路径需要 200ms 延迟让 lockExposure + setExposureTargetBias 真正生效。
+        let needsFlashDelay = (pendingFlashRestore?.lockedExposure ?? false)
 
         // 调度到 sessionQueue：AVCapturePhotoOutput 操作不占用主线程，快门响应更快
         let deadline: DispatchTime = needsFlashDelay ? .now() + 0.20 : .now()
@@ -1702,11 +1933,30 @@ class CameraManager: NSObject, ObservableObject {
 
     // MARK: - 设备数据 dump（调试用）
 
+    /// AVF 对象 + main-actor 状态打包后跨 actor 边界传递。
+    /// 这些 NSObject 在 dumpLensSpecsImpl 里只读 nonisolated 属性，与主 actor 写入无并发；
+    /// `@unchecked Sendable` 表达"语义上 Sendable，但编译器无法证明"。
+    fileprivate struct LensDumpArgs: @unchecked Sendable {
+        let device: AVCaptureDevice
+        let wideDevice: AVCaptureDevice?
+        let teleDevice: AVCaptureDevice?
+        let focalInfo: DeviceFocalInfo
+        let photoOutput: AVCapturePhotoOutput
+        let videoDataOutput: AVCaptureVideoDataOutput
+    }
+
     /// 一次性打印当前后置镜头/会话的所有可读数据，便于调试与设备适配。
     /// 必须在 session 配置完成后调用，否则 activeFormat / 缩放范围 / maxPhotoDimensions 会读到默认值。
-    private func dumpLensSpecs(device: AVCaptureDevice) {
+    /// nonisolated + 所有依赖通过 LensDumpArgs 传入：可在 background QoS task 上跑，不占用主 actor。
+    nonisolated fileprivate static func dumpLensSpecsImpl(args: LensDumpArgs) {
+        let device = args.device
+        let wideDevice = args.wideDevice
+        let teleDevice = args.teleDevice
+        let focalInfo = args.focalInfo
+        let photoOutput = args.photoOutput
+        let videoDataOutput = args.videoDataOutput
         let log = Log.session
-        let modelID = Self.hardwareModelIdentifier()
+        let modelID = hardwareModelIdentifier()
         let pos: String = {
             switch device.position {
             case .back: return "back"
@@ -1722,10 +1972,10 @@ class CameraManager: NSObject, ObservableObject {
         log.info("📷 device id=\(device.uniqueID, privacy: .public) name=\(device.localizedName, privacy: .public) modelID=\(device.modelID, privacy: .public) manufacturer=\(device.manufacturer, privacy: .public) type=\(device.deviceType.rawValue, privacy: .public) position=\(pos, privacy: .public) virtual=\(device.isVirtualDevice)")
 
         // 2) 物理镜头清单（W + T，可能 T 为 nil）
-        let wMm = self.wideDevice?.nominalFocalLengthIn35mmFilm ?? 0
-        let tMm = self.teleDevice?.nominalFocalLengthIn35mmFilm ?? 0
-        log.info("📷 physical_cameras wide=\(self.wideDevice?.localizedName ?? "nil", privacy: .public)/\(String(format: "%.1f", wMm))mm tele=\(self.teleDevice?.localizedName ?? "nil", privacy: .public)/\(String(format: "%.1f", tMm))mm")
-        log.info("📷 optics current_device=\(device.localizedName, privacy: .public) aperture=f/\(String(format: "%.2f", device.lensAperture)) wideMm=\(self.focalInfo.wideMm) teleMm=\(self.focalInfo.teleMm) focalOptions=\(self.focalInfo.options.map { $0.rawValue }, privacy: .public)")
+        let wMm = wideDevice?.nominalFocalLengthIn35mmFilm ?? 0
+        let tMm = teleDevice?.nominalFocalLengthIn35mmFilm ?? 0
+        log.info("📷 physical_cameras wide=\(wideDevice?.localizedName ?? "nil", privacy: .public)/\(String(format: "%.1f", wMm))mm tele=\(teleDevice?.localizedName ?? "nil", privacy: .public)/\(String(format: "%.1f", tMm))mm")
+        log.info("📷 optics current_device=\(device.localizedName, privacy: .public) aperture=f/\(String(format: "%.2f", device.lensAperture)) wideMm=\(focalInfo.wideMm) teleMm=\(focalInfo.teleMm) focalOptions=\(focalInfo.options.map { $0.rawValue }, privacy: .public)")
 
         // 4) 缩放范围 / 当前缩放
         let fmt = device.activeFormat
@@ -1745,14 +1995,14 @@ class CameraManager: NSObject, ObservableObject {
             .joined(separator: ",")
         let outDims = photoOutput.maxPhotoDimensions
         let qPri: String = {
-            switch self.photoOutput.maxPhotoQualityPrioritization {
+            switch photoOutput.maxPhotoQualityPrioritization {
             case .speed: return "speed"
             case .balanced: return "balanced"
             case .quality: return "quality"
             @unknown default: return "unknown"
             }
         }()
-        log.info("📷 photo_caps supported=[\(photoDims, privacy: .public)] selected=\(outDims.width)x\(outDims.height) responsive=\(self.photoOutput.isResponsiveCaptureEnabled) fast_capture=\(self.photoOutput.isFastCapturePrioritizationEnabled) zsl=\(self.photoOutput.isZeroShutterLagEnabled) constant_color=\(self.photoOutput.isConstantColorSupported) quality_pri=\(qPri, privacy: .public)")
+        log.info("📷 photo_caps supported=[\(photoDims, privacy: .public)] selected=\(outDims.width)x\(outDims.height) responsive=\(photoOutput.isResponsiveCaptureEnabled) fast_capture=\(photoOutput.isFastCapturePrioritizationEnabled) zsl=\(photoOutput.isZeroShutterLagEnabled) constant_color=\(photoOutput.isConstantColorSupported) quality_pri=\(qPri, privacy: .public)")
 
         // 7) 闪光灯/低光增强
         log.info("📷 flash has_flash=\(device.hasFlash) flash_available=\(device.isFlashAvailable) torch=\(device.hasTorch) low_light_supported=\(device.isLowLightBoostSupported) low_light_active=\(device.isLowLightBoostEnabled)")
@@ -1766,8 +2016,7 @@ class CameraManager: NSObject, ObservableObject {
         let supportedWB = wbModes.filter { device.isWhiteBalanceModeSupported($0.0) }.map { $0.1 }.joined(separator: ",")
         log.info("📷 modes focus_supported=[\(supportedFocus, privacy: .public)] focus_current=\(device.focusMode.rawValue) exposure_supported=[\(supportedExposure, privacy: .public)] exposure_current=\(device.exposureMode.rawValue) wb_supported=[\(supportedWB, privacy: .public)] wb_current=\(device.whiteBalanceMode.rawValue) smooth_focus=\(device.isSmoothAutoFocusEnabled) subject_area_monitor=\(device.isSubjectAreaChangeMonitoringEnabled)")
 
-        // 8.5) 视频防抖（OIS / 软件复合）。photoOutput 没有 stabilization API；只能从 videoDataOutput
-        // 的 connection 上读 active mode。100/200mm tele 端裁切大、抖动放大，调试时这条很有用。
+        // 8.5) 视频防抖
         let stabModes: [(AVCaptureVideoStabilizationMode, String)] = [
             (.off, "off"), (.standard, "std"), (.cinematic, "cine"),
             (.cinematicExtended, "cineExt"), (.cinematicExtendedEnhanced, "cineExtEnh"),
@@ -1799,13 +2048,11 @@ class CameraManager: NSObject, ObservableObject {
         let wbGains = device.deviceWhiteBalanceGains
         log.info("📷 live iso=\(Int(device.iso)) exposure=\(expReadable, privacy: .public) lens_position=\(String(format: "%.3f", device.lensPosition)) target_bias=\(String(format: "%.2f", device.exposureTargetBias))ev target_offset=\(String(format: "%.2f", device.exposureTargetOffset))ev bias_range=\(String(format: "%.1f", device.minExposureTargetBias))–\(String(format: "%.1f", device.maxExposureTargetBias)) wb_gains=[r=\(String(format: "%.2f", wbGains.redGain)) g=\(String(format: "%.2f", wbGains.greenGain)) b=\(String(format: "%.2f", wbGains.blueGain))] wb_max_gain=\(String(format: "%.2f", device.maxWhiteBalanceGain)) pressure=\(device.systemPressureState.level.rawValue, privacy: .public)")
 
-        // 10) 全部 format 列表（精简：dims + fov + 最大帧率）
+        // 10) 全部 format 列表
         for (i, f) in device.formats.enumerated() {
             let d = CMVideoFormatDescriptionGetDimensions(f.formatDescription)
             let maxFPS = f.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 0
             let isActive = (f === fmt) ? " *" : ""
-            // photo_caps：决定该 format 能不能给 24MP 输出。不同 format 暴露的 photo dim 列表
-            // 不同——是 35mm/50mm 出片画幅退化的根因排查依据。
             let photoCaps = f.supportedMaxPhotoDimensions
                 .map { "\($0.width)x\($0.height)" }
                 .joined(separator: ",")
@@ -1817,7 +2064,7 @@ class CameraManager: NSObject, ObservableObject {
 
     /// 原始硬件标识（如 "iPhone18,3"）。仅用于日志排查，不再参与焦距推算
     /// （iOS 26 的 `nominalFocalLengthIn35mmFilm` 已让查表式硬编码彻底过时）。
-    private static func hardwareModelIdentifier() -> String {
+    nonisolated fileprivate static func hardwareModelIdentifier() -> String {
         #if targetEnvironment(simulator)
         return ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "Simulator"
         #else
@@ -1986,6 +2233,40 @@ class CameraManager: NSObject, ObservableObject {
         locationManager.stopUpdatingLocation()
     }
 
+    /// 进入后台时调用：停止 capture session 释放摄像头硬件，但**保留** observers / KVO /
+    /// rotationCoordinator / videoInput 的配置——回前台时 resumeSessionIfPossible 只需 startRunning，
+    /// 不需要重新走整套 configureAndStartSession（节省 ~150ms 启动延迟 + 避免触发权限/format 重选）。
+    /// 同时清空 stale pixel buffer，避免回前台瞬间 MTKView 显示老画面。
+    func pauseSessionForBackground() {
+        guard sessionConfigured else { return }
+        let captureSession = session
+        sessionQueue.async {
+            if captureSession.isRunning {
+                captureSession.stopRunning()
+                Log.session.info("session_paused_for_background")
+            }
+        }
+        // 清空 stale buffer：iOS 把 app 拉回前台后，MTKView 第一次重绘前会显示
+        // 缓存里的最后一帧（可能是几分钟前的画面）。清空 + 由首帧到达自然触发重绘。
+        pixelBufferLock.withLockUnchecked { $0.buffer = nil }
+        bridgeImage = nil
+    }
+
+    /// 从后台回到前台、或 sessionInterruptionEnded、或 runtime error 之后调用。
+    /// 仅当已配置过且当前不在 running 状态时才 startRunning，避免重复触发。
+    func resumeSessionIfPossible() {
+        guard sessionConfigured, !sessionInterrupted else {
+            Log.session.debug("session_resume_skip configured=\(self.sessionConfigured) interrupted=\(self.sessionInterrupted)")
+            return
+        }
+        let captureSession = session
+        sessionQueue.async {
+            guard !captureSession.isRunning else { return }
+            captureSession.startRunning()
+            Log.session.info("session_resumed running=\(captureSession.isRunning)")
+        }
+    }
+
     /// 停止 session 并释放相机资源（导航离开时调用，防止多 session 竞争）
     func stopSession() {
         // 取消可能仍在 await configureAndStartSession 的启动任务，
@@ -2018,6 +2299,20 @@ class CameraManager: NSObject, ObservableObject {
             NotificationCenter.default.removeObserver(subjectObserver)
             subjectAreaObserver = nil
         }
+        if let observer = sessionInterruptionObserver {
+            NotificationCenter.default.removeObserver(observer)
+            sessionInterruptionObserver = nil
+        }
+        if let observer = sessionInterruptionEndedObserver {
+            NotificationCenter.default.removeObserver(observer)
+            sessionInterruptionEndedObserver = nil
+        }
+        if let observer = sessionRuntimeErrorObserver {
+            NotificationCenter.default.removeObserver(observer)
+            sessionRuntimeErrorObserver = nil
+        }
+        sessionConfigured = false
+        sessionInterrupted = false
         // 平衡 setupOrientationMonitoring 中的 begin 调用
         UIDevice.current.endGeneratingDeviceOrientationNotifications()
         previewMTKView = nil
@@ -2093,27 +2388,34 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
 
         // CIImage(data:) in applyLUTPreservingMetadata already applies EXIF orientation,
         // so we pass raw data directly — no need for a separate rotate+encode step.
+        // 同一个 main-actor hop 中：先还原闪光灯 EV/WB，再通知 photoDataHandler。
+        // 顺序保证下次 capturePhoto 入口看到的 device 状态已经是"还原后"。
         Task { @MainActor in
+            if let device = self.videoCaptureDevice, let restore = self.pendingFlashRestore {
+                self.applyFlashRestore(restore, device: device)
+                self.pendingFlashRestore = nil
+            }
             self.photoDataHandler?(imageData)
         }
+    }
+}
 
-        // 恢复曝光
-        Task { @MainActor in
-            if let device = self.videoCaptureDevice {
-                do {
-                    try device.lockForConfiguration()
-                    device.setExposureTargetBias(self.previousExposureTargetBias) { _ in }
-                    if self.lockedExposureForFlashCapture, device.isExposureModeSupported(.continuousAutoExposure) {
-                        device.exposureMode = .continuousAutoExposure
-                        self.lockedExposureForFlashCapture = false
-                    }
-                    if self.lockedWBForFlashCapture, device.isWhiteBalanceModeSupported(self.previousWBMode) {
-                        device.whiteBalanceMode = self.previousWBMode
-                        self.lockedWBForFlashCapture = false
-                    }
-                    device.unlockForConfiguration()
-                } catch {}
+extension CameraManager {
+    /// 把 capture 之前打包的闪光灯状态还原到 device。
+    /// 使用 try? + 闭包 catch 容错，AVF 在 swap 期间偶尔会抛锁失败，不应让相机崩溃。
+    fileprivate func applyFlashRestore(_ state: FlashRestoreState, device: AVCaptureDevice) {
+        do {
+            try device.lockForConfiguration()
+            device.setExposureTargetBias(state.exposureTargetBias) { _ in }
+            if state.lockedExposure, device.isExposureModeSupported(.continuousAutoExposure) {
+                device.exposureMode = .continuousAutoExposure
             }
+            if state.lockedWB, device.isWhiteBalanceModeSupported(state.wbMode) {
+                device.whiteBalanceMode = state.wbMode
+            }
+            device.unlockForConfiguration()
+        } catch {
+            Log.session.error("flash_restore_failed error=\(error.localizedDescription, privacy: .public)")
         }
     }
 }

@@ -278,15 +278,19 @@ struct ContentView: View {
             }
         }.value
 
-        let cameraStatus = AVCaptureDevice.authorizationStatus(for: .video)
-        if cameraStatus == .notDetermined {
-            _ = await AVCaptureDevice.requestAccess(for: .video)
-        }
-
+        // LUT 已完成 → 主页 tile 可点 → 立即消 loading。
+        // 相机权限请求（首次会弹系统 alert）放到 LUT 之后异步触发，不再阻塞 splash。
+        // 进入 CameraView 时 requestCameraPermission 也会再走一次 .notDetermined 分支，
+        // 这里预触发只是为了首次启动用户点 tile 前权限就准备好。
         await MainActor.run {
             withAnimation(.easeOut(duration: 0.3)) {
                 isPreloading = false
             }
+        }
+
+        let cameraStatus = AVCaptureDevice.authorizationStatus(for: .video)
+        if cameraStatus == .notDetermined {
+            _ = await AVCaptureDevice.requestAccess(for: .video)
         }
     }
 }

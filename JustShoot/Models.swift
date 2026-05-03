@@ -315,6 +315,38 @@ extension Photo {
     }
 }
 
+// MARK: - 后台保存 actor
+//
+// 把 Photo 插入 + context.save() 从主线程移走。connect 到同一个 ModelContainer 后，
+// SwiftData 会把 actor 内的写入广播到主 context 的 @Query —— gallery / 计数 UI 自动刷新。
+//
+// 为什么不直接在 Task.detached 里 `container.mainContext`：mainContext 必须在 MainActor
+// 访问，会重新阻塞主线程；@ModelActor 自动给 actor 一个**自己的** modelContext，跟主 context
+// 完全隔离，save 全程在后台 actor 上跑。
+@ModelActor
+actor PhotoSaver {
+    /// 返回新 photo 的 id；失败抛错由 caller 报给 UI。
+    func save(
+        imageData: Data,
+        filmPresetName: String,
+        filmDisplayLabel: String?,
+        latitude: Double?,
+        longitude: Double?,
+        altitude: Double?,
+        locationTimestamp: Date?
+    ) throws -> UUID {
+        let photo = Photo(imageData: imageData, filmPresetName: filmPresetName)
+        if let label = filmDisplayLabel { photo.filmDisplayLabel = label }
+        photo.latitude = latitude
+        photo.longitude = longitude
+        photo.altitude = altitude
+        photo.locationTimestamp = locationTimestamp
+        modelContext.insert(photo)
+        try modelContext.save()
+        return photo.id
+    }
+}
+
 // MARK: - 自定义 LUT 模型
 @Model
 final class CustomLUT: Identifiable {
@@ -656,11 +688,16 @@ final class FilmProcessor: Sendable {
             gps[kCGImagePropertyGPSAltitude as String] = abs(loc.altitude)
             gps[kCGImagePropertyGPSAltitudeRef as String] = loc.altitude >= 0 ? 0 : 1
 
+            // GPS 时间戳用"拍照时刻"而非 location fix 时刻：30s 缓存策略下连拍多张
+            // 会复用同一个 CLLocation，loc.timestamp 是 fix 时刻而非拍摄时刻，
+            // 写入 EXIF 后用户在相册里看到一组照片"GPS 时间相同"——与文件创建时间错位。
+            // 坐标变化慢可接受沿用 cached，但时间必须取真值。
+            let captureTime = Date()
             let utc = TimeZone(identifier: "UTC") ?? TimeZone(secondsFromGMT: 0) ?? .current
             let dateFmt = DateFormatter(); dateFmt.dateFormat = "yyyy:MM:dd"; dateFmt.timeZone = utc
             let timeFmt = DateFormatter(); timeFmt.dateFormat = "HH:mm:ss.SS"; timeFmt.timeZone = utc
-            gps[kCGImagePropertyGPSDateStamp as String] = dateFmt.string(from: loc.timestamp)
-            gps[kCGImagePropertyGPSTimeStamp as String] = timeFmt.string(from: loc.timestamp)
+            gps[kCGImagePropertyGPSDateStamp as String] = dateFmt.string(from: captureTime)
+            gps[kCGImagePropertyGPSTimeStamp as String] = timeFmt.string(from: captureTime)
 
             if loc.speed >= 0 {
                 gps[kCGImagePropertyGPSSpeed as String] = loc.speed * 3.6
