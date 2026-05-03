@@ -3,6 +3,7 @@ import SwiftData
 import PhotosUI
 import ImageIO
 import UIKit
+import os
 
 /// iOS 26 deprecated `UIScreen.main`. For non-view contexts we still need
 /// a screen handle for full-resolution preview sizing — fish it out of the
@@ -35,6 +36,31 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         cache.countLimit = 50
         cache.totalCostLimit = Self.defaultCostLimit()
     }
+
+    // MARK: - In-flight dedup
+    //
+    // 同一张图（同 key）被并发请求时——常见场景：handleTap 起一个 loadPreview，detail
+    // mount 后 PagerImage.task 又起一个；warmThumbs 跟 ThumbnailStripCell.task 撞同一
+    // 张 600px thumb——旧实现会启动多个 Task.detached 并行 decode 同一帧，互相抢 CPU
+    // cores，每个 decode 慢 ~2x，首张照片要等近 1 秒才出现。
+    //
+    // 新实现：每个 key 维护一个 in-flight Task，后续 caller 直接 await 已存在的 Task，
+    // 同 key 同一份 decode。NSCache 命中走快路径不动；只有 miss 时才进 lock。
+    //
+    // 用 `OSAllocatedUnfairLock` 而不是 `NSLock`：NSLock 的 `lock()` / `unlock()` 在
+    // Swift 6 完整并发模式下被标记为"unavailable from asynchronous contexts"（async 函数里
+    // 调用会阻塞 cooperative thread pool 的 worker，破坏调度）。`OSAllocatedUnfairLock` 提供
+    // 闭包式 `withLock` API，async 安全；持锁极短时间（dict 读写）足够快，不会影响调度。
+    /// Dict 用 `String` key（不是 NSString）：String 是 Sendable，可以安全在 @Sendable 闭包里
+    /// 捕获；NSString 不是，会触发"capture of 'key' with non-Sendable type"警告。
+    /// NSCache 仍要 NSString，调用点用 `key as NSString` 临时转换即可。
+    private struct InflightTasks {
+        var previews: [String: Task<UIImage?, Never>] = [:]
+        var thumbs: [String: Task<UIImage?, Never>] = [:]
+    }
+    /// `uncheckedState` 跳过 State: Sendable 约束——访问由锁串行化，State 内的 Task 实际不会
+    /// 被并发触碰；Sendable 检查由我们用法担保，不交给类型系统强制。
+    private let inflight = OSAllocatedUnfairLock(uncheckedState: InflightTasks())
 
     /// UIImage 的近似内存占用（字节）：解码后按 RGBA8 估算，未解码也安全
     private func memoryCost(of image: UIImage) -> Int {
@@ -78,45 +104,94 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         await loadPreview(imageData: photo.imageData, photoId: photo.id, maxPixel: maxPixel)
     }
 
-    /// 加载大图预览。imageData/photoId 必须在调用者所在的 actor 上预取，避免跨 actor 传递非 Sendable 的 `Photo`。
-    func loadPreview(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
-        let key = "preview_\(photoId.uuidString)_\(maxPixel)" as NSString
-        if let cached = cache.object(forKey: key) { return cached }
+    /// 同步查内存 cache（不触发 disk / 解码）。命中则零延迟，用于 view body 第一次评估时
+    /// 给出占位图——避免 SwiftUI .task 启动那一帧露出黑屏。
+    @MainActor
+    func cachedPreview(for photoId: UUID, maxPixel: Int) -> UIImage? {
+        cache.object(forKey: "preview_\(photoId.uuidString)_\(maxPixel)" as NSString)
+    }
 
-        if let url = previewURL(for: photoId, maxPixel: maxPixel),
-           fileManager.fileExists(atPath: url.path),
-           let data = try? Data(contentsOf: url),
-           let img = UIImage(data: data) {
-            cacheImage(img, forKey: key)
-            Log.gallery.debug("preview_disk_hit id=\(photoId.uuidString, privacy: .public) max=\(maxPixel)")
-            return img
+    @MainActor
+    func cachedThumbnail(for photoId: UUID, maxPixel: Int) -> UIImage? {
+        cache.object(forKey: "thumb_\(photoId.uuidString)_\(maxPixel)" as NSString)
+    }
+
+    /// 探测常见 thumb 尺寸（按高分辨率优先）找任意一份可用的——大屏 detail 页用 600，gallery
+    /// 4 列网格用 264，列表头像用 88……不同来源算出的 maxPixel 不一样，cache key 也不一样，
+    /// 旧实现单 key 查找会错过其他地方解码好的同一张图。
+    ///
+    /// 关键作用：用户从 gallery 点入 detail 那一帧——gallery 的 264 已在内存里，PagerImage
+    /// 的占位 fallback 直接用它（虽然偏糊但**立刻有图**），后续 600 / preview 解码完再 soft-swap
+    /// 升清，黑屏占位窗口被消除。
+    @MainActor
+    func anyCachedThumbnail(for photoId: UUID) -> UIImage? {
+        // 高分→低分顺序遍历：找到第一个 hit 就用，保证拿到当前内存里"最好"的那份。
+        let commonSizes = [1500, 1200, 800, 600, 400, 300, 264, 256, 200, 150, 120, 96, 88]
+        let prefix = "thumb_\(photoId.uuidString)_"
+        for size in commonSizes {
+            if let img = cache.object(forKey: "\(prefix)\(size)" as NSString) {
+                return img
+            }
+        }
+        return nil
+    }
+
+    /// 加载大图预览。imageData/photoId 必须在调用者所在的 actor 上预取，避免跨 actor 传递非 Sendable 的 `Photo`。
+    /// 同 key 并发请求会被 in-flight dedup 合并成一份 Task.detached——见 `inflight` 注释。
+    func loadPreview(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
+        let key = "preview_\(photoId.uuidString)_\(maxPixel)"
+        if let cached = cache.object(forKey: key as NSString) { return cached }
+
+        // Atomic check-and-register：同 key 已有 in-flight Task 就复用，否则注册新 Task。
+        // 临界区只做 dict 读写（< 1µs），符合 OSAllocatedUnfairLock 的"持锁极短"用例。
+        let task: Task<UIImage?, Never> = inflight.withLock { state in
+            if let existing = state.previews[key] { return existing }
+            let new = Task<UIImage?, Never>.detached(priority: .userInitiated) { [weak self] in
+                guard let self else { return nil }
+                // disk hit 也走 detached：避免 caller 在 main actor 上同步读 17MB JPEG。
+                if let url = self.previewURL(for: photoId, maxPixel: maxPixel),
+                   self.fileManager.fileExists(atPath: url.path),
+                   let data = try? Data(contentsOf: url),
+                   let img = UIImage(data: data) {
+                    self.cacheImage(img, forKey: key as NSString)
+                    Log.gallery.debug("preview_disk_hit id=\(photoId.uuidString, privacy: .public) max=\(maxPixel)")
+                    return img
+                }
+                let timer = Log.perf("preview_decode", logger: Log.gallery)
+                let options: [CFString: Any] = [
+                    kCGImageSourceShouldCache: false,
+                    kCGImageSourceShouldCacheImmediately: false
+                ]
+                guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
+                let downOptions: [CFString: Any] = [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 256),
+                    kCGImageSourceCreateThumbnailWithTransform: true
+                ]
+                guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
+                let opaque = ImageLoader.makeOpaque(cgThumb)
+                let image = UIImage(cgImage: opaque)
+                self.cacheImage(image, forKey: key as NSString)
+                if let url = self.previewURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
+                    try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try? jpeg.write(to: url, options: .atomic)
+                }
+                timer.end("id=\(photoId.uuidString) max=\(maxPixel) px=\(cgThumb.width)x\(cgThumb.height)")
+                return image
+            }
+            state.previews[key] = new
+            return new
         }
 
-        let timer = Log.perf("preview_decode", logger: Log.gallery)
+        let result = await task.value
 
-        return await Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else { return nil }
-            let options: [CFString: Any] = [
-                kCGImageSourceShouldCache: false,
-                kCGImageSourceShouldCacheImmediately: false
-            ]
-            guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
-            let downOptions: [CFString: Any] = [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 256),
-                kCGImageSourceCreateThumbnailWithTransform: true
-            ]
-            guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
-            let opaque = ImageLoader.makeOpaque(cgThumb)
-            let image = UIImage(cgImage: opaque)
-            self.cacheImage(image, forKey: key)
-            if let url = self.previewURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
-                try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try? jpeg.write(to: url, options: .atomic)
-            }
-            timer.end("id=\(photoId.uuidString) max=\(maxPixel) px=\(cgThumb.width)x\(cgThumb.height)")
-            return image
-        }.value
+        // 用 subscript-set-nil 让 closure body 自然返回 Void，避免 removeValue 的可选返回值被
+        // withLock 透传给调用方触发"unused result"警告。
+        inflight.withLock { state in
+            state.previews[key] = nil
+        }
+
+        return result
     }
 
     /// 便捷重载：在主 actor 上预取 `Photo` 的 imageData/id。
@@ -126,40 +201,54 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     }
 
     /// 加载缩略图。调用者须在 actor 上预取 imageData/photoId，避免跨 actor 传递 SwiftData `Photo` 模型。
+    /// 同 key 并发请求会被 in-flight dedup 合并——常见场景：warmThumbs 与 ThumbnailStripCell.task
+    /// 同时请求同一张 600px thumb，旧实现会双重 decode 抢 CPU。
     func loadThumbnail(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
-        let key = "thumb_\(photoId.uuidString)_\(maxPixel)" as NSString
-        if let cached = cache.object(forKey: key) { return cached }
+        let key = "thumb_\(photoId.uuidString)_\(maxPixel)"
+        if let cached = cache.object(forKey: key as NSString) { return cached }
 
-        if let url = thumbnailURL(for: photoId, maxPixel: maxPixel),
-           fileManager.fileExists(atPath: url.path),
-           let data = try? Data(contentsOf: url),
-           let img = UIImage(data: data) {
-            cacheImage(img, forKey: key)
-            return img
+        let task: Task<UIImage?, Never> = inflight.withLock { state in
+            if let existing = state.thumbs[key] { return existing }
+            let new = Task<UIImage?, Never>.detached(priority: .userInitiated) { [weak self] in
+                guard let self else { return nil }
+                if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel),
+                   self.fileManager.fileExists(atPath: url.path),
+                   let data = try? Data(contentsOf: url),
+                   let img = UIImage(data: data) {
+                    self.cacheImage(img, forKey: key as NSString)
+                    return img
+                }
+                let options: [CFString: Any] = [
+                    kCGImageSourceShouldCache: false,
+                    kCGImageSourceShouldCacheImmediately: false
+                ]
+                guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
+                let thumbOptions: [CFString: Any] = [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 96),
+                    kCGImageSourceCreateThumbnailWithTransform: true
+                ]
+                guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
+                let opaque = ImageLoader.makeOpaque(cgThumb)
+                let image = UIImage(cgImage: opaque)
+                self.cacheImage(image, forKey: key as NSString)
+                if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.85) {
+                    try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try? jpeg.write(to: url, options: .atomic)
+                }
+                return image
+            }
+            state.thumbs[key] = new
+            return new
         }
 
-        return await Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else { return nil }
-            let options: [CFString: Any] = [
-                kCGImageSourceShouldCache: false,
-                kCGImageSourceShouldCacheImmediately: false
-            ]
-            guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
-            let thumbOptions: [CFString: Any] = [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 96),
-                kCGImageSourceCreateThumbnailWithTransform: true
-            ]
-            guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
-            let opaque = ImageLoader.makeOpaque(cgThumb)
-            let image = UIImage(cgImage: opaque)
-            self.cacheImage(image, forKey: key)
-            if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.85) {
-                try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try? jpeg.write(to: url, options: .atomic)
-            }
-            return image
-        }.value
+        let result = await task.value
+
+        inflight.withLock { state in
+            state.thumbs[key] = nil
+        }
+
+        return result
     }
 
     private func thumbsDirectory() -> URL? {
@@ -209,41 +298,6 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     }
 }
 
-// MARK: - 照片详情视图模型
-@MainActor
-@Observable
-class PhotoDetailViewModel {
-    var loadedImages: [UUID: UIImage] = [:]
-
-    let imageLoader = ImageLoader.shared
-
-    func loadImage(for photo: Photo) {
-        let photoId = photo.id
-        if loadedImages[photoId] != nil { return }
-
-        let screen = currentScreen()
-        let bounds = screen?.bounds ?? .zero
-        let scale = screen?.scale ?? 2.0
-        let maxPixel = Int(max(bounds.width, bounds.height) * scale)
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let image = await self.imageLoader.loadPreview(for: photo, maxPixel: maxPixel)
-            if let image {
-                self.loadedImages[photoId] = image
-            }
-        }
-    }
-
-    func preloadImages(around index: Int, in photos: [Photo]) {
-        guard !photos.isEmpty else { return }
-        let lo = max(0, index - 1)
-        let hi = min(photos.count - 1, index + 1)
-        for i in lo...hi {
-            loadImage(for: photos[i])
-        }
-    }
-}
-
 // MARK: - 相册视图
 struct GalleryView: View {
     @Environment(\.modelContext) private var modelContext
@@ -252,6 +306,20 @@ struct GalleryView: View {
     @State private var isSelecting = false
     @State private var selectedPhotos: Set<UUID> = []
     @State private var showDeleteConfirm = false
+
+    // Drag-to-select 状态。Photos.app 同款：选择模式下从某 cell 起拖，根据该 cell 当前选中态
+    // 锚定 mode（adding / removing），手指划过的每个 cell 应用该 mode 一次。
+    @State private var cellFrames: [UUID: CGRect] = [:]
+    @State private var dragMode: DragMode? = nil
+    @State private var dragLastPoint: CGPoint? = nil
+    @State private var dragVisited: Set<UUID> = []
+
+    private enum DragMode { case adding, removing }
+    /// `nonisolated` 让 `.onGeometryChange` 的 @Sendable closure 也能读这个常量。
+    /// SwiftUI View 默认 MainActor-isolated，连带它的 static 属性也是；不加 nonisolated
+    /// 在 Swift 6 完整并发模式下会报 "Main actor-isolated static property ... can not be
+    /// referenced from a Sendable closure"。值是 `String` 常量、天然线程安全。
+    nonisolated private static let gridCoordSpace = "gallery.grid"
 
     private let gridColumns = [
         GridItem(.flexible()),
@@ -263,56 +331,20 @@ struct GalleryView: View {
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             if photos.isEmpty {
-                VStack {
-                    Image(systemName: "photo")
-                        .font(.system(size: 80))
-                        .foregroundColor(.gray.opacity(0.5))
-                    Text("暂无照片")
-                        .font(.title3)
-                        .foregroundColor(.gray)
-                        .padding(.top, 16)
-                    Text("前往拍摄页面开始拍照")
-                        .font(.caption)
-                        .foregroundColor(.gray.opacity(0.6))
-                        .padding(.top, 4)
-                }
-                .frame(maxWidth: .infinity, minHeight: 400)
+                emptyState
             } else {
                 LazyVGrid(columns: gridColumns, spacing: 6) {
                     ForEach(photos) { photo in
-                        PhotoThumbnailView(
-                            photo: photo,
-                            isSelecting: isSelecting,
-                            isSelected: selectedPhotos.contains(photo.id)
-                        )
-                        .aspectRatio(1, contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .clipped()
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            if isSelecting {
-                                if selectedPhotos.contains(photo.id) {
-                                    selectedPhotos.remove(photo.id)
-                                } else {
-                                    selectedPhotos.insert(photo.id)
-                                }
-                            } else {
-                                let screen = currentScreen()
-                                let bounds = screen?.bounds ?? .zero
-                                let scale = screen?.scale ?? 2.0
-                                let maxPixel = Int(max(bounds.width, bounds.height) * scale)
-                                Task { @MainActor in
-                                    _ = await ImageLoader.shared.loadPreview(for: photo, maxPixel: maxPixel)
-                                }
-                                selectedDetail = DetailPayload(startPhoto: photo, photos: Array(photos))
-                            }
-                        }
+                        photoCell(photo)
                     }
                 }
                 .padding(.horizontal, 14)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
+                .coordinateSpace(.named(Self.gridCoordSpace))
+                // including: .none 时 SwiftUI 完全不安装这条 gesture，ScrollView 的 pan 不受影响；
+                // .all 时拦截 grid 区域的 drag，独占用作多选，scroll 可由 flick / status bar tap 触发。
+                .gesture(dragSelectGesture, including: isSelecting ? .all : .none)
             }
         }
         .background(Color.black)
@@ -343,6 +375,7 @@ struct GalleryView: View {
                     Button("取消") {
                         isSelecting = false
                         selectedPhotos.removeAll()
+                        resetDragState()
                     }
 
                     Spacer()
@@ -373,6 +406,125 @@ struct GalleryView: View {
         }
     }
 
+    // MARK: - Subviews
+
+    @ViewBuilder
+    private var emptyState: some View {
+        VStack {
+            Image(systemName: "photo")
+                .font(.system(size: 80))
+                .foregroundColor(.gray.opacity(0.5))
+            Text("暂无照片")
+                .font(.title3)
+                .foregroundColor(.gray)
+                .padding(.top, 16)
+            Text("前往拍摄页面开始拍照")
+                .font(.caption)
+                .foregroundColor(.gray.opacity(0.6))
+                .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, minHeight: 400)
+    }
+
+    @ViewBuilder
+    private func photoCell(_ photo: Photo) -> some View {
+        PhotoThumbnailView(
+            photo: photo,
+            isSelecting: isSelecting,
+            isSelected: selectedPhotos.contains(photo.id)
+        )
+        .aspectRatio(1, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipped()
+        .contentShape(Rectangle())
+        // 把 cell 在 grid 命名空间里的 frame 注册到字典，drag 时用于命中测试。
+        // onDisappear 在 LazyVGrid 卸载该 cell 时清理，避免滚出视野的过期 frame 误命中。
+        .onGeometryChange(for: CGRect.self) { proxy in
+            proxy.frame(in: .named(Self.gridCoordSpace))
+        } action: { frame in
+            cellFrames[photo.id] = frame
+        }
+        .onDisappear { cellFrames.removeValue(forKey: photo.id) }
+        .onTapGesture { handleTap(photo) }
+    }
+
+    private func handleTap(_ photo: Photo) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        if isSelecting {
+            if selectedPhotos.contains(photo.id) {
+                selectedPhotos.remove(photo.id)
+            } else {
+                selectedPhotos.insert(photo.id)
+            }
+        } else {
+            let screen = currentScreen()
+            let bounds = screen?.bounds ?? .zero
+            let scale = screen?.scale ?? 2.0
+            let maxPixel = Int(max(bounds.width, bounds.height) * scale)
+            Task { @MainActor in
+                _ = await ImageLoader.shared.loadPreview(for: photo, maxPixel: maxPixel)
+            }
+            selectedDetail = DetailPayload(startPhoto: photo, photos: Array(photos))
+        }
+    }
+
+    // MARK: - Drag-to-select
+
+    private var dragSelectGesture: some Gesture {
+        // minimumDistance: 10 让短 tap 不触发 drag（onTapGesture 仍接管单击切选）；
+        // 越过阈值后，drag 接管：onChanged 沿 last → current 走样本点找命中 cell。
+        DragGesture(minimumDistance: 10, coordinateSpace: .named(Self.gridCoordSpace))
+            .onChanged { value in
+                handleDragChange(at: value.location)
+            }
+            .onEnded { _ in
+                resetDragState()
+            }
+    }
+
+    private func handleDragChange(at point: CGPoint) {
+        // 沿 lastPoint → currentPoint 等距取样，避免快速对角拖动跳过中间 cell（漏选）。
+        // 步长 20pt 远小于 cell 宽（~93pt @ 4 cols），保证连续行/列都能命中至少一次。
+        let from = dragLastPoint ?? point
+        let dx = point.x - from.x
+        let dy = point.y - from.y
+        let distance = (dx * dx + dy * dy).squareRoot()
+        let stepCount = max(1, Int(ceil(distance / 20)))
+        for i in 1...stepCount {
+            let t = CGFloat(i) / CGFloat(stepCount)
+            let p = CGPoint(x: from.x + dx * t, y: from.y + dy * t)
+            if let id = cellFrames.first(where: { $0.value.contains(p) })?.key {
+                visit(id)
+            }
+        }
+        dragLastPoint = point
+    }
+
+    private func visit(_ id: UUID) {
+        // 第一次触达：根据起手 cell 当前的选中态锚定 mode——已选则本次 drag 全部"取消选中"，
+        // 未选则全部"选中"。和 Photos.app 一致。
+        if dragMode == nil {
+            dragMode = selectedPhotos.contains(id) ? .removing : .adding
+        }
+        // 一次手势内每个 cell 只生效一次，反向滑回不会反转——避免抖动 / 来回擦造成状态翻飞。
+        guard !dragVisited.contains(id) else { return }
+        dragVisited.insert(id)
+        switch dragMode {
+        case .adding: selectedPhotos.insert(id)
+        case .removing: selectedPhotos.remove(id)
+        case nil: break
+        }
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
+    private func resetDragState() {
+        dragMode = nil
+        dragLastPoint = nil
+        dragVisited.removeAll()
+    }
+
+    // MARK: - Actions
+
     private func deleteSelectedPhotos() {
         let photosToDelete = photos.filter { selectedPhotos.contains($0.id) }
         let deletedIds = photosToDelete.map { $0.id }
@@ -394,6 +546,7 @@ struct GalleryView: View {
 
         selectedPhotos.removeAll()
         isSelecting = false
+        resetDragState()
     }
 }
 
@@ -486,74 +639,36 @@ struct PhotoDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    let photo: Photo
     @State private var photos: [Photo]
-
-    @State private var viewModel = PhotoDetailViewModel()
+    @State private var currentIndex: Int
     @State private var saveStatus: SaveStatus = .none
+    @State private var saveResetTask: Task<Void, Never>?
     @State private var showingInfo = false
-    @State private var currentIndex: Int = 0
     @State private var showDeleteConfirm = false
-    @State private var isZoomed = false
     @State private var isFullScreen = false
+    @State private var thumbWarmupTask: Task<Void, Never>?
 
-    enum SaveStatus {
-        case none, saving, success, failed
+    enum SaveStatus { case none, saving, success, failed }
+
+    /// 占位缩略图目标像素——大约屏幕长边的 1/3，`PagerImage` 占位 + `PhotoScrubber` cell 共享同一份
+    /// NSCache 解码（两边都用这个 key）。单张 ~80KB，100 张 ~8MB 落 NSCache，受 totalCostLimit 自然
+    /// 淘汰。值不再用于"区间预热"，所以删掉了之前的 placeholderRange 常量。
+    static let placeholderMaxPixel = 600
+
+    init(photo: Photo, allPhotos: [Photo]) {
+        _photos = State(initialValue: allPhotos)
+        _currentIndex = State(initialValue: allPhotos.firstIndex(of: photo) ?? 0)
     }
 
     private var currentPhoto: Photo? {
-        guard currentIndex >= 0 && currentIndex < photos.count else { return nil }
-        return photos[currentIndex]
-    }
-
-    init(photo: Photo, allPhotos: [Photo]) {
-        self.photo = photo
-        self._photos = State(initialValue: allPhotos)
-        let initialIndex = allPhotos.firstIndex(of: photo) ?? 0
-        self._currentIndex = State(initialValue: initialIndex)
+        photos.indices.contains(currentIndex) ? photos[currentIndex] : nil
     }
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if !photos.isEmpty {
-                VStack(spacing: 0) {
-                    TabView(selection: $currentIndex) {
-                        ForEach(Array(photos.enumerated()), id: \.element.id) { index, photoItem in
-                            ZoomablePhotoView(
-                                loadedImage: viewModel.loadedImages[photoItem.id],
-                                onSingleTap: {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        isFullScreen.toggle()
-                                    }
-                                },
-                                onZoomChanged: { zoomed in
-                                    if index == currentIndex {
-                                        isZoomed = zoomed
-                                    }
-                                }
-                            )
-                            .tag(index)
-                            .onAppear {
-                                viewModel.loadImage(for: photoItem)
-                            }
-                        }
-                    }
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .disabled(isZoomed)
-
-                    ScrubberStripView(
-                        photos: photos,
-                        currentIndex: $currentIndex,
-                        itemSize: 40,
-                        spacing: 6
-                    )
-                    .padding(.vertical, 6)
-                    .opacity(isFullScreen ? 0 : 1)
-                    .animation(.easeInOut(duration: 0.2), value: isFullScreen)
-                }
-            } else {
+            if photos.isEmpty {
                 VStack(spacing: 16) {
                     Image(systemName: "photo")
                         .font(.system(size: 80))
@@ -561,6 +676,34 @@ struct PhotoDetailView: View {
                     Text("没有照片")
                         .font(.title3)
                         .foregroundColor(.gray)
+                }
+            } else {
+                VStack(spacing: 0) {
+                    TabView(selection: $currentIndex) {
+                        ForEach(Array(photos.enumerated()), id: \.element.id) { index, photoItem in
+                            PagerImage(
+                                photo: photoItem,
+                                isCurrent: index == currentIndex,
+                                previewMaxPixel: previewMaxPixel,
+                                onSingleTap: {
+                                    withAnimation(.easeInOut(duration: 0.2)) { isFullScreen.toggle() }
+                                }
+                            )
+                            .tag(index)
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    // 不再 .disabled(isZoomed)：曾经为了"放大时阻断 TabView 翻页"而加，
+                    // 但 SwiftUI .disabled 会把整棵子树标记成不可交互，UIViewRepresentable 包的
+                    // UIScrollView 也跟着失去 pinch——pinch in 把 zoom 顶到 > 1 之后就再也缩不回来。
+                    // 改用嵌套 UIScrollView 的原生协议：zoom > 1 时内层 UIScrollView 吃掉 pan 用作平移，
+                    // 到边界自动让位给外层 page swipe；zoom == 1 时内层不可滚，pan 直接给 swipe。
+                    // 与 iPhone Photos.app 行为一致。
+
+                    PhotoScrubber(photos: photos, currentIndex: $currentIndex)
+                        .padding(.vertical, 6)
+                        .opacity(isFullScreen ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.2), value: isFullScreen)
                 }
             }
         }
@@ -571,19 +714,18 @@ struct PhotoDetailView: View {
         .toolbar { navigationToolbar }
         .toolbar { bottomToolbar }
         .statusBarHidden(isFullScreen)
-        .onChange(of: currentIndex) { _, newIndex in
-            isZoomed = false
-            if newIndex >= 0 && newIndex < photos.count {
-                viewModel.preloadImages(around: newIndex, in: photos)
-            }
-        }
         .onAppear {
-            if !photos.isEmpty {
-                viewModel.preloadImages(around: currentIndex, in: photos)
-            }
+            warmThumbs(centeredOn: currentIndex)
+            preloadAdjacentPreviews(around: currentIndex)
+        }
+        .onChange(of: currentIndex) { _, newIndex in
+            // 重排 thumb 预热顺序（最近 currentIndex 的优先），并预解 ±1 的高分预览。
+            // zoom 重置由 ZoomablePhotoView 根据 isCurrent 处理；图片缓存由 NSCache 自然淘汰。
+            warmThumbs(centeredOn: newIndex)
+            preloadAdjacentPreviews(around: newIndex)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
-            viewModel.imageLoader.clearCache()
+            ImageLoader.shared.clearCache()
         }
         .alert("删除照片", isPresented: $showDeleteConfirm) {
             Button("取消", role: .cancel) {}
@@ -598,6 +740,81 @@ struct PhotoDetailView: View {
                     .presentationDragIndicator(.visible)
             }
         }
+    }
+
+    // MARK: - Loading
+
+    /// 高分预览的目标像素 = 屏幕长边 × scale。@MainActor 隔离的 currentScreen() 每次重算开销很小。
+    private var previewMaxPixel: Int {
+        let screen = currentScreen()
+        let bounds = screen?.bounds ?? .zero
+        let scale = screen?.scale ?? 2.0
+        return Int(max(bounds.width, bounds.height) * scale)
+    }
+
+    /// ±2 高分预览预解，让快速连翻 1–2 页都命中 NSCache、零延迟出片。
+    ///
+    /// 内存预算：5 张 × ~17MB（2556×1700 RGBA）≈ 85MB，加上 thumbs ~26MB，约 111MB，
+    /// 在 NSCache 128MB 上限内可控（旧 ±1 = 51MB 偏保守，导致快速翻 2 页时邻居 cache miss）。
+    ///
+    /// 同 key 并发被 ImageLoader 的 in-flight dedup 合并：current 自身被 PagerImage.task 同
+    /// 时请求，TabView 自动挂载的 ±1 邻居也被它们各自的 .task 同时请求——以前会重复 decode
+    /// 抢 CPU，现在合成一份 Task.detached，CPU 不再被双重占用。
+    private func preloadAdjacentPreviews(around index: Int) {
+        guard !photos.isEmpty else { return }
+        let pixel = previewMaxPixel
+        for i in (index - 2)...(index + 2) where photos.indices.contains(i) {
+            let photo = photos[i]
+            Task { _ = await ImageLoader.shared.loadPreview(for: photo, maxPixel: pixel) }
+        }
+    }
+
+    /// 占位缩略图按距离 currentIndex 由近到远预热到 NSCache。每次 currentIndex 变化都会取消
+    /// 上一次预热并按新中心重排队列——刚刚被 tap 的位置 + 它的邻居优先被解码。
+    /// 并发上限 4：内层 ImageLoader 用 Task.detached 解码，TaskGroup 仅控制 in-flight 数量；
+    /// 每张图的 imageData 在 MainActor for-loop 里读出（SwiftData externalStorage fault-in），
+    /// 然后传给 Sendable 的 loadThumbnail(imageData:photoId:maxPixel:) 变体——避免在 detached
+    /// 闭包里捕获非 Sendable 的 Photo @Model。
+    private func warmThumbs(centeredOn index: Int) {
+        thumbWarmupTask?.cancel()
+        let ordered = orderedByDistance(from: index)
+        let pixel = Self.placeholderMaxPixel
+        thumbWarmupTask = Task { @MainActor in
+            await withTaskGroup(of: Void.self) { group in
+                var inflight = 0
+                let cap = 4
+                for photo in ordered {
+                    if Task.isCancelled { break }
+                    if inflight >= cap {
+                        _ = await group.next()
+                        inflight -= 1
+                    }
+                    let id = photo.id
+                    let data = photo.imageData // MainActor 上读 SwiftData externalStorage
+                    group.addTask {
+                        _ = await ImageLoader.shared.loadThumbnail(imageData: data, photoId: id, maxPixel: pixel)
+                    }
+                    inflight += 1
+                }
+            }
+        }
+    }
+
+    private func orderedByDistance(from index: Int) -> [Photo] {
+        var result: [Photo] = []
+        result.reserveCapacity(photos.count)
+        let count = photos.count
+        for d in 0..<count {
+            if d == 0 {
+                if photos.indices.contains(index) { result.append(photos[index]) }
+            } else {
+                let right = index + d
+                let left = index - d
+                if photos.indices.contains(right) { result.append(photos[right]) }
+                if photos.indices.contains(left) { result.append(photos[left]) }
+            }
+        }
+        return result
     }
 
     // MARK: - Toolbars
@@ -665,8 +882,9 @@ struct PhotoDetailView: View {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
 
             photos.remove(at: currentIndex)
-            viewModel.loadedImages.removeValue(forKey: deletedId)
             ImageLoader.shared.removeDiskCache(for: deletedId)
+            // NSCache 内存条目随后续访问/内存压力自然过期；这里无需手动清理 @State 字典
+            // 因为已经全部迁移到 NSCache + PagerImage 局部 @State。
 
             if photos.isEmpty {
                 dismiss()
@@ -770,193 +988,372 @@ struct PhotoDetailView: View {
     }
 
     private func resetSaveStatus() {
-        Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+        // Cancellable 句柄：连续点保存或快速离场时，旧的 reset task 不会再覆写到新状态上。
+        saveResetTask?.cancel()
+        saveResetTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            if Task.isCancelled { return }
             saveStatus = .none
         }
     }
-
 }
 
-// MARK: - 可缩放照片视图
-struct ZoomablePhotoView: View {
-    let loadedImage: UIImage?
-    var onSingleTap: (() -> Void)?
-    var onZoomChanged: ((Bool) -> Void)?
+// MARK: - 详情页单张图项
+//
+// 把"加载占位 / 加载预览 / 显示交互式 zoom view"打包成自包含 sub-view。
+// 内存语义：每个 PagerImage 的 @State preview/asyncThumb 跟随 TabView 页面挂载-卸载自然
+// scope；翻到远处的页面被 TabView 卸载后，本地 UIImage 引用一并释放，剩下的全靠 ImageLoader
+// 的 NSCache（受 totalCostLimit 自动淘汰）。**详情页层级再不持有任何 [UUID:UIImage] 字典**，
+// 大相册不会因为详情页停留而内存爆涨。
+//
+// 黑屏防护：body 第一次评估就同步查 NSCache（cachedThumbnail / cachedPreview），命中即零延迟
+// 显示——不依赖 .task 启动那一帧的时序。aggressive 预热（PhotoDetailView.warmThumbs）保证缓存
+// 通常已热，黑屏 + spinner 的 ZStack 分支只在最坏情况下短暂出现。
+private struct PagerImage: View {
+    let photo: Photo
+    let isCurrent: Bool
+    let previewMaxPixel: Int
+    let onSingleTap: () -> Void
 
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
-    @State private var offset: CGSize = .zero
-    @State private var lastOffset: CGSize = .zero
+    @State private var preview: UIImage?
+    @State private var asyncThumb: UIImage?
+
+    /// 取图优先级（按分辨率从高到低）：
+    ///   State.preview > NSCache preview > State.asyncThumb > NSCache thumb (any size)
+    ///
+    /// 两个关键点：
+    /// 1) `cachedPreview` 必须排在 `asyncThumb` 之前——`handleTap` 已把 preview 预热到 NSCache
+    ///    的情况下，首帧显示 cachedPreview（高分），随后 `.task` 把 600px 缩略图写进 `asyncThumb`
+    ///    时不能降级，否则主图肉眼可见 高→低→高 闪烁。
+    /// 2) **末位用 `anyCachedThumbnail`**（探测多尺寸），而不是只查 `placeholderMaxPixel` 单一尺寸。
+    ///    用户从 gallery 点入 detail 那一帧——gallery 的 264 已在内存里——fallback 直接复用，
+    ///    立刻有图（虽糊），等 600 / preview 解码完再 soft-swap 升清。**消除黑屏占位窗口**。
+    private var displayImage: UIImage? {
+        preview
+            ?? ImageLoader.shared.cachedPreview(for: photo.id, maxPixel: previewMaxPixel)
+            ?? asyncThumb
+            ?? ImageLoader.shared.anyCachedThumbnail(for: photo.id)
+    }
 
     var body: some View {
-        GeometryReader { geometry in
-            if let image = loadedImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .scaleEffect(scale)
-                    .offset(offset)
-                    .gesture(
-                        MagnificationGesture()
-                            .onChanged { value in
-                                scale = min(max(lastScale * value, 1.0), 5.0)
-                            }
-                            .onEnded { _ in
-                                if scale <= 1.05 {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                        scale = 1.0
-                                        offset = .zero
-                                        lastOffset = .zero
-                                    }
-                                    lastScale = 1.0
-                                    onZoomChanged?(false)
-                                } else {
-                                    lastScale = scale
-                                    onZoomChanged?(true)
-                                }
-                            }
-                    )
-                    .simultaneousGesture(
-                        DragGesture()
-                            .onChanged { value in
-                                guard scale > 1.0 else { return }
-                                offset = CGSize(
-                                    width: lastOffset.width + value.translation.width,
-                                    height: lastOffset.height + value.translation.height
-                                )
-                            }
-                            .onEnded { _ in
-                                guard scale > 1.0 else { return }
-                                let maxOff = (scale - 1) * min(geometry.size.width, geometry.size.height) / 2
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    offset.width = min(max(offset.width, -maxOff), maxOff)
-                                    offset.height = min(max(offset.height, -maxOff), maxOff)
-                                }
-                                lastOffset = offset
-                            },
-                        // scale==1 时关闭本手势，TabView 获得左右翻页的触摸
-                        including: scale > 1.0 ? .all : .none
-                    )
-                    .onTapGesture(count: 2) {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            if scale > 1.0 {
-                                scale = 1.0
-                                lastScale = 1.0
-                                offset = .zero
-                                lastOffset = .zero
-                                onZoomChanged?(false)
-                            } else {
-                                scale = 2.5
-                                lastScale = 2.5
-                                onZoomChanged?(true)
-                            }
-                        }
-                    }
-                    .onTapGesture(count: 1) {
-                        onSingleTap?()
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        Group {
+            if let image = displayImage {
+                ZoomablePhotoView(image: image, isCurrent: isCurrent, onSingleTap: onSingleTap)
             } else {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ZStack {
+                    Color.black
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                }
             }
         }
-        .background(Color.black)
+        .task(id: photo.id) {
+            // 已经有任何可显示的图（State 或 NSCache）就不再付低分缩略图的解码——
+            // 避免高分 preview 已在 cache 里时还白白解一张 thumb，body 重渲染顺序不当时
+            // 还会触发主图降级闪烁。
+            if displayImage == nil {
+                asyncThumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: PhotoDetailView.placeholderMaxPixel)
+            }
+            if preview == nil {
+                preview = await ImageLoader.shared.loadPreview(for: photo, maxPixel: previewMaxPixel)
+            }
+        }
     }
 }
 
-// MARK: - 可拖拽缩略图条
-private struct ScrubberStripView: View {
+// MARK: - 可缩放照片视图（UIScrollView 原生路径）
+//
+// 把 UIScrollView 包成 UIViewRepresentable，让 pinch-zoom / 弹性 / 拖动 / 双击切档 / 惯性
+// 都走 UIKit 原生通路。SwiftUI 的 MagnifyGesture + DragGesture 组合在 TabView .page
+// 嵌套里有几个已知坑：
+//   1) `min(max(scale, 1.0), 5.0)` clamp 到 1，没法 rubber-band；
+//   2) lastScale/scale 的同步时序在某些设备上让 pinch-out 卡死，缩放回不到 1.0；
+//   3) 翻页与拖动手势必须靠 `including: .all/.none` 互斥，状态机复杂易错。
+// UIScrollView 的 viewForZooming + min/max ZoomScale + bouncesZoom 三件套就是 Photos.app
+// 同款交互——零自定义状态。
+struct ZoomablePhotoView: UIViewRepresentable {
+    let image: UIImage
+    /// 当前是否为 TabView 的可见页。从 true → false 时强制把 zoomScale 还原成 fit——
+    /// scrubber 切走某页时，下次切回来不会带着旧 zoom + 偏移（与 Photos.app 一致：
+    /// 滑离当前页等于"放手"，再回来从头开始）。
+    let isCurrent: Bool
+    var onSingleTap: (() -> Void)?
+
+    func makeUIView(context: Context) -> ZoomingScrollView {
+        let view = ZoomingScrollView()
+        view.coordinator = context.coordinator
+        view.setImage(image)
+        return view
+    }
+
+    func updateUIView(_ view: ZoomingScrollView, context: Context) {
+        context.coordinator.onSingleTap = onSingleTap
+        view.setImage(image)
+        if !isCurrent && view.zoomScale > view.minimumZoomScale + 0.01 {
+            view.setZoomScale(view.minimumZoomScale, animated: false)
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        var onSingleTap: (() -> Void)?
+    }
+}
+
+/// imageView 是 zoomable view，frame 在 bounds 里做 aspect-fit；缩放时通过 contentInset 把图
+/// 居中——图比 viewport 小时左右/上下加 inset 充当 letterbox，比 viewport 大时 inset=0
+/// 让 UIScrollView 接管平移。bouncesZoom 让 pinch-out 越过 minimumZoomScale 时有原生 rubber-band。
+final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
+    weak var coordinator: ZoomablePhotoView.Coordinator?
+    private let imageView = UIImageView()
+    private var lastBoundsSize: CGSize = .zero
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .black
+        delegate = self
+        minimumZoomScale = 1.0
+        maximumZoomScale = 4.0
+        bouncesZoom = true
+        // **关键**：zoom == 1 时关掉 pan gesture，让外层 TabView 独占左右 swipe。
+        // 不关的话——即便 contentSize 跟 bounds 一致没有可滚区，UIScrollView 的
+        // panGestureRecognizer 仍然 active，会先抢到用户 swipe 判断能不能滚，期间阻断
+        // TabView 的 page swipe；判完释放，TabView 已错过 swipe 起点，结果是当前页
+        // snap-back 后再 catch-up——用户感知就是"当前照片弹回去，新照片从左边重新弹出"。
+        // pinch 走 pinchGestureRecognizer，与 isScrollEnabled 无关，pinch-to-zoom 仍可正常触发。
+        isScrollEnabled = false
+        showsHorizontalScrollIndicator = false
+        showsVerticalScrollIndicator = false
+        contentInsetAdjustmentBehavior = .never
+        decelerationRate = .fast
+
+        imageView.contentMode = .scaleAspectFit
+        imageView.isUserInteractionEnabled = true
+        addSubview(imageView)
+
+        let single = UITapGestureRecognizer(target: self, action: #selector(handleSingleTap))
+        single.numberOfTapsRequired = 1
+        let double = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
+        double.numberOfTapsRequired = 2
+        single.require(toFail: double)
+        addGestureRecognizer(single)
+        addGestureRecognizer(double)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+
+    func setImage(_ image: UIImage) {
+        let prev = imageView.image
+        guard prev !== image else { return }
+        imageView.image = image
+        // 同源 thumb→preview 升级时 aspect 一致，**不重排**——保留用户当前 zoomScale + offset，
+        // UIImageView 直接用更高分辨率的同一帧贴回去，从软到锐零位移。
+        // aspect 真正变化时（首次设图 / 切到不同照片）才强制重排并 reset zoom。
+        if let prev, sameAspect(prev.size, image.size) {
+            return
+        }
+        lastBoundsSize = .zero
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard bounds.size != .zero, imageView.image != nil else { return }
+        if bounds.size != lastBoundsSize {
+            // 第一次（lastBoundsSize == .zero）走完整 reset；后续的 bounds 变化（chrome 切换 /
+            // safe area 变化等）只重算 imageView frame 并按比例 preserve zoomScale + offset，
+            // 不打断用户当前的放大查看。
+            let isInitial = lastBoundsSize == .zero
+            relayoutImage(resetZoom: isInitial, oldBounds: lastBoundsSize)
+            lastBoundsSize = bounds.size
+        }
+        centerImageView()
+    }
+
+    private func relayoutImage(resetZoom: Bool, oldBounds: CGSize) {
+        guard let image = imageView.image else { return }
+        let viewSize = bounds.size
+        let imageAspect = image.size.width / image.size.height
+        let viewAspect = viewSize.width / viewSize.height
+        let fitted: CGSize = imageAspect > viewAspect
+            ? CGSize(width: viewSize.width, height: viewSize.width / imageAspect)
+            : CGSize(width: viewSize.height * imageAspect, height: viewSize.height)
+
+        if resetZoom {
+            imageView.frame = CGRect(origin: .zero, size: fitted)
+            contentSize = fitted
+            setZoomScale(minimumZoomScale, animated: false)
+            return
+        }
+
+        // 保 zoom：把 imageView frame 缩放到新 fit 尺寸；contentSize / contentOffset
+        // 按 viewport 缩放比例做线性映射，让屏幕上"看到"的相对位置基本不变。
+        let scaleX = oldBounds.width > 0 ? viewSize.width / oldBounds.width : 1
+        let scaleY = oldBounds.height > 0 ? viewSize.height / oldBounds.height : 1
+        let scale = min(scaleX, scaleY) // 安全起见取较小，避免越界
+        let oldZoom = zoomScale
+        let oldOffset = contentOffset
+        imageView.frame = CGRect(origin: .zero, size: fitted)
+        contentSize = CGSize(width: fitted.width * oldZoom, height: fitted.height * oldZoom)
+        setZoomScale(oldZoom, animated: false)
+        contentOffset = CGPoint(x: oldOffset.x * scale, y: oldOffset.y * scale)
+    }
+
+    private func sameAspect(_ a: CGSize, _ b: CGSize) -> Bool {
+        guard a.height > 0, b.height > 0 else { return false }
+        return abs(a.width / a.height - b.width / b.height) < 0.01
+    }
+
+    private func centerImageView() {
+        let viewSize = bounds.size
+        let contentSize = imageView.frame.size
+        let x = max(0, (viewSize.width - contentSize.width) / 2)
+        let y = max(0, (viewSize.height - contentSize.height) / 2)
+        contentInset = UIEdgeInsets(top: y, left: x, bottom: y, right: x)
+    }
+
+    func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
+
+    func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        centerImageView()
+        // 跟随 zoomScale 切换 pan：放大后允许内层平移；回到 fit 后立即把 pan 还给 TabView。
+        let canPan = zoomScale > minimumZoomScale + 0.01
+        if isScrollEnabled != canPan {
+            isScrollEnabled = canPan
+        }
+    }
+
+    @objc private func handleSingleTap() {
+        coordinator?.onSingleTap?()
+    }
+
+    @objc private func handleDoubleTap(_ gr: UITapGestureRecognizer) {
+        if zoomScale > minimumZoomScale + 0.01 {
+            setZoomScale(minimumZoomScale, animated: true)
+        } else {
+            let target: CGFloat = 2.0
+            let point = gr.location(in: imageView)
+            let size = bounds.size
+            let rect = CGRect(
+                x: point.x - size.width / (2 * target),
+                y: point.y - size.height / (2 * target),
+                width: size.width / target,
+                height: size.height / target
+            )
+            zoom(to: rect, animated: true)
+        }
+    }
+}
+
+
+// MARK: - 底部缩略图 scrubber
+//
+// 设计要点（之前的实现踩过的坑都在这里说明）：
+//
+// 1) **Selection 来源 = `currentIndex`，不是 `scrollPosition.viewID()`**。
+//    旧实现把 cell 的 isSelected 绑到 viewID()——程序化 `scrollTo` 后 viewID() 不一定同步刷新，
+//    首次 onAppear 没有任何 cell 显示选中态，"当前 cell"既不放大也无白边，视觉上"不在中心"。
+//
+// 2) **Tap 直接改 `currentIndex`，不要先 `scrollTo` 再等 commit**。
+//    旧实现：tap → scrollTo（程序化）→ 期待 `.idle` phase 触发 `commitFromScroll` 写回
+//    currentIndex。但程序化滚动后 viewID() 立即就是目标 id，commitFromScroll 里
+//    `idx != currentIndex` 判定不成立——currentIndex **永远不动**，主图不切换。新实现：tap
+//    直接 `currentIndex = index`，外层的 `.onChange` 自然把 scrubber 滚到位，TabView 跟着翻页。
+//
+// 3) **用户手动 scrub 时仅在 `.interacting` → `.idle` 路径上 commit**。
+//    程序化 scrollTo 走 `idle → animating → idle`，不经过 interacting；用户手指 drag 走
+//    `idle → tracking → interacting → (decelerating) → idle`。用 `userIsScrolling` 标记区
+//    分两条路径，杜绝 TabView↔Scrubber 互相覆盖的反馈环（旧实现里 `.idle` 无差别 commit，
+//    程序化滚动结束也回写 currentIndex，跟 TabView 滑动产生抢占式覆盖）。
+//
+// 4) **cell 选中态用 `scaleEffect`，不改 frame size**。
+//    旧实现 frame 在 40 ↔ 50 之间切换，LazyHStack 每帧重排 → 滚动位置漂移 → centeredID 又变
+//    → 反复抖动。scaleEffect 是渲染层变换，不影响布局，cell 在 strip 里的中心永远在固定栅格上。
+private struct PhotoScrubber: View {
     let photos: [Photo]
     @Binding var currentIndex: Int
-    let itemSize: CGFloat
-    let spacing: CGFloat
 
-    @State private var dragOffset: CGFloat = 0
-    @State private var dragStartIndex: Int = 0
-    @State private var isDragging = false
-    @State private var containerWidth: CGFloat = 0
+    /// 首次 layout 完成后才允许 scrollTo——padding 依赖 geo.size.width，width=0 那一帧
+    /// 滚到的位置是错的。latch 一次性置位，避免后续 size 微调反复滚。
+    @State private var didInitialScroll = false
 
-    private let feedbackGenerator = UISelectionFeedbackGenerator()
-    private let selectedSize: CGFloat = 50
-
-    private var step: CGFloat { itemSize + spacing }
-
-    private func offsetForIndex(_ index: Int) -> CGFloat {
-        -CGFloat(index) * step
-    }
-
-    private var centerOffset: CGFloat {
-        containerWidth / 2 - itemSize / 2
-    }
+    private static let itemSize: CGFloat = 40
+    private static let spacing: CGFloat = 6
+    /// 选中态视觉放大比例：40 × 1.25 = 50（与旧实现的 selectedSize 视觉一致）。
+    /// 用 scaleEffect 实现——不影响 LazyHStack 的布局栅格。
+    private static let selectedScale: CGFloat = 1.25
 
     var body: some View {
-        HStack(alignment: .center, spacing: spacing) {
-            ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
-                let isSelected = index == currentIndex
-                let displaySize = isSelected ? selectedSize : itemSize
-
-                ThumbnailStripItem(photo: photo, size: displaySize)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: isSelected ? 5 : 3, style: .continuous)
-                            .strokeBorder(isSelected ? Color.white : Color.clear, lineWidth: isSelected ? 2 : 0)
-                    )
-                    .opacity(isSelected ? 1.0 : 0.5)
-                    .animation(.easeOut(duration: 0.15), value: currentIndex)
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            currentIndex = index
+        GeometryReader { geo in
+            // ScrollViewReader 比 ScrollPosition 更适合这里：
+            // proxy.scrollTo(id:anchor: .center) 的 anchor 语义干净——target 中心对齐 viewport
+            // 中心，独立于 scrollTargetBehavior 之类的 modifier。
+            // 旧实现叠了 .scrollTargetBehavior(.viewAligned) + .scrollPosition($pos, anchor: .center)
+            // + scrollPosition.scrollTo(anchor: .center)，三条互相打架——viewAligned 默认按 cell
+            // 边缘对齐 viewport 边缘，再加上 scrollPosition 的 binding 写回，最终 cell 被 re-snap
+            // 到 viewport trailing edge（**用户感知就是"选中的图片一直在最右边"**）。
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .center, spacing: Self.spacing) {
+                        ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
+                            ThumbnailStripCell(
+                                photo: photo,
+                                isSelected: index == currentIndex,
+                                selectedScale: Self.selectedScale
+                            )
+                            .id(photo.id)
+                            .onTapGesture {
+                                UISelectionFeedbackGenerator().selectionChanged()
+                                guard index != currentIndex else { return }
+                                withAnimation(.easeOut(duration: 0.25)) {
+                                    currentIndex = index
+                                }
+                            }
                         }
-                        feedbackGenerator.selectionChanged()
                     }
+                    // 留白让首/末 cell 也能被 anchor: .center 滚到正中央。
+                    // 用 itemSize（布局尺寸），不是放大后的视觉尺寸——padding 跟 layout 走。
+                    .padding(.horizontal, max(0, (geo.size.width - Self.itemSize) / 2))
+                }
+                // initial: true 让 onChange 在 onAppear 那一帧也跑；guard `w > 0` 拦掉布局
+                // 未就绪的早期触发；didInitialScroll latch 防止后续 size 微调重复滚动。
+                .onChange(of: geo.size.width, initial: true) { _, w in
+                    guard !didInitialScroll, w > 0,
+                          photos.indices.contains(currentIndex) else { return }
+                    didInitialScroll = true
+                    proxy.scrollTo(photos[currentIndex].id, anchor: .center)
+                }
+                .onChange(of: currentIndex) { _, newIdx in
+                    guard photos.indices.contains(newIdx) else { return }
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        proxy.scrollTo(photos[newIdx].id, anchor: .center)
+                    }
+                }
             }
         }
-        .offset(x: centerOffset + offsetForIndex(currentIndex) + dragOffset)
-        .animation(isDragging ? nil : .easeInOut(duration: 0.25), value: currentIndex)
-        .animation(isDragging ? nil : .easeOut(duration: 0.2), value: dragOffset)
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    if !isDragging {
-                        isDragging = true
-                        dragStartIndex = currentIndex
-                        feedbackGenerator.prepare()
-                    }
-                    dragOffset = value.translation.width
-
-                    let indexDelta = Int(round(-dragOffset / step))
-                    let newIndex = max(0, min(photos.count - 1, dragStartIndex + indexDelta))
-                    if newIndex != currentIndex {
-                        currentIndex = newIndex
-                        feedbackGenerator.selectionChanged()
-                    }
-                }
-                .onEnded { _ in
-                    isDragging = false
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        dragOffset = 0
-                    }
-                }
-        )
-        .frame(maxWidth: .infinity)
-        .frame(height: selectedSize)
-        .clipped()
-        .background(GeometryReader { geo in
-            Color.clear.onAppear { containerWidth = geo.size.width }
-        })
-        .onAppear {
-            feedbackGenerator.prepare()
-        }
+        // 给 scaleEffect 留垂直空间：itemSize × selectedScale + 一点边距。
+        .frame(height: Self.itemSize * Self.selectedScale + 6)
     }
 }
 
-// MARK: - 缩略图项
-private struct ThumbnailStripItem: View {
+// MARK: - 缩略图 cell
+//
+// 选中态用 `scaleEffect` 放大（不影响布局栅格），并加白边、提亮 opacity。
+// **关键**：旧实现切换 frame size，LazyHStack 重排，跟外层 ScrollPosition 互相干扰，
+// 滑动时整条 strip 抖动；改成 scaleEffect 后布局完全静止，只有渲染层做仿射变换。
+//
+// 缩略图统一按 600px 解码（与 PhotoDetailView.placeholderMaxPixel 对齐）——scrubber 与详
+// 情页占位共享同一份 NSCache 命中，PhotoDetailView.warmThumbs 预热完后，scrubber 滚到哪
+// 都瞬间有图。
+private struct ThumbnailStripCell: View {
     let photo: Photo
-    let size: CGFloat
+    let isSelected: Bool
+    let selectedScale: CGFloat
     @State private var thumb: UIImage?
+
+    private static let itemSize: CGFloat = 40
+    /// 与 PhotoDetailView.placeholderMaxPixel 同值——共享 NSCache 命中
+    private static let loadMaxPixel = 600
 
     var body: some View {
         Group {
@@ -965,15 +1362,21 @@ private struct ThumbnailStripItem: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } else {
-                Rectangle()
-                    .fill(Color.white.opacity(0.1))
+                Rectangle().fill(Color.white.opacity(0.1))
             }
         }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size > 45 ? 5 : 3, style: .continuous))
+        .frame(width: Self.itemSize, height: Self.itemSize)
+        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .strokeBorder(isSelected ? .white : .clear, lineWidth: 2)
+        )
+        .opacity(isSelected ? 1.0 : 0.5)
+        .scaleEffect(isSelected ? selectedScale : 1.0)
+        .animation(.easeOut(duration: 0.2), value: isSelected)
         .task {
             if thumb == nil {
-                thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: Int(size * 3))
+                thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: Self.loadMaxPixel)
             }
         }
     }
