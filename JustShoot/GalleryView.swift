@@ -40,7 +40,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     // MARK: - In-flight dedup
     //
     // 同一张图（同 key）被并发请求时——常见场景：handleTap 起一个 loadPreview，detail
-    // mount 后 PagerImage.task 又起一个；warmThumbs 跟 ThumbnailStripCell.task 撞同一
+    // mount 后 PagerImage.task 又起一个；schedulePreheat 跟 ThumbnailStripCell.task 撞同一
     // 张 600px thumb——旧实现会启动多个 Task.detached 并行 decode 同一帧，互相抢 CPU
     // cores，每个 decode 慢 ~2x，首张照片要等近 1 秒才出现。
     //
@@ -201,7 +201,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     }
 
     /// 加载缩略图。调用者须在 actor 上预取 imageData/photoId，避免跨 actor 传递 SwiftData `Photo` 模型。
-    /// 同 key 并发请求会被 in-flight dedup 合并——常见场景：warmThumbs 与 ThumbnailStripCell.task
+    /// 同 key 并发请求会被 in-flight dedup 合并——常见场景：schedulePreheat 与 ThumbnailStripCell.task
     /// 同时请求同一张 600px thumb，旧实现会双重 decode 抢 CPU。
     func loadThumbnail(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
         let key = "thumb_\(photoId.uuidString)_\(maxPixel)"
@@ -640,13 +640,25 @@ struct PhotoDetailView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var photos: [Photo]
-    @State private var currentIndex: Int
+    /// `scrollPosition(id:)` 与所有 cross-component 同步都按 photo.id 走，不按 index。
+    /// 旧实现 `.tag(index)` + `selection: $currentIndex`（Int）在删除时易错位——index 跟着数组左移
+    /// 一格，binding 没及时同步会一帧错配。改用 ID 后 selection 与 ForEach identity 同源，删除/重排
+    /// 都不会出现"选中但找不到 id"的瞬态。
+    ///
+    /// 类型是 `UUID?`（不是 `UUID`）：`.scrollPosition(id:)` 要求 `Binding<Hashable?>`——可见 item
+    /// 不在视口里时它会写 nil，所以源端必须可空。`UUID == UUID?` 由 Optional 的 Equatable 自动 lift，
+    /// 比较点写起来跟非可空一样。
+    @State private var currentPhotoID: UUID?
+    /// 屏幕长边（点）× scale = 高分预览解码尺寸。@State + 一次性 init 避免每次 body re-eval 都
+    /// `walk(connectedScenes)`（量小但能省就省，且确保 PagerImage 在所有 body 评估里看到稳定值）。
+    @State private var previewMaxPixel: Int
     @State private var saveStatus: SaveStatus = .none
     @State private var saveResetTask: Task<Void, Never>?
     @State private var showingInfo = false
     @State private var showDeleteConfirm = false
     @State private var isFullScreen = false
     @State private var thumbWarmupTask: Task<Void, Never>?
+    @State private var previewPreloadTask: Task<Void, Never>?
 
     enum SaveStatus { case none, saving, success, failed }
 
@@ -655,13 +667,28 @@ struct PhotoDetailView: View {
     /// 淘汰。值不再用于"区间预热"，所以删掉了之前的 placeholderRange 常量。
     static let placeholderMaxPixel = 600
 
+    /// 翻页/scrubber 触发的预热任务统一 debounce 这么久——快速连翻时只有最后一次落定才真正预热，
+    /// 中间所有 cancel 掉的 Task 在 sleep 里就退出，省掉 TaskGroup 重建/调度开销。
+    private static let preloadDebounceMs: UInt64 = 70
+
     init(photo: Photo, allPhotos: [Photo]) {
         _photos = State(initialValue: allPhotos)
-        _currentIndex = State(initialValue: allPhotos.firstIndex(of: photo) ?? 0)
+        _currentPhotoID = State(initialValue: photo.id)
+        // 在 init 里一次性算 preview 解码尺寸——SwiftUI View init 是 @MainActor，可以直接读 screen。
+        // 兜底 2556（iPhone 14 Pro 长边 × scale=3）防止 connectedScenes 早期返回空。
+        let screen = currentScreen()
+        let bounds = screen?.bounds ?? .zero
+        let scale = screen?.scale ?? 3.0
+        let computed = Int(max(bounds.width, bounds.height) * scale)
+        _previewMaxPixel = State(initialValue: max(computed, 2556))
+    }
+
+    private var currentIndex: Int {
+        photos.firstIndex(where: { $0.id == currentPhotoID }) ?? 0
     }
 
     private var currentPhoto: Photo? {
-        photos.indices.contains(currentIndex) ? photos[currentIndex] : nil
+        photos.first(where: { $0.id == currentPhotoID })
     }
 
     var body: some View {
@@ -679,31 +706,57 @@ struct PhotoDetailView: View {
                 }
             } else {
                 VStack(spacing: 0) {
-                    TabView(selection: $currentIndex) {
-                        ForEach(Array(photos.enumerated()), id: \.element.id) { index, photoItem in
-                            PagerImage(
-                                photo: photoItem,
-                                isCurrent: index == currentIndex,
-                                previewMaxPixel: previewMaxPixel,
-                                onSingleTap: {
-                                    withAnimation(.easeInOut(duration: 0.2)) { isFullScreen.toggle() }
-                                }
-                            )
-                            .tag(index)
+                    // SwiftUI 5+ 推荐的分页范式（取代 iOS 16 时代的 TabView .page）：
+                    //   ScrollView + LazyHStack + .scrollTargetBehavior(.paging) + .scrollPosition(id:)
+                    // 比 TabView 强在：
+                    //   1) LazyHStack 真正按需 materialize cell（TabView 也 lazy 但仍要把所有 ForEach
+                    //      identifier 物化一遍；上千张照片时差距明显）。
+                    //   2) `.scrollPosition(id:)` 是显式的双向 binding，scrubber 同步语义干净；
+                    //      旧 TabView selection binding 与 UIPageViewController 内部状态有几个已知 bug。
+                    //   3) 后续要加 `.scrollTransition` / `.containerRelativeFrame` 自定义页面进出动画，
+                    //      TabView 完全不支持。
+                    //   4) 与 iOS 17+ 其它 scroll API（scrollClipDisabled、scrollBounceBehavior、
+                    //      scrollTargetLayout）协同自然。
+                    ScrollView(.horizontal) {
+                        LazyHStack(spacing: 0) {
+                            ForEach(photos) { photoItem in
+                                PagerImage(
+                                    photo: photoItem,
+                                    isCurrent: photoItem.id == currentPhotoID,
+                                    previewMaxPixel: previewMaxPixel,
+                                    onSingleTap: {
+                                        // 单击切 chrome——动画从 0.2 缩到 0.12s。`single.require(toFail: double)`
+                                        // 已经吃掉 ~250ms 等双击失败，这层动画再多 0.2s 累计感觉很迟钝；
+                                        // 0.12s 仍然有过渡感（不会 hard cut）但贴近用户手指 release 的时序。
+                                        withAnimation(.easeInOut(duration: 0.12)) { isFullScreen.toggle() }
+                                    }
+                                )
+                                // 每页填满 ScrollView 视口（横+竖）。containerSize 来自外层 ScrollView 的
+                                // frame（由 maxHeight: .infinity 在 VStack 里撑开决定），不依赖 LazyHStack
+                                // 子项尺寸，所以不会形成"子项要 container 尺寸 / container 要子项尺寸"的循环。
+                                .containerRelativeFrame([.horizontal, .vertical])
+                                .id(photoItem.id)
+                            }
                         }
+                        // `.scrollTargetLayout()` 把 LazyHStack 标成"snap candidate 集合"——`.paging`
+                        // 才知道按子项边界做 page snap，而不是按视口宽度盲滑。
+                        .scrollTargetLayout()
                     }
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    // 不再 .disabled(isZoomed)：曾经为了"放大时阻断 TabView 翻页"而加，
-                    // 但 SwiftUI .disabled 会把整棵子树标记成不可交互，UIViewRepresentable 包的
-                    // UIScrollView 也跟着失去 pinch——pinch in 把 zoom 顶到 > 1 之后就再也缩不回来。
-                    // 改用嵌套 UIScrollView 的原生协议：zoom > 1 时内层 UIScrollView 吃掉 pan 用作平移，
-                    // 到边界自动让位给外层 page swipe；zoom == 1 时内层不可滚，pan 直接给 swipe。
-                    // 与 iPhone Photos.app 行为一致。
+                    .scrollTargetBehavior(.paging)
+                    .scrollPosition(id: $currentPhotoID)
+                    .scrollIndicators(.hidden)
+                    // ScrollView 在 horizontal 模式下默认按内容 intrinsic 高定高；给一个 `maxHeight: .infinity`
+                    // 让它在 VStack 里吃满"剩余高度"（scrubber 是固定高），子项的 containerRelativeFrame
+                    // 才有稳定的 vertical container 尺寸可参照。
+                    .frame(maxHeight: .infinity)
+                    // 嵌套 UIScrollView 的原生协议：zoom > 1 时内层 UIScrollView 吃掉 pan 用作平移，
+                    // 到水平边界让位给外层 ScrollView 翻页（见 ZoomingScrollView.gestureRecognizerShouldBegin）；
+                    // zoom == 1 时内层不可滚，pan 直接给外层 swipe。与 iPhone Photos.app 行为一致。
 
-                    PhotoScrubber(photos: photos, currentIndex: $currentIndex)
+                    PhotoScrubber(photos: photos, currentPhotoID: $currentPhotoID)
                         .padding(.vertical, 6)
                         .opacity(isFullScreen ? 0 : 1)
-                        .animation(.easeInOut(duration: 0.2), value: isFullScreen)
+                        .animation(.easeInOut(duration: 0.12), value: isFullScreen)
                 }
             }
         }
@@ -715,14 +768,14 @@ struct PhotoDetailView: View {
         .toolbar { bottomToolbar }
         .statusBarHidden(isFullScreen)
         .onAppear {
-            warmThumbs(centeredOn: currentIndex)
-            preloadAdjacentPreviews(around: currentIndex)
+            schedulePreheat()
         }
-        .onChange(of: currentIndex) { _, newIndex in
-            // 重排 thumb 预热顺序（最近 currentIndex 的优先），并预解 ±1 的高分预览。
+        .onChange(of: currentPhotoID) { _, _ in
+            // 翻页/scrubber tap/删除都走这里。统一 debounce ~70ms：快速连翻时只在用户停下后才真正
+            // 启动 thumb warmup + ±2 preview 预解，中间所有 cancel 掉的 Task 在 sleep 里就退出，
+            // 不会重建 TaskGroup / 不会触发并行 decode。
             // zoom 重置由 ZoomablePhotoView 根据 isCurrent 处理；图片缓存由 NSCache 自然淘汰。
-            warmThumbs(centeredOn: newIndex)
-            preloadAdjacentPreviews(around: newIndex)
+            schedulePreheat()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             ImageLoader.shared.clearCache()
@@ -744,42 +797,20 @@ struct PhotoDetailView: View {
 
     // MARK: - Loading
 
-    /// 高分预览的目标像素 = 屏幕长边 × scale。@MainActor 隔离的 currentScreen() 每次重算开销很小。
-    private var previewMaxPixel: Int {
-        let screen = currentScreen()
-        let bounds = screen?.bounds ?? .zero
-        let scale = screen?.scale ?? 2.0
-        return Int(max(bounds.width, bounds.height) * scale)
-    }
-
-    /// ±2 高分预览预解，让快速连翻 1–2 页都命中 NSCache、零延迟出片。
-    ///
-    /// 内存预算：5 张 × ~17MB（2556×1700 RGBA）≈ 85MB，加上 thumbs ~26MB，约 111MB，
-    /// 在 NSCache 128MB 上限内可控（旧 ±1 = 51MB 偏保守，导致快速翻 2 页时邻居 cache miss）。
-    ///
-    /// 同 key 并发被 ImageLoader 的 in-flight dedup 合并：current 自身被 PagerImage.task 同
-    /// 时请求，TabView 自动挂载的 ±1 邻居也被它们各自的 .task 同时请求——以前会重复 decode
-    /// 抢 CPU，现在合成一份 Task.detached，CPU 不再被双重占用。
-    private func preloadAdjacentPreviews(around index: Int) {
-        guard !photos.isEmpty else { return }
-        let pixel = previewMaxPixel
-        for i in (index - 2)...(index + 2) where photos.indices.contains(i) {
-            let photo = photos[i]
-            Task { _ = await ImageLoader.shared.loadPreview(for: photo, maxPixel: pixel) }
-        }
-    }
-
-    /// 占位缩略图按距离 currentIndex 由近到远预热到 NSCache。每次 currentIndex 变化都会取消
-    /// 上一次预热并按新中心重排队列——刚刚被 tap 的位置 + 它的邻居优先被解码。
-    /// 并发上限 4：内层 ImageLoader 用 Task.detached 解码，TaskGroup 仅控制 in-flight 数量；
-    /// 每张图的 imageData 在 MainActor for-loop 里读出（SwiftData externalStorage fault-in），
-    /// 然后传给 Sendable 的 loadThumbnail(imageData:photoId:maxPixel:) 变体——避免在 detached
-    /// 闭包里捕获非 Sendable 的 Photo @Model。
-    private func warmThumbs(centeredOn index: Int) {
+    /// 入口：currentPhotoID 变化时调一次，~70ms debounce 后真正启动 thumb warmup + ±2 preview
+    /// 预解。debounce 的存在让快速连翻 5–6 张时只有最后一次落定真正启动预热，中间的 cancel 在
+    /// `Task.sleep` 里直接退出，不再重建 TaskGroup / 不再 fire-and-forget 5×N 个 Task。
+    /// 不收 index 入参——sleep 唤醒后总是用最新的 `currentIndex`，避免捕获过期快照。
+    private func schedulePreheat() {
         thumbWarmupTask?.cancel()
-        let ordered = orderedByDistance(from: index)
-        let pixel = Self.placeholderMaxPixel
+        previewPreloadTask?.cancel()
+        let pixel = previewMaxPixel
+        let placeholder = Self.placeholderMaxPixel
+
         thumbWarmupTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: Self.preloadDebounceMs * 1_000_000)
+            if Task.isCancelled { return }
+            let ordered = orderedByDistance(from: currentIndex)
             await withTaskGroup(of: Void.self) { group in
                 var inflight = 0
                 let cap = 4
@@ -792,9 +823,26 @@ struct PhotoDetailView: View {
                     let id = photo.id
                     let data = photo.imageData // MainActor 上读 SwiftData externalStorage
                     group.addTask {
-                        _ = await ImageLoader.shared.loadThumbnail(imageData: data, photoId: id, maxPixel: pixel)
+                        _ = await ImageLoader.shared.loadThumbnail(imageData: data, photoId: id, maxPixel: placeholder)
                     }
                     inflight += 1
+                }
+            }
+        }
+
+        // ±2 高分预览：5 张 × ~17MB ≈ 85MB，加 thumb cache 约 111MB，在 NSCache 上限内。
+        // ImageLoader 的 in-flight dedup 让同 key 并发请求合一份；这里只做"请求触发"，不等返回。
+        previewPreloadTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: Self.preloadDebounceMs * 1_000_000)
+            if Task.isCancelled { return }
+            let center = currentIndex
+            for i in (center - 2)...(center + 2) where photos.indices.contains(i) {
+                if Task.isCancelled { break }
+                let photo = photos[i]
+                let id = photo.id
+                let data = photo.imageData
+                Task.detached(priority: .userInitiated) {
+                    _ = await ImageLoader.shared.loadPreview(imageData: data, photoId: id, maxPixel: pixel)
                 }
             }
         }
@@ -874,6 +922,7 @@ struct PhotoDetailView: View {
     private func deleteCurrentPhoto() {
         guard let photoToDelete = currentPhoto else { return }
         let deletedId = photoToDelete.id
+        let deletedIdx = currentIndex
 
         modelContext.delete(photoToDelete)
         do {
@@ -881,15 +930,25 @@ struct PhotoDetailView: View {
             Log.save.info("photo_deleted id=\(deletedId.uuidString, privacy: .public) remaining=\(self.photos.count - 1)")
             UINotificationFeedbackGenerator().notificationOccurred(.success)
 
-            photos.remove(at: currentIndex)
+            // 关键：先选好"下一张" id 再 mutate 数组——`scrollPosition(id:)` 的 binding 在删除瞬间就
+            // 指向一个仍存在的 photo.id，避免 selection 暂时找不到匹配 id 的瞬态。优先选右邻（idx+1），
+            // 最末位时回退到左邻（idx-1）。两次 @State 写入会被 SwiftUI 在同一个 render tick 里 batch。
+            let nextID: UUID? = {
+                if photos.count <= 1 { return nil }
+                if deletedIdx + 1 < photos.count { return photos[deletedIdx + 1].id }
+                if deletedIdx - 1 >= 0 { return photos[deletedIdx - 1].id }
+                return nil
+            }()
+
+            photos.remove(at: deletedIdx)
             ImageLoader.shared.removeDiskCache(for: deletedId)
             // NSCache 内存条目随后续访问/内存压力自然过期；这里无需手动清理 @State 字典
             // 因为已经全部迁移到 NSCache + PagerImage 局部 @State。
 
-            if photos.isEmpty {
+            if let nextID {
+                currentPhotoID = nextID
+            } else {
                 dismiss()
-            } else if currentIndex >= photos.count {
-                currentIndex = photos.count - 1
             }
         } catch {
             Log.save.error("photo_delete_failed error=\(error.localizedDescription, privacy: .public)")
@@ -1001,13 +1060,13 @@ struct PhotoDetailView: View {
 // MARK: - 详情页单张图项
 //
 // 把"加载占位 / 加载预览 / 显示交互式 zoom view"打包成自包含 sub-view。
-// 内存语义：每个 PagerImage 的 @State preview/asyncThumb 跟随 TabView 页面挂载-卸载自然
-// scope；翻到远处的页面被 TabView 卸载后，本地 UIImage 引用一并释放，剩下的全靠 ImageLoader
+// 内存语义：每个 PagerImage 的 @State preview/asyncThumb 跟随 LazyHStack 页面挂载-卸载自然
+// scope；翻到远处的页面被 LazyHStack 卸载后，本地 UIImage 引用一并释放，剩下的全靠 ImageLoader
 // 的 NSCache（受 totalCostLimit 自动淘汰）。**详情页层级再不持有任何 [UUID:UIImage] 字典**，
 // 大相册不会因为详情页停留而内存爆涨。
 //
 // 黑屏防护：body 第一次评估就同步查 NSCache（cachedThumbnail / cachedPreview），命中即零延迟
-// 显示——不依赖 .task 启动那一帧的时序。aggressive 预热（PhotoDetailView.warmThumbs）保证缓存
+// 显示——不依赖 .task 启动那一帧的时序。aggressive 预热（PhotoDetailView.schedulePreheat）保证缓存
 // 通常已热，黑屏 + spinner 的 ZStack 分支只在最坏情况下短暂出现。
 private struct PagerImage: View {
     let photo: Photo
@@ -1072,7 +1131,7 @@ private struct PagerImage: View {
 // 同款交互——零自定义状态。
 struct ZoomablePhotoView: UIViewRepresentable {
     let image: UIImage
-    /// 当前是否为 TabView 的可见页。从 true → false 时强制把 zoomScale 还原成 fit——
+    /// 当前是否为外层 paging ScrollView 的可见页。从 true → false 时强制把 zoomScale 还原成 fit——
     /// scrubber 切走某页时，下次切回来不会带着旧 zoom + 偏移（与 Photos.app 一致：
     /// 滑离当前页等于"放手"，再回来从头开始）。
     let isCurrent: Bool
@@ -1115,10 +1174,10 @@ final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
         minimumZoomScale = 1.0
         maximumZoomScale = 4.0
         bouncesZoom = true
-        // **关键**：zoom == 1 时关掉 pan gesture，让外层 TabView 独占左右 swipe。
+        // **关键**：zoom == 1 时关掉 pan gesture，让外层 paging ScrollView 独占左右 swipe。
         // 不关的话——即便 contentSize 跟 bounds 一致没有可滚区，UIScrollView 的
         // panGestureRecognizer 仍然 active，会先抢到用户 swipe 判断能不能滚，期间阻断
-        // TabView 的 page swipe；判完释放，TabView 已错过 swipe 起点，结果是当前页
+        // 外层的 page swipe；判完释放，外层已错过 swipe 起点，结果是当前页
         // snap-back 后再 catch-up——用户感知就是"当前照片弹回去，新照片从左边重新弹出"。
         // pinch 走 pinchGestureRecognizer，与 isScrollEnabled 无关，pinch-to-zoom 仍可正常触发。
         isScrollEnabled = false
@@ -1216,7 +1275,7 @@ final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
 
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
         centerImageView()
-        // 跟随 zoomScale 切换 pan：放大后允许内层平移；回到 fit 后立即把 pan 还给 TabView。
+        // 跟随 zoomScale 切换 pan：放大后允许内层平移；回到 fit 后立即把 pan 还给外层 ScrollView。
         let canPan = zoomScale > minimumZoomScale + 0.01
         if isScrollEnabled != canPan {
             isScrollEnabled = canPan
@@ -1242,6 +1301,40 @@ final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
             )
             zoom(to: rect, animated: true)
         }
+    }
+
+    // 边界翻页：放大状态下，如果用户在水平边缘起手且 velocity 朝向边缘外侧，**让我们的 pan 直接
+    // 不开始**——外层 paging ScrollView 的 UIScrollView pan 就能拿到这串 touches，整页翻过去。
+    // 不做这层拦截的话，内层 UIScrollView 永远先抢到 pan：到边缘后只 rubber-band（contentInset 范围内），
+    // 跨页翻不出去；用户必须 zoom out 才能切下一张，与 Photos.app 体验断层。
+    //
+    // 限制条件（缺一不可，避免误伤合法的内层平移）：
+    //   1) 是我们这个 panGestureRecognizer（pinch/tap 不管）
+    //   2) zoomScale > minimumZoomScale（fit 状态下 isScrollEnabled=false 本就不会跑到这里）
+    //   3) 起手 velocity 主导方向是水平（|vx|>|vy|）——竖向平移不会被错让出去
+    //   4) 当前 contentOffset 已贴住对应方向的边缘（容差 0.5pt）
+    //   5) velocity 朝边缘**外侧**（左边缘+右滑 / 右边缘+左滑）；朝内侧仍归我们处理
+    //
+    // 用户从中间起手 pan 到边缘的情况不归这里：那条路径会先 rubber-band，松手再起手才能翻——
+    // 与 Photos.app 一致（边缘起手才是切页操作）。
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        let baseDecision = super.gestureRecognizerShouldBegin(gestureRecognizer)
+        guard gestureRecognizer === panGestureRecognizer,
+              baseDecision,
+              zoomScale > minimumZoomScale + 0.01 else {
+            return baseDecision
+        }
+        let velocity = panGestureRecognizer.velocity(in: self)
+        guard abs(velocity.x) > abs(velocity.y) else { return baseDecision }
+
+        let leftEdge = -contentInset.left
+        let rightEdge = max(leftEdge, contentSize.width - bounds.width + contentInset.right)
+        let atLeft = contentOffset.x <= leftEdge + 0.5
+        let atRight = contentOffset.x >= rightEdge - 0.5
+
+        if velocity.x > 0 && atLeft { return false }   // 左边缘 + 右滑 → 让外层 ScrollView 翻上一张
+        if velocity.x < 0 && atRight { return false }  // 右边缘 + 左滑 → 让外层 ScrollView 翻下一张
+        return baseDecision
     }
 }
 
@@ -1271,7 +1364,10 @@ final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
 //    → 反复抖动。scaleEffect 是渲染层变换，不影响布局，cell 在 strip 里的中心永远在固定栅格上。
 private struct PhotoScrubber: View {
     let photos: [Photo]
-    @Binding var currentIndex: Int
+    /// 与 PhotoDetailView 同源——`UUID?` 而不是 `UUID`：上游 `.scrollPosition(id:)` 会在视口暂时
+    /// 找不到任何 item 时把 binding 写成 nil（极少出现，但类型协议里允许）。比较点 `photo.id == currentPhotoID`
+    /// 仍按 Optional 的 Equatable lift 规则正常工作。
+    @Binding var currentPhotoID: UUID?
 
     /// 首次 layout 完成后才允许 scrollTo——padding 依赖 geo.size.width，width=0 那一帧
     /// 滚到的位置是错的。latch 一次性置位，避免后续 size 微调反复滚。
@@ -1295,20 +1391,14 @@ private struct PhotoScrubber: View {
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .center, spacing: Self.spacing) {
-                        ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
+                        ForEach(photos) { photo in
                             ThumbnailStripCell(
                                 photo: photo,
-                                isSelected: index == currentIndex,
+                                isSelected: photo.id == currentPhotoID,
                                 selectedScale: Self.selectedScale
                             )
                             .id(photo.id)
-                            .onTapGesture {
-                                UISelectionFeedbackGenerator().selectionChanged()
-                                guard index != currentIndex else { return }
-                                withAnimation(.easeOut(duration: 0.25)) {
-                                    currentIndex = index
-                                }
-                            }
+                            .onTapGesture { handleTap(photo: photo) }
                         }
                     }
                     // 留白让首/末 cell 也能被 anchor: .center 滚到正中央。
@@ -1318,21 +1408,46 @@ private struct PhotoScrubber: View {
                 // initial: true 让 onChange 在 onAppear 那一帧也跑；guard `w > 0` 拦掉布局
                 // 未就绪的早期触发；didInitialScroll latch 防止后续 size 微调重复滚动。
                 .onChange(of: geo.size.width, initial: true) { _, w in
-                    guard !didInitialScroll, w > 0,
-                          photos.indices.contains(currentIndex) else { return }
+                    guard !didInitialScroll, w > 0, let id = currentPhotoID else { return }
                     didInitialScroll = true
-                    proxy.scrollTo(photos[currentIndex].id, anchor: .center)
+                    proxy.scrollTo(id, anchor: .center)
                 }
-                .onChange(of: currentIndex) { _, newIdx in
-                    guard photos.indices.contains(newIdx) else { return }
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        proxy.scrollTo(photos[newIdx].id, anchor: .center)
+                .onChange(of: currentPhotoID) { _, newID in
+                    // 曲线 .smooth(0.32) 接近外层 ScrollView `.scrollTargetBehavior(.paging)` 的 settle
+                    // 时长（≈0.3s spring）。旧 easeOut 时长接近但 in/out 节奏不一致，快速连翻时 scrubber
+                    // 明显落后于主图；.smooth 在中段加速，与主图 paging settle 同步更好。
+                    guard let newID else { return }
+                    withAnimation(.smooth(duration: 0.32)) {
+                        proxy.scrollTo(newID, anchor: .center)
                     }
                 }
             }
         }
         // 给 scaleEffect 留垂直空间：itemSize × selectedScale + 一点边距。
         .frame(height: Self.itemSize * Self.selectedScale + 6)
+    }
+
+    /// 远距离跳转（|Δ|>1）禁用外层 ScrollView 的逐帧 fly-by 动画——用 `Transaction.disablesAnimations`
+    /// 强制瞬切。否则从第 1 张点跳到第 20 张，paging ScrollView 会逐帧滑过中间所有页面，慢且会触发
+    /// 中间所有 PagerImage 的短暂挂载/卸载，浪费 NSCache 命中。近邻（|Δ|=1）保留动画感。
+    private func handleTap(photo: Photo) {
+        UISelectionFeedbackGenerator().selectionChanged()
+        guard photo.id != currentPhotoID else { return }
+        let currentIdx = photos.firstIndex(where: { $0.id == currentPhotoID }) ?? 0
+        let newIdx = photos.firstIndex(where: { $0.id == photo.id }) ?? 0
+        let distance = abs(newIdx - currentIdx)
+
+        if distance > 1 {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                currentPhotoID = photo.id
+            }
+        } else {
+            withAnimation(.smooth(duration: 0.32)) {
+                currentPhotoID = photo.id
+            }
+        }
     }
 }
 
@@ -1343,7 +1458,7 @@ private struct PhotoScrubber: View {
 // 滑动时整条 strip 抖动；改成 scaleEffect 后布局完全静止，只有渲染层做仿射变换。
 //
 // 缩略图统一按 600px 解码（与 PhotoDetailView.placeholderMaxPixel 对齐）——scrubber 与详
-// 情页占位共享同一份 NSCache 命中，PhotoDetailView.warmThumbs 预热完后，scrubber 滚到哪
+// 情页占位共享同一份 NSCache 命中，PhotoDetailView.schedulePreheat 预热完后，scrubber 滚到哪
 // 都瞬间有图。
 private struct ThumbnailStripCell: View {
     let photo: Photo
