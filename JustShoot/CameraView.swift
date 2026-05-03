@@ -821,6 +821,11 @@ class CameraManager: NSObject, ObservableObject {
 
     // iOS 18 方向管理（每次 swap 后重建 RotationCoordinator）
     fileprivate var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
+    /// KVO 监听 coordinator 的 horizon-level 角度。RotationCoordinator 初始值是 0，等运动数据
+    /// 到位后才异步收敛——光在 configureAndStartSession 末尾同步读一次，会把错误角度写进 photo
+    /// connection（用户横屏入页时，photoOutput.videoRotationAngle 会被钉死成默认值，出片永远是
+    /// 错向）。Apple 在 RotationCoordinator 文档里就推荐 KVO 联动，每次值变就 reapply。
+    private var captureRotationObservation: NSKeyValueObservation?
     private var currentDeviceOrientation: UIDeviceOrientation = .portrait
     private var orientationObserver: (any NSObjectProtocol)?
     private var subjectAreaObserver: (any NSObjectProtocol)?
@@ -939,19 +944,44 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    private func applyVideoOrientationToOutputs() {
+    /// 监听 RotationCoordinator 的 horizon-level capture 角度。该值依赖 motion sensor 异步收敛——
+    /// 如果用户横屏入页，光在 configureAndStartSession 末尾同步读一次会读到尚未收敛的默认值，
+    /// 把 photoOutput.connection.videoRotationAngle 钉死成错向，导致出片永远是错角度。KVO 联动后，
+    /// motion 数据一到位就 reapply，与 Apple 在 RotationCoordinator 文档里推荐的做法一致。
+    private func observeCaptureRotationAngle() {
+        captureRotationObservation?.invalidate()
         guard let coordinator = rotationCoordinator else { return }
-        let angle = coordinator.videoRotationAngleForHorizonLevelCapture
+        captureRotationObservation = coordinator.observe(
+            \.videoRotationAngleForHorizonLevelCapture,
+            options: [.initial, .new]
+        ) { [weak self] _, _ in
+            Task { @MainActor in
+                self?.applyVideoOrientationToOutputs()
+            }
+        }
+    }
 
+    private func applyVideoOrientationToOutputs() {
+        // 预览旋转 vs 出片旋转必须解耦——对齐 iPhone 系统相机的体验：
+        //
+        // 1) **预览（MTKView + bridgeImage）**：UI 在 AppDelegate 锁死竖屏，viewport 永远 3:4 portrait。
+        //    无论用户竖握还是横握，预览框都不旋转，所以这里固定 90°（sensor landscape → portrait viewport
+        //    的 CW 旋转）。bridgeImage 也读这个角度保持一致。
+        //
+        // 2) **出片（photoOutput.connection）**：跟随物理设备朝向，让 JPEG 的"上"方向与用户当时的"上"方向
+        //    一致。横握 → 出 4:3 横片，竖握 → 出 3:4 竖片。相册/详情靠 EXIF orientation 渲染，横片在竖屏
+        //    UI 里就上下留黑边横向展示，与系统 Photos 一致。
+        //    使用 RotationCoordinator.videoRotationAngleForHorizonLevelCapture：portrait→90, landscapeRight→0,
+        //    landscapeLeft→180, upsideDown→270。
+        previewRotationAngle = 90
+
+        guard let coordinator = rotationCoordinator else { return }
+        let captureAngle = coordinator.videoRotationAngleForHorizonLevelCapture
         if let pconn = photoOutput.connection(with: .video),
-           pconn.isVideoRotationAngleSupported(angle) {
-            pconn.videoRotationAngle = angle
+           pconn.isVideoRotationAngleSupported(captureAngle) {
+            pconn.videoRotationAngle = captureAngle
         }
-
-        if previewRotationAngle != angle {
-            Log.orientation.info("rotation_applied angle=\(Int(angle))° device=\(self.currentDeviceOrientation.rawValue)")
-        }
-        previewRotationAngle = angle
+        Log.orientation.info("rotation_applied preview=90° capture=\(Int(captureAngle))° device=\(self.currentDeviceOrientation.rawValue)")
     }
 
     // MARK: - 对焦
@@ -1178,6 +1208,7 @@ class CameraManager: NSObject, ObservableObject {
         // Back on MainActor — set up delegates and properties that need main thread
         currentVideoInput = captureSession.inputs.first as? AVCaptureDeviceInput
         rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
+        observeCaptureRotationAngle()
         videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
 
         // 预配置 telephoto 的 activeFormat（一次性，与 wide 同样选 4:3 高分辨率）。
@@ -1498,6 +1529,7 @@ class CameraManager: NSObject, ObservableObject {
 
         currentVideoInput = newInput
         rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: target, previewLayer: nil)
+        observeCaptureRotationAngle()
         bindDeviceObservers(to: target)
         // EV 滑块绑定到旧设备，重装到新设备
         installExposureBiasSlider(for: target)
@@ -1634,7 +1666,9 @@ class CameraManager: NSObject, ObservableObject {
             settings.isConstantColorEnabled = true
         }
 
-        // 抓取当前 rotation 角度（避免在 sessionQueue 跨 actor 访问）
+        // 抓取当前 rotation 角度（避免在 sessionQueue 跨 actor 访问）。
+        // 出片随物理朝向：横握出横片、竖握出竖片，与 iPhone 系统相机一致。
+        // 见 applyVideoOrientationToOutputs 的"预览/出片解耦"说明。
         let rotationAngle = rotationCoordinator?.videoRotationAngleForHorizonLevelCapture
         let output = photoOutput
         let delegate = self
@@ -1969,6 +2003,8 @@ class CameraManager: NSObject, ObservableObject {
         zoomObservation = nil
         pressureObservation?.invalidate()
         pressureObservation = nil
+        captureRotationObservation?.invalidate()
+        captureRotationObservation = nil
         currentVideoInput = nil
         bridgeImage = nil
         // 清空 buffer（避免 stopRunning 后 MTKView 还显示上次的 frame）
