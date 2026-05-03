@@ -106,14 +106,14 @@ struct CameraView: View {
                     Image(systemName: "camera.fill")
                         .font(.system(size: 48))
                         .foregroundColor(.gray)
-                    Text("需要相机权限")
+                    Text("Camera access required")
                         .font(.headline)
                         .foregroundColor(.white)
-                    Text("请在系统设置中允许 JustShoot 访问相机")
+                    Text("Allow camera access for JustShoot in Settings")
                         .font(.subheadline)
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
-                    Button("打开设置", action: openAppSettings)
+                    Button("Open Settings", action: openAppSettings)
                     .buttonStyle(.borderedProminent)
                     .tint(.white)
                     .foregroundColor(.black)
@@ -167,7 +167,7 @@ struct CameraView: View {
                         .fontWeight(.semibold)
                 }
                 .tint(.white)
-                .accessibilityLabel("返回")
+                .accessibilityLabel("Back")
             }
 
             // 中间：胶片名 + 拍摄计数 + 可选的位置状态
@@ -176,19 +176,19 @@ struct CameraView: View {
                     Text(source.displayName)
                         .font(.subheadline.weight(.semibold))
                     HStack(spacing: 6) {
-                        Text("\(presetPhotos.count) 张")
+                        Text("\(presetPhotos.count) shots")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                         if cameraManager.locationPermissionDenied {
                             Button(action: openAppSettings) {
-                                Label("位置已关闭", systemImage: "location.slash.fill")
+                                Label("Location off", systemImage: "location.slash.fill")
                                     .font(.caption2.weight(.medium))
                                     .labelStyle(.titleAndIcon)
                                     .foregroundStyle(.orange.opacity(0.85))
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("位置已关闭")
-                            .accessibilityHint("前往系统设置，允许定位以给照片添加地理位置")
+                            .accessibilityLabel("Location off")
+                            .accessibilityHint("Open Settings and allow Location Services to geo-tag photos")
                         }
                     }
                 }
@@ -202,8 +202,8 @@ struct CameraView: View {
                     Image(systemName: cameraManager.flashMode == .on ? "bolt.fill" : "bolt.slash.fill")
                 }
                 .tint(cameraManager.flashMode == .on ? .yellow : .white)
-                .accessibilityLabel(cameraManager.flashMode == .on ? "闪光灯：开启" : "闪光灯：关闭")
-                .accessibilityHint("切换闪光灯开关")
+                .accessibilityLabel(cameraManager.flashMode == .on ? Text("Flash on") : Text("Flash off"))
+                .accessibilityHint("Toggle flash")
             }
         }
         // 底部控制栏
@@ -250,8 +250,8 @@ struct CameraView: View {
                         }
                     }
                 }
-                .accessibilityLabel(presetPhotos.isEmpty ? "最近的照片" : "最近的照片 — 共 \(presetPhotos.count) 张")
-                .accessibilityHint(presetPhotos.isEmpty ? "暂无照片" : "查看大图")
+                .accessibilityLabel(presetPhotos.isEmpty ? Text("Most recent photo") : Text("Most recent photo — \(presetPhotos.count) total"))
+                .accessibilityHint(presetPhotos.isEmpty ? Text("No photos yet") : Text("Open larger view"))
                 // 处理期间禁用点击：避免详情页拿到的"最新一张"是上一张（新的还没 save 完成），
                 // 与缩略图 spinner 的"还在处理"语义对齐。
                 .disabled(presetPhotos.isEmpty || isCapturing)
@@ -272,8 +272,8 @@ struct CameraView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("拍照")
-                .accessibilityHint("拍摄一张照片")
+                .accessibilityLabel("Capture")
+                .accessibilityHint("Take a photo")
 
                 Spacer()
 
@@ -319,11 +319,11 @@ struct CameraView: View {
         .onChange(of: presetPhotos.count) { _, _ in
             loadLastPhotoThumbnail()
         }
-        .alert("拍摄失败", isPresented: Binding(
+        .alert("Capture failed", isPresented: Binding(
             get: { captureError != nil },
             set: { if !$0 { captureError = nil } }
         )) {
-            Button("好", role: .cancel) { captureError = nil }
+            Button("OK", role: .cancel) { captureError = nil }
         } message: {
             Text(captureError ?? "")
         }
@@ -415,7 +415,7 @@ struct CameraView: View {
                 Task { @MainActor in
                     isCapturing = false
                     shutterPressed = false
-                    captureError = "拍摄失败：未能获取图像数据，请重试"
+                    captureError = String(localized: "Capture failed: couldn't get image data, please try again")
                 }
                 return
             }
@@ -481,7 +481,7 @@ struct CameraView: View {
                 } catch {
                     Log.save.error("photo_save_failed error=\(error.localizedDescription, privacy: .public)")
                     await MainActor.run {
-                        captureError = "保存失败：\(error.localizedDescription)"
+                        captureError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
                     }
                 }
                 Log.capture.info("capture_pipeline_complete total_dt=\(Log.ms(since: tapTime))ms")
@@ -546,12 +546,12 @@ struct FocalLengthStrip: View {
                         focalButton(for: option)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("\(option.rawValue) 毫米等效焦距")
+                    .accessibilityLabel(Text("\(option.rawValue)mm equivalent focal length"))
                     .accessibilityAddTraits(option == current ? [.isButton, .isSelected] : .isButton)
                 }
             }
             .accessibilityElement(children: .contain)
-            .accessibilityLabel("焦距选择")
+            .accessibilityLabel("Focal length selector")
         }
     }
 
@@ -656,7 +656,7 @@ struct FilmSourceCoverThumbnail: View {
                 maxPixel: pixel
             )
         }
-        .accessibilityLabel("当前胶片：\(source.displayName)")
+        .accessibilityLabel(Text("Current film: \(source.displayName)"))
     }
 }
 
@@ -1362,7 +1362,7 @@ class CameraManager: NSObject, ObservableObject {
         // Camera Control 硬件支持（iPhone 16+）：离散焦段选择器
         if currentVideoInput != nil {
             let titles = focalInfo.options.map { "\($0.rawValue)mm" }
-            let picker = AVCaptureIndexPicker("焦距", symbolName: "camera.metering.spot", localizedIndexTitles: titles)
+            let picker = AVCaptureIndexPicker(String(localized: "Focal length"), symbolName: "camera.metering.spot", localizedIndexTitles: titles)
             if let idx = focalInfo.options.firstIndex(of: currentFocalLength) {
                 picker.selectedIndex = idx
             }

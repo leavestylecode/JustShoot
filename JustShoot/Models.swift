@@ -68,11 +68,22 @@ struct ParsedExifInfo {
     let deviceInfo: (make: String, model: String, software: String)?
     let lensInfo: String
 
-    static let empty = ParsedExifInfo(
-        iso: "未知", shutterSpeed: "未知", aperture: "未知",
-        focalLength: "未知", exposureMode: "未知", flashMode: "未知",
-        gpsInfo: nil, deviceInfo: nil, lensInfo: "未知镜头"
-    )
+    private static var unknownString: String { String(localized: "Unknown") }
+    private static var unknownLensString: String { String(localized: "Unknown lens") }
+    private static var builtInLensString: String { String(localized: "Built-in lens") }
+    private static var flashOnString: String { String(localized: "Flash on") }
+    private static var flashOffString: String { String(localized: "Flash off") }
+    private static var autoExposureString: String { String(localized: "Auto exposure") }
+    private static var manualExposureString: String { String(localized: "Manual exposure") }
+    private static var autoBracketExposureString: String { String(localized: "Auto bracket exposure") }
+
+    static var empty: ParsedExifInfo {
+        ParsedExifInfo(
+            iso: unknownString, shutterSpeed: unknownString, aperture: unknownString,
+            focalLength: unknownString, exposureMode: unknownString, flashMode: unknownString,
+            gpsInfo: nil, deviceInfo: nil, lensInfo: unknownLensString
+        )
+    }
 
     /// 从 imageData 一次性解析所有 EXIF 字段
     static func parse(from imageData: Data) -> ParsedExifInfo {
@@ -89,14 +100,14 @@ struct ParsedExifInfo {
         let iso: String = {
             guard let exif,
                   let isoValues = exif[kCGImagePropertyExifISOSpeedRatings as String] as? [NSNumber],
-                  let first = isoValues.first else { return "未知" }
+                  let first = isoValues.first else { return unknownString }
             return "ISO \(first)"
         }()
 
         // Shutter Speed
         let shutterSpeed: String = {
             guard let exif,
-                  let exposureTime = exif[kCGImagePropertyExifExposureTime as String] as? Double else { return "未知" }
+                  let exposureTime = exif[kCGImagePropertyExifExposureTime as String] as? Double else { return unknownString }
             if exposureTime >= 1 {
                 return String(format: "%.1fs", exposureTime)
             } else {
@@ -107,39 +118,39 @@ struct ParsedExifInfo {
         // Aperture
         let aperture: String = {
             guard let exif,
-                  let fNumber = exif[kCGImagePropertyExifFNumber as String] as? Double else { return "未知" }
+                  let fNumber = exif[kCGImagePropertyExifFNumber as String] as? Double else { return unknownString }
             return String(format: "f/%.1f", fNumber)
         }()
 
         // Focal Length
         let focalLength: String = {
-            guard let exif else { return "未知" }
+            guard let exif else { return unknownString }
             if let fl35 = exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] as? Int {
                 return "\(fl35)mm"
             }
             if let fl = exif[kCGImagePropertyExifFocalLength as String] as? Double {
                 return String(format: "%.0fmm", fl)
             }
-            return "未知"
+            return unknownString
         }()
 
         // Exposure Mode
         let exposureMode: String = {
             guard let exif,
-                  let mode = exif[kCGImagePropertyExifExposureMode as String] as? Int else { return "未知" }
+                  let mode = exif[kCGImagePropertyExifExposureMode as String] as? Int else { return unknownString }
             switch mode {
-            case 0: return "自动曝光"
-            case 1: return "手动曝光"
-            case 2: return "自动包围曝光"
-            default: return "未知"
+            case 0: return autoExposureString
+            case 1: return manualExposureString
+            case 2: return autoBracketExposureString
+            default: return unknownString
             }
         }()
 
         // Flash
         let flashMode: String = {
             guard let exif,
-                  let flash = exif[kCGImagePropertyExifFlash as String] as? Int else { return "未知" }
-            return (flash & 0x01 != 0) ? "闪光灯开启" : "闪光灯关闭"
+                  let flash = exif[kCGImagePropertyExifFlash as String] as? Int else { return unknownString }
+            return (flash & 0x01 != 0) ? flashOnString : flashOffString
         }()
 
         // GPS
@@ -159,9 +170,9 @@ struct ParsedExifInfo {
 
         // Device
         let deviceInfo: (make: String, model: String, software: String)? = {
-            let make = tiffDict?[kCGImagePropertyTIFFMake as String] as? String ?? "未知"
-            let model = tiffDict?[kCGImagePropertyTIFFModel as String] as? String ?? "未知"
-            let software = tiffDict?[kCGImagePropertyTIFFSoftware as String] as? String ?? "未知"
+            let make = tiffDict?[kCGImagePropertyTIFFMake as String] as? String ?? unknownString
+            let model = tiffDict?[kCGImagePropertyTIFFModel as String] as? String ?? unknownString
+            let software = tiffDict?[kCGImagePropertyTIFFSoftware as String] as? String ?? unknownString
             return (make: make, model: model, software: software)
         }()
 
@@ -171,9 +182,9 @@ struct ParsedExifInfo {
             if let lensMake = exif?["LensMake"] as? String { return lensMake }
             if let make = tiffDict?[kCGImagePropertyTIFFMake as String] as? String,
                let model = tiffDict?[kCGImagePropertyTIFFModel as String] as? String {
-                return "\(make) \(model) 内置镜头"
+                return String(format: String(localized: "%1$@ %2$@ built-in lens"), make, model)
             }
-            return "内置镜头"
+            return builtInLensString
         }()
 
         return ParsedExifInfo(
@@ -311,7 +322,7 @@ extension Photo {
     }
 
     var filmDisplayName: String {
-        filmPreset?.displayName ?? filmDisplayLabel ?? "默认"
+        filmPreset?.displayName ?? filmDisplayLabel ?? String(localized: "Default")
     }
 }
 
@@ -487,7 +498,7 @@ final class FilmProcessor: Sendable {
 
         guard size > 0, values.count == size * size * size * 3 else {
             throw NSError(domain: "FilmProcessor", code: -2,
-                          userInfo: [NSLocalizedDescriptionKey: "LUT 解析失败或尺寸不匹配"])
+                          userInfo: [NSLocalizedDescriptionKey: String(localized: "Failed to parse LUT or dimensions mismatch")])
         }
 
         var rgba: [Float] = []
@@ -527,7 +538,7 @@ final class FilmProcessor: Sendable {
         guard let url = Bundle.main.url(forResource: resourceName, withExtension: "cube") else {
             Log.lut.error("lut_resource_missing name=\(resourceName, privacy: .public)")
             throw NSError(domain: "FilmProcessor", code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "找不到 LUT 资源: \(resourceName).cube"])
+                          userInfo: [NSLocalizedDescriptionKey: String(format: String(localized: "LUT resource not found: %@.cube"), resourceName)])
         }
 
         let timer = Log.perf("lut_load", logger: Log.lut)

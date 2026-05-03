@@ -348,12 +348,12 @@ struct GalleryView: View {
             }
         }
         .background(Color.black)
-        .navigationTitle(isSelecting ? "已选择 \(selectedPhotos.count) 张" : "相册")
+        .navigationTitle(isSelecting ? Text("\(selectedPhotos.count) selected") : Text("Gallery"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 if !photos.isEmpty {
-                    Button(isSelecting ? "全选" : "选择") {
+                    Button(isSelecting ? "Select All" : "Select") {
                         if isSelecting {
                             let allPhotoIds = Set(photos.map { $0.id })
                             if selectedPhotos.count == allPhotoIds.count {
@@ -372,7 +372,7 @@ struct GalleryView: View {
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 if isSelecting {
-                    Button("取消") {
+                    Button("Cancel") {
                         isSelecting = false
                         selectedPhotos.removeAll()
                         resetDragState()
@@ -384,7 +384,7 @@ struct GalleryView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "trash")
                                 .font(.system(size: 16))
-                            Text("删除")
+                            Text("Delete")
                                 .font(.system(size: 16, weight: .medium))
                         }
                         .foregroundColor(selectedPhotos.isEmpty ? .gray : .red)
@@ -393,13 +393,13 @@ struct GalleryView: View {
                 }
             }
         }
-        .alert("确认删除", isPresented: $showDeleteConfirm) {
-            Button("取消", role: .cancel) {}
-            Button("删除", role: .destructive) {
+        .alert("Confirm delete", isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
                 deleteSelectedPhotos()
             }
         } message: {
-            Text("确定要删除选中的 \(selectedPhotos.count) 张照片吗？此操作不可撤销。")
+            Text("Delete \(selectedPhotos.count) selected photos? This cannot be undone.")
         }
         .navigationDestination(item: $selectedDetail) { payload in
             PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos)
@@ -414,11 +414,11 @@ struct GalleryView: View {
             Image(systemName: "photo")
                 .font(.system(size: 80))
                 .foregroundColor(.gray.opacity(0.5))
-            Text("暂无照片")
+            Text("No photos yet")
                 .font(.title3)
                 .foregroundColor(.gray)
                 .padding(.top, 16)
-            Text("前往拍摄页面开始拍照")
+            Text("Head to the camera to start shooting")
                 .font(.caption)
                 .foregroundColor(.gray.opacity(0.6))
                 .padding(.top, 4)
@@ -624,7 +624,7 @@ struct PhotoThumbnailView: View {
         }
         .aspectRatio(1, contentMode: .fit)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint(isSelecting ? "切换选中状态" : "查看照片")
+        .accessibilityHint(isSelecting ? "Toggle selection" : "View photo")
         .accessibilityAddTraits(isSelected ? [.isImage, .isSelected] : .isImage)
     }
 
@@ -700,7 +700,7 @@ struct PhotoDetailView: View {
                     Image(systemName: "photo")
                         .font(.system(size: 80))
                         .foregroundColor(.gray.opacity(0.5))
-                    Text("没有照片")
+                    Text("No photos")
                         .font(.title3)
                         .foregroundColor(.gray)
                 }
@@ -780,11 +780,11 @@ struct PhotoDetailView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             ImageLoader.shared.clearCache()
         }
-        .alert("删除照片", isPresented: $showDeleteConfirm) {
-            Button("取消", role: .cancel) {}
-            Button("删除", role: .destructive) { deleteCurrentPhoto() }
+        .alert("Delete photo", isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) { deleteCurrentPhoto() }
         } message: {
-            Text("确定要删除这张照片吗？此操作不可撤销。")
+            Text("Delete this photo? This cannot be undone.")
         }
         .sheet(isPresented: $showingInfo) {
             if let photo = currentPhoto {
@@ -902,9 +902,9 @@ struct PhotoDetailView: View {
             }
             .tint(saveButtonColor)
             .disabled(saveStatus == .saving)
-            .accessibilityLabel(saveStatus == .saving ? "保存中" :
-                                  saveStatus == .success ? "保存成功" :
-                                  saveStatus == .failed ? "保存失败" : "保存到相册")
+            .accessibilityLabel(saveStatus == .saving ? Text("Saving…") :
+                                  saveStatus == .success ? Text("Saved") :
+                                  saveStatus == .failed ? Text("Save failed") : Text("Save to Photos"))
 
             Spacer()
 
@@ -913,7 +913,7 @@ struct PhotoDetailView: View {
             } label: {
                 Image(systemName: "trash")
             }
-            .accessibilityLabel("删除这张照片")
+            .accessibilityLabel("Delete this photo")
         }
     }
 
@@ -1528,15 +1528,15 @@ struct PhotoInfoPanel: View {
                     GridItem(.flexible()),
                     GridItem(.flexible())
                 ], spacing: 12) {
-                    ExifInfoCard(icon: "camera.aperture", title: "光圈", value: photo.aperture)
-                    ExifInfoCard(icon: "timer", title: "快门", value: photo.shutterSpeed)
+                    ExifInfoCard(icon: "camera.aperture", title: "Aperture", value: photo.aperture)
+                    ExifInfoCard(icon: "timer", title: "Shutter", value: photo.shutterSpeed)
                     ExifInfoCard(icon: "speedometer", title: "ISO", value: photo.iso)
-                    ExifInfoCard(icon: "scope", title: "焦距", value: photo.focalLength)
-                    ExifInfoCard(icon: "bolt.fill", title: "闪光灯", value: photo.flashMode)
+                    ExifInfoCard(icon: "scope", title: "Focal length", value: photo.focalLength)
+                    ExifInfoCard(icon: "bolt.fill", title: "Flash", value: photo.flashMode)
                     if let dims = getImageDimensions(photo.imageData) {
-                        ExifInfoCard(icon: "aspectratio", title: "尺寸", value: "\(dims.width)×\(dims.height)")
+                        ExifInfoCard(icon: "aspectratio", title: "Size", value: "\(dims.width)×\(dims.height)")
                     } else {
-                        ExifInfoCard(icon: "aspectratio", title: "尺寸", value: "未知")
+                        ExifInfoCard(icon: "aspectratio", title: "Size", value: String(localized: "Unknown"))
                     }
                 }
 
@@ -1549,7 +1549,7 @@ struct PhotoInfoPanel: View {
                             Text(String(format: "%.6f, %.6f", lat, lon))
                                 .font(.system(size: 13, design: .monospaced))
                             if let alt = photo.altitude {
-                                Text("海拔 \(String(format: "%.1f", alt))m")
+                                Text("Altitude \(String(format: "%.1f", alt))m")
                                     .font(.system(size: 11))
                                     .foregroundColor(.secondary)
                             }
@@ -1578,7 +1578,7 @@ struct PhotoInfoPanel: View {
 // MARK: - EXIF 信息卡片
 struct ExifInfoCard: View {
     let icon: String
-    let title: String
+    let title: LocalizedStringKey
     let value: String
 
     var body: some View {

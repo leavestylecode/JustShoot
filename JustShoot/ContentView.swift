@@ -45,7 +45,7 @@ struct ContentView: View {
                     }
 
                     if !customLUTs.isEmpty {
-                        Text("自定义滤镜")
+                        Text("Custom filters")
                             .font(.caption.weight(.medium))
                             .foregroundColor(.white.opacity(0.4))
                             .accessibilityAddTraits(.isHeader)
@@ -66,7 +66,7 @@ struct ContentView: View {
                                     Button(role: .destructive) {
                                         deleteCustomLUT(lut)
                                     } label: {
-                                        Label("删除", systemImage: "trash")
+                                        Label("Delete", systemImage: "trash")
                                     }
                                 }
                             }
@@ -88,22 +88,22 @@ struct ContentView: View {
                         Image(systemName: "plus")
                             .font(.system(size: 17, weight: .medium))
                     }
-                    .accessibilityLabel("导入 LUT")
-                    .accessibilityHint("选择一个 .cube 文件作为自定义滤镜")
+                    .accessibilityLabel("Import LUT")
+                    .accessibilityHint("Pick a .cube file to use as a custom filter")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink(value: "cards") {
                         Image(systemName: "books.vertical")
                             .font(.system(size: 15, weight: .medium))
                     }
-                    .accessibilityLabel("胶片图鉴")
+                    .accessibilityLabel("Film Library")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink(value: "gallery") {
                         Image(systemName: "photo.stack")
                             .font(.system(size: 15, weight: .medium))
                     }
-                    .accessibilityLabel("相册")
+                    .accessibilityLabel("Gallery")
                 }
             }
             .navigationDestination(for: String.self) { value in
@@ -122,7 +122,7 @@ struct ContentView: View {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             .scaleEffect(0.8)
-                        Text("正在准备相机...")
+                        Text("Preparing camera…")
                             .font(.system(size: 13))
                             .foregroundColor(.white.opacity(0.6))
                     }
@@ -147,10 +147,10 @@ struct ContentView: View {
                 )
                 .presentationDetents([.height(280)])
             }
-            .alert("导入失败", isPresented: $showImportError) {
-                Button("确定", role: .cancel) {}
+            .alert("Import failed", isPresented: $showImportError) {
+                Button("OK", role: .cancel) {}
             } message: {
-                Text(importError ?? "未知错误")
+                Text(importError ?? String(localized: "Unknown error"))
             }
         }
         .preferredColorScheme(.dark)
@@ -176,7 +176,7 @@ struct ContentView: View {
         case .success(let urls):
             guard let url = urls.first else { return }
             guard url.startAccessingSecurityScopedResource() else {
-                importError = "无法访问文件"
+                importError = String(localized: "Couldn't access the file")
                 showImportError = true
                 return
             }
@@ -191,7 +191,7 @@ struct ContentView: View {
                 importISO = "200"
                 showImportSheet = true
             } catch {
-                importError = "无法解析 .cube 文件：\(error.localizedDescription)"
+                importError = String(format: String(localized: "Couldn't parse the .cube file: %@"), error.localizedDescription)
                 showImportError = true
             }
 
@@ -216,7 +216,7 @@ struct ContentView: View {
 
         do {
             guard sourceURL.startAccessingSecurityScopedResource() else {
-                importError = "无法访问文件"
+                importError = String(localized: "Couldn't access the file")
                 showImportError = true
                 return
             }
@@ -225,7 +225,8 @@ struct ContentView: View {
             let data = try Data(contentsOf: sourceURL)
             try data.write(to: destURL)
 
-            let customLUT = CustomLUT(displayName: importName.isEmpty ? "自定义" : importName,
+            let displayName = importName.isEmpty ? String(localized: "Custom") : importName
+            let customLUT = CustomLUT(displayName: displayName,
                                       fileName: fileName, iso: iso, dimension: cube.dimension)
             customLUT.id = id
             modelContext.insert(customLUT)
@@ -237,7 +238,7 @@ struct ContentView: View {
                 FilmProcessor.shared.preload(source: source)
             }
         } catch {
-            importError = "保存失败：\(error.localizedDescription)"
+            importError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
             showImportError = true
         }
 
@@ -305,22 +306,22 @@ struct ImportLUTSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("滤镜名称") {
-                    TextField("名称", text: $name)
+                Section("Filter name") {
+                    TextField("Name", text: $name)
                 }
                 Section("ISO") {
                     TextField("200", text: $iso)
                         .keyboardType(.numberPad)
                 }
             }
-            .navigationTitle("导入 LUT")
+            .navigationTitle("Import LUT")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消", action: onCancel)
+                    Button("Cancel", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("导入", action: onConfirm)
+                    Button("Import", action: onConfirm)
                         .bold()
                 }
             }
@@ -368,7 +369,7 @@ struct FilmPresetTile: View {
                         .font(.system(size: 10))
                         .foregroundColor(.white.opacity(0.5))
                     if photoCount > 0 {
-                        Text("\(photoCount) 张")
+                        Text("\(photoCount) shots")
                             .font(.system(size: 10, weight: .medium))
                             .foregroundColor(accentColor)
                     }
@@ -388,9 +389,9 @@ struct FilmPresetTile: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(photoCount > 0
-            ? "\(preset.displayName)，ISO \(Int(preset.iso))，已拍 \(photoCount) 张"
-            : "\(preset.displayName)，ISO \(Int(preset.iso))")
-        .accessibilityHint("开始使用此胶片拍摄")
+            ? Text("\(preset.displayName), ISO \(Int(preset.iso)), \(photoCount) shots taken")
+            : Text("\(preset.displayName), ISO \(Int(preset.iso))"))
+        .accessibilityHint("Start shooting with this film")
     }
 
     private var coverArt: some View {
@@ -437,7 +438,7 @@ struct CustomLUTTile: View {
                         .font(.system(size: 10))
                         .foregroundColor(.white.opacity(0.5))
                     if photoCount > 0 {
-                        Text("\(photoCount) 张")
+                        Text("\(photoCount) shots")
                             .font(.system(size: 10, weight: .medium))
                             .foregroundColor(Self.accent)
                     }
@@ -447,9 +448,9 @@ struct CustomLUTTile: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(photoCount > 0
-            ? "自定义滤镜 \(lut.displayName)，ISO \(Int(lut.iso))，已拍 \(photoCount) 张"
-            : "自定义滤镜 \(lut.displayName)，ISO \(Int(lut.iso))")
-        .accessibilityHint("开始使用此滤镜拍摄")
+            ? Text("Custom filter \(lut.displayName), ISO \(Int(lut.iso)), \(photoCount) shots taken")
+            : Text("Custom filter \(lut.displayName), ISO \(Int(lut.iso))"))
+        .accessibilityHint("Start shooting with this filter")
     }
 
     private var coverArt: some View {
