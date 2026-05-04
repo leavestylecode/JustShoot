@@ -170,26 +170,21 @@ struct CameraView: View {
                 .accessibilityLabel("Back")
             }
 
-            // 中间：胶片名 + 拍摄计数 + 可选的位置状态
+            // 中间：胶片名 + 可选的位置状态
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
                     Text(source.displayName)
                         .font(.subheadline.weight(.semibold))
-                    HStack(spacing: 6) {
-                        Text("\(presetPhotos.count) shots")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        if cameraManager.locationPermissionDenied {
-                            Button(action: openAppSettings) {
-                                Label("Location off", systemImage: "location.slash.fill")
-                                    .font(.caption2.weight(.medium))
-                                    .labelStyle(.titleAndIcon)
-                                    .foregroundStyle(.orange.opacity(0.85))
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Location off")
-                            .accessibilityHint("Open Settings and allow Location Services to geo-tag photos")
+                    if cameraManager.locationPermissionDenied {
+                        Button(action: openAppSettings) {
+                            Label("Location off", systemImage: "location.slash.fill")
+                                .font(.caption2.weight(.medium))
+                                .labelStyle(.titleAndIcon)
+                                .foregroundStyle(.orange.opacity(0.85))
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Location off")
+                        .accessibilityHint("Open Settings and allow Location Services to geo-tag photos")
                     }
                 }
             }

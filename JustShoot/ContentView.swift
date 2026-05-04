@@ -5,7 +5,6 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var photos: [Photo]
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @State private var isPreloading = true
     @State private var showFileImporter = false
@@ -30,14 +29,12 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
-                let counts = presetCountMap
-
                 VStack(alignment: .leading, spacing: 14) {
                     LazyVGrid(columns: gridColumns, spacing: 12) {
                         ForEach(FilmPreset.allCases) { preset in
                             let source = FilmSource.preset(preset)
                             NavigationLink(value: source) {
-                                FilmPresetTile(preset: preset, photoCount: counts[preset.rawValue] ?? 0)
+                                FilmPresetTile(preset: preset)
                             }
                             .buttonStyle(.plain)
                             .matchedTransitionSource(id: source.id, in: coverZoom)
@@ -55,10 +52,7 @@ struct ContentView: View {
                             ForEach(customLUTs) { lut in
                                 let source = FilmSource.from(lut)
                                 NavigationLink(value: source) {
-                                    CustomLUTTile(
-                                        lut: lut,
-                                        photoCount: counts[source.photoFilterName] ?? 0
-                                    )
+                                    CustomLUTTile(lut: lut)
                                 }
                                 .buttonStyle(.plain)
                                 .matchedTransitionSource(id: source.id, in: coverZoom)
@@ -157,16 +151,6 @@ struct ContentView: View {
         .task {
             await preloadResources()
         }
-    }
-
-    private var presetCountMap: [String: Int] {
-        var counts: [String: Int] = [:]
-        for photo in photos {
-            if let name = photo.filmPresetName {
-                counts[name, default: 0] += 1
-            }
-        }
-        return counts
     }
 
     // MARK: - File Import
@@ -335,22 +319,8 @@ struct ImportLUTSheet: View {
 /// bundled film-card library via `FilmPreset.libraryCardImage`.
 struct FilmPresetTile: View {
     let preset: FilmPreset
-    let photoCount: Int
     @State private var image: UIImage?
     @Environment(\.displayScale) private var displayScale
-
-    private var accentColor: Color {
-        switch preset {
-        case .fujiC200: return Color(red: 0.2, green: 0.7, blue: 0.6)
-        case .fujiPro400H: return Color(red: 0.95, green: 0.6, blue: 0.2)
-        case .fujiProvia100F: return Color(red: 0.3, green: 0.5, blue: 0.9)
-        case .kodakPortra400: return Color(red: 0.95, green: 0.5, blue: 0.5)
-        case .kodakVision5219: return Color(red: 0.4, green: 0.3, blue: 0.7)
-        case .kodakVision5203: return Color(red: 0.3, green: 0.7, blue: 0.8)
-        case .kodak5207: return Color(red: 0.4, green: 0.8, blue: 0.6)
-        case .harmanPhoenix200: return Color(red: 0.9, green: 0.3, blue: 0.3)
-        }
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -364,16 +334,9 @@ struct FilmPresetTile: View {
                     .foregroundColor(.white)
                     .lineLimit(1)
 
-                HStack(spacing: 4) {
-                    Text("ISO \(Int(preset.iso))")
-                        .font(.system(size: 10))
-                        .foregroundColor(.white.opacity(0.5))
-                    if photoCount > 0 {
-                        Text("\(photoCount) shots")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(accentColor)
-                    }
-                }
+                Text("ISO \(Int(preset.iso))")
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.5))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -388,9 +351,7 @@ struct FilmPresetTile: View {
             )
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(photoCount > 0
-            ? Text("\(preset.displayName), ISO \(Int(preset.iso)), \(photoCount) shots taken")
-            : Text("\(preset.displayName), ISO \(Int(preset.iso))"))
+        .accessibilityLabel(Text("\(preset.displayName), ISO \(Int(preset.iso))"))
         .accessibilityHint("Start shooting with this film")
     }
 
@@ -417,7 +378,6 @@ struct FilmPresetTile: View {
 /// render an accent-tinted icon in the same square cell shape.
 struct CustomLUTTile: View {
     let lut: CustomLUT
-    let photoCount: Int
 
     private static let accent = Color(red: 0.6, green: 0.5, blue: 0.8)
 
@@ -433,23 +393,14 @@ struct CustomLUTTile: View {
                     .foregroundColor(.white)
                     .lineLimit(1)
 
-                HStack(spacing: 4) {
-                    Text("ISO \(Int(lut.iso))")
-                        .font(.system(size: 10))
-                        .foregroundColor(.white.opacity(0.5))
-                    if photoCount > 0 {
-                        Text("\(photoCount) shots")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(Self.accent)
-                    }
-                }
+                Text("ISO \(Int(lut.iso))")
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.5))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(photoCount > 0
-            ? Text("Custom filter \(lut.displayName), ISO \(Int(lut.iso)), \(photoCount) shots taken")
-            : Text("Custom filter \(lut.displayName), ISO \(Int(lut.iso))"))
+        .accessibilityLabel(Text("Custom filter \(lut.displayName), ISO \(Int(lut.iso))"))
         .accessibilityHint("Start shooting with this filter")
     }
 
