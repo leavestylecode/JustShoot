@@ -8,6 +8,7 @@ import Foundation
 import CoreImage
 import CoreImage.CIFilterBuiltins
 import MetalKit
+import CoreMotion
 import AVKit
 import os
 
@@ -57,7 +58,7 @@ struct CameraView: View {
 
             // 预览区
             GeometryReader { geometry in
-                ZStack {
+                ZStack(alignment: .bottom) {
                     // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade，
                     // 预览不黑屏），不再需要 bridgeImage 帧桥接。
                     RealtimePreviewView(manager: cameraManager, lutCacheKey: source.lutCacheKey)
@@ -67,6 +68,18 @@ struct CameraView: View {
                         FocusIndicatorView()
                             .position(point)
                     }
+
+                    // 焦距选择条悬浮在预览底部（iPhone Camera 风格）。容器与位置在所有方向下都
+                    // 不变，只是内部数字跟随设备方向旋转，让用户视角下文字方向正确。
+                    FocalLengthStrip(
+                        focalInfo: cameraManager.focalInfo,
+                        current: cameraManager.currentFocalLength,
+                        contentRotation: controlRotationAngle
+                    ) { option in
+                        cameraManager.hapticSoft.impactOccurred()
+                        cameraManager.setFocalLength(option)
+                    }
+                    .padding(.bottom, 14)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { location in
@@ -175,23 +188,17 @@ struct CameraView: View {
                     cameraManager.toggleFlashMode()
                 } label: {
                     Image(systemName: cameraManager.flashMode == .on ? "bolt.fill" : "bolt.slash.fill")
+                        .rotationEffect(controlRotationAngle)
+                        .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
                 }
                 .tint(cameraManager.flashMode == .on ? .yellow : .white)
                 .accessibilityLabel(cameraManager.flashMode == .on ? Text("Flash on") : Text("Flash off"))
                 .accessibilityHint("Toggle flash")
             }
         }
-        // 底部控制栏
+        // 底部控制栏（焦距选择条已移到预览内部，不再占用底部空间）
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 14) {
-                FocalLengthStrip(
-                    focalInfo: cameraManager.focalInfo,
-                    current: cameraManager.currentFocalLength
-                ) { option in
-                    cameraManager.hapticSoft.impactOccurred()
-                    cameraManager.setFocalLength(option)
-                }
-
                 HStack {
                 // 左：最近照片缩略图。isCapturing 期间叠加 spinner — 拍照后处理 pipeline
                 // 1.5-6s（48MP HEIF 编码 + LUT），用户需要明确"系统在干活"的反馈，否则会
@@ -224,6 +231,8 @@ struct CameraView: View {
                                 .scaleEffect(0.7)
                         }
                     }
+                    .rotationEffect(controlRotationAngle)
+                    .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
                 }
                 .accessibilityLabel(presetPhotos.isEmpty ? Text("Most recent photo") : Text("Most recent photo — \(presetPhotos.count) total"))
                 .accessibilityHint(presetPhotos.isEmpty ? Text("No photos yet") : Text("Open larger view"))
@@ -257,6 +266,8 @@ struct CameraView: View {
                 // 暂作展示用；后续会挂点击扩展功能。
                 FilmSourceCoverThumbnail(source: source)
                     .frame(width: 46, height: 46)
+                    .rotationEffect(controlRotationAngle)
+                    .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
                 }
                 .padding(.horizontal, 30)
             }
@@ -464,6 +475,17 @@ struct CameraView: View {
     }
 
     @MainActor
+    /// 设备方向 → 控件旋转角。app UI 锁竖屏，悬浮控件（焦距数字/闪光/缩略图）的物理位置不变，
+    /// 只内部 icon / 数字旋转，让用户视角下文字方向正确——与 iPhone Camera 一致。
+    private var controlRotationAngle: Angle {
+        switch cameraManager.currentDeviceOrientation {
+        case .portraitUpsideDown: return .degrees(180)
+        case .landscapeLeft: return .degrees(90)
+        case .landscapeRight: return .degrees(-90)
+        default: return .degrees(0)
+        }
+    }
+
     private func handleTapToFocus(at location: CGPoint, in size: CGSize) {
         cameraManager.hapticLight.impactOccurred()
 
@@ -505,16 +527,34 @@ struct CameraView: View {
 }
 
 // MARK: - 焦段切换条（仿 iPhone 相机样式）
+/// 焦距选择条（iOS 26 Liquid Glass）：整条胶囊容器套 .glassEffect()，
+/// 选中项在内部用黄色胶囊高亮，配合 matchedGeometryEffect 在选项间滑动。
+/// 视觉与 iPhone 17 Camera 对齐：玻璃质感不依赖背景，亮/暗场景下都有稳定对比度。
+/// **交互**：tap 单点切换 + 横向 drag 滑动选档（手指落在哪个胶囊就选哪个），
+///          drag 跨选项时通过 onSelect 自然触发逐档切换 + 触感反馈。
+/// **方向**：`contentRotation` 仅旋转每个选项的数字 Text，整条容器/选中胶囊位置不变，
+///          与 iPhone Camera 横屏时"数字转向、容器不动"行为一致。
 struct FocalLengthStrip: View {
     let focalInfo: DeviceFocalInfo
     let current: FocalLengthOption
+    let contentRotation: Angle
     let onSelect: (FocalLengthOption) -> Void
+
+    @Namespace private var selectionNamespace
+    @State private var lastDraggedOption: FocalLengthOption?
+
+    /// 单个胶囊宽度 + spacing，用于 drag 命中检测（与 focalButton frame.width=36 + HStack spacing=2 一致）
+    private static let buttonStride: CGFloat = 38
+    /// HStack 容器的水平 padding（用于把 drag x 坐标减去 leading inset）
+    private static let leadingInset: CGFloat = 6
+    /// 视图坐标空间名称
+    private static let coordSpace = NamedCoordinateSpace.named("focalStrip")
 
     var body: some View {
         if focalInfo.options.count <= 1 {
             EmptyView()
         } else {
-            HStack(spacing: 0) {
+            HStack(spacing: 2) {
                 ForEach(focalInfo.options) { option in
                     Button { onSelect(option) } label: {
                         focalButton(for: option)
@@ -524,6 +564,31 @@ struct FocalLengthStrip: View {
                     .accessibilityAddTraits(option == current ? [.isButton, .isSelected] : .isButton)
                 }
             }
+            .padding(.horizontal, Self.leadingInset)
+            .padding(.vertical, 4)
+            .glassEffect(.regular, in: .capsule)
+            .coordinateSpace(Self.coordSpace)
+            // simultaneousGesture：tap 与 drag 共存——静态点击仍走 Button.action，移动 ≥8pt 时
+            // 进入 drag 路径。两者最终都通过 onSelect 触发同一切档逻辑（haptic + setFocalLength）。
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 8, coordinateSpace: Self.coordSpace)
+                    .onChanged { value in
+                        let count = focalInfo.options.count
+                        guard count > 0 else { return }
+                        let x = max(0, value.location.x - Self.leadingInset)
+                        let index = min(count - 1, max(0, Int(x / Self.buttonStride)))
+                        let option = focalInfo.options[index]
+                        // 仅在跨入新选项时触发；首次进入时如果落点已是当前档则跳过，避免重复 setFocalLength。
+                        guard option != lastDraggedOption else { return }
+                        lastDraggedOption = option
+                        if option != current {
+                            onSelect(option)
+                        }
+                    }
+                    .onEnded { _ in
+                        lastDraggedOption = nil
+                    }
+            )
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Focal length selector")
         }
@@ -535,18 +600,22 @@ struct FocalLengthStrip: View {
         let isCrop = focalInfo.isDigitalCrop(option)
 
         Text(option.label)
-            .font(.system(size: 13, weight: isSelected ? .bold : .regular, design: .rounded))
-            .foregroundStyle(isSelected ? .yellow : isCrop ? .white.opacity(0.4) : .white.opacity(0.65))
-            .frame(width: 40, height: 40)
+            .font(.system(size: 13, weight: isSelected ? .bold : .medium, design: .rounded))
+            .foregroundStyle(isSelected ? .yellow : isCrop ? .white.opacity(0.45) : .white.opacity(0.78))
+            // 仅旋转数字本身，胶囊背景与容器位置保持不变（横屏时数字立起来给用户看）
+            .rotationEffect(contentRotation)
+            .animation(.spring(duration: 0.35, bounce: 0.15), value: contentRotation)
+            .frame(width: 36, height: 30)
             .background {
                 if isSelected {
-                    Circle()
-                        .fill(.white.opacity(0.15))
-                        .frame(width: 36, height: 36)
+                    // matchedGeometryEffect 让选中胶囊在选项间平滑滑动，对齐 iPhone Camera 体验。
+                    Capsule()
+                        .fill(.yellow.opacity(0.22))
+                        .matchedGeometryEffect(id: "focal_selection", in: selectionNamespace)
                 }
             }
-            .contentShape(Circle())
-            .animation(.spring(duration: 0.25, bounce: 0.1), value: isSelected)
+            .contentShape(Capsule())
+            .animation(.spring(duration: 0.32, bounce: 0.18), value: isSelected)
     }
 }
 
@@ -897,8 +966,12 @@ class CameraManager: NSObject, ObservableObject {
     /// connection（用户横屏入页时，photoOutput.videoRotationAngle 会被钉死成默认值，出片永远是
     /// 错向）。Apple 在 RotationCoordinator 文档里就推荐 KVO 联动，每次值变就 reapply。
     private var captureRotationObservation: NSKeyValueObservation?
-    private var currentDeviceOrientation: UIDeviceOrientation = .portrait
-    private var orientationObserver: (any NSObjectProtocol)?
+    /// UI 端通过此值给悬浮控件（焦距条等）做 rotationEffect。app 整体 UI 锁竖屏，但用户横握时
+    /// 控件需要随设备旋转保持"用户视角下水平"，对齐 iPhone Camera 体验。
+    @Published private(set) var currentDeviceOrientation: UIDeviceOrientation = .portrait
+    /// 直接读重力向量做方向判定。系统旋转锁开启时 UIDevice.orientationDidChange 会被节流甚至不发出，
+    /// CMMotionManager 不受锁影响，与 iPhone Camera 保持一致——永远响应物理方向。
+    private let motionManager = CMMotionManager()
     private var subjectAreaObserver: (any NSObjectProtocol)?
     private var sessionInterruptionObserver: (any NSObjectProtocol)?
     private var sessionInterruptionEndedObserver: (any NSObjectProtocol)?
@@ -995,31 +1068,54 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - 方向监控
+    // MARK: - 方向监控（CoreMotion 直读重力向量，绕过系统旋转锁）
 
     private func setupOrientationMonitoring() {
-        UIDevice.current.beginGeneratingDeviceOrientationNotifications()
-
-        orientationObserver = NotificationCenter.default.addObserver(
-            forName: UIDevice.orientationDidChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.updateDeviceOrientation()
-            }
-        }
-
-        updateDeviceOrientation()
         bootstrapInitialOrientationIfNeeded()
+        startAccelerometerOrientationUpdates()
     }
 
-    private func updateDeviceOrientation() {
-        let orientation = UIDevice.current.orientation
-        if orientation.isValidInterfaceOrientation {
-            currentDeviceOrientation = orientation
-            previewDeviceOrientation = orientation
-            applyVideoOrientationToOutputs()
+    /// 启动加速度计读取并转换为 UIDeviceOrientation。5 Hz 足够流畅，CPU/电池开销忽略不计。
+    /// 重力向量约定（Apple）：accel 报"重力方向"，portrait 时 -y_d 朝下 → accel.y ≈ -1；
+    /// upsideDown ≈ +1；landscapeLeft（home 在右、设备 +x 朝天）重力沿 -x → accel.x ≈ -1；
+    /// landscapeRight（home 在左、设备 +x 朝地）重力沿 +x → accel.x ≈ +1。
+    private func startAccelerometerOrientationUpdates() {
+        guard motionManager.isAccelerometerAvailable, !motionManager.isAccelerometerActive else { return }
+        motionManager.accelerometerUpdateInterval = 0.2
+        motionManager.startAccelerometerUpdates(to: .main) { [weak self] data, _ in
+            guard let self, let data else { return }
+            self.updateOrientationFromAcceleration(data.acceleration)
+        }
+    }
+
+    /// 把重力向量映射成 UIDeviceOrientation。带阈值过滤：设备过于水平（|z| 占优）保留当前方向，
+    /// 避免桌面/俯视摆放时方向乱跳。仅在判定值与当前不同时写入，触发的 @Published 通知最少。
+    private func updateOrientationFromAcceleration(_ a: CMAcceleration) {
+        let absX = abs(a.x)
+        let absY = abs(a.y)
+        let absZ = abs(a.z)
+
+        // 主轴必须显著大于 z 轴（设备不能太平），且至少 0.5g 量级才算"明确指向"
+        guard max(absX, absY) > 0.5, max(absX, absY) > absZ else { return }
+
+        let candidate: UIDeviceOrientation
+        if absY > absX {
+            candidate = a.y < 0 ? .portrait : .portraitUpsideDown
+        } else {
+            // landscapeLeft（home 在右）：accel.x ≈ -1；landscapeRight（home 在左）：accel.x ≈ +1
+            candidate = a.x > 0 ? .landscapeRight : .landscapeLeft
+        }
+
+        guard candidate != currentDeviceOrientation else { return }
+        currentDeviceOrientation = candidate
+        previewDeviceOrientation = candidate
+        applyVideoOrientationToOutputs()
+    }
+
+    /// 停止加速度计（页面退出时调用）
+    private func stopAccelerometerOrientationUpdates() {
+        if motionManager.isAccelerometerActive {
+            motionManager.stopAccelerometerUpdates()
         }
     }
 
@@ -2244,10 +2340,6 @@ class CameraManager: NSObject, ObservableObject {
         // 清空 buffer（避免 stopRunning 后 MTKView 还显示上次的 frame）
         pixelBufferLock.withLockUnchecked { $0.buffer = nil }
         // 取消 NotificationCenter observer（deinit 因 Swift 6 隔离规则无法访问这些属性）
-        if let observer = orientationObserver {
-            NotificationCenter.default.removeObserver(observer)
-            orientationObserver = nil
-        }
         if let subjectObserver = subjectAreaObserver {
             NotificationCenter.default.removeObserver(subjectObserver)
             subjectAreaObserver = nil
@@ -2266,8 +2358,8 @@ class CameraManager: NSObject, ObservableObject {
         }
         sessionConfigured = false
         sessionInterrupted = false
-        // 平衡 setupOrientationMonitoring 中的 begin 调用
-        UIDevice.current.endGeneratingDeviceOrientationNotifications()
+        // 停止加速度计读取（与 setupOrientationMonitoring 配对）
+        stopAccelerometerOrientationUpdates()
         previewMTKView = nil
 
         // setSampleBufferDelegate(nil) 与 stopRunning() 都是阻塞调用——主线程同步执行
