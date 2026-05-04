@@ -90,10 +90,11 @@ struct CameraView: View {
                             bias: cameraManager.exposureBias,
                             isAdjusting: isAdjustingExposure
                         )
-                        .position(
-                            x: sunRailX(focusX: point.x, viewportWidth: geometry.size.width),
-                            y: point.y
-                        )
+                        // 长轴始终沿用户视角竖直——controlRotationAngle 把内容旋转到用户上方为正。
+                        // sunYOffset(bias>0) 在旋转后的局部坐标里 = "用户视角向上"，与上滑变亮的手势同向。
+                        .rotationEffect(controlRotationAngle)
+                        .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
+                        .position(sunRailPosition(focus: point, viewport: geometry.size))
                         .allowsHitTesting(false)
                     }
 
@@ -599,16 +600,16 @@ struct CameraView: View {
                     return
                 }
 
+                let perceived = perceivedTranslation(value.translation)
+
                 if isAdjustingExposure {
-                    // 已进 EV 模式：忽略横向晃动，从 biasAtDragStart 累加
-                    let evDelta = Float(-value.translation.height) / 100.0
+                    // 已进 EV 模式：忽略用户感知的横向晃动，沿用户感知的竖轴从 biasAtDragStart 累加
+                    let evDelta = Float(perceived.vertical) / 100.0
                     cameraManager.setExposureBias(biasAtDragStart + evDelta)
                     return
                 }
 
-                let dy = value.translation.height
-                let dx = value.translation.width
-                if abs(dy) > 14 && abs(dy) > abs(dx) * 1.5 {
+                if abs(perceived.vertical) > 14 && abs(perceived.vertical) > abs(perceived.horizontal) * 1.5 {
                     isAdjustingExposure = true
                     cameraManager.hapticSoft.impactOccurred()
                     if cameraManager.isFocusLocked {
@@ -619,7 +620,7 @@ struct CameraView: View {
                         commitFocusToDevice(at: value.startLocation, in: viewportSize)
                         biasAtDragStart = 0
                     }
-                    let evDelta = Float(-dy) / 100.0
+                    let evDelta = Float(perceived.vertical) / 100.0
                     cameraManager.setExposureBias(biasAtDragStart + evDelta)
                 }
             }
@@ -651,11 +652,50 @@ struct CameraView: View {
             }
     }
 
-    /// sun rail 在预览中的 x 位置：默认在对焦框右侧 60pt 处；
-    /// 接近右边缘（剩余 < 30pt）时翻到左侧，保证 sun 永远可见。
-    private func sunRailX(focusX: CGFloat, viewportWidth: CGFloat) -> CGFloat {
-        let preferredRight = focusX + 60
-        return preferredRight + 12 > viewportWidth ? focusX - 60 : preferredRight
+    /// 把 SwiftUI translation（设备屏幕坐标）映射到**用户感知**的轴：
+    /// `vertical` 正向 = 用户视角向上（→ 调亮），`horizontal` 正向 = 用户视角向右。
+    ///
+    /// app 锁竖屏渲染但用户可能横握——若不做转换，横握时手指在物理上的"上滑"会落到屏幕的
+    /// X 轴上，旧实现只看 `translation.height` 检测不到、bias 也调反或不动。这是把 iPhone Camera 的
+    /// "上滑变亮"承诺扩展到所有持机方向的关键映射。
+    @MainActor
+    private func perceivedTranslation(_ t: CGSize) -> (vertical: CGFloat, horizontal: CGFloat) {
+        switch cameraManager.currentDeviceOrientation {
+        case .portraitUpsideDown:
+            return (t.height, -t.width)
+        case .landscapeLeft:   // home 在右
+            return (t.width, t.height)
+        case .landscapeRight:  // home 在左
+            return (-t.width, -t.height)
+        default:               // .portrait + faceUp/Down/unknown 兜底
+            return (-t.height, t.width)
+        }
+    }
+
+    /// Sun rail 在预览中的位置：以对焦框为锚点，沿"用户感知右侧"偏移 60pt；
+    /// 越界时翻到对侧。所有持机方向下 sun 都浮在对焦框侧旁、视觉与 EV 手势竖轴一致。
+    /// edgePad = 12（rail 宽 22pt 的半宽 + 余量）—— 与旧实现一致，不动调校手感。
+    private func sunRailPosition(focus: CGPoint, viewport: CGSize) -> CGPoint {
+        let offset: CGFloat = 60
+        let edgePad: CGFloat = 12
+        switch cameraManager.currentDeviceOrientation {
+        case .portraitUpsideDown:  // 用户右 = 屏幕 -X
+            let pref = focus.x - offset
+            let x = pref - edgePad < 0 ? focus.x + offset : pref
+            return CGPoint(x: x, y: focus.y)
+        case .landscapeLeft:       // 用户右 = 屏幕 +Y
+            let pref = focus.y + offset
+            let y = pref + edgePad > viewport.height ? focus.y - offset : pref
+            return CGPoint(x: focus.x, y: y)
+        case .landscapeRight:      // 用户右 = 屏幕 -Y
+            let pref = focus.y - offset
+            let y = pref - edgePad < 0 ? focus.y + offset : pref
+            return CGPoint(x: focus.x, y: y)
+        default:                   // .portrait: 用户右 = 屏幕 +X
+            let pref = focus.x + offset
+            let x = pref + edgePad > viewport.width ? focus.x - offset : pref
+            return CGPoint(x: x, y: focus.y)
+        }
     }
 }
 
