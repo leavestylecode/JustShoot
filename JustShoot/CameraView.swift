@@ -58,21 +58,10 @@ struct CameraView: View {
             // 预览区
             GeometryReader { geometry in
                 ZStack {
-                    // 单镜头 + 帧桥接：W↔T swap 时 cameraManager.bridgeImage 先盖一帧 LUT 后的快照，
-                    // swap + AE 收敛 ~250ms 后再淡出。比之前 ultraThinMaterial 干净，比 multi-cam 保留 12MP。
+                    // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade，
+                    // 预览不黑屏），不再需要 bridgeImage 帧桥接。
                     RealtimePreviewView(manager: cameraManager, lutCacheKey: source.lutCacheKey)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay {
-                            if let bridge = cameraManager.bridgeImage {
-                                Image(uiImage: bridge)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .clipped()
-                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                    .transition(.opacity)
-                            }
-                        }
-                        .animation(.easeOut(duration: 0.22), value: cameraManager.bridgeImage != nil)
 
                     if showFocusIndicator, let point = focusPoint {
                         FocusIndicatorView()
@@ -83,15 +72,6 @@ struct CameraView: View {
                 .onTapGesture { location in
                     handleTapToFocus(at: location, in: geometry.size)
                 }
-                .gesture(
-                    MagnifyGesture()
-                        .onChanged { value in
-                            cameraManager.handlePinchZoom(scale: value.magnification)
-                        }
-                        .onEnded { _ in
-                            cameraManager.finishPinchZoom()
-                        }
-                )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             // 3:4 纵向 = iPhone 传感器原生纵横比。预览 viewport 与 sensor 输出对齐，aspect-fill
@@ -284,7 +264,6 @@ struct CameraView: View {
         }
         .onAppear {
             FilmProcessor.shared.preload(source: source)
-            cameraManager.currentLutCacheKey = source.lutCacheKey
             cameraManager.requestCameraPermission()
             loadLastPhotoThumbnail()
         }
@@ -669,73 +648,119 @@ enum FocalLengthOption: Int, CaseIterable, Identifiable {
     var label: String { "\(rawValue)" }
 }
 
-// MARK: - 设备焦段信息（基于物理 wide + telephoto，不走虚拟设备）
+// MARK: - 设备焦段信息（基于虚拟设备 constituent + switchOver 阈值）
+
+/// 单个 constituent 物理镜头的元数据 + 在虚拟设备 zoom 坐标里的归属区间。
+struct ConstituentInfo {
+    /// 物理镜头实例（用于 KVO 比对：activePrimaryConstituentDevice === device 即代表已锁到此镜头）
+    let device: AVCaptureDevice
+    /// 35mm 等效焦距（如 17 Pro 的 W = 24mm，T = 100mm 或 200mm）
+    let nativeMm: Float
+    /// 此镜头在虚拟设备 zoom 坐标里被系统选用的范围（开区间右端为下一个 constituent 的 switchOver）。
+    /// 例：[1.0, 2.0) = UW；[2.0, 5.0) = W；[5.0, +∞) = T。`.locked` 后系统会
+    /// 把 minAvailableVideoZoomFactor 钉到本区间下界。
+    let virtualZoomRange: ClosedRange<CGFloat>
+}
+
 struct DeviceFocalInfo {
     /// 可用焦段选项
     let options: [FocalLengthOption]
-    /// 主摄 W 的 35mm 等效焦距（如 17 Pro = 24mm）
-    let wideMm: Float
-    /// 长焦 T 的 35mm 等效焦距（0 表示无长焦）
-    let teleMm: Float
-
-    /// 该档位应使用哪颗物理镜头。100mm/200mm 优先 telephoto；其余用 wide。
-    func deviceType(for option: FocalLengthOption) -> AVCaptureDevice.DeviceType {
-        if (option == .mm100 || option == .mm200) && teleMm > 0 {
-            return .builtInTelephotoCamera
-        }
-        return .builtInWideAngleCamera
-    }
-
-    /// 该档位在目标镜头上的 zoom factor（mm ÷ 该镜头原生 mm）
-    func zoomFactor(for option: FocalLengthOption) -> CGFloat {
-        let nativeMm = (deviceType(for: option) == .builtInTelephotoCamera) ? teleMm : wideMm
-        guard nativeMm > 0 else { return 1.0 }
-        return CGFloat(option.mm / nativeMm)
-    }
-
-    /// 是否纯数字裁切（zoom 显著大于 1.0× = 不是镜头原生视野）
-    func isDigitalCrop(_ option: FocalLengthOption) -> Bool {
-        zoomFactor(for: option) > 1.05
-    }
+    /// 按 nativeMm 升序的 constituent 列表（UW < W < T）。仅含至少一颗。
+    let constituents: [ConstituentInfo]
+    /// 主 constituent（数组首位）的原生 35mm 等效焦距 — 虚拟设备 zoom=1.0 对应此 FOV。
+    /// 任意 zoom Z 的等效焦距 ≈ primaryNativeMm × Z（线性，与系统选哪颗 constituent 无关）。
+    let primaryNativeMm: Float
 
     /// 默认值（session 未配置前的临时占位）
-    static let placeholder = DeviceFocalInfo(options: [.mm24, .mm35], wideMm: 24, teleMm: 0)
+    static let placeholder = DeviceFocalInfo(options: [.mm24, .mm35], constituents: [], primaryNativeMm: 24)
 
-    /// 在 wide/tele 设备 activeFormat 已配置好之后调用。
-    /// - Parameter wide: 必须存在；用于读 wideMm 和 zoom 上限
-    /// - Parameter tele: 可选；存在则启用 100/200mm 档位
-    static func from(wide: AVCaptureDevice, tele: AVCaptureDevice?) -> DeviceFocalInfo {
-        let wideMm = wide.nominalFocalLengthIn35mmFilm > 0 ? wide.nominalFocalLengthIn35mmFilm : 26.0
-        let teleMm = (tele?.nominalFocalLengthIn35mmFilm ?? 0) > 0 ? (tele?.nominalFocalLengthIn35mmFilm ?? 0) : 0
-        let wideMaxZoom = wide.activeFormat.videoMaxZoomFactor
-        let teleMaxZoom = tele?.activeFormat.videoMaxZoomFactor ?? 0
+    /// 该档位应锁定到哪颗 constituent。策略：找原生 ≤ 目标 mm 的最长一颗（让 constituent 自身做
+    /// 数字裁切，质量优于让更广的 constituent 裁更多）。例：100mm 选 T(100)，35mm 选 W(24)。
+    func constituent(for option: FocalLengthOption) -> ConstituentInfo? {
+        guard !constituents.isEmpty else { return nil }
+        let candidate = constituents.last(where: { $0.nativeMm <= option.mm + 0.5 })
+        return candidate ?? constituents.first
+    }
 
-        let info = DeviceFocalInfo(
-            options: [.mm24, .mm35, .mm50, .mm100, .mm200],
-            wideMm: wideMm,
-            teleMm: teleMm
-        )
+    /// 该档位对应的虚拟设备 videoZoomFactor。
+    /// **关键**：虚拟设备 zoom ↔ 等效焦距是**分段线性**关系（每个 constituent 一段），不是单一斜率。
+    /// 在 constituent c 的活跃区间里：FOV = c.nativeMm × (zoom / c.virtualZoomRange.lowerBound)。
+    /// 反推：要让 FOV = option.mm，需 zoom = option.mm × c.lowerBound / c.nativeMm。
+    /// 例（17 Pro：UW=13mm[1-2], W=24mm[2-8], T=100mm[8-189]）：
+    ///   13mm→1.0(UW)  24mm→2.0(W)  35mm→2.92(W)  50mm→4.17(W)  100mm→8.0(T)  200mm→16.0(T)
+    func virtualZoomFactor(for option: FocalLengthOption) -> CGFloat {
+        guard let c = constituent(for: option), c.nativeMm > 0 else { return 1.0 }
+        return CGFloat(option.mm) * c.virtualZoomRange.lowerBound / CGFloat(c.nativeMm)
+    }
 
-        // 过滤掉超出物理可达 zoom 的档位
-        var options: [FocalLengthOption] = info.options.filter { opt in
-            let zoom = info.zoomFactor(for: opt)
-            let maxZ = (info.deviceType(for: opt) == .builtInTelephotoCamera) ? teleMaxZoom : wideMaxZoom
-            return zoom >= 0.99 && zoom <= maxZ + 0.01
-        }
+    /// 该档位是否纯数字裁切（即 constituent 上的等效裁切倍率 > 1.05x）
+    func isDigitalCrop(_ option: FocalLengthOption) -> Bool {
+        guard let c = constituent(for: option), c.nativeMm > 0 else { return false }
+        return option.mm / c.nativeMm > 1.05
+    }
 
-        // 长焦缺失或原生焦距不够，移除依赖长焦的档位
-        if teleMm <= 0 {
-            options.removeAll { $0 == .mm100 || $0 == .mm200 }
+    /// 在 session 配置完成、虚拟设备已运行后调用。读 constituentDevices +
+    /// virtualDeviceSwitchOverVideoZoomFactors 推导每颗 constituent 的 virtualZoomRange。
+    static func from(virtualDevice device: AVCaptureDevice) -> DeviceFocalInfo {
+        // 物理设备（无 constituent）：把自己当作唯一 constituent，virtualZoomRange = [1, maxZoom]
+        var raws: [(device: AVCaptureDevice, nativeMm: Float)] = []
+        if device.constituentDevices.isEmpty {
+            raws.append((device, device.nominalFocalLengthIn35mmFilm > 0 ? device.nominalFocalLengthIn35mmFilm : 26.0))
         } else {
-            if teleMm < 70 { options.removeAll { $0 == .mm100 } }
-            if teleMm < 100 { options.removeAll { $0 == .mm200 } }
+            for c in device.constituentDevices {
+                let mm = c.nominalFocalLengthIn35mmFilm > 0 ? c.nominalFocalLengthIn35mmFilm : 26.0
+                raws.append((c, mm))
+            }
         }
+        // virtualDeviceSwitchOverVideoZoomFactors 与 constituentDevices 顺序一致：
+        // factors[i] = 从 constituent[i] 切到 constituent[i+1] 的虚拟 zoom 阈值。
+        // 数组长度 = constituentDevices.count - 1（物理设备时为空）。
+        let switchOvers: [CGFloat] = device.virtualDeviceSwitchOverVideoZoomFactors.map { CGFloat(truncating: $0) }
+        let maxZoom = device.activeFormat.videoMaxZoomFactor
+
+        var constituents: [ConstituentInfo] = []
+        for (idx, raw) in raws.enumerated() {
+            let lower: CGFloat = idx == 0 ? 1.0 : switchOvers[idx - 1]
+            let upper: CGFloat = idx < switchOvers.count ? switchOvers[idx] : maxZoom
+            constituents.append(ConstituentInfo(
+                device: raw.device,
+                nativeMm: raw.nativeMm,
+                virtualZoomRange: lower...upper
+            ))
+        }
+
+        let primaryMm = constituents.first?.nativeMm ?? 26.0
+
+        // 候选档位：根据可达 mm 范围筛选
+        let allOptions: [FocalLengthOption] = [.mm13, .mm24, .mm35, .mm50, .mm100, .mm200]
+        let minMm = constituents.first?.nativeMm ?? 13.0
+        let maxMm = (constituents.last?.nativeMm ?? primaryMm) * Float(maxZoom / (constituents.last?.virtualZoomRange.lowerBound ?? 1.0))
+
+        var options = allOptions.filter { opt in
+            Float(opt.rawValue) >= minMm - 0.5 && Float(opt.rawValue) <= maxMm + 0.5
+        }
+        // 至少保 24mm
         if !options.contains(.mm24) { options.insert(.mm24, at: 0) }
 
-        let optical = options.filter { !info.isDigitalCrop($0) }.map { $0.rawValue }
-        Log.session.info("focal_info wide=\(wideMm)mm tele=\(teleMm)mm wide_maxZoom=\(String(format: "%.1f", wideMaxZoom)) tele_maxZoom=\(String(format: "%.1f", teleMaxZoom)) options=\(options.map { $0.rawValue }) optical=\(optical)")
+        // 仅当确实有长焦（≥70mm）时才放出 100mm；≥100mm 才放 200mm
+        let teleNative = constituents.last(where: { $0.nativeMm >= 70 })?.nativeMm ?? 0
+        if teleNative <= 0 {
+            options.removeAll { $0 == .mm100 || $0 == .mm200 }
+        } else {
+            if teleNative < 70 { options.removeAll { $0 == .mm100 } }
+            if teleNative < 100 { options.removeAll { $0 == .mm200 } }
+        }
+        // UW 缺失则去掉 13mm
+        if (constituents.first?.nativeMm ?? 24) > 14 {
+            options.removeAll { $0 == .mm13 }
+        }
 
-        return DeviceFocalInfo(options: options, wideMm: wideMm, teleMm: teleMm)
+        let constituentLog = constituents.map { c in
+            "\(Int(c.nativeMm))mm[\(String(format: "%.2f", c.virtualZoomRange.lowerBound))-\(String(format: "%.2f", c.virtualZoomRange.upperBound))]"
+        }.joined(separator: ",")
+        Log.session.info("focal_info virtual=\(device.localizedName, privacy: .public) primaryMm=\(primaryMm) constituents=[\(constituentLog, privacy: .public)] switchOvers=\(switchOvers.map { String(format: "%.2f", $0) }) maxZoom=\(String(format: "%.2f", maxZoom)) options=\(options.map { $0.rawValue })")
+
+        return DeviceFocalInfo(options: options, constituents: constituents, primaryNativeMm: primaryMm)
     }
 }
 
@@ -755,17 +780,15 @@ enum FlashMode: String, CaseIterable {
 // MARK: - 相机管理器
 @MainActor
 class CameraManager: NSObject, ObservableObject {
-    /// 单镜头 AVCaptureSession：保留 12MP 4:3 全画幅；W↔T 物理切换通过 swapInputDevice 完成，
-    /// 用 bridgeImage 帧桥接遮住 swap+AE 收敛的 ~250ms 过渡，视觉接近 iPhone 原相机。
+    /// 虚拟设备 AVCaptureSession（iOS 26 推荐架构）：以 .builtInTripleCamera 等虚拟设备作为
+    /// 单一 input；切焦距通过 setPrimaryConstituentDeviceSwitchingBehavior(.locked, ...) +
+    /// videoZoomFactor 完成 — 系统在内部做硬件级 constituent 切换，预览不黑屏，无需 bridgeImage。
     let session = AVCaptureSession()
     private var photoOutput = AVCapturePhotoOutput()
-    /// 后置主摄（24mm 等效），始终存在
-    private var wideDevice: AVCaptureDevice?
-    /// 后置长焦（100mm 等效），可能为 nil（无长焦机型）
-    private var teleDevice: AVCaptureDevice?
-    /// 当前 session 的视频输入；通过 swapInputDevice 在 W ⇄ T 之间切换
+    /// 当前 session 的虚拟（或物理）设备 input —— 整个生命周期只 add 一次，不 swap。
     private var currentVideoInput: AVCaptureDeviceInput?
-    /// 当前激活的设备（focus / exposure / zoom 都打在它身上）
+    /// 当前 video 设备（虚拟或物理）。focus / exposure / zoom 都打在它身上；
+    /// constituent 切换由系统在内部完成，对外仍是同一个 device 实例。
     private var videoCaptureDevice: AVCaptureDevice? { currentVideoInput?.device }
     private let videoDataOutput = AVCaptureVideoDataOutput()
     private let previewQueue = DispatchQueue(label: "preview.lut.queue")
@@ -779,7 +802,7 @@ class CameraManager: NSObject, ObservableObject {
     }
     private let pixelBufferLock = OSAllocatedUnfairLock(initialState: PreviewState())
 
-    /// 获取最新帧（用于 MTKView 渲染 + bridgeImage 抓帧）
+    /// 获取最新帧（用于 MTKView 渲染）
     nonisolated func getLatestFrame() -> (CVPixelBuffer, UInt64)? {
         pixelBufferLock.withLockUnchecked { state in
             guard let buf = state.buffer else { return nil }
@@ -794,56 +817,9 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// W↔T 切镜过渡桥：物理 swap 之前抓当前预览帧（已套用 LUT + 旋转），盖在 MTKView 上。
-    /// swap + AE 收敛完成后再淡出，把 ~280ms 黑屏 + AE 突跳合并成一次干净的 cross-fade。
-    @Published private(set) var bridgeImage: UIImage?
-
-    /// 当前 LUT 缓存 key（CameraView 在 onAppear 时写入）。bridgeImage 渲染时用它套色。
-    var currentLutCacheKey: String = ""
-
-    /// 单调递增 token：用于丢弃过时 swap 的清理回调（用户快速来回点档位时不会让旧任务把
-    /// bridgeImage 提前撤掉）。
-    private var swapToken: UInt64 = 0
-
-    /// 用于桥接帧渲染的 CIContext（首次访问时初始化，~50ms 一次性成本）
-    private lazy var bridgeContext: CIContext = {
-        let srgb = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
-        if let mtl = MTLCreateSystemDefaultDevice() {
-            return CIContext(mtlDevice: mtl, options: [
-                .workingColorSpace: srgb,
-                .outputColorSpace: srgb
-            ])
-        }
-        return CIContext(options: [.workingColorSpace: srgb, .outputColorSpace: srgb])
-    }()
-
-    /// 抓取最新预览帧并套用当前 LUT + 旋转，渲染成 UIImage 用作切镜桥接遮罩。
-    /// 与 MTKView 渲染管线视觉一致——cross-fade 不会出现颜色跳变。
-    @MainActor
-    private func makeBridgeImage(lutCacheKey: String) -> UIImage? {
-        guard let (buffer, _) = getLatestFrame() else { return nil }
-        var ciImage = CIImage(cvPixelBuffer: buffer)
-
-        if let lut = FilmProcessor.shared.getCachedLUT(cacheKey: lutCacheKey),
-           let colorCube = CIFilter(name: "CIColorCubeWithColorSpace") {
-            colorCube.setValue(ciImage, forKey: kCIInputImageKey)
-            colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
-            colorCube.setValue(lut.data, forKey: "inputCubeData")
-            if let srgb = CGColorSpace(name: CGColorSpace.sRGB) {
-                colorCube.setValue(srgb, forKey: "inputColorSpace")
-            }
-            if let out = colorCube.outputImage {
-                ciImage = out
-            }
-        }
-
-        if let angle = previewRotationAngle, Int(angle) % 360 != 0 {
-            ciImage = ciImage.oriented(orientationFromRotationAngle(angle))
-        }
-
-        guard let cgImage = bridgeContext.createCGImage(ciImage, from: ciImage.extent) else { return nil }
-        return UIImage(cgImage: cgImage)
-    }
+    /// 切焦距时用于丢弃过时回调的单调递增 token（用户快速来回点档位时旧任务不会把
+    /// 新档位的 lock 撤掉）。
+    private var applyFocalToken: UInt64 = 0
 
     /// 弱引用 MTKView，用于从相机回调触发渲染
     weak var previewMTKView: MTKView?
@@ -877,10 +853,13 @@ class CameraManager: NSObject, ObservableObject {
     @Published var currentFocalLength: FocalLengthOption = .mm35
     @Published var focalInfo: DeviceFocalInfo = .placeholder
     @Published var currentZoomFactor: CGFloat = 1.0
+    /// 当前实际激活的物理 constituent（KVO 自虚拟设备 activePrimaryConstituentDevice）。
+    /// 用于诊断 .locked 是否真的把 constituent 钉住了；UI 不直接渲染。
+    @Published var activeConstituentName: String = ""
     private var zoomObservation: NSKeyValueObservation?
-    private var pinchDidSwitch = false  // 一次捏合手势只切换一档
+    private var constituentObservation: NSKeyValueObservation?
     private var focalLengthPicker: AVCaptureIndexPicker?
-    /// 系统级 EV 滑块（iOS 18+）；device-bound——swap 时必须 remove + re-add 才能跟到新设备。
+    /// 系统级 EV 滑块（iOS 18+）。虚拟设备架构下 device 实例不变，整生命周期内只装一次。
     private var exposureBiasSlider: AVCaptureSystemExposureBiasSlider?
 
     // 位置管理器
@@ -969,28 +948,37 @@ class CameraManager: NSObject, ObservableObject {
     private let nominalFPSLock = OSAllocatedUnfairLock<Double>(initialState: 30.0)
     @Published var isFocusLocked = false
 
+    /// 虚拟（或物理）设备 — 整个生命周期固定，不 swap。constituent 由系统按 zoom + .locked
+    /// 在内部切换。session 配置完成前为 nil。
+    private var captureDevice: AVCaptureDevice?
+
     override init() {
         super.init()
-        let (wide, tele) = Self.discoverPhysicalCameras()
-        wideDevice = wide
-        teleDevice = tele
-        Log.session.info("camera_devices_discovered wide=\(wide?.localizedName ?? "nil", privacy: .public) tele=\(tele?.localizedName ?? "nil", privacy: .public)")
+        let device = Self.discoverBestCaptureDevice()
+        captureDevice = device
+        let constituents = device?.constituentDevices.map(\.localizedName).joined(separator: "+") ?? "none"
+        Log.session.info("camera_device_discovered device=\(device?.localizedName ?? "nil", privacy: .public) type=\(device?.deviceType.rawValue ?? "nil", privacy: .public) constituents=[\(constituents, privacy: .public)]")
         setupOrientationMonitoring()
     }
 
-    /// 用 DiscoverySession 查找后置物理 wide 与 telephoto。
-    /// 不再用虚拟设备（TripleCamera 等），因为它的 switchover 策略会让 zoom < 2× 时
-    /// 落到 ultra wide 上，且 .locked behavior 受 pipeline 时序影响不可靠。
-    /// 物理设备一颗就是一颗，selecting which device == selecting which lens。
-    private static func discoverPhysicalCameras() -> (wide: AVCaptureDevice?, tele: AVCaptureDevice?) {
-        let session = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [.builtInWideAngleCamera, .builtInTelephotoCamera],
+    /// 按 iOS 26 推荐顺序选取后置 capture device。优先虚拟设备：让系统在内部完成 constituent
+    /// 切换（硬件级 crossfade，无黑屏），同时通过 setPrimaryConstituentDeviceSwitchingBehavior(.locked)
+    /// 严格控制每个焦距档位实际使用哪颗物理镜头。
+    /// 优先级：triple（UW+W+T）→ dual（W+T）→ dualWide（UW+W）→ 单 wide 兜底。
+    private static func discoverBestCaptureDevice() -> AVCaptureDevice? {
+        let priorities: [AVCaptureDevice.DeviceType] = [
+            .builtInTripleCamera,
+            .builtInDualCamera,
+            .builtInDualWideCamera,
+            .builtInWideAngleCamera
+        ]
+        let discovery = AVCaptureDevice.DiscoverySession(
+            deviceTypes: priorities,
             mediaType: .video,
             position: .back
         )
-        let wide = session.devices.first { $0.deviceType == .builtInWideAngleCamera }
-        let tele = session.devices.first { $0.deviceType == .builtInTelephotoCamera }
-        return (wide, tele)
+        // DiscoverySession.devices 按 deviceTypes 顺序返回，取第一个即最高优先级
+        return discovery.devices.first
     }
 
     deinit {
@@ -1074,9 +1062,9 @@ class CameraManager: NSObject, ObservableObject {
     private func applyVideoOrientationToOutputs() {
         // 预览旋转 vs 出片旋转必须解耦——对齐 iPhone 系统相机的体验：
         //
-        // 1) **预览（MTKView + bridgeImage）**：UI 在 AppDelegate 锁死竖屏，viewport 永远 3:4 portrait。
+        // 1) **预览（MTKView）**：UI 在 AppDelegate 锁死竖屏，viewport 永远 3:4 portrait。
         //    无论用户竖握还是横握，预览框都不旋转，所以这里固定 90°（sensor landscape → portrait viewport
-        //    的 CW 旋转）。bridgeImage 也读这个角度保持一致。
+        //    的 CW 旋转）。
         //
         // 2) **出片（photoOutput.connection）**：跟随物理设备朝向，让 JPEG 的"上"方向与用户当时的"上"方向
         //    一致。横握 → 出 4:3 横片，竖握 → 出 3:4 竖片。相册/详情靠 EXIF orientation 渲染，横片在竖屏
@@ -1246,11 +1234,11 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// 在专用串行队列上配置并启动 AVCaptureSession。单镜头模式：wide 启动、tele 预热 format（启动期就把
-    /// tele 的 4:3 高分辨率 format 选好，swap 路径上零 reconfig）。切镜走 swapInputDevice + bridgeImage cross-fade。
+    /// 在专用串行队列上配置并启动 AVCaptureSession。虚拟设备模式（iOS 26 推荐）：
+    /// 单 input（如 .builtInTripleCamera），constituent 切换由系统在内部完成，不再需要 swap。
     private func configureAndStartSession() async {
-        guard !session.isRunning, let device = wideDevice else {
-            Log.session.debug("session_config_skip running=\(self.session.isRunning) has_wide=\(self.wideDevice != nil)")
+        guard !session.isRunning, let device = captureDevice else {
+            Log.session.debug("session_config_skip running=\(self.session.isRunning) has_device=\(self.captureDevice != nil)")
             return
         }
         let configTimer = Log.perf("session_configure", logger: Log.session)
@@ -1321,14 +1309,8 @@ class CameraManager: NSObject, ObservableObject {
         observeCaptureRotationAngle()
         videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
 
-        // 预配置 telephoto 的 activeFormat（一次性，与 wide 同样选 4:3 高分辨率）。
-        // 这样后续 swapInputDevice(to: tele) 时 format 已经就绪，swap 路径只做 input 切换。
-        if let tele = teleDevice {
-            await preconfigureFormat(on: tele)
-        }
-
-        // Session 已配置，wide 和 tele 的 activeFormat / nominalFocalLengthIn35mmFilm 都已可用
-        focalInfo = DeviceFocalInfo.from(wide: device, tele: teleDevice)
+        // 虚拟设备：activeFormat / constituentDevices / virtualDeviceSwitchOverVideoZoomFactors 均已可用
+        focalInfo = DeviceFocalInfo.from(virtualDevice: device)
         if !focalInfo.options.contains(currentFocalLength) {
             currentFocalLength = focalInfo.options.contains(.mm35) ? .mm35 : (focalInfo.options.first ?? .mm24)
         }
@@ -1339,13 +1321,8 @@ class CameraManager: NSObject, ObservableObject {
 
         // dumpLensSpecs 打 70+ 行 os_log + 遍历 device.formats，main actor 上同步执行
         // 会延迟"主 actor 进入 idle"，让用户首次按下快门时的 Task @MainActor in 排队等待。
-        // 在 main actor 上预取依赖打包成 Sendable struct，然后到 background QoS task 上跑。
-        // AVCaptureDevice / Output 不是 Sendable，但实际上只在后台读 nonisolated 属性，
-        // 与主 actor 上的写入无并发风险——用 @unchecked Sendable wrapper 跳过编译期检查。
         let args = LensDumpArgs(
             device: device,
-            wideDevice: wideDevice,
-            teleDevice: teleDevice,
             focalInfo: focalInfo,
             photoOutput: photoOutput,
             videoDataOutput: videoDataOutput
@@ -1677,82 +1654,13 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// 在启动时为后备 telephoto 预配置 format（避免 swap 路径上做这件事）
-    private func preconfigureFormat(on device: AVCaptureDevice) async {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            sessionQueue.async {
-                self.applyBestFormatAndModes(on: device)
-                continuation.resume()
-            }
-        }
-    }
-
-    /// 切换 session 输入到指定物理设备。负责：
-    /// 1) sessionQueue 上做 begin/removeInput/addInput/photoOutputDims/commit（format 已预配置过）
-    /// 2) 回到 MainActor 重建 rotationCoordinator、重绑 zoom/focus/pressure KVO
-    /// 3) UI 端在调用前已抓 bridgeImage 盖住预览，swap 完成后再淡出，整体接近 iPhone 原相机切焦体验
-    private func swapInputDevice(to target: AVCaptureDevice) async {
-        if currentVideoInput?.device === target { return }
-
-        let captureSession = session
-        let output = photoOutput
-        let videoOutput = videoDataOutput
-        let from = currentVideoInput?.device.localizedName ?? "nil"
-        let swapTimer = Log.perf("swap_input", logger: Log.session)
-        Log.session.info("swap_input_begin from=\(from, privacy: .public) to=\(target.localizedName, privacy: .public)")
-
-        let newInput: AVCaptureDeviceInput? = await withCheckedContinuation { (continuation: CheckedContinuation<AVCaptureDeviceInput?, Never>) in
-            sessionQueue.async {
-                captureSession.beginConfiguration()
-
-                for input in captureSession.inputs {
-                    captureSession.removeInput(input)
-                }
-
-                var added: AVCaptureDeviceInput?
-                do {
-                    let inp = try AVCaptureDeviceInput(device: target)
-                    if captureSession.canAddInput(inp) {
-                        captureSession.addInput(inp)
-                        added = inp
-                    } else {
-                        Log.session.error("swap_input_cannot_add target=\(target.localizedName, privacy: .public)")
-                    }
-                } catch {
-                    Log.session.error("swap_input_create_failed error=\(error.localizedDescription, privacy: .public)")
-                }
-
-                // format 启动时已为 wide/tele 各配过；swap 路径只重置 photoOutput 输出尺寸即可
-                self.applyMaxPhotoDimensions(output: output, device: target)
-                // tele 的 active format 与 wide 不同，对 previewOptimized / standard 的支持也可能不同，
-                // 必须在 input 切换后重新评估并重新设置预览防抖模式。
-                self.applyPreviewStabilization(output: videoOutput, device: target)
-
-                captureSession.commitConfiguration()
-                continuation.resume(returning: added)
-            }
-        }
-
-        currentVideoInput = newInput
-        rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: target, previewLayer: nil)
-        observeCaptureRotationAngle()
-        bindDeviceObservers(to: target)
-        // EV 滑块绑定到旧设备，重装到新设备
-        installExposureBiasSlider(for: target)
-        applyVideoOrientationToOutputs()
-
-        let activeDims = CMVideoFormatDescriptionGetDimensions(target.activeFormat.formatDescription)
-        let outDims = photoOutput.maxPhotoDimensions
-        Log.session.info("swap_complete device=\(target.localizedName, privacy: .public) active_dims=\(activeDims.width)x\(activeDims.height) photo_dims=\(outDims.width)x\(outDims.height) zoom=\(String(format: "%.2f", target.videoZoomFactor))")
-
-        swapTimer.end("device=\(target.localizedName)")
-    }
-
-    /// 把 zoom / focus / pressure KVO 重新绑到当前激活设备。swap 后必须调用。
+    /// 把 zoom / focus / pressure / activePrimaryConstituent KVO 绑到 capture device。
+    /// 虚拟设备架构下整个 session 生命周期内 device 实例不变，只在 configureAndStartSession 末尾调一次。
     private func bindDeviceObservers(to device: AVCaptureDevice) {
         zoomObservation?.invalidate()
         focusObservation?.invalidate()
         pressureObservation?.invalidate()
+        constituentObservation?.invalidate()
 
         zoomObservation = device.observe(\.videoZoomFactor, options: [.new]) { [weak self] dev, change in
             guard let self, let newZoom = change.newValue else { return }
@@ -1760,7 +1668,9 @@ class CameraManager: NSObject, ObservableObject {
             Task { @MainActor in
                 self.currentZoomFactor = newZoom
                 if isRamping { return }
-                let nativeMm = (dev.deviceType == .builtInTelephotoCamera) ? self.focalInfo.teleMm : self.focalInfo.wideMm
+                // 等效焦距 = primaryNativeMm × videoZoomFactor（与系统选哪颗 constituent 无关，
+                // 因为 videoZoomFactor 是虚拟设备坐标系下的 FOV 比率）。
+                let nativeMm = self.focalInfo.primaryNativeMm
                 guard nativeMm > 0 else { return }
                 let mm = Float(newZoom) * nativeMm
                 let closest = self.focalInfo.options.min { abs($0.mm - mm) < abs($1.mm - mm) }
@@ -1782,6 +1692,19 @@ class CameraManager: NSObject, ObservableObject {
             let level = dev.systemPressureState.level
             self.sessionQueue.async {
                 self.adjustFrameRateForPressure(device: dev, level: level)
+            }
+        }
+
+        // activePrimaryConstituentDevice：诊断 .locked 是否生效。.locked 期望该值不会因
+        // videoZoomFactor 跨阈值而漂移；漂移即说明锁失效，应在日志里被立刻看见。
+        constituentObservation = device.observe(\.activePrimaryConstituent, options: [.new]) { [weak self] _, change in
+            guard let self else { return }
+            let name = change.newValue.flatMap { $0?.localizedName } ?? "nil"
+            Task { @MainActor in
+                if self.activeConstituentName != name {
+                    self.activeConstituentName = name
+                    Log.session.info("constituent_active_changed name=\(name, privacy: .public)")
+                }
             }
         }
     }
@@ -1933,20 +1856,16 @@ class CameraManager: NSObject, ObservableObject {
     /// `@unchecked Sendable` 表达"语义上 Sendable，但编译器无法证明"。
     fileprivate struct LensDumpArgs: @unchecked Sendable {
         let device: AVCaptureDevice
-        let wideDevice: AVCaptureDevice?
-        let teleDevice: AVCaptureDevice?
         let focalInfo: DeviceFocalInfo
         let photoOutput: AVCapturePhotoOutput
         let videoDataOutput: AVCaptureVideoDataOutput
     }
 
-    /// 一次性打印当前后置镜头/会话的所有可读数据，便于调试与设备适配。
+    /// 一次性打印当前后置虚拟设备 / 会话的所有可读数据，便于调试与设备适配。
     /// 必须在 session 配置完成后调用，否则 activeFormat / 缩放范围 / maxPhotoDimensions 会读到默认值。
     /// nonisolated + 所有依赖通过 LensDumpArgs 传入：可在 background QoS task 上跑，不占用主 actor。
     nonisolated fileprivate static func dumpLensSpecsImpl(args: LensDumpArgs) {
         let device = args.device
-        let wideDevice = args.wideDevice
-        let teleDevice = args.teleDevice
         let focalInfo = args.focalInfo
         let photoOutput = args.photoOutput
         let videoDataOutput = args.videoDataOutput
@@ -1966,11 +1885,13 @@ class CameraManager: NSObject, ObservableObject {
         // 1) 设备身份
         log.info("📷 device id=\(device.uniqueID, privacy: .public) name=\(device.localizedName, privacy: .public) modelID=\(device.modelID, privacy: .public) manufacturer=\(device.manufacturer, privacy: .public) type=\(device.deviceType.rawValue, privacy: .public) position=\(pos, privacy: .public) virtual=\(device.isVirtualDevice)")
 
-        // 2) 物理镜头清单（W + T，可能 T 为 nil）
-        let wMm = wideDevice?.nominalFocalLengthIn35mmFilm ?? 0
-        let tMm = teleDevice?.nominalFocalLengthIn35mmFilm ?? 0
-        log.info("📷 physical_cameras wide=\(wideDevice?.localizedName ?? "nil", privacy: .public)/\(String(format: "%.1f", wMm))mm tele=\(teleDevice?.localizedName ?? "nil", privacy: .public)/\(String(format: "%.1f", tMm))mm")
-        log.info("📷 optics current_device=\(device.localizedName, privacy: .public) aperture=f/\(String(format: "%.2f", device.lensAperture)) wideMm=\(focalInfo.wideMm) teleMm=\(focalInfo.teleMm) focalOptions=\(focalInfo.options.map { $0.rawValue }, privacy: .public)")
+        // 2) Constituent devices（虚拟设备的物理镜头组成）+ switchOver 阈值
+        let constituentList = device.constituentDevices.map { c in
+            "\(c.localizedName)/\(String(format: "%.1f", c.nominalFocalLengthIn35mmFilm))mm"
+        }.joined(separator: ", ")
+        let switchOvers = device.virtualDeviceSwitchOverVideoZoomFactors.map { String(format: "%.2f", CGFloat(truncating: $0)) }.joined(separator: ",")
+        log.info("📷 constituents [\(constituentList, privacy: .public)] switchOvers=[\(switchOvers, privacy: .public)]")
+        log.info("📷 optics current_device=\(device.localizedName, privacy: .public) aperture=f/\(String(format: "%.2f", device.lensAperture)) primaryMm=\(focalInfo.primaryNativeMm) focalOptions=\(focalInfo.options.map { $0.rawValue }, privacy: .public)")
 
         // 4) 缩放范围 / 当前缩放
         let fmt = device.activeFormat
@@ -2094,106 +2015,143 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - 捏合切换焦段（一次手势只切换一档）
-
-    func handlePinchZoom(scale: CGFloat) {
-        guard !pinchDidSwitch else { return }
-        let threshold: CGFloat = 1.15  // 缩放超过 15% 触发切换
-        let options = focalInfo.options
-        guard let currentIdx = options.firstIndex(of: currentFocalLength) else { return }
-
-        if scale > threshold, currentIdx + 1 < options.count {
-            pinchDidSwitch = true
-            hapticMedium.impactOccurred()
-            setFocalLength(options[currentIdx + 1])
-        } else if scale < 1.0 / threshold, currentIdx > 0 {
-            pinchDidSwitch = true
-            hapticMedium.impactOccurred()
-            setFocalLength(options[currentIdx - 1])
-        }
-    }
-
-    func finishPinchZoom() {
-        pinchDidSwitch = false
-    }
-
-    /// 切焦距：需要换物理镜头时先抓 bridgeImage 盖住预览，sessionQueue 上完成 swap，
-    /// 等 ~250ms 让新镜头 AE/WB 收敛 + 1-2 帧抵达 MTKView，再清空 bridgeImage 触发 SwiftUI 淡出。
-    /// 视觉效果：用户看到的是「上一帧定格 → 平滑过渡到新镜头」，没有黑帧、没有 AE 突跳。
+    /// 切焦距。两条路径：
+    ///
+    /// **快路径**（target constituent 已激活，如 35mm→50mm 都在 W 上）：单 lock 块内
+    /// `.locked` + ramp + 安全快门，零异步等待，瞬时响应。
+    ///
+    /// **慢路径**（跨 constituent，如 35mm→100mm）：
+    ///   - Phase 0: 独立 lock 块解 `.locked → .auto`，yield 33ms 让 AVF 把 min/max 展回 [1, max]。
+    ///     **不能与 zoom 写共用同一锁块**—— zoom 写入仍按旧 .locked min/max clamp，跨档卡住。
+    ///   - Phase 1: 单段动画 ramp 直接到 targetZoom。`.auto` 模式下，ramp 经过 switchover 阈值时
+    ///     系统硬件级自动 crossfade 切换 constituent —— 这就是 iPhone 原相机连续 zoom 的丝滑感。
+    ///   - Phase 2: 等 ramp 完成（KVO `isRampingVideoZoom`）+ constituent 收敛到 target。
+    ///   - Phase 3: `.locked` 钉住 constituent，防止后续 AE/zoom 漂移。
+    ///
+    /// 边界焦距（24mm zoom=2.0、100mm zoom=8.0）在 switchover 上，加 0.05 ε 推进 target 区间内部，
+    /// 避免 ramp 落在边界时系统选错 constituent。FOV 偏差 < 1%，肉眼不可察。
+    /// `applyFocalToken` 防止快速来回点导致旧 task 把新档位的 lock 撤掉。
     private func applyFocalLength(_ option: FocalLengthOption, animated: Bool = true, fromZoom: CGFloat? = nil) {
-        let targetType = focalInfo.deviceType(for: option)
-        let target: AVCaptureDevice? = (targetType == .builtInTelephotoCamera) ? teleDevice : wideDevice
-        guard let target else {
-            Log.session.error("focal_apply_no_device type=\(targetType.rawValue, privacy: .public) option=\(option.rawValue)")
+        guard let device = videoCaptureDevice else {
+            Log.session.error("focal_apply_no_device option=\(option.rawValue)")
+            return
+        }
+        guard let target = focalInfo.constituent(for: option) else {
+            Log.session.error("focal_apply_no_constituent option=\(option.rawValue) info_constituents=\(self.focalInfo.constituents.count)")
             return
         }
 
-        let needSwap = (currentVideoInput?.device !== target)
-        let zoomOnTarget = focalInfo.zoomFactor(for: option)
+        // 边界保护：targetZoom 恰在 target.virtualZoomRange.lowerBound 上时（24mm/100mm），
+        // ramp 终点落在 switchover 阈值上，系统判定有歧义可能选错 constituent。
+        // 加 0.05 ε 推进区间内部（FOV 偏差：100mm→100.6mm，24mm→24.6mm，肉眼不可察）。
+        // UW 的 lowerBound = 1.0 是设备最小 zoom，没有低位 constituent 可漂移，跳过该补偿。
+        let baseZoom = focalInfo.virtualZoomFactor(for: option)
+        let needsBoundaryBias = target.virtualZoomRange.lowerBound > 1.0 &&
+                                abs(baseZoom - target.virtualZoomRange.lowerBound) < 0.01
+        let targetZoom = needsBoundaryBias ? baseZoom + 0.05 : baseZoom
 
-        if needSwap {
-            // 用户快速来回点档位时，旧 swap 完成回调中的 bridgeImage 清理必须被丢弃，
-            // 否则会把过时回调把 bridge 提前撤掉，露出还没收敛好的画面。
-            swapToken &+= 1
-            let myToken = swapToken
+        applyFocalToken &+= 1
+        let myToken = applyFocalToken
 
-            // 1. 抓 bridge 帧（与当前预览像素级一致）
-            if let bridge = makeBridgeImage(lutCacheKey: currentLutCacheKey) {
-                bridgeImage = bridge
-            }
+        // 自适应 ramp 速率：跨度越大越快，小幅切换更柔和（同 iPhone 原相机）
+        let ratio = fromZoom.map { max(targetZoom / $0, $0 / targetZoom) } ?? 2.0
+        let rampRate: Float = if ratio < 1.5 { 4.0 } else if ratio < 3.0 { 8.0 } else { 16.0 }
 
-            // 2. swap → ramp zoom → 等 AE 收敛 → 淡出 bridge
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                await self.swapInputDevice(to: target)
-                guard self.swapToken == myToken else {
-                    Log.session.info("focal_apply_obsolete option=\(option.rawValue) token=\(myToken) latest=\(self.swapToken)")
-                    return
-                }
-                self.applyZoomOnly(zoomOnTarget, on: target, animated: animated, fromZoom: fromZoom, option: option)
-                // 30fps ≈ 33ms/frame；250ms ≈ 7-8 帧。新镜头 AE/WB 收敛 + 几帧到达 MTKView。
-                try? await Task.sleep(for: .milliseconds(250))
-                guard self.swapToken == myToken else { return }
-                self.bridgeImage = nil
-            }
-        } else {
-            applyZoomOnly(zoomOnTarget, on: target, animated: animated, fromZoom: fromZoom, option: option)
-        }
-    }
+        // ============= 快路径：target constituent 已激活，直接 ramp =============
+        // 适用 35→50（同 W）、100→200（同 T）等场景。零异步等待，体验最丝滑。
+        if device.activePrimaryConstituent === target.device {
+            do {
+                try device.lockForConfiguration()
+                // 幂等：已 .locked 时是 no-op；从 .auto 状态进入则锁到当前 target constituent
+                device.setPrimaryConstituentDeviceSwitchingBehavior(.locked, restrictedSwitchingBehaviorConditions: [])
+                let postLockMin = device.minAvailableVideoZoomFactor
+                let postLockMax = device.activeFormat.videoMaxZoomFactor
+                let finalZoom = max(postLockMin, min(postLockMax, targetZoom))
 
-    /// 在已经是目标设备的前提下，单纯设置 zoom（带 ramp 动画）。
-    private func applyZoomOnly(_ zoom: CGFloat, on device: AVCaptureDevice, animated: Bool, fromZoom: CGFloat?, option: FocalLengthOption) {
-        let maxZoom = device.activeFormat.videoMaxZoomFactor
-        let minZoom = device.minAvailableVideoZoomFactor
-        let clamped = max(minZoom, min(maxZoom, zoom))
-
-        do {
-            try device.lockForConfiguration()
-            if animated {
-                // 自适应速率：跨度越大越快，小幅切换更柔和，接近 iPhone 原相机体验
-                let ratio = fromZoom.map { max(clamped / $0, $0 / clamped) } ?? 2.0
-                let rate: Float = if ratio < 1.5 {
-                    4.0    // 小幅切换（如 24→35）：柔和
-                } else if ratio < 3.0 {
-                    8.0    // 中等跨度（如 24→50）
+                if animated {
+                    device.ramp(toVideoZoomFactor: finalZoom, withRate: rampRate)
                 } else {
-                    16.0   // 大幅跨度
+                    device.videoZoomFactor = finalZoom
                 }
-                device.ramp(toVideoZoomFactor: clamped, withRate: rate)
-            } else {
-                device.videoZoomFactor = clamped
+                self.currentZoomFactor = finalZoom
+
+                let safeShutter = self.computeSafeShutterDuration(focalMm: option.rawValue, format: device.activeFormat)
+                device.activeMaxExposureDuration = safeShutter
+                device.unlockForConfiguration()
+
+                let active = device.activePrimaryConstituent?.localizedName ?? "nil"
+                Log.session.info("focal_applied path=fast option=\(option.rawValue)mm active=\(active, privacy: .public) zoom=\(String(format: "%.2f", finalZoom))x animated=\(animated)")
+            } catch {
+                Log.session.error("focal_fast_lock_failed error=\(error.localizedDescription, privacy: .public)")
             }
-            currentZoomFactor = clamped
-            // 安全快门：与 zoom 共用同一把 lock，避免双重 lockForConfiguration。
-            // 焦段切换是触发安全快门更新的唯一场景（24→200 跨 3 stops，不更新会糊）。
-            let safeShutter = self.computeSafeShutterDuration(focalMm: option.rawValue, format: device.activeFormat)
-            device.activeMaxExposureDuration = safeShutter
-            device.unlockForConfiguration()
-            let shutterS = CMTimeGetSeconds(safeShutter)
-            let shutterReadable = shutterS > 0 && shutterS < 1 ? "1/\(Int(round(1.0 / shutterS)))s" : String(format: "%.3fs", shutterS)
-            Log.session.info("focal_applied target=\(option.rawValue)mm zoom=\(String(format: "%.2f", clamped))x device=\(device.localizedName, privacy: .public) animated=\(animated) safe_shutter=\(shutterReadable, privacy: .public)")
-        } catch {
-            Log.session.error("focal_apply_failed error=\(error.localizedDescription, privacy: .public)")
+            return
+        }
+
+        // ============= 慢路径：跨 constituent，单段动画 ramp + .auto 自然 crossfade =============
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            // Phase 0: 释放上一次的 .locked，切回 .auto，让 minAvailableVideoZoomFactor 展回 [1, max]
+            do {
+                try device.lockForConfiguration()
+                device.setPrimaryConstituentDeviceSwitchingBehavior(.auto, restrictedSwitchingBehaviorConditions: [])
+                device.unlockForConfiguration()
+            } catch {
+                Log.session.error("focal_phase0_unlock_failed error=\(error.localizedDescription, privacy: .public)")
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(33))  // ≈1 帧 @30fps，让 AVF 重算 min/max
+            if self.applyFocalToken != myToken { return }
+
+            // Phase 1: 单段动画 ramp 直接到 targetZoom。ramp 经过 switchover 时 .auto 自动 crossfade。
+            // 这是丝滑感的核心：用户看到的是连续 zoom 动画，不是"硬跳一帧 + 等 + 再 ramp"。
+            do {
+                try device.lockForConfiguration()
+                if animated {
+                    device.ramp(toVideoZoomFactor: targetZoom, withRate: rampRate)
+                } else {
+                    device.videoZoomFactor = targetZoom
+                }
+                self.currentZoomFactor = targetZoom
+                // 安全快门：与 zoom 共用同一把 lock，焦段切换时同步更新
+                let safeShutter = self.computeSafeShutterDuration(focalMm: option.rawValue, format: device.activeFormat)
+                device.activeMaxExposureDuration = safeShutter
+                device.unlockForConfiguration()
+            } catch {
+                Log.session.error("focal_phase1_lock_failed error=\(error.localizedDescription, privacy: .public)")
+                return
+            }
+
+            // Phase 2: 等 ramp 完成（KVO isRampingVideoZoom = false），1500ms 兜底
+            if animated {
+                let rampDeadline = Date().addingTimeInterval(1.5)
+                while device.isRampingVideoZoom, Date() < rampDeadline {
+                    try? await Task.sleep(for: .milliseconds(20))
+                    if self.applyFocalToken != myToken { return }
+                }
+            }
+            // ramp 完成后 .auto 通常已选好 target；个别场景下 AE 还在收敛，再等 300ms 兜底
+            let consDeadline = Date().addingTimeInterval(0.3)
+            while device.activePrimaryConstituent !== target.device, Date() < consDeadline {
+                try? await Task.sleep(for: .milliseconds(20))
+                if self.applyFocalToken != myToken { return }
+            }
+            if self.applyFocalToken != myToken { return }
+
+            // Phase 3: 锁 constituent，防止后续 AE/zoom 漂移
+            let activeBeforeLock = device.activePrimaryConstituent
+            do {
+                try device.lockForConfiguration()
+                device.setPrimaryConstituentDeviceSwitchingBehavior(.locked, restrictedSwitchingBehaviorConditions: [])
+                device.unlockForConfiguration()
+            } catch {
+                Log.session.error("focal_phase3_lock_failed error=\(error.localizedDescription, privacy: .public)")
+                return
+            }
+
+            let active = activeBeforeLock?.localizedName ?? "nil"
+            let match = activeBeforeLock === target.device
+            Log.session.info("focal_applied path=slow option=\(option.rawValue)mm target=\(target.device.localizedName, privacy: .public) active=\(active, privacy: .public) match=\(match) zoom=\(String(format: "%.2f", device.videoZoomFactor))x animated=\(animated)")
         }
     }
 
@@ -2244,7 +2202,6 @@ class CameraManager: NSObject, ObservableObject {
         // 清空 stale buffer：iOS 把 app 拉回前台后，MTKView 第一次重绘前会显示
         // 缓存里的最后一帧（可能是几分钟前的画面）。清空 + 由首帧到达自然触发重绘。
         pixelBufferLock.withLockUnchecked { $0.buffer = nil }
-        bridgeImage = nil
     }
 
     /// 从后台回到前台、或 sessionInterruptionEnded、或 runtime error 之后调用。
@@ -2281,8 +2238,9 @@ class CameraManager: NSObject, ObservableObject {
         pressureObservation = nil
         captureRotationObservation?.invalidate()
         captureRotationObservation = nil
+        constituentObservation?.invalidate()
+        constituentObservation = nil
         currentVideoInput = nil
-        bridgeImage = nil
         // 清空 buffer（避免 stopRunning 后 MTKView 还显示上次的 frame）
         pixelBufferLock.withLockUnchecked { $0.buffer = nil }
         // 取消 NotificationCenter observer（deinit 因 Swift 6 隔离规则无法访问这些属性）

@@ -1,53 +1,15 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "%1$@ %2$@ built-in lens" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ %2$@ built-in lens"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ %2$@ 内置镜头"
-          }
-        }
-      }
+    "" : {
+
     },
-    "%lld selected" : {
-      "extractionState" : "manual",
+    "%@ %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld selected"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已选择 %lld 张"
-          }
-        }
-      }
-    },
-    "%lld shots" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld shots"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld 张"
+            "state" : "new",
+            "value" : "%1$@ %2$@"
           }
         }
       }
@@ -86,53 +48,19 @@
         }
       }
     },
-    "Custom filter %@, ISO %lld" : {
+    "%1$@ %2$@ built-in lens" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Custom filter %1$@, ISO %2$lld"
+            "value" : "%1$@ %2$@ built-in lens"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "自定义滤镜 %1$@，ISO %2$lld"
-          }
-        }
-      }
-    },
-    "Custom filter %@, ISO %lld, %lld shots taken" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Custom filter %1$@, ISO %2$lld, %3$lld shots taken"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自定义滤镜 %1$@，ISO %2$lld，已拍 %3$lld 张"
-          }
-        }
-      }
-    },
-    "Current film: %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Current film: %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当前胶片：%@"
+            "value" : "%1$@ %2$@ 内置镜头"
           }
         }
       }
@@ -149,6 +77,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "%lld selected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld selected"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已选择 %lld 张"
+          }
+        }
+      }
+    },
+    "%lld shots" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld shots"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 张"
           }
         }
       }
@@ -170,22 +132,8 @@
         }
       }
     },
-    "Altitude %@m" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Altitude %@m"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "海拔 %@m"
-          }
-        }
-      }
+    "200" : {
+
     },
     "Allow camera access for JustShoot in Settings" : {
       "extractionState" : "manual",
@@ -200,6 +148,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请在系统设置中允许 JustShoot 访问相机"
+          }
+        }
+      }
+    },
+    "Altitude %@m" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Altitude %@m"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "海拔 %@m"
           }
         }
       }
@@ -544,6 +509,23 @@
         }
       }
     },
+    "Current film: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current film: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前胶片：%@"
+          }
+        }
+      }
+    },
     "Custom" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -557,6 +539,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自定义"
+          }
+        }
+      }
+    },
+    "Custom filter %@, ISO %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom filter %1$@, ISO %2$lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义滤镜 %1$@，ISO %2$lld"
+          }
+        }
+      }
+    },
+    "Custom filter %@, ISO %lld, %lld shots taken" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom filter %1$@, ISO %2$lld, %3$lld shots taken"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义滤镜 %1$@，ISO %2$lld，已拍 %3$lld 张"
           }
         }
       }
@@ -782,23 +798,6 @@
         }
       }
     },
-    "Filter (active)" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Filter (active)"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "筛选（已启用）"
-          }
-        }
-      }
-    },
     "Filter · %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -812,6 +811,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "筛选 · %lld"
+          }
+        }
+      }
+    },
+    "Filter (active)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter (active)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筛选（已启用）"
           }
         }
       }
@@ -1020,23 +1036,6 @@
         }
       }
     },
-    "Import LUT" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Import LUT"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "导入 LUT"
-          }
-        }
-      }
-    },
     "Import failed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1050,6 +1049,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "导入失败"
+          }
+        }
+      }
+    },
+    "Import LUT" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import LUT"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入 LUT"
           }
         }
       }
@@ -1071,6 +1087,9 @@
         }
       }
     },
+    "ISO %lld" : {
+
+    },
     "JustShoot" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1088,23 +1107,6 @@
         }
       }
     },
-    "LUT resource not found: %@.cube" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "LUT resource not found: %@.cube"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "找不到 LUT 资源：%@.cube"
-          }
-        }
-      }
-    },
     "Location off" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1118,6 +1120,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "位置已关闭"
+          }
+        }
+      }
+    },
+    "LUT resource not found: %@.cube" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUT resource not found: %@.cube"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到 LUT 资源：%@.cube"
           }
         }
       }
