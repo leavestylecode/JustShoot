@@ -4,278 +4,299 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-JustShoot is an iOS film camera simulation app built with SwiftUI and SwiftData that emulates authentic film photography. The app provides 8 different film presets using LUT (Look-Up Table) color grading, organizes photos into 27-shot rolls mimicking disposable cameras, and preserves complete EXIF/GPS metadata.
+JustShoot is an iOS film camera app built with SwiftUI and SwiftData that emulates authentic film photography. The app provides 8 built-in film presets via LUT (Look-Up Table) color grading, supports user-imported `.cube` LUTs as custom filters, and ships a 550-card film-packaging library for browsing real-world film stocks. Photos are captured at HEIF/HEVC with full EXIF/GPS metadata preserved.
 
-**Current State**: Optimized for iOS 18+ with modern AVFoundation APIs. The app features responsive capture, instant shutter feedback, intelligent GPS caching, real-time LUT preview, automatic 35mm focal length simulation, flash with distance-based compensation, and a gallery system organized by film rolls.
+**Current State**: Optimized for iOS 26 with the latest AVFoundation virtual-device architecture (`builtInTripleCamera` + `setPrimaryConstituentDeviceSwitchingBehavior(.locked)`), iOS 26 Liquid Glass UI for camera controls, and Swift 6 strict concurrency throughout. Under `complete` mode with zero warnings. iPhone-Camera–level interaction: tap-to-focus + drag-for-EV, orientation-aware controls under portrait UI lock, ZSL-gated lens switching, distance-aware flash with AE/WB lock-and-restore.
 
 ## Architecture
 
 ### Core Technologies
-- **SwiftUI**: Modern declarative UI framework for iOS 18+
-- **SwiftData**: Data persistence with Photo and Roll models
-- **AVFoundation**: Responsive capture with iOS 18 optimizations (ResponsiveCaptureEnabled, FastCapturePrioritization)
-- **CoreImage + Metal**: Real-time LUT filter processing with GPU acceleration via MTKView
-- **CoreLocation**: Intelligent GPS caching with 30s cache expiry, zero-wait location strategy
-- **Photos Framework**: Photo library integration with complete metadata preservation
+- **SwiftUI** with iOS 26 features (Liquid Glass `.glassEffect`, `matchedTransitionSource`, `navigationTransition(.zoom)`)
+- **SwiftData** with versioned schema (`SchemaV1`), `@ModelActor` for off-main writes
+- **AVFoundation** virtual-device architecture — `builtInTripleCamera` with `.locked` constituent switching
+- **CoreImage + Metal** — sRGB-locked CIContext for LUT processing, dedicated compute shader for real-time preview
+- **CoreMotion** accelerometer (5 Hz) for device orientation under system rotation lock
+- **CoreLocation** with 30 s cache, zero-wait GPS fetch
+- **Photos Framework** for export with metadata preservation
 
-### Key Components
+### Source Layout (post-refactor, 19 files)
 
-**Models.swift**: Data models and film processing engine
-- `Photo`: Stores imageData, film preset, GPS coordinates, timestamps with EXIF extraction utilities
-- `Roll`: 27-shot film roll container with preset tracking and completion status
-- `FilmPreset`: Enum defining 8 film types (Fuji C200, Pro 400H, Provia 100F, Kodak Portra 400, Vision3 5219/5203, 5207, Harman Phoenix 200)
-- `FilmProcessor`: Singleton handling LUT loading, caching, and application with metadata preservation
+```
+JustShoot/
+├── JustShootApp.swift              (75)   @main, SchemaV1 + JustShootMigrationPlan,
+│                                          AppDelegate forces .portrait, retroactive
+│                                          UINavigationController gesture
+├── ContentView.swift               (418)  Home: 3-col preset+custom-LUT grid;
+│                                          fileImporter for .cube; tile→camera zoom
+├── Logging.swift                   (50)   Log enum (8 categories) + PerfTimer
+├── Models.swift                    (383)  Photo @Model, CustomLUT @Model, FilmPreset,
+│                                          FilmSource (preset|custom unification),
+│                                          ParsedExifInfo, PhotoSaver @ModelActor,
+│                                          AnyKeyPath @retroactive Sendable
+├── FilmProcessor.swift             (323)  CubeLUT, FilmProcessor singleton (LUT
+│                                          parse + applyLUTPreservingMetadata HEIF
+│                                          pipeline)
+├── FilmCardCatalog.swift           (167)  FilmCard, FilmCardBundle, FilmCardImageCache,
+│                                          FilmCardLibrary (550-card index)
+│
+│ ── Camera (post-split: was one 3,233-line monolith)
+├── CameraView.swift                (693)  SwiftUI shell + capture pipeline + gestures
+├── CameraSubviews.swift            (260)  FocusIndicatorView, ExposureSunRail,
+│                                          FocalLengthStrip, FilmSourceCoverThumbnail,
+│                                          FlashMode, Notification.Name extension,
+│                                          UIDeviceOrientation extension, openAppSettings
+├── DeviceFocalInfo.swift           (133)  FocalLengthOption enum, ConstituentInfo,
+│                                          DeviceFocalInfo (virtual-device focal data)
+├── MetalPreview.swift              (291)  RealtimePreviewView + Metal Coordinator
+│                                          (CVPixelBuffer → 3D LUT compute shader)
+├── CameraManager.swift             (278)  Class declaration + stored properties +
+│                                          init/deinit + frame state + delegates
+│                                          (VideoDataOutput, SessionControls)
+├── CameraManager+Orientation.swift (143)  CMMotion accelerometer +
+│                                          RotationCoordinator KVO + EXIF orientation
+├── CameraManager+Session.swift     (836)  permissions / configureAndStartSession /
+│                                          format & dimensions / stabilization /
+│                                          lockInitialFocalLength / KVO observers /
+│                                          lifecycle / dumpLensSpecs diagnostics
+├── CameraManager+Lens.swift        (247)  setFocalLength fast/slow path,
+│                                          beginLensTransition / waitForLensSettled,
+│                                          safe-shutter computation
+├── CameraManager+Capture.swift     (348)  setFocusAndExposure, setExposureBias,
+│                                          flash bias & restore, capturePhoto +
+│                                          AVCapturePhotoCaptureDelegate
+├── CameraManager+Location.swift    (93)   GPS 30 s cache + CLLocationManagerDelegate
+│
+│ ── Gallery + film card library
+├── GalleryView.swift               (1601) ImageLoader singleton, GalleryView grid,
+│                                          PhotoDetailView pager, ZoomingScrollView,
+│                                          PhotoScrubber, PhotoInfoPanel
+├── FilmCardLibraryView.swift       (747)  Card library UI: filters, grid, detail
+└── FilmCardCoverBackground.swift   (409)  Dominant-color extraction + adaptive backdrop
+```
 
-**CameraView.swift**: Camera interface and capture logic (iOS 18 optimized)
-- `CameraView`: SwiftUI camera UI with instant shutter feedback, 3:4 preview, exposure counter, flash toggle
-- `CameraManager`: iOS 18 responsive capture, 35mm focal length simulation (1.0-1.35x zoom), flash compensation, intelligent GPS caching
-- `RealtimePreviewView`: MTKView-based real-time LUT preview rendering at 30fps with portrait orientation lock
-- `AVCaptureDevice.RotationCoordinator` for orientation handling (iOS 18 only, no legacy support)
+PBX file system synchronized group is on (`objectVersion = 77`); any file dropped into `JustShoot/` is auto-bundled into the target — no `pbxproj` edit needed.
 
-**ContentView.swift**: Main menu with film preset selection grid
-- Displays 8 film presets with ISO values, active roll indicators, and shot progress
-- Shows total photo count and navigates to gallery or camera views
+### Data Model
 
-**GalleryView.swift**: Photo browsing and management
-- `ImageLoader`: Singleton with NSCache + disk caching for thumbnails and previews using CGImageSource downsampling
-- Roll-based organization showing photos grouped by film type
-- `PhotoDetailView`: Swipeable full-screen photo viewer with EXIF display and Photos.app export
+```
+Photo (@Model)
+├── id: UUID
+├── timestamp: Date
+├── imageData: Data (.externalStorage)         ← HEIF or JPEG bytes
+├── filmPresetName: String?                    ← FilmPreset.rawValue OR "custom:<UUID>"
+├── filmDisplayLabel: String?                  ← user-facing label for custom LUTs
+├── latitude / longitude / altitude: Double?
+├── locationTimestamp: Date?
+└── _parsedExif: ParsedExifInfo? (Transient, lazy)
 
-### Photo Processing Pipeline (iOS 18 Optimized)
+CustomLUT (@Model)
+├── id: UUID
+├── displayName / fileName / iso / dimension
+└── createdAt: Date
+```
 
-1. **Instant Feedback**: Haptic feedback + 0.1s flash animation triggered immediately, before camera callback
-2. **Capture**: iOS 18 responsive capture with speed prioritization and fast capture mode
-3. **Concurrent Processing**: LUT and GPS fetching run in parallel async tasks
-4. **35mm Simulation**: Digital zoom (device-specific, typically 1.0-1.35x) via maxPhotoDimensions
-5. **LUT Processing**: CIColorCube filter from .cube files (25×25×25 dimension) on background queue
-6. **Metadata Preservation**: GPS coordinates (cached), device info, focal length, orientation via CGImageDestination
-7. **Storage**: SwiftData with @Attribute(.externalStorage) for imageData
+`FilmSource` is the unified abstraction for "what LUT to apply":
 
-### 35mm Focal Length System
+```
+enum FilmSource {
+    case preset(FilmPreset)              // built-in
+    case custom(id, displayName, iso, fileName)
+    var photoFilterName: String          // → Photo.filmPresetName
+    var lutCacheKey: String              // → FilmProcessor cache key
+}
+```
 
-The app simulates a fixed 35mm equivalent focal length across all devices:
-- Reads device native focal length (24mm for iPhone 16/15 Pro, 26mm for standard models, 28mm for older devices)
-- Calculates required zoom factor to reach 35mm equivalent: `requiredZoom = 35.0 / deviceEquivalent`
-- Applied via `AVCaptureDevice.videoZoomFactor` on session start
-- EXIF metadata records both physical and 35mm equivalent focal lengths
+`PhotoSaver` is a `@ModelActor` that owns its own `ModelContext` bound to the same `ModelContainer`. This bypasses `mainContext` so capture-time saves don't block the camera UI; SwiftData broadcasts changes back to the main `@Query` automatically.
 
-### Orientation Handling Strategy (iOS 18)
+### Photo Capture Pipeline
 
-Uses `AVCaptureDevice.RotationCoordinator.videoRotationAngleForHorizonLevelCapture`:
-- Applied to photo output connection via `videoRotationAngle`
-- Real-time preview always rotates landscape frames 90° to portrait in MTKView rendering
-- Converts rotation angle to EXIF orientation values (1/3/6/8) for metadata
-- No legacy iOS support - minimum deployment target is iOS 18.0
+```
+shutter tap (CameraView)
+  ├── isCapturing = true                       ← guards entire pipeline (button throttle)
+  ├── haptic + button press animation
+  └── cameraManager.capturePhoto { ... }
+         ├── await waitForLensSettled (≤600 ms) ← gate ZSL-vs-lens-switch race
+         ├── flashMode == .on
+         │     ├── lock exposureMode = .locked, whiteBalanceMode = .locked
+         │     ├── apply distance-based exposure bias
+         │     └── stash FlashRestoreState for post-capture
+         └── photoOutput.capturePhoto(...)
+                ├── willCapturePhotoFor    ── drives screen-flash overlay (synced w/ xenon)
+                ├── didCapturePhotoFor     ── exposure-complete log
+                └── didFinishProcessingPhoto
+                       └── back on @MainActor:
+                             ├── applyFlashRestore (restore AE/WB)
+                             └── photoDataHandler(data)
 
-### Flash System
+Task.detached @userInitiated
+  ├── cachedOrFreshLocation()                  ← 30 s cache, zero-wait
+  ├── FilmProcessor.applyLUTPreservingMetadata
+  │     ├── CIImage(data:).oriented(forExifOrientation:)
+  │     ├── CIColorCubeWithColorSpace (sRGB)
+  │     ├── ciContext.heifRepresentation (.RGBA8, sRGB, 0.95 quality)
+  │     │     └── falls back to jpegRepresentation on encode failure
+  │     └── CGImageDestinationAddImageFromSource(...)   ← byte-copy + metadata replace
+  ├── PhotoSaver(modelContainer:).save(...)    ← @ModelActor, off main
+  └── ImageLoader.loadThumbnail(imageData, photoId, 88pt) → write to lastPhotoThumbnail
+```
 
-- Real flash (`AVCaptureDevice.FlashMode.on`) not torch simulation
-- Distance-based exposure bias compensation (-0.8 to +0.7 EV) using lens position as proxy for subject distance
-- Temporary exposure lock during capture to prevent AE from canceling bias
-- Automatic restoration of previous exposure settings after capture
+### Lens-Switch Architecture (iOS 26 virtual device)
 
-### Stabilization Strategy (iOS 18)
+Single `AVCaptureSession` input is `builtInTripleCamera` (priority chain falls back to `builtInDualCamera` → `builtInDualWideCamera` → `builtInWideAngleCamera`). Constituent switching is driven by `videoZoomFactor` ramps with `setPrimaryConstituentDeviceSwitchingBehavior(.locked, ...)` for each focal-length option.
+
+**FOV math (piecewise linear per constituent)**:
+```
+zoom = mm × constituent.lowerBound / constituent.nativeMm
+```
+On iPhone 17 Pro (UW=13/W=24/T=100, switchovers [2.0, 8.0]):
+- 13 mm → 1.00 (UW)
+- 24 mm → 2.00 (W)
+- 35 mm → 2.92 (W)
+- 50 mm → 4.17 (W)
+- 100 mm → 8.00 (T)
+- 200 mm → 16.0 (T)
+
+Boundary options (24 mm, 100 mm) get `+0.05` epsilon to land strictly inside the target constituent's range — `.locked` selection on the exact threshold is ambiguous and may pick the wrong constituent.
+
+**`applyFocalLength` two paths**:
+- **Fast path** (target constituent already active, e.g. 35 → 50 both on W): single `lockForConfiguration` → `.locked` + `ramp(toVideoZoomFactor:)` + safe shutter. Zero async wait.
+- **Slow path** (cross-constituent): Phase 0 (`.auto` + 33 ms yield to release locked min/max) → Phase 1 (single animated ramp; `.auto` crossfades the constituent during ramp) → Phase 2 (wait `isRampingVideoZoom == false`, then ≤300 ms for `activePrimaryConstituent === target`) → Phase 3 (`.locked`).
+
+`isLensTransitioning` flag + `waitForLensSettled(timeoutMs:)` prevents `capturePhoto` from picking a frame from the previous constituent's ZSL ring buffer (this was the "35 mm photo recorded as 13 mm UW" bug).
+
+### Stabilization Strategy
 
 Mirrors iPhone Camera's split-path approach: stabilize the viewfinder, leave still capture to OIS + multi-frame fusion.
 
-**Preview path (`videoDataOutput`)**: `applyPreviewStabilization(output:device:)` sets `connection.preferredVideoStabilizationMode` with priority `.previewOptimized` → `.standard` → `.off`, gated by `format.isVideoStabilizationModeSupported`. `.previewOptimized` (iOS 17+) is purpose-built for camera-app viewfinders — it stabilizes the preview without adding shutter latency. Long telephoto (100/200mm cropped) benefits most.
+- **Preview path** (`videoDataOutput`): `applyPreviewStabilization` sets `connection.preferredVideoStabilizationMode` with priority `.previewOptimized` → `.standard` → `.off`, gated by `format.isVideoStabilizationModeSupported`. `.previewOptimized` (iOS 17+) is purpose-built for camera-app viewfinders — stabilizes the preview without adding shutter latency.
+- **Photo path** (`photoOutput`): **never** set `preferredVideoStabilizationMode`. Still capture relies on OIS / sensor-shift IS (hardware, always on) + multi-frame fusion (Smart HDR, Deep Fusion, Photonic Engine — engaged automatically by `maxPhotoQualityPrioritization = .balanced`). Setting a stabilization mode on the photo connection introduces warping/cropping that conflicts with Deep Fusion frame alignment and degrades 24+ MP output.
 
-**Photo path (`photoOutput`)**: **never set** `preferredVideoStabilizationMode`. Still capture relies on:
-- **OIS / sensor-shift IS** — hardware, always on
-- **Multi-frame fusion** (Smart HDR, Deep Fusion, Photonic Engine) — engaged automatically by `maxPhotoQualityPrioritization = .balanced`
+### Orientation Handling
 
-Setting a stabilization mode on the photo connection introduces warping/cropping that conflicts with Deep Fusion frame alignment and degrades 24MP output.
+UI is locked to `.portrait` at the AppDelegate level, but the user can hold the phone in any orientation:
 
-**Re-apply on input swap**: W↔T have different active formats with potentially different stabilization mode support, so `applyPreviewStabilization` is called both during initial `configureAndStartSession` and after `swapInputDevice` reconfigures the session.
+- **Device orientation**: `CMMotionManager.startAccelerometerUpdates(...)` at 5 Hz, classified into `UIDeviceOrientation.{portrait, portraitUpsideDown, landscapeLeft, landscapeRight}` from the gravity vector. NOT `UIDevice.orientationDidChangeNotification` — that gets suppressed under system rotation lock; iPhone Camera ignores the lock the same way.
+- **Floating control containers stay fixed in screen coordinates**; only their inner glyphs/numbers rotate via a `controlRotationAngle` (0/90/-90/180°) with a 0.35 s spring animation. iPhone Camera's exact pattern.
+- **Gesture remap to perceived axes**: `perceivedTranslation()` maps SwiftUI `DragGesture.translation` (screen coords) to user-perceived (vertical, horizontal) so finger-up always means "EV brighter" regardless of how the phone is held.
+- **Photo orientation** uses `AVCaptureDevice.RotationCoordinator.videoRotationAngleForHorizonLevelCapture` applied to `photoOutput.connection.videoRotationAngle`; preview connection always renders 90° CW (sensor landscape → portrait viewport).
+
+### Tap-to-Focus + Drag-for-EV
+
+Single `DragGesture(minimumDistance: 0)` serves both gestures. AVF commit is **deferred until gesture intent is unambiguous** (a tap on release, OR vertical-dominant drag passing the threshold). Without this defer, every horizontal swipe runs an AF cycle and zeroes user-set EV bias.
+
+State machine:
+- **No active focus**: touch-down shows reticle (visual only, no AVF). On vertical-dominant drag (`|dy| > 14 && |dy| > |dx| * 1.5`) → enter EV mode, commit AVF to start point (resets bias to 0), then `bias = biasAtDragStart + dy/100` (100 pt = 1 EV, ±1 EV soft cap matching `ExposureSunRail` visual span).
+- **Active focus** (3.5 s `focusHoldTimer` not yet expired): touch-down does **not** move reticle or fire haptic (iPhone Camera behavior). Vertical drag continues EV from current bias (no re-AVF). Lift-as-tap moves reticle and re-commits AVF.
+- **Lift-as-cancel** (non-tap, non-EV): hide reticle, no AVF side-effects.
+
+### Capture Quality Tuning
+
+Three settings work together (all set in `applyBestFormatAndModes` + `configureAndStartSession`):
+
+1. **`maxPhotoDimensions`** — picks the largest 4:3 dim ≤ 60 MP cap. iPhone 17 Pro's `supportedMaxPhotoDimensions` only lists `[12 MP, 48 MP]` on 4:3 formats; the 24 MP middle tier is system-only. Going to 48 MP gives ~22 MP real detail at 1.46× digital zoom (35 mm), which matches iPhone Camera at 1.5×.
+2. **`device.activeColorSpace = .sRGB`** — film LUTs are sRGB-trained; locking it skips P3→sRGB conversion in the CoreImage path and gives more predictable color.
+3. **`photoQualityPrioritization = .balanced`** on both `output.maxPhotoQualityPrioritization` and per-capture settings — engages Deep Fusion + Smart HDR + Photonic Engine **synchronously**. Adds ~100–300 ms to `didFinishProcessingPhoto` but ZSL + ResponsiveCapture preserve shutter feel.
+
+**Critical: do NOT enable `isAutoDeferredPhotoDeliveryEnabled`.** The deferred Deep Fusion result is delivered **only to PhotoKit**, not to the photo delegate. Apps with custom storage (SwiftData, here) get the "early/quick" proxy that skips Deep Fusion — enabling deferred *lowers* quality.
+
+### HEIF + Metadata Fast-Copy
+
+`FilmProcessor.applyLUTPreservingMetadata` encodes once (HEIF/HEVC `.RGBA8`, sRGB, quality 0.95; JPEG fallback) then injects metadata via `CGImageDestinationAddImageFromSource(dest, source, 0, mergedMetadata)`. When source and dest use the same `imageType`, this is the **fast copy + metadata replace** path — pixel data is copied byte-for-byte, only the metadata block is rewritten. **No recompression. Zero pixel-quality loss.** File size ~50% of an equivalent-quality JPEG.
+
+Pixel orientation is applied pre-encode via `ciImage.oriented(forExifOrientation:)`; output is written as `Orientation = 1`.
 
 ## Development Commands
 
-### Building and Running
 ```bash
 # Open in Xcode
 open JustShoot.xcodeproj
 
-# Build for simulator
-xcodebuild -project JustShoot.xcodeproj -scheme JustShoot -destination 'platform=iOS Simulator,name=iPhone 15 Pro' build
+# Build for current dev simulator
+xcodebuild -project JustShoot.xcodeproj -scheme JustShoot \
+  -destination 'id=1A1DC730-6016-4F18-A8F8-5D1254087051' \
+  -configuration Debug build
 
-# Build for specific simulator by ID (more reliable)
-xcrun simctl list devices | grep "iPhone 15 Pro"
-xcodebuild -project JustShoot.xcodeproj -scheme JustShoot -destination 'id=<UDID>' build
-
-# List available simulators
+# List simulators
 xcrun simctl list devices available
 
-# Boot a simulator
-xcrun simctl boot <UDID>
-
-# Install and run on simulator (camera won't work, but UI can be tested)
-xcrun simctl install <UDID> build/Debug-iphonesimulator/JustShoot.app
-xcrun simctl launch <UDID> leavestylecode.JustShoot
-
 # Build for device (requires provisioning profile)
-xcodebuild -project JustShoot.xcodeproj -scheme JustShoot -destination 'generic/platform=iOS' build
+xcodebuild -project JustShoot.xcodeproj -scheme JustShoot \
+  -destination 'generic/platform=iOS' build
 ```
 
-**Important**: Full camera functionality requires a physical iOS device. Simulator shows camera permission dialogs but cannot access camera hardware.
+**Important**: Full camera + GPS functionality requires a physical iOS device. The simulator can show camera permission dialogs but cannot access camera hardware or accelerometer.
+
+### Logging Filter
+
+Console.app or terminal:
+```bash
+log stream --predicate 'subsystem == "com.leavestylecode.JustShoot"'
+log stream --predicate 'subsystem == "com.leavestylecode.JustShoot" && category == "camera.capture"'
+```
+
+8 categories (defined in `Logging.swift`): `camera.session`, `camera.capture`, `camera.orient`, `camera.gps`, `photo.lut`, `photo.save`, `gallery`, `ui`. Event names are `snake_case` with `key=value` params; durations in `ms`. Use `Log.perf(label, logger:)` for timed sections.
 
 ### Testing LUT Processing
-LUT files are located in `JustShoot/Resources/*.cube`. The FilmProcessor validates:
-- Cube dimension must be declared (`LUT_3D_SIZE`)
-- Data must match dimension³ × 3 values
-- Files are parsed and converted to RGBA format with alpha=1.0
 
-### Performance Characteristics
-- Preview resolution: 1920×1080 BGRA at 30fps (set via `preferredFramesPerSecond`)
-- LUT caching: All presets preloaded on first use, stored in `FilmProcessor.lutCache`
-- Photo processing: Background queue with 0.95 JPEG quality
-- Image loading: CGImageSource thumbnail generation with hardware acceleration
-- Disk cache: Thumbnails and previews cached in Library/Caches/{Thumbs,Previews}/
+LUT files live in `JustShoot/Resources/*.cube`. `FilmProcessor.parseCubeFile` validates:
+- Cube dimension declared (`LUT_3D_SIZE`)
+- Data values match `dimension³ × 3`
+- Files are converted to RGBA `Data` with alpha=1.0 (`.cube` files are RGB)
+- Encoding fallback: UTF-8 → ISO Latin-1 → Windows CP1252 → MacOSRoman (some `.cube` titles have non-UTF-8 bytes)
 
-## Data Model Relationships
+## Adding a New Built-in Film Preset
 
-```swift
-Roll (1) ←→ (many) Photo
-- Roll.photos: [Photo]
-- Photo.roll: Roll? (inverse relationship)
-- Roll tracks preset, capacity (27), completion status
-- Photo stores imageData, filmPresetName, GPS coordinates (lat/lon/alt/timestamp)
-```
+1. Add a case to `FilmPreset` enum in `Models.swift` with `displayName`, `iso`, `lutResourceName`, and `libraryCardImage`
+2. Drop the `.cube` file into `JustShoot/Resources/` (sync group auto-bundles it)
+3. Pick a card image from `Resources/cards/*.heic` to match the stock visually
+4. Add a color accent to `ContentView.FilmPresetGrid.accentColor(for:)` if the home grid uses one
 
-## Film Preset Configuration
+That's it — `FilmSource.preset` automatically routes via `lutCacheKey` and `FilmProcessor.preload(preset:)` is called on app launch.
 
-Each FilmPreset defines:
-- `displayName`: User-facing name
-- `iso`: Nominal ISO value (50-500)
-- `lutResourceName`: Filename without .cube extension in Resources/
+## Adding a Custom LUT (User Flow)
 
-Adding a new preset requires:
-1. Add case to `FilmPreset` enum in Models.swift
-2. Provide display name, ISO value, and LUT resource name
-3. Add corresponding .cube file to JustShoot/Resources/
-4. Add color accent to `ContentView.FilmPresetGrid.accentColor(for:)`
+ContentView's `+` toolbar → `.fileImporter` for `.cube` → `FilmProcessor.parseCubeFile` validates → user names + sets ISO → `CustomLUT` row inserted, file copied to `Documents/CustomLUTs/<UUID>.cube`. The LUT is preloaded and addressable via `FilmSource.from(customLUT)`.
 
 ## Memory Management
 
-- SwiftData external storage for imageData prevents memory pressure
-- ImageLoader NSCache with 50-item, 50MB limits
-- Disk caching for thumbnails/previews reduces repeated decoding
-- CGImageSource downsampling avoids loading full images
-- Memory warning observer clears cache in PhotoDetailView
+- SwiftData `@Attribute(.externalStorage)` keeps `imageData` out of the SQLite row (loaded on-demand)
+- `ImageLoader` (gallery) and `FilmCardImageCache` (catalog) are separate `NSCache`s with 50-item / 50 MB limits each — gallery and library don't evict each other
+- Both use `CGImageSource` thumbnail downsampling; full images never decoded into RAM unless on the detail page
+- `ImageLoader` deduplicates in-flight loads via `OSAllocatedUnfairLock` — concurrent grid scrolls don't queue duplicate decode tasks
+- Disk caches under `Library/Caches/{Thumbs,Previews}/` survive process restart; cleared on photo deletion
 
-## GPS Integration (iOS 18 Optimized)
+## GPS Integration
 
-Intelligent caching strategy eliminates waiting:
-- Started only when CameraView appears
-- Stopped when CameraView disappears
-- **30-second cache**: Returns cached location if < 30s old
-- **Zero-wait**: No timeout blocking, uses best available location immediately
-- Background refresh via `requestLocation()` for next capture
-- GPS metadata written to both image data and Photo model for dual persistence
-- Method `cachedOrFreshLocation()` replaces deprecated `fetchFreshLocation()`
+- Started only when `CameraView` appears (not at app launch)
+- Stopped when `CameraView` disappears
+- `cachedOrFreshLocation()` returns cached location if < 30 s old; otherwise returns whatever `currentLocation` is (no blocking wait)
+- GPS metadata written to both image data and `Photo` model for dual persistence
+
+GPS *timestamp* in EXIF uses capture time, **not** location-fix time, so a burst of photos with the same cached location doesn't show identical GPS timestamps in Photos.app.
 
 ## Key Technical Constraints
 
-- **iOS 18.0+ required** - No legacy version support
-- **Modern AVFoundation features**:
-  - `isResponsiveCaptureEnabled` - Faster shutter response
-  - `isFastCapturePrioritizationEnabled` - Optimized burst mode
-  - `maxPhotoDimensions` - Precise output size control
-  - `AVCaptureDevice.RotationCoordinator` - Orientation handling
-- **Physical device required** for actual camera and GPS functionality
-- **Photos.app permission** required for saving images with metadata
+- **iOS 26.0+** (deployment target). The legacy 18.0 entries in pbxproj are for the test target only.
+- **Swift 6 strict concurrency**: `SWIFT_STRICT_CONCURRENCY=complete` + `SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY=YES`. Zero warnings on clean build. `extension AnyKeyPath: @retroactive @unchecked Sendable {}` is the only retroactive conformance — required for `#Predicate` macro expansion.
+- **Physical device required** for camera and accelerometer
+- **Photos.app permission** required for export with metadata
 - **Location permission** required for GPS tagging
-- **Chinese localization** present in UI strings (can be localized if needed)
-- **Portrait-only preview** in CameraView with automatic landscape frame rotation
-- **No settings UI** - authentic disposable camera experience with minimal controls
+- **Localization**: English source + zh-Hans catalog (`Localizable.xcstrings`, `InfoPlist.xcstrings`)
+- **Portrait UI lock** at `AppDelegate` level — controls and gestures rotate via `controlRotationAngle` and `perceivedTranslation`, not via system rotation
 
-## Common Implementation Patterns
+## Common Pitfalls
 
-### Adding EXIF Metadata
-Always use `FilmProcessor.applyLUTPreservingMetadata()` which:
-1. Applies LUT to CIImage
-2. Renders to JPEG with ciContext
-3. Copies original metadata via CGImageSource/CGImageDestination
-4. Merges GPS info from CLLocation
-5. Adds device info and orientation
-
-### Orientation-Aware Rendering (iOS 18)
-```swift
-// Always use RotationCoordinator
-guard let coordinator = rotationCoordinator else { return }
-let angle = coordinator.videoRotationAngleForHorizonLevelCapture
-
-// Apply to connections
-if let connection = photoOutput.connection(with: .video),
-   connection.isVideoRotationAngleSupported(angle) {
-    connection.videoRotationAngle = angle
-}
-
-// Convert to EXIF value
-let exifValue = exifOrientationFromRotationAngle(angle)
-```
-
-### Safe Image Downsampling
-```swift
-let options: [CFString: Any] = [
-    kCGImageSourceCreateThumbnailFromImageAlways: true,
-    kCGImageSourceThumbnailMaxPixelSize: maxPixel,
-    kCGImageSourceCreateThumbnailWithTransform: true
-]
-CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
-```
-
-## Project File Organization
-
-```
-JustShoot/
-├── JustShoot.xcodeproj/          # Xcode project
-├── JustShoot/
-│   ├── JustShootApp.swift        # App entry point with ModelContainer
-│   ├── ContentView.swift         # Main menu and film preset grid
-│   ├── CameraView.swift          # Camera UI, manager, and real-time preview
-│   ├── GalleryView.swift         # Photo browsing and detail views
-│   ├── Models.swift              # Data models and FilmProcessor
-│   └── Resources/
-│       ├── FujiC200.cube
-│       ├── FujiPro400H.cube
-│       ├── FujiProvia100F.cube
-│       ├── KodakPortra400.cube
-│       ├── KodakVision5219.cube  # 500T
-│       ├── KodakVision5203.cube  # 50D
-│       ├── Kodak5207.cube        # 250D
-│       └── HarmanPhoenix200.cube
-├── build/                        # Build artifacts (gitignored)
-└── CLAUDE.md                     # This file
-```
-
-## iOS 18 Optimizations Summary
-
-### Performance Improvements
-- **Shutter lag**: Reduced from ~150ms to <50ms (66% improvement)
-- **GPS wait time**: Eliminated 1.5s timeout (100% improvement)
-- **Single-shot quality priority**: `isFastCapturePrioritizationEnabled = false` — that mode is burst-tuned and trades quality for response; disabled here so `.balanced` + Deep Fusion / Smart HDR / Photonic Engine drive every shot
-- **Concurrent processing**: LUT and GPS fetch in parallel
-
-### Key API Usage
-- `photoOutput.maxPhotoQualityPrioritization = .balanced` — engages Deep Fusion / Smart HDR / Photonic Engine
-- `photoOutput.isResponsiveCaptureEnabled = true`
-- `photoOutput.isZeroShutterLagEnabled = true`
-- `photoOutput.isFastCapturePrioritizationEnabled = false` — disabled intentionally (burst-only, hurts single-shot quality)
-- `photoOutput.maxPhotoDimensions` for precise output size (24MP cap)
-- `videoDataOutput.connection.preferredVideoStabilizationMode = .previewOptimized` — iPhone-Camera-style stable viewfinder; **never** set on `photoOutput` (conflicts with Deep Fusion)
-- `cachedOrFreshLocation()` with 30s cache for zero-wait GPS
-
-### Removed Legacy Support
-- No iOS 16/17 compatibility code
-- No deprecated `videoOrientation` usage
-- No `UIDeviceOrientation` fallback logic
-- Simplified EXIF orientation handling
+- **Don't combine `setPrimaryConstituentDeviceSwitchingBehavior(.auto)` and `videoZoomFactor =` in the same `lockForConfiguration` block.** When transitioning out of `.locked`, the zoom write is still clamped to the locked min/max — split into two sequential `lockForConfiguration` cycles with a 33 ms yield between (see `applyFocalLength` slow path).
+- **Boundary focal lengths need `+0.05` epsilon.** At zoom values *exactly* on a switchover threshold (e.g. 2.0 or 8.0), system constituent selection is ambiguous and may pick the lower-zoom constituent (giving you UW/W with digital crop instead of W/T native).
+- **Swift drops the `Device` suffix** on KVO-observable properties: Obj-C `activePrimaryConstituentDevice` → Swift `activePrimaryConstituent`. The setter `setPrimaryConstituentDeviceSwitchingBehavior(_:_)` keeps the suffix.
+- **Don't enable `isAutoDeferredPhotoDeliveryEnabled`** — only PhotoKit gets the deferred (high-quality) result; custom storage gets the early proxy.
+- **Cross-file extensions can't access `private` members.** Many `CameraManager` properties were promoted from `private` to internal during the 2026-05-05 refactor for this reason. New properties accessed by extension files in other Swift files should default to no access modifier.
+- **Don't call `stopRunning()` synchronously on the main thread** — it blocks. Stop on `sessionQueue` (see `stopSession`).
 
 ## Notes for Future Development
 
-- Consider adding manual focus control while maintaining auto-exposure
-- Flash distance estimation from lensPosition is empirical - may need per-device calibration
-- Preview rotation could be made user-controllable (currently forced portrait)
-- Roll completion behavior could offer auto-download to Photos.app
-- Multi-language support would require extracting hardcoded Chinese strings
-- Potential Metal shader optimization for LUT processing (3-5x speedup possible)
+- Manual focus override (slider during reticle hold?) — current architecture has 3.5 s `focusHoldTimer` + drag-for-EV; manual focus could fit alongside drag-for-EV but needs a clear gesture orthogonal to vertical EV
+- Film grain overlay (post-LUT, pre-encode) — `FilmProcessor.applyLUTPreservingMetadata` is the natural insertion point, just before `heifRepresentation`
+- ProRAW path is intentionally not implemented — incompatible with the LUT pipeline (RAW data has no meaningful color cube application before demosaic)
+- Roll/27-shot disposable behavior was removed in favor of unlimited capture per `FilmSource`; if ever revived, group via `Photo.filmPresetName` + an arbitrary stride rather than re-introducing a `Roll` model
+- LUT processing is GPU-accelerated (Metal CIContext); a custom Metal compute shader (à la `LUTShader.metal` for preview) could give another 2–3× speedup but the current path is already < 200 ms on iPhone 17 Pro for 48 MP and is not the bottleneck — `heifRepresentation` is
