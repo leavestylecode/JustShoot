@@ -389,22 +389,12 @@ struct CameraView: View {
         shutterPressed = true
         cameraManager.hapticMedium.impactOccurred()
 
-        // 白屏 + 按钮回弹与 tap 同步触发，不等 AVF "exposure_complete" 回调。
-        // 动画曲线模仿氙气闪光物理：
-        //   - 起电瞬间（~40ms）快速上升到峰值——`.easeOut` "fast start, slow end"
-        //   - 持峰约 60ms——氙气放电的稳定段
-        //   - 衰减 200ms 余辉，比起初长——也用 `.easeOut` 表达 exponential decay 的初快后慢
-        // shutterPressed 100ms 后回弹（与物理按钮按压时长接近）。
+        // 按钮按压回弹：tap 即时确认，独立于 AVF 时序。100ms 接近物理按键按压时长。
+        // 白屏覆盖层不再挂在这里——它跟随 AVF 的 willCapturePhotoFor 回调，与真实
+        // 闪光灯主脉冲物理同帧。详见下方 onWillCapture 注释。
         Task { @MainActor in
-            withAnimation(.easeOut(duration: 0.04)) {
-                showFlash = true
-            }
             try? await Task.sleep(nanoseconds: 100_000_000)
             shutterPressed = false
-            try? await Task.sleep(nanoseconds: 50_000_000)
-            withAnimation(.easeOut(duration: 0.20)) {
-                showFlash = false
-            }
         }
 
         let currentSource = source
@@ -414,9 +404,26 @@ struct CameraView: View {
         let container = modelContext.container
 
         let focalMm = cameraManager.currentFocalLength.rawValue
-        cameraManager.capturePhoto(onExposureComplete: {
-            // 仅 log，不再驱动 UI——shutterPressed/showFlash 已在 tap 那一刻处理。
-            // 这条 log 仍有价值：观察 AVF "曝光物理完成" 的实际延迟（首张 ZSL 冷启动诊断）。
+        cameraManager.capturePhoto(onWillCapture: {
+            // AVF 主曝光起始帧——开闪光灯时即氙气主脉冲发射的瞬间，关闪光灯时 ZSL/responsive
+            // 让这一刻在 tap 后 50–150ms 内 fire。在这里驱动白屏，UI 与真实光线同帧。
+            //
+            // 动画曲线仍模仿氙气闪光物理：
+            //   - 起电瞬间（~40ms）快速上升到峰值——`.easeOut` "fast start, slow end"
+            //   - 持峰约 150ms——氙气放电稳定段（覆盖典型 30-100ms 主曝光窗口）
+            //   - 衰减 200ms 余辉——`.easeOut` 表达 exponential decay 的初快后慢
+            Log.capture.info("will_capture dt_from_tap=\(Log.ms(since: tapTime))ms")
+            Task { @MainActor in
+                withAnimation(.easeOut(duration: 0.04)) {
+                    showFlash = true
+                }
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                withAnimation(.easeOut(duration: 0.20)) {
+                    showFlash = false
+                }
+            }
+        }, onExposureComplete: {
+            // 仅 log——曝光物理完成的延迟可观察 ZSL 冷启动 / pre-flash AE 收敛耗时。
             Log.capture.info("exposure_complete dt_from_tap=\(Log.ms(since: tapTime))ms")
         }) { imageData in
             guard let data = imageData else {
@@ -1085,6 +1092,11 @@ class CameraManager: NSObject, ObservableObject {
     fileprivate var previewDeviceOrientation: UIDeviceOrientation?
     private var photoDataHandler: ((Data?) -> Void)?
     private var exposureCompleteHandler: (() -> Void)?
+    /// AVF 在主曝光（含闪光灯主脉冲）即将开始那一帧 fire 的回调，由
+    /// `photoOutput(_:willCapturePhotoFor:)` 在 main actor 上派发。
+    /// 用途：把屏幕白屏覆盖层与真实闪光灯同帧触发——这是 Apple 文档明确推荐的
+    /// shutter visual feedback 挂载点，避免"UI 先闪、氙气灯后亮"的脱钩感。
+    private var willCaptureHandler: (() -> Void)?
     @Published var flashMode: FlashMode = .off
 
     // 震动反馈（预创建复用，减少首次延迟）
@@ -2154,9 +2166,14 @@ class CameraManager: NSObject, ObservableObject {
 
     // MARK: - 拍照
 
-    func capturePhoto(onExposureComplete: (() -> Void)? = nil, completion: @escaping (Data?) -> Void) {
+    func capturePhoto(
+        onWillCapture: (() -> Void)? = nil,
+        onExposureComplete: (() -> Void)? = nil,
+        completion: @escaping (Data?) -> Void
+    ) {
         photoDataHandler = completion
         exposureCompleteHandler = onExposureComplete
+        willCaptureHandler = onWillCapture
 
         // 镜头切换正在进行（启动期 250ms grace / slow-path Phase 0–3 / 锁后 200ms ZSL refill）
         // 时，await 直到 isLensTransitioning 归 false 再 issue 给 AVF。
@@ -2785,6 +2802,17 @@ extension CameraManager: CLLocationManagerDelegate {
 
 // MARK: - AVCapturePhotoCaptureDelegate
 extension CameraManager: AVCapturePhotoCaptureDelegate {
+    /// AVF 主曝光即将开始——开闪光灯时这一刻就是氙气主脉冲发射的瞬间。
+    /// Apple 文档明确指引这里做 shutter visual feedback（屏幕白屏 / 快门音）。
+    /// UI 白屏挂在这里 → 与真实闪光灯物理同帧，告别"先白屏后亮灯"的脱钩感。
+    nonisolated func photoOutput(_ output: AVCapturePhotoOutput, willCapturePhotoFor resolvedSettings: AVCaptureResolvedPhotoSettings) {
+        Log.capture.info("delegate_will_capture")
+        Task { @MainActor in
+            self.willCaptureHandler?()
+            self.willCaptureHandler = nil
+        }
+    }
+
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didCapturePhotoFor resolvedSettings: AVCaptureResolvedPhotoSettings) {
         Log.capture.info("delegate_did_capture dims=\(resolvedSettings.photoDimensions.width)x\(resolvedSettings.photoDimensions.height)")
         Task { @MainActor in
