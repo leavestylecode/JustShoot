@@ -35,6 +35,16 @@ struct CameraView: View {
     @State private var lastPhotoThumbnail: UIImage?
     @State private var focusPoint: CGPoint? = nil
     @State private var showFocusIndicator = false
+    /// tap+drag 手势状态：值为 nil 表示当前没有进行中的手势——onEnded 时清空。
+    @State private var dragStartLocation: CGPoint? = nil
+    /// 当前手势是否已进入"上下滑动调 EV"模式。一旦进入，后续移动只调 bias，不再切回对焦。
+    @State private var isAdjustingExposure = false
+    /// 进入 EV 模式时记录的基线 bias。新 bias = 基线 + drag delta，让"活动对焦下继续微调"是连续的，
+    /// 而不是每次手势从 0 开始（否则用户拖到 +0.8 后再来一次小调整就被打回 0 附近，体感很糟）。
+    @State private var biasAtDragStart: Float = 0
+    /// 本次手势是否由触摸落下时主动展示了 reticle。关键用途：onEnded 判定为非 tap 非 EV 时，
+    /// 仅在 didShowReticleThisGesture==true 才撤销 reticle——避免把上一次活动对焦的 reticle 误抹掉。
+    @State private var didShowReticleThisGesture = false
     @State private var showPhotoDetail = false
     /// 拍照失败提示。photo data nil / LUT 失败 / SwiftData save 失败时弹 alert，
     /// 不再静默——避免用户以为拍成功而相册没新照片。
@@ -59,14 +69,32 @@ struct CameraView: View {
             // 预览区
             GeometryReader { geometry in
                 ZStack(alignment: .bottom) {
-                    // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade，
+                    // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade,
                     // 预览不黑屏），不再需要 bridgeImage 帧桥接。
+                    // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
+                    // 不挂在 ZStack 上是为了避免与底部 FocalLengthStrip 的 simultaneousGesture
+                    // 同时触发——子视图各自管自己的命中区域。
                     RealtimePreviewView(manager: cameraManager, lutCacheKey: source.lutCacheKey)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .contentShape(Rectangle())
+                        .gesture(focusAndExposureGesture(viewportSize: geometry.size))
 
                     if showFocusIndicator, let point = focusPoint {
                         FocusIndicatorView()
                             .position(point)
+
+                        // 曝光补偿 sun rail（iPhone Camera 风格）：靠近预览右边缘时翻到对焦框左侧,
+                        // 永远保持在可视区域内。allowsHitTesting(false) 让手势穿透到下层预览，
+                        // 用户可以直接在 sun 图标上继续拖动。
+                        ExposureSunRail(
+                            bias: cameraManager.exposureBias,
+                            isAdjusting: isAdjustingExposure
+                        )
+                        .position(
+                            x: sunRailX(focusX: point.x, viewportWidth: geometry.size.width),
+                            y: point.y
+                        )
+                        .allowsHitTesting(false)
                     }
 
                     // 焦距选择条悬浮在预览底部（iPhone Camera 风格）。容器与位置在所有方向下都
@@ -80,10 +108,6 @@ struct CameraView: View {
                         cameraManager.setFocalLength(option)
                     }
                     .padding(.bottom, 14)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture { location in
-                    handleTapToFocus(at: location, in: geometry.size)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -486,35 +510,29 @@ struct CameraView: View {
         }
     }
 
-    private func handleTapToFocus(at location: CGPoint, in size: CGSize) {
+    /// 视觉反馈：reticle 立刻在 location 弹出 + 轻触感。**不**触发 AVF 对焦——
+    /// 真正的对焦/AE 提交延迟到手势意图明确后（onEnded 判定为 tap，或 onChanged 进 EV 模式）。
+    /// 这样横向滑动 / 斜向滑动不会平白触发一次对焦动作和 bias 清零。
+    private func showFocusReticle(at location: CGPoint) {
         cameraManager.hapticLight.impactOccurred()
-
         focusPoint = location
-
         withAnimation(.easeOut(duration: 0.15)) {
             showFocusIndicator = true
         }
+    }
 
-        // 坐标转换：portrait viewport tap → AVF sensor 归一化坐标
-        //
-        // AVF 的 focusPointOfInterest 用 sensor 原生 landscape 坐标系：
-        //   {0,0}=top-left, {1,1}=bottom-right，home 在右。
-        //
-        // viewport 现在是 3:4 portrait，与 sensor 4:3 landscape 旋转 90° CW 后的 3:4 portrait
-        // 完全一致——MTKView aspect-fill 是 1:1 无裁切。所以 vx/vy 在整个 viewport 上线性映射
-        // 到 AVF [0,1]×[0,1]，不需要偏移修正。
-        //
-        // 旋转 90° CW 的映射（sensor landscape → portrait viewport）：
-        //   sensor (sx, sy) ↔ portrait (px, py) where px = H - sy, py = sx
-        //   反推：sx = py = vy * sensorW/vh ; sy = H - px = (1 - vx/vw) * sensorH
-        //   归一化：AVF x = sx/W = vy/vh ; AVF y = sy/H = 1 - vx/vw
+    /// 把 viewport 坐标转换成 AVF sensor 归一化坐标，并提交对焦/单次 AE。
+    /// 见 setFocusAndExposure 里的旋转推导：portrait viewport 与 sensor landscape 旋转 90° CW 后
+    /// 重合，vx/vy 在整个 viewport 上线性映射到 AVF [0,1]，所以 normalizedX = vy/vh，normalizedY = 1 - vx/vw。
+    private func commitFocusToDevice(at location: CGPoint, in size: CGSize) {
         let normalizedX = location.y / size.height
         let normalizedY = 1.0 - (location.x / size.width)
-        let normalizedPoint = CGPoint(x: normalizedX, y: normalizedY)
+        cameraManager.setFocusAndExposure(normalizedPoint: CGPoint(x: normalizedX, y: normalizedY))
+    }
 
-        cameraManager.setFocusAndExposure(normalizedPoint: normalizedPoint)
-
-        // 对焦框跟随 focusHoldTimer 消失（3s 后恢复连续对焦时隐藏）
+    /// 3.5s 后若 focus 已不再 locked（focusHoldTimer 已过期）则淡出 reticle。
+    /// 检查 isFocusLocked 是为了让连续多次 tap 期间 reticle 始终可见——只在最后一次过期才消失。
+    private func scheduleHideFocusReticle() {
         Task {
             try? await Task.sleep(for: .seconds(3.5))
             if !cameraManager.isFocusLocked {
@@ -523,6 +541,114 @@ struct CameraView: View {
                 }
             }
         }
+    }
+
+    /// 手势被判定为"非 tap、非 EV"（横向滑动 / 大幅斜向移动）时撤销已弹出的 reticle。
+    /// AVF 还没提交，所以无需 restore 任何相机状态。
+    private func cancelFocusReticle() {
+        withAnimation(.easeOut(duration: 0.18)) {
+            showFocusIndicator = false
+        }
+    }
+
+    /// tap-to-focus + 上下滑动调曝光补偿（iPhone Camera 风格）。
+    ///
+    /// **核心分流**：按"是否已有活动对焦"(cameraManager.isFocusLocked) 走两条路径，
+    /// 让"刚 tap 完想继续微调 EV"和"全新 tap 选个新焦点"都各自顺滑。
+    ///
+    /// **无活动对焦**（reticle 已隐藏）：
+    /// - 触摸落下：立即展示 reticle 在触摸位置（视觉反馈），但**不**提交 AVF。
+    /// - 垂直主导拖动：进 EV 模式 → 提交 AVF 到起始点，bias 从 0 起调。
+    /// - 松手判 tap（位移 < 10pt）：提交 AVF。
+    /// - 松手非 tap 非 EV：撤销刚展示的 reticle，相机状态零侧效。
+    ///
+    /// **有活动对焦**（前次 tap 后 hold timer 仍未过期，reticle 在原位）：
+    /// - 触摸落下：**不**移动 reticle、**不**触发 haptic（与 iPhone Camera 一致）。
+    /// - 垂直主导拖动：直接进 EV 模式，从**当前 bias 累加**（biasAtDragStart + delta），
+    ///   不重新提交 AVF（焦点不变），refreshFocusHold 续期可见时长。
+    /// - 松手判 tap：把 reticle 移到新位置 + 提交 AVF（重新对焦，bias 清零）。
+    /// - 松手非 tap 非 EV：原 reticle 安然不动，AVF 状态零侧效。
+    ///
+    /// **进 EV 双条件**：|dy| > 14pt **且** |dy| > |dx| × 1.5。挡住手抖与斜向滑动。
+    /// **EV 灵敏度**：100pt = 1 EV；配合 ±1 EV 上限，满程 ±100pt 即触底。
+    private func focusAndExposureGesture(viewportSize: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                // capture 进行中（pendingFlashRestore 待还原）禁手势：避免 setExposureTargetBias
+                // 在 flash restore 之前被覆盖，AE 还原后用户偏置无效。
+                guard !isCapturing else { return }
+
+                if dragStartLocation == nil {
+                    dragStartLocation = value.startLocation
+                    isAdjustingExposure = false
+                    biasAtDragStart = cameraManager.exposureBias
+                    if cameraManager.isFocusLocked {
+                        // 已有活动对焦：reticle 留原位，等手势意图明确再行动
+                        didShowReticleThisGesture = false
+                    } else {
+                        didShowReticleThisGesture = true
+                        showFocusReticle(at: value.startLocation)
+                    }
+                    return
+                }
+
+                if isAdjustingExposure {
+                    // 已进 EV 模式：忽略横向晃动，从 biasAtDragStart 累加
+                    let evDelta = Float(-value.translation.height) / 100.0
+                    cameraManager.setExposureBias(biasAtDragStart + evDelta)
+                    return
+                }
+
+                let dy = value.translation.height
+                let dx = value.translation.width
+                if abs(dy) > 14 && abs(dy) > abs(dx) * 1.5 {
+                    isAdjustingExposure = true
+                    cameraManager.hapticSoft.impactOccurred()
+                    if cameraManager.isFocusLocked {
+                        // 活动对焦下继续微调：保留焦点，从当前 bias 累加，续期 hold timer
+                        cameraManager.refreshFocusHold()
+                    } else {
+                        // 首次拖动：提交 AVF 到起始点；setFocusAndExposure 会把 bias 清零
+                        commitFocusToDevice(at: value.startLocation, in: viewportSize)
+                        biasAtDragStart = 0
+                    }
+                    let evDelta = Float(-dy) / 100.0
+                    cameraManager.setExposureBias(biasAtDragStart + evDelta)
+                }
+            }
+            .onEnded { value in
+                let dy = value.translation.height
+                let dx = value.translation.width
+                let distance = sqrt(dx * dx + dy * dy)
+
+                if isAdjustingExposure {
+                    // EV 模式自然结束：续期 hold 给用户操作余裕，再安排 reticle 淡出
+                    cameraManager.refreshFocusHold()
+                    scheduleHideFocusReticle()
+                } else if distance < 10 {
+                    // 纯 tap：触摸落下未弹 reticle（活动对焦路径）→ 此刻把 reticle 移到新位置
+                    if !didShowReticleThisGesture {
+                        showFocusReticle(at: value.startLocation)
+                    }
+                    commitFocusToDevice(at: value.startLocation, in: viewportSize)
+                    scheduleHideFocusReticle()
+                } else if didShowReticleThisGesture {
+                    // 非 tap 非 EV，且本次手势自己弹过 reticle → 撤销
+                    cancelFocusReticle()
+                }
+                // 活动对焦路径下的非 tap 非 EV 手势：reticle 与 AVF 状态都不动
+
+                dragStartLocation = nil
+                isAdjustingExposure = false
+                didShowReticleThisGesture = false
+            }
+    }
+
+    /// sun rail 在预览中的 x 位置：默认在对焦框右侧 60pt 处；
+    /// 接近右边缘（剩余 < 30pt）时翻到左侧，保证 sun 永远可见。
+    private func sunRailX(focusX: CGFloat, viewportWidth: CGFloat) -> CGFloat {
+        let preferredRight = focusX + 60
+        return preferredRight + 12 > viewportWidth ? focusX - 60 : preferredRight
     }
 }
 
@@ -651,6 +777,52 @@ struct FocusIndicatorView: View {
                     scale = 1.0
                 }
             }
+    }
+}
+
+// MARK: - 曝光补偿 sun rail
+/// 对焦框旁的 sun 图标 + 细竖轨：tap-to-focus 后跟随手指上下滑动显示当前 EV 偏置。
+/// 视觉行程 ±55pt 对应 ±1 EV，与 CameraManager.setExposureBias 的 ±1 软上限一致——
+/// sun 触到 rail 端点就是真的触底，不存在"还能拖但视觉不动"的脱节。
+/// `isAdjusting` 仅控制 sun 图标缩放反馈，rail 始终显示——避免拖动结束后视觉突然丢失参考。
+struct ExposureSunRail: View {
+    let bias: Float
+    let isAdjusting: Bool
+
+    private static let railHeight: CGFloat = 110
+    /// sun 视觉行程对应的最大 EV。与 CameraManager.setExposureBias 的 ±1 EV 上限对齐——
+    /// 用户拖到顶 / 底时 sun 恰好停在 rail 端点，视觉与实际触底同步。
+    private static let maxVisualEV: Float = 1.0
+
+    private var sunYOffset: CGFloat {
+        let normalized = max(-1, min(1, bias / Self.maxVisualEV))
+        return -CGFloat(normalized) * (Self.railHeight / 2)
+    }
+
+    var body: some View {
+        ZStack {
+            // 细竖轨：sun 在轨上滑。0.5pt + 高对比黄，亮/暗背景下都能看清
+            Capsule()
+                .fill(Color.yellow.opacity(0.55))
+                .frame(width: 1, height: Self.railHeight)
+
+            // 中位刻度：bias=0 处的横向短线
+            Rectangle()
+                .fill(Color.yellow.opacity(0.55))
+                .frame(width: 7, height: 1)
+
+            // sun 图标：vertical offset 跟随 bias，深色阴影保证白底场景下也可见
+            Image(systemName: "sun.max.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.yellow)
+                .shadow(color: .black.opacity(0.55), radius: 2.5, y: 0.5)
+                .scaleEffect(isAdjusting ? 1.18 : 1.0)
+                .offset(y: sunYOffset)
+                .animation(.spring(response: 0.18, dampingFraction: 0.75), value: isAdjusting)
+        }
+        .frame(width: 22, height: Self.railHeight)
+        .animation(.linear(duration: 0.05), value: bias)
+        .transition(.opacity)
     }
 }
 
@@ -1020,6 +1192,10 @@ class CameraManager: NSObject, ObservableObject {
     /// 正常情况下的目标帧率；由 sessionQueue 写入、压力回调 KVO 读取，用锁保护避免数据竞争
     private let nominalFPSLock = OSAllocatedUnfairLock<Double>(initialState: 30.0)
     @Published var isFocusLocked = false
+    /// 用户曝光补偿（EV）。tap-to-focus 后上下滑动手势驱动；focus 释放（timer / subject-area）时归零。
+    /// 与 device.exposureTargetBias 镜像同步——后者在 flash capture 路径里会被临时改写，但 capture
+    /// 完成后会通过 pendingFlashRestore 恢复，对外表现仍等于这里。
+    @Published var exposureBias: Float = 0
 
     /// 虚拟（或物理）设备 — 整个生命周期固定，不 swap。constituent 由系统按 zoom + .locked
     /// 在内部切换。session 配置完成前为 nil。
@@ -1197,14 +1373,41 @@ class CameraManager: NSObject, ObservableObject {
             if exposurePointOK { device.exposurePointOfInterest = normalizedPoint }
             if autoFocusOK { device.focusMode = .autoFocus }
             if autoExposeOK { device.exposureMode = .autoExpose }
+            // 每次新 tap 把 EV 偏置归零——对齐 iPhone Camera：sun 总是从中位开始
+            device.setExposureTargetBias(0) { _ in }
             device.unlockForConfiguration()
 
             Log.session.info("focus_set device=\(device.localizedName, privacy: .public) avf=(\(String(format: "%.3f", normalizedPoint.x)),\(String(format: "%.3f", normalizedPoint.y))) focus_pt=\(focusPointOK) expo_pt=\(exposurePointOK) auto_focus=\(autoFocusOK) auto_expose=\(autoExposeOK)")
 
+            if exposureBias != 0 { exposureBias = 0 }
             isFocusLocked = true
             startFocusHoldTimer()
         } catch {
             Log.session.error("focus_set_failed error=\(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// 上下滑动手势驱动的曝光补偿。clamp 到 ±1 EV 软上限和设备实际 min/max 的交集——
+    /// 胶片模拟用机最常见的需求是"压一档保高光 / 提一档救暗部"，±1 EV 已覆盖这个区间；
+    /// 拍同一卷胶片在更极端光比下用户应该换胶片或开闪光灯，而不是把 EV 推到 ±3。
+    /// 收紧上限的副效果：sun rail 满程对应 ±1 EV，单次 100pt 即可走完全程，体感更直接。
+    /// 注意：flash capture 路径会在 lock 期间临时改写 device.exposureTargetBias，capture 完成后
+    /// 通过 pendingFlashRestore 还原到本方法写入的值。所以即使在 capture 之间多次拖动也是安全的——
+    /// 只要 isCapturing 守护住了拍照进行中不让此方法触发（CameraView 那一层的 guard）。
+    func setExposureBias(_ bias: Float) {
+        guard let device = videoCaptureDevice else { return }
+        let lo = max(-1.0, device.minExposureTargetBias)
+        let hi = min(1.0, device.maxExposureTargetBias)
+        let clamped = max(lo, min(hi, bias))
+        do {
+            try device.lockForConfiguration()
+            device.setExposureTargetBias(clamped) { _ in }
+            device.unlockForConfiguration()
+            if abs(exposureBias - clamped) > 0.001 {
+                exposureBias = clamped
+            }
+        } catch {
+            Log.session.error("set_bias_failed error=\(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -1229,6 +1432,13 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
+    /// 用户在 reticle 可见期间继续操作（EV 调整、连续微调）→ 重置 3s 锁定计时器，
+    /// 让 reticle 不会在用户还在交互时突然消失。仅在已锁定状态下生效，避免无端续期。
+    func refreshFocusHold() {
+        guard isFocusLocked else { return }
+        startFocusHoldTimer()
+    }
+
     func restoreContinuousFocus() {
         guard let device = videoCaptureDevice else { return }
         focusHoldTimer?.invalidate()
@@ -1240,7 +1450,13 @@ class CameraManager: NSObject, ObservableObject {
             if device.isExposureModeSupported(.continuousAutoExposure) {
                 device.exposureMode = .continuousAutoExposure
             }
+            // 同时把 EV 偏置归零：focusHoldTimer 超时 / subjectAreaDidChange 都走这里——
+            // 用户拖动产生的 sun 偏移随对焦框一起淡出，与 iPhone Camera 行为一致。
+            if exposureBias != 0 {
+                device.setExposureTargetBias(0) { _ in }
+            }
             device.unlockForConfiguration()
+            if exposureBias != 0 { exposureBias = 0 }
         } catch {}
     }
 
