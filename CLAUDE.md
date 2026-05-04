@@ -19,7 +19,7 @@ JustShoot is an iOS film camera app built with SwiftUI and SwiftData that emulat
 - **CoreLocation** with 30 s cache, zero-wait GPS fetch
 - **Photos Framework** for export with metadata preservation
 
-### Source Layout (post-refactor, 19 files)
+### Source Layout (post-refactor, 24 files)
 
 ```
 JustShoot/
@@ -66,10 +66,19 @@ JustShoot/
 │                                          AVCapturePhotoCaptureDelegate
 ├── CameraManager+Location.swift    (93)   GPS 30 s cache + CLLocationManagerDelegate
 │
-│ ── Gallery + film card library
-├── GalleryView.swift               (1601) ImageLoader singleton, GalleryView grid,
-│                                          PhotoDetailView pager, ZoomingScrollView,
-│                                          PhotoScrubber, PhotoInfoPanel
+│ ── Gallery (post-split: was one 1,601-line file)
+├── GalleryView.swift               (345)  Grid + drag-to-select multi-delete +
+│                                          PhotoThumbnailView cell + DetailPayload
+├── ImageLoader.swift               (297)  Shared NSCache + disk cache + in-flight
+│                                          dedup + currentScreen() helper
+├── PhotoDetailView.swift           (492)  Paged detail viewer + PagerImage cell +
+│                                          preheat / save / delete / info sheet
+├── ZoomablePhoto.swift             (221)  UIViewRepresentable + ZoomingScrollView
+│                                          (pinch zoom + edge-paging hand-off)
+├── PhotoScrubber.swift             (160)  Horizontal thumbnail strip + cell
+├── PhotoInfoPanel.swift            (104)  EXIF info sheet + ExifInfoCard
+│
+│ ── Film card library
 ├── FilmCardLibraryView.swift       (747)  Card library UI: filters, grid, detail
 └── FilmCardCoverBackground.swift   (409)  Dominant-color extraction + adaptive backdrop
 ```
