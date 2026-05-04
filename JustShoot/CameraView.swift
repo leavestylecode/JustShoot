@@ -1061,6 +1061,8 @@ class CameraManager: NSObject, ObservableObject {
     /// 切焦距时用于丢弃过时回调的单调递增 token（用户快速来回点档位时旧任务不会把
     /// 新档位的 lock 撤掉）。
     private var applyFocalToken: UInt64 = 0
+    /// beginLensTransition 启动的 grace 超时 task；新一次进入或外部 markLensSettled 时取消旧的。
+    private var lensSettleTask: Task<Void, Never>?
 
     /// 弱引用 MTKView，用于从相机回调触发渲染
     weak var previewMTKView: MTKView?
@@ -1097,6 +1099,15 @@ class CameraManager: NSObject, ObservableObject {
     /// 当前实际激活的物理 constituent（KVO 自虚拟设备 activePrimaryConstituentDevice）。
     /// 用于诊断 .locked 是否真的把 constituent 钉住了；UI 不直接渲染。
     @Published var activeConstituentName: String = ""
+    /// 镜头切换进行中（slow path Phase 0–3 + 200ms grace period）。
+    /// **关键作用**：capturePhoto 在 issue 给 AVF 之前 await 此 flag 归 false——避免
+    /// ZSL ring buffer 里上一颗 constituent 的旧帧被选作出片源。等效焦距 35mm 的照片在
+    /// 元数据里"被报成 13mm 镜头拍摄"的根因，就是这个 race。Capture 内部由 waitForLensSettled
+    /// 串行化，UI 不需要看；@Published 仍然便于调试 / 未来在 UI 加 spinner。
+    @Published var isLensTransitioning: Bool = false
+    /// 当前切换目标 constituent。constituentObservation 命中时（active === expected）即认为
+    /// 镜头硬件已切到位，slow path Phase 3 lock 后再加 200ms grace 让 ZSL ring 完全换血。
+    private var expectedConstituent: AVCaptureDevice?
     private var zoomObservation: NSKeyValueObservation?
     private var constituentObservation: NSKeyValueObservation?
     private var focalLengthPicker: AVCaptureIndexPicker?
@@ -1559,6 +1570,8 @@ class CameraManager: NSObject, ObservableObject {
         let captureSession = session
         let output = photoOutput
         let videoOutput = videoDataOutput
+        // 把 MainActor 上的 currentFocalLength 抓到 closure 里——sessionQueue 上不能跨回主 actor 读
+        let initialFocal = currentFocalLength
 
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             sessionQueue.async {
@@ -1572,6 +1585,10 @@ class CameraManager: NSObject, ObservableObject {
                     }
 
                     self.applyBestFormatAndModes(on: device)
+                    // 关键：在 startRunning 之前把 videoZoomFactor + .locked 钉到目标焦段，
+                    // 让 ZSL ring 一开始就只收正确 constituent 的帧——见 lockInitialFocalLength 注释
+                    // 里描述的"35mm 拍出 UW 镜头照片"那个 race 的根因 + 修复。
+                    self.lockInitialFocalLength(on: device, focal: initialFocal)
 
                     if captureSession.canAddOutput(output) {
                         captureSession.addOutput(output)
@@ -1627,7 +1644,15 @@ class CameraManager: NSObject, ObservableObject {
             currentFocalLength = focalInfo.options.contains(.mm35) ? .mm35 : (focalInfo.options.first ?? .mm24)
         }
 
-        applyFocalLength(currentFocalLength, animated: false)
+        // 镜头硬件锁已在 sessionQueue 配置阶段完成（lockInitialFocalLength），这里不再重复
+        // applyFocalLength——后者会走 slow path 把 .locked 临时撤回 .auto，反而打开 race 窗口。
+        // 仅同步 MainActor 上的 currentZoomFactor 反映已生效的 zoom，让 UI 的焦距条立刻准。
+        currentZoomFactor = focalInfo.virtualZoomFactor(for: currentFocalLength)
+        // 启动期同样视作"过渡中"：让前 ~200ms 的 startRunning warmup 帧（哪怕硬件已切到 W,
+        // ISP 第一帧偶尔仍带上一颗的影子）走 waitForLensSettled 排空。constituent KVO 命中或
+        // 250ms 兜底后清掉 flag——见 markLensSettled。
+        expectedConstituent = focalInfo.constituent(for: currentFocalLength)?.device
+        beginLensTransition(graceMs: 250)
         applyVideoOrientationToOutputs()
         configTimer.end("zoom=\(String(format: "%.2f", currentZoomFactor))x")
 
@@ -1920,6 +1945,69 @@ class CameraManager: NSObject, ObservableObject {
         Log.session.info("📷 stabilization_applied device=\(device.localizedName, privacy: .public) preferred=\(name, privacy: .public) active=\(conn.activeVideoStabilizationMode.rawValue)")
     }
 
+    /// 在 session config block 内（startRunning 之前）把虚拟设备锁到目标焦段。
+    ///
+    /// **修复的 bug**：之前的实现在 startRunning 之后才异步走 slow path 切镜头——此时
+    /// ZSL ring buffer 已经在收 zoom=1.0 (UW) 的帧，等 slow path Phase 3 lock 完成已过
+    /// 300+ ms。这段时间内用户按快门，AVF 从 ring 里挑帧出片，照片元数据里的 LensModel /
+    /// 物理 FocalLength 全是 UW，最后用户下载 35mm 拍的照片发现镜头是 13mm。
+    ///
+    /// **修复策略**：在 beginConfiguration / addInput 之后、addOutput / startRunning 之前，
+    /// 把 videoZoomFactor 直接钉到目标焦段对应的虚拟 zoom，并切到 .locked。这样 startRunning
+    /// 产出的第一帧就来自正确的 constituent，ring buffer 从生下来就是干净的。
+    ///
+    /// `.locked` 在配置阶段调用：此时 device 还没产帧，activePrimaryConstituent 可能是 nil
+    /// 或默认值。但**hardware 在 startRunning 时按当前 videoZoomFactor 选 constituent**，
+    /// 所以 zoom=2.92 一定让硬件挑 W；.locked 只是把这个选择钉住不让后续 AE 漂移。
+    /// 即便 .locked 在配置阶段语义上"锁到当前活动"，硬件层面新的 active 选择仍以 zoom 为准。
+    ///
+    /// 走 nonisolated：从 sessionQueue.async 直接调用，不跨回 MainActor。
+    nonisolated private func lockInitialFocalLength(on device: AVCaptureDevice, focal: FocalLengthOption) {
+        let info = DeviceFocalInfo.from(virtualDevice: device)
+        let resolved: FocalLengthOption = {
+            if info.options.contains(focal) { return focal }
+            if info.options.contains(.mm35) { return .mm35 }
+            return info.options.first ?? .mm24
+        }()
+        guard let target = info.constituent(for: resolved) else {
+            Log.session.error("focal_init_lock_no_constituent option=\(resolved.rawValue)")
+            return
+        }
+        let baseZoom = info.virtualZoomFactor(for: resolved)
+        // 边界 ε 与 applyFocalLength 一致：targetZoom 恰落在 switchOver 阈值上时，硬件可能选错档
+        let needsBoundaryBias = target.virtualZoomRange.lowerBound > 1.0 &&
+                                abs(baseZoom - target.virtualZoomRange.lowerBound) < 0.01
+        let targetZoom = needsBoundaryBias ? baseZoom + 0.05 : baseZoom
+
+        do {
+            try device.lockForConfiguration()
+            // 先设 zoom（硬件据此选 constituent），再 .locked 钉住——同一 lock block 内原子提交
+            device.videoZoomFactor = targetZoom
+            device.setPrimaryConstituentDeviceSwitchingBehavior(.locked, restrictedSwitchingBehaviorConditions: [])
+            // 安全快门也在此处一并下，避免 startRunning 后第一帧 AE 跑到 1s 上限
+            let safeShutter = self.computeSafeShutterDuration(focalMm: resolved.rawValue, format: device.activeFormat)
+            device.activeMaxExposureDuration = safeShutter
+            device.unlockForConfiguration()
+            Log.session.info("focal_locked_at_config option=\(resolved.rawValue)mm zoom=\(String(format: "%.2f", targetZoom)) target=\(target.device.localizedName, privacy: .public)")
+        } catch {
+            Log.session.error("focal_init_lock_failed error=\(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// 等待镜头切换稳定。capturePhoto 在 issue 给 AVF 之前调用——保证 ZSL ring 已经
+    /// 换上新 constituent 的帧，不会从旧镜头的缓冲帧里挑出片。
+    /// 600ms 上限保证就算 transition flag 因异常没被清掉，快门也不会永久卡住。
+    func waitForLensSettled(timeoutMs: Int = 600) async {
+        guard isLensTransitioning else { return }
+        let start = CFAbsoluteTimeGetCurrent()
+        let deadline = start + Double(timeoutMs) / 1000.0
+        while isLensTransitioning, CFAbsoluteTimeGetCurrent() < deadline {
+            try? await Task.sleep(for: .milliseconds(15))
+        }
+        let waited = (CFAbsoluteTimeGetCurrent() - start) * 1000
+        Log.capture.info("lens_settle_wait waited=\(String(format: "%.0f", waited))ms still_transitioning=\(self.isLensTransitioning)")
+    }
+
     /// 安全快门：限制 AE 最长曝光时间，严格走经典 1/focal（35mm 等效）防手持模糊。
     /// 35mm 等效焦距 = `FocalLengthOption.rawValue`，已折算 W/T 物理镜头 + 数码裁切。
     ///   24mm → 1/24s, 35mm → 1/35s, 50mm → 1/50s, 100mm → 1/100s, 200mm → 1/200s
@@ -2009,13 +2097,30 @@ class CameraManager: NSObject, ObservableObject {
 
         // activePrimaryConstituentDevice：诊断 .locked 是否生效。.locked 期望该值不会因
         // videoZoomFactor 跨阈值而漂移；漂移即说明锁失效，应在日志里被立刻看见。
+        // 顺带承担一个职责：active name 命中 expectedConstituent.localizedName 时清
+        // isLensTransitioning——这样 capturePhoto 的 waitForLensSettled 不必硬等 grace 超时，
+        // 绝大多数情况几十 ms 就放行。
+        // 用 localizedName 字符串对比而非引用对比是因为：AVCaptureDevice 非 Sendable,
+        // 把它捕获进 Task @MainActor 在 Swift 6 strict concurrency 下会报 sending 警告；
+        // localizedName 在同一 session 生命周期内唯一标识 constituent，String 是 Sendable。
         constituentObservation = device.observe(\.activePrimaryConstituent, options: [.new]) { [weak self] _, change in
             guard let self else { return }
-            let name = change.newValue.flatMap { $0?.localizedName } ?? "nil"
+            let activeName = change.newValue.flatMap { $0?.localizedName }
+            let logName = activeName ?? "nil"
             Task { @MainActor in
-                if self.activeConstituentName != name {
-                    self.activeConstituentName = name
-                    Log.session.info("constituent_active_changed name=\(name, privacy: .public)")
+                if self.activeConstituentName != logName {
+                    self.activeConstituentName = logName
+                    Log.session.info("constituent_active_changed name=\(logName, privacy: .public)")
+                }
+                if self.isLensTransitioning,
+                   let expectedName = self.expectedConstituent?.localizedName,
+                   let activeName,
+                   activeName == expectedName {
+                    // 硬件已切到位。再给一帧 grace（~50ms）让 ZSL ring 收新帧再放行。
+                    Task { @MainActor [weak self] in
+                        try? await Task.sleep(for: .milliseconds(50))
+                        self?.markLensSettled(reason: "constituent_match")
+                    }
                 }
             }
         }
@@ -2053,6 +2158,24 @@ class CameraManager: NSObject, ObservableObject {
         photoDataHandler = completion
         exposureCompleteHandler = onExposureComplete
 
+        // 镜头切换正在进行（启动期 250ms grace / slow-path Phase 0–3 / 锁后 200ms ZSL refill）
+        // 时，await 直到 isLensTransitioning 归 false 再 issue 给 AVF。
+        // 修的根因：上一版没有这道闸门 → ZSL ring 里上一颗 constituent 的帧被选作出片源 →
+        // 用户选 35mm 拍出来的照片元数据是 13mm UW 镜头。waitForLensSettled 600ms 上限兜底，
+        // 不会让快门永久卡住。绝大多数情况实测 0–250ms。
+        let initialIsLensTransitioning = isLensTransitioning
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if initialIsLensTransitioning {
+                await self.waitForLensSettled()
+            }
+            self.issueCapturePhoto()
+        }
+    }
+
+    /// capturePhoto 主体——拆出来是为了让外层 capturePhoto 能 await waitForLensSettled。
+    /// 必须 @MainActor：访问 photoOutput / videoCaptureDevice / pendingFlashRestore / flashMode。
+    private func issueCapturePhoto() {
         let issueTime = Log.now()
         // HEIF/HEVC 编码：相同视觉质量下文件比 JPEG 小 ~50%，是 iPhone Camera 的默认格式。
         // 48MP cap 后 24mm 单张 JPEG ~25-35MB，HEIF 直接降到 ~6-10MB；35mm/100mm 等中等焦段也都同步缩。
@@ -2314,6 +2437,29 @@ class CameraManager: NSObject, ObservableObject {
         applyFocalLength(option, animated: animated, fromZoom: previousZoom)
     }
 
+    /// 标记进入"镜头切换中"状态。capturePhoto 会 await 直到此 flag 归 false 再发给 AVF。
+    /// 默认 600ms 兜底超时；调用方传 graceMs 控制启动期 / slow-path 完成后的余量（让 ZSL 换血）。
+    /// 同样的 flag 在 lensSettleTask 里被定时器或 constituent KVO 命中时清掉——双保险。
+    private func beginLensTransition(graceMs: Int) {
+        isLensTransitioning = true
+        lensSettleTask?.cancel()
+        lensSettleTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(graceMs))
+            guard let self, !Task.isCancelled else { return }
+            self.markLensSettled(reason: "grace_timeout(\(graceMs)ms)")
+        }
+    }
+
+    /// 把 isLensTransitioning 清掉。constituent KVO 命中（active === expected）或 grace 超时调用。
+    /// 幂等：已经 false 时直接返回，避免重复打日志。
+    private func markLensSettled(reason: String) {
+        guard isLensTransitioning else { return }
+        lensSettleTask?.cancel()
+        lensSettleTask = nil
+        isLensTransitioning = false
+        Log.session.info("lens_settled reason=\(reason, privacy: .public) active=\(self.activeConstituentName, privacy: .public) expected=\(self.expectedConstituent?.localizedName ?? "nil", privacy: .public)")
+    }
+
     /// 单点更新 currentFocalLength 并同步 Camera Control picker 的选中索引。
     /// 程序化设置 selectedIndex 不会回调 picker action，因此安全无重入。
     private func syncCurrentFocalLength(_ option: FocalLengthOption) {
@@ -2400,6 +2546,11 @@ class CameraManager: NSObject, ObservableObject {
         }
 
         // ============= 慢路径：跨 constituent，单段动画 ramp + .auto 自然 crossfade =============
+        // 进慢路径意味着 ZSL ring 即将经历"旧 constituent 帧 → 切换中模糊帧 → 新 constituent 帧"
+        // 三段过渡。capturePhoto 必须等到这段过渡完才发出 issue，否则出片元数据会带上旧镜头。
+        expectedConstituent = target.device
+        beginLensTransition(graceMs: 600)  // Phase 0–3 + grace 上限
+
         Task { @MainActor [weak self] in
             guard let self else { return }
 
@@ -2464,6 +2615,14 @@ class CameraManager: NSObject, ObservableObject {
             let active = activeBeforeLock?.localizedName ?? "nil"
             let match = activeBeforeLock === target.device
             Log.session.info("focal_applied path=slow option=\(option.rawValue)mm target=\(target.device.localizedName, privacy: .public) active=\(active, privacy: .public) match=\(match) zoom=\(String(format: "%.2f", device.videoZoomFactor))x animated=\(animated)")
+
+            // Phase 3 之后再留 200ms grace 让 ZSL ring 收满新 constituent 的帧再放行 capture
+            // （constituent KVO 那条路径只覆盖 active 切到位的瞬间；这里覆盖 active 早就切到位
+            // 但 KVO 没新通知的场景——拍摄前 active 一直没变，但锁刚生效 ring 还没刷新）
+            try? await Task.sleep(for: .milliseconds(200))
+            if self.applyFocalToken == myToken {
+                self.markLensSettled(reason: "slow_path_complete")
+            }
         }
     }
 
