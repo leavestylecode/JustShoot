@@ -19,7 +19,17 @@ JustShoot is an iOS film camera app built with SwiftUI and SwiftData that emulat
 - **CoreLocation** with 30 s cache, zero-wait GPS fetch
 - **Photos Framework** for export with metadata preservation
 
-### Source Layout (post-refactor, 24 files)
+### File Organization Standard
+
+**Apple iOS norms (validated against AVCam, FoodTruck samples + community)**:
+- 500–1,000 lines/file is the sweet spot
+- < 200 lines/file usually means over-split
+- 1,500–2,000 lines/file acceptable for tightly-coupled state machines (e.g. AVF session)
+- Split by **independent concern**, not by sub-method group
+- **Don't widen `private` → `internal` to enable cross-file extensions** — encapsulation outweighs file-scrolling speed
+- Protocol-conformance `extension`s belong in the same file as the host type
+
+### Source Layout (16 files, post-consolidation)
 
 ```
 JustShoot/
@@ -39,7 +49,7 @@ JustShoot/
 ├── FilmCardCatalog.swift           (167)  FilmCard, FilmCardBundle, FilmCardImageCache,
 │                                          FilmCardLibrary (550-card index)
 │
-│ ── Camera (post-split: was one 3,233-line monolith)
+│ ── Camera
 ├── CameraView.swift                (693)  SwiftUI shell + capture pipeline + gestures
 ├── CameraSubviews.swift            (260)  FocusIndicatorView, ExposureSunRail,
 │                                          FocalLengthStrip, FilmSourceCoverThumbnail,
@@ -49,39 +59,37 @@ JustShoot/
 │                                          DeviceFocalInfo (virtual-device focal data)
 ├── MetalPreview.swift              (291)  RealtimePreviewView + Metal Coordinator
 │                                          (CVPixelBuffer → 3D LUT compute shader)
-├── CameraManager.swift             (278)  Class declaration + stored properties +
-│                                          init/deinit + frame state + delegates
-│                                          (VideoDataOutput, SessionControls)
-├── CameraManager+Orientation.swift (143)  CMMotion accelerometer +
-│                                          RotationCoordinator KVO + EXIF orientation
-├── CameraManager+Session.swift     (836)  permissions / configureAndStartSession /
-│                                          format & dimensions / stabilization /
-│                                          lockInitialFocalLength / KVO observers /
-│                                          lifecycle / dumpLensSpecs diagnostics
-├── CameraManager+Lens.swift        (247)  setFocalLength fast/slow path,
-│                                          beginLensTransition / waitForLensSettled,
-│                                          safe-shutter computation
-├── CameraManager+Capture.swift     (348)  setFocusAndExposure, setExposureBias,
-│                                          flash bias & restore, capturePhoto +
-│                                          AVCapturePhotoCaptureDelegate
-├── CameraManager+Location.swift    (93)   GPS 30 s cache + CLLocationManagerDelegate
+├── CameraManager.swift             (1,915) Single-file AVF state machine: properties,
+│                                          init/deinit, orientation (CMMotion +
+│                                          RotationCoordinator), focus / EV, flash
+│                                          lock-and-restore, permissions, configure-
+│                                          AndStartSession + KVO observers, lens
+│                                          fast/slow-path switching, capture, lifecycle
+│                                          (pause / resume / stop), diagnostics dump,
+│                                          GPS 30s cache. + 4 same-file protocol
+│                                          extensions (VideoDataOutput / SessionControls
+│                                          / PhotoCapture / CLLocation delegates).
 │
-│ ── Gallery (post-split: was one 1,601-line file)
+│ ── Gallery
 ├── GalleryView.swift               (345)  Grid + drag-to-select multi-delete +
 │                                          PhotoThumbnailView cell + DetailPayload
 ├── ImageLoader.swift               (297)  Shared NSCache + disk cache + in-flight
 │                                          dedup + currentScreen() helper
-├── PhotoDetailView.swift           (492)  Paged detail viewer + PagerImage cell +
-│                                          preheat / save / delete / info sheet
-├── ZoomablePhoto.swift             (221)  UIViewRepresentable + ZoomingScrollView
-│                                          (pinch zoom + edge-paging hand-off)
-├── PhotoScrubber.swift             (160)  Horizontal thumbnail strip + cell
-├── PhotoInfoPanel.swift            (104)  EXIF info sheet + ExifInfoCard
+├── PhotoDetailView.swift           (981)  Paged detail viewer (PagerImage), pinch-
+│                                          zoom UIScrollView wrapper (ZoomablePhotoView
+│                                          + ZoomingScrollView), bottom thumbnail
+│                                          scrubber (PhotoScrubber + cell), EXIF info
+│                                          sheet (PhotoInfoPanel + ExifInfoCard).
+│                                          All sub-types `private` to this file.
 │
 │ ── Film card library
 ├── FilmCardLibraryView.swift       (747)  Card library UI: filters, grid, detail
 └── FilmCardCoverBackground.swift   (409)  Dominant-color extraction + adaptive backdrop
 ```
+
+**Why CameraManager is one 1,915-line file (and not split into +Lens / +Capture / +Session etc.)**: every section reads/writes the same `AVCaptureSession`, `videoCaptureDevice`, KVO observations, and `pendingFlashRestore`. Splitting forces 30+ properties from `private` to `internal`, breaking encapsulation. Apple's AVCam keeps `CameraModel` as a single file for the same reason. Same-file `extension` blocks for protocol conformance (PhotoCaptureDelegate etc.) are idiomatic and don't sacrifice privacy.
+
+**Why PhotoDetailView is one 981-line file** (paged viewer + scrubber + zoom view + info sheet): all four are visual layers of the same feature, share `currentPhotoID` state, and have no reusability outside this file. Same-file privacy lets all helpers be `private` instead of `internal`.
 
 PBX file system synchronized group is on (`objectVersion = 77`); any file dropped into `JustShoot/` is auto-bundled into the target — no `pbxproj` edit needed.
 
