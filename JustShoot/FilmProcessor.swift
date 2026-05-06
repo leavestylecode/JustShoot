@@ -164,7 +164,7 @@ final class FilmProcessor: Sendable {
     }
 
     /// 应用 LUT 并保留/添加元数据（拍照用，统一 sRGB 色彩空间）
-    func applyLUTPreservingMetadata(imageData: Data, lutCacheKey: String, outputQuality: CGFloat = 0.95, location: CLLocation? = nil, focalLengthIn35mm: Int? = nil) -> Data? {
+    func applyLUTPreservingMetadata(imageData: Data, lutCacheKey: String, outputQuality: CGFloat = 1.0, location: CLLocation? = nil, focalLengthIn35mm: Int? = nil) -> Data? {
         // 读取原始 metadata（AVCapture 写入的完整 EXIF / TIFF / Maker / 色彩空间字典）。
         // 一次读取，后面 orientation 判断 + metadata 注入都复用，避免重复打开 CGImageSource。
         let sourceProps: [String: Any] = {
@@ -226,17 +226,27 @@ final class FilmProcessor: Sendable {
 
         guard let output = colorCube.outputImage else { return nil }
 
-        // 渲染为 HEIF/HEVC（与拍摄端 codec 对齐，相同质量下文件 ~50% of JPEG）。
-        // .RGBA8 = 8-bit HEIF——和原 JPEG 比特深度一致，肉眼无差异；上 16-bit 在 8-bit 源上无增益。
-        // HEVC 编码失败极少见（仅极旧设备），fallback 到 JPEG 保证总能产出。
+        // 渲染为 10-bit HEIC（HEVC Main10），与 iPhone Camera 出片比特深度对齐。
+        // CIColorCubeWithColorSpace 在浮点域插值 LUT cell，输出的中间色精度本身就 > 8-bit，
+        // 压回 RGBA8 会量化掉这部分精度——渐变最易在天空/皮肤上出 banding。10-bit 保留这部分。
+        // 文件体积比 8-bit + 0.95 大 ~50–80%（200mm/12MP 约 300KB → 700–900KB），
+        // 对齐 iPhone Camera 的同场景出片大小。
+        // 兜底链：heif10 → 8-bit HEIC → JPEG（极旧设备无 HEVC 编码器）。
         let rendered: Data
-        if let heif = ciContext.heifRepresentation(
+        if let heif10 = try? ciContext.heif10Representation(
+            of: output,
+            colorSpace: srgbColorSpace,
+            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
+        ) {
+            rendered = heif10
+        } else if let heif8 = ciContext.heifRepresentation(
             of: output,
             format: .RGBA8,
             colorSpace: srgbColorSpace,
             options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
         ) {
-            rendered = heif
+            Log.lut.info("lut_render_fallback codec=heif8 reason=heif10_unavailable")
+            rendered = heif8
         } else if let jpeg = ciContext.jpegRepresentation(
             of: output,
             colorSpace: srgbColorSpace,

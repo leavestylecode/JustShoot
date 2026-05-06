@@ -99,28 +99,34 @@ struct DeviceFocalInfo {
 
         let primaryMm = constituents.first?.nativeMm ?? 26.0
 
-        // 候选档位：根据可达 mm 范围筛选
+        // 按 35mm 等效 nativeMm 分类已存在的物理 constituent。每档焦距只在其依赖的物理镜头存在时露出。
+        // 阈值取宽松值兜住型号差异：UW 12.5–18mm，W 18–35mm，短长焦 ≥50mm（覆盖 52/56/65mm 老款），
+        // 长长焦 ≥100mm（17 Pro/16 Pro Max/15 Pro Max）。
+        let hasUW = constituents.contains { $0.nativeMm <= 18 }                               // 13mm 类
+        let hasWide = constituents.contains { $0.nativeMm > 18 && $0.nativeMm <= 35 }         // 24/26/28mm 类
+        let hasTeleShort = constituents.contains { $0.nativeMm >= 50 }                        // 任意 T (52/56/65/77/100/120)
+        let hasTeleLong = constituents.contains { $0.nativeMm >= 100 }                        // 100mm+ T（200mm 数码 2x 内）
+
+        // 每档对应的物理依赖：
+        //   13mm  → UW 物理存在
+        //   24mm  → W 物理存在
+        //   35mm  → W（W 内部 1.46x 数码裁切）
+        //   50mm  → W（W 内部 2.08x 数码裁切）
+        //   100mm → 任意 T 物理存在（最差 56mm 上 1.78x 数码裁切，可接受）
+        //   200mm → ≥100mm T 物理存在（避免在 56mm/77mm 上做 2.5x+ 数码裁切的画质崩塌）
         let allOptions: [FocalLengthOption] = [.mm13, .mm24, .mm35, .mm50, .mm100, .mm200]
-        let minMm = constituents.first?.nativeMm ?? 13.0
-        let maxMm = (constituents.last?.nativeMm ?? primaryMm) * Float(maxZoom / (constituents.last?.virtualZoomRange.lowerBound ?? 1.0))
-
         var options = allOptions.filter { opt in
-            Float(opt.rawValue) >= minMm - 0.5 && Float(opt.rawValue) <= maxMm + 0.5
+            switch opt {
+            case .mm13: return hasUW
+            case .mm24, .mm35, .mm50: return hasWide
+            case .mm100: return hasTeleShort
+            case .mm200: return hasTeleLong
+            }
         }
-        // 至少保 24mm
-        if !options.contains(.mm24) { options.insert(.mm24, at: 0) }
-
-        // 仅当确实有长焦（≥70mm）时才放出 100mm；≥100mm 才放 200mm
-        let teleNative = constituents.last(where: { $0.nativeMm >= 70 })?.nativeMm ?? 0
-        if teleNative <= 0 {
-            options.removeAll { $0 == .mm100 || $0 == .mm200 }
-        } else {
-            if teleNative < 70 { options.removeAll { $0 == .mm100 } }
-            if teleNative < 100 { options.removeAll { $0 == .mm200 } }
-        }
-        // UW 缺失则去掉 13mm
-        if (constituents.first?.nativeMm ?? 24) > 14 {
-            options.removeAll { $0 == .mm13 }
+        // 兜底：极端情况（仅 UW 或仅 T 的非 iPhone 物理设备）下保 24mm 不空——UW 上 1.85x 数码裁切
+        // 仍能产出 24mm 视野；让 picker 至少有一档可选，避免 UI 空状态崩溃。
+        if options.isEmpty {
+            options = [.mm24]
         }
 
         let constituentLog = constituents.map { c in

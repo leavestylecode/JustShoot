@@ -445,7 +445,7 @@ struct CameraView: View {
                 let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(
                     imageData: data,
                     lutCacheKey: currentSource.lutCacheKey,
-                    outputQuality: 0.95,
+                    outputQuality: 1.0,
                     location: location,
                     focalLengthIn35mm: focalMm
                 )
