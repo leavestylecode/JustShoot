@@ -15,9 +15,16 @@ struct RealtimePreviewView: UIViewRepresentable {
             return fallback
         }
         let view = MTKView(frame: .zero, device: device)
-        // 事件驱动渲染：只在新帧到达时绘制（由相机回调触发 setNeedsDisplay）
-        view.isPaused = true
-        view.enableSetNeedsDisplay = true
+        // CADisplayLink 驱动渲染：MTKView 内部以屏幕 vsync 节拍调 draw(in:)。
+        // draw() 内部按 lastRenderedFrameId 去重，没有新相机帧时立刻 return（~零成本）。
+        //
+        // 旧实现是 isPaused=true + enableSetNeedsDisplay=true，由 captureOutput 每帧
+        // DispatchQueue.main.async { setNeedsDisplay() } 触发。问题：编码繁忙 / 相机切镜头时
+        // 主队列堆积，setNeedsDisplay 排队跟其它 UI 工作竞争，预览会丢帧。CADisplayLink 走
+        // CoreAnimation 内部线程，不经过应用主队列，跟主线程其它工作解耦。
+        view.isPaused = false
+        view.enableSetNeedsDisplay = false
+        view.preferredFramesPerSecond = 60
         view.framebufferOnly = false  // 允许 compute shader 写入 drawable
         // 预览降分辨率：2x 而非 3x，减少 55% 像素量
         view.contentScaleFactor = min(context.environment.displayScale, 2.0)

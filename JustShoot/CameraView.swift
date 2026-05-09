@@ -21,9 +21,15 @@ struct CameraView: View {
     @Query private var presetPhotos: [Photo]
     @StateObject private var cameraManager: CameraManager
     @State private var showFlash = false
-    /// 全程持有：tap → 释放在 LUT/save 完成后。覆盖整个后处理 pipeline，
-    /// 防止用户连按导致 N 个 24MP HEIF 编码并发跑（peak 内存 200-400MB×N，触发 jetsam）。
-    @State private var isCapturing = false
+    /// 仅守护 tap → 拿到 raw photo data（含闪光灯 AE/WB 还原）这一窗口。
+    /// 拿到 data 后立刻释放，让用户能继续按下一张快门 —— 后处理 pipeline 由
+    /// pendingPostProcessing 计数 + 上限 2 并发守护，避免 N 张 48MP HEIF 编码同时占满
+    /// 内存触发 jetsam，又不至于像旧实现那样卡 1.5–3s 才能再拍。
+    @State private var isShutterBusy = false
+    /// 后处理（LUT + save + 缩略图）正在跑的张数。spinner 与连按节流都看它。
+    /// 上限 2：iPhone 17 Pro 单张 48MP HEIF10 编码峰值内存 ~200-300MB，2 张并发可控。
+    @State private var pendingPostProcessing = 0
+    private static let maxInflightProcessing = 2
     @State private var shutterPressed = false
     @State private var lastPhotoThumbnail: UIImage?
     @State private var focusPoint: CGPoint? = nil
@@ -218,10 +224,10 @@ struct CameraView: View {
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 14) {
                 HStack {
-                // 左：最近照片缩略图。isCapturing 期间叠加 spinner — 拍照后处理 pipeline
-                // 1.5-6s（48MP HEIF 编码 + LUT），用户需要明确"系统在干活"的反馈，否则会
+                // 左：最近照片缩略图。后处理（LUT+save+thumbnail）期间叠加 spinner —
+                // 48MP 10-bit HEIF 编码 1.5-3s，用户需要明确"系统在干活"的反馈，否则会
                 // 误以为缩略图卡死。spinner 与缩略图叠加而非替换：上一张照片仍可见，新照片
-                // 一进入 lastPhotoThumbnail 就无缝切换。
+                // 一进入 lastPhotoThumbnail 就无缝切换。多张并发后处理时只显示一次。
                 Button { if !presetPhotos.isEmpty { showPhotoDetail = true } } label: {
                     ZStack {
                         if let thumb = lastPhotoThumbnail {
@@ -239,7 +245,7 @@ struct CameraView: View {
                                         .foregroundStyle(.secondary)
                                 }
                         }
-                        if isCapturing {
+                        if isShutterBusy || pendingPostProcessing > 0 {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .fill(.black.opacity(0.4))
                                 .frame(width: 46, height: 46)
@@ -254,9 +260,9 @@ struct CameraView: View {
                 }
                 .accessibilityLabel(presetPhotos.isEmpty ? Text("Most recent photo") : Text("Most recent photo — \(presetPhotos.count) total"))
                 .accessibilityHint(presetPhotos.isEmpty ? Text("No photos yet") : Text("Open larger view"))
-                // 处理期间禁用点击：避免详情页拿到的"最新一张"是上一张（新的还没 save 完成），
-                // 与缩略图 spinner 的"还在处理"语义对齐。
-                .disabled(presetPhotos.isEmpty || isCapturing)
+                // 仅在快门 race 窗口（tap → raw data 到手）禁用，让详情页可以在后处理
+                // 进行中正常打开历史照片。新照片的 @Query 通知会在 save 完成后自动刷新。
+                .disabled(presetPhotos.isEmpty || isShutterBusy)
 
                 Spacer()
 
@@ -367,19 +373,25 @@ struct CameraView: View {
     }
 
     private func capturePhoto() {
-        // isCapturing 守护**整个 pipeline**：tap → exposure → LUT → save → 释放。
-        // 旧实现在 photoDataHandler 拿到 raw data 那一刻就释放，导致用户连按时多个
-        // 24MP HEIF 编码 task 并发跑。新实现下连按时按钮无响应（haptic 也不再触发），
-        // 直到上一张全部完成。手感等价于 iPhone Camera 的快门 throttle。
-        guard !isCapturing else {
-            Log.capture.debug("shutter_ignored reason=busy")
+        // 两道闸门：
+        //  1) isShutterBusy — 上一张的 tap → raw data + 闪光灯 AE/WB 还原这段窗口（必须串行）。
+        //  2) pendingPostProcessing >= maxInflightProcessing — 后处理并发上限（48MP HEIF10
+        //     编码内存峰值 ~200-300MB×N，限 2 张以内）。达到上限时 tap 直接忽略。
+        // 拿到 raw data 后立刻释放 isShutterBusy，让用户能继续按下一张快门，后处理走后台。
+        // 这是 iPhone 系统相机的快门手感。
+        guard !isShutterBusy else {
+            Log.capture.debug("shutter_ignored reason=shutter_busy")
+            return
+        }
+        guard pendingPostProcessing < Self.maxInflightProcessing else {
+            Log.capture.debug("shutter_ignored reason=post_processing_full pending=\(pendingPostProcessing)")
             return
         }
 
         let tapTime = Log.now()
-        Log.capture.info("shutter_tap source=\(source.photoFilterName, privacy: .public)")
+        Log.capture.info("shutter_tap source=\(source.photoFilterName, privacy: .public) pending_post=\(pendingPostProcessing)")
 
-        isCapturing = true
+        isShutterBusy = true
         shutterPressed = true
         cameraManager.hapticMedium.impactOccurred()
 
@@ -420,22 +432,28 @@ struct CameraView: View {
             // 仅 log——曝光物理完成的延迟可观察 ZSL 冷启动 / pre-flash AE 收敛耗时。
             Log.capture.info("exposure_complete dt_from_tap=\(Log.ms(since: tapTime))ms")
         }) { imageData in
+            // raw photo data 已到手 + 闪光灯 AE/WB 已在 didFinishProcessingPhoto 里同步还原
+            // （CameraManager 的 delegate 顺序：applyFlashRestore → photoDataHandler）。
+            // 立即释放 isShutterBusy，让用户能继续按下一张快门 —— 后续 LUT+save 走后台并发。
+            isShutterBusy = false
+
             guard let data = imageData else {
                 Log.capture.error("photo_data_nil dt_from_tap=\(Log.ms(since: tapTime))ms")
-                Task { @MainActor in
-                    isCapturing = false
-                    shutterPressed = false
-                    captureError = String(localized: "Capture failed: couldn't get image data, please try again")
-                }
+                shutterPressed = false
+                captureError = String(localized: "Capture failed: couldn't get image data, please try again")
                 return
             }
             Log.capture.info("photo_data_received bytes=\(data.count) dt_from_tap=\(Log.ms(since: tapTime))ms")
 
+            // 进后台并发后处理之前先占个位，连按时第二张能感知"已有 1 张在跑"。
+            pendingPostProcessing += 1
+
             Task.detached(priority: .userInitiated) {
-                // defer 兜底：即便 LUT/save 抛错，isCapturing 也必须复位，否则按钮永远 disabled。
+                // defer 兜底：即便 LUT/save 抛错，pendingPostProcessing 也必须递减，
+                // 否则连按 maxInflight 次后按钮永久 disabled。
                 defer {
                     Task { @MainActor in
-                        isCapturing = false
+                        pendingPostProcessing = max(0, pendingPostProcessing - 1)
                     }
                 }
 
@@ -575,9 +593,9 @@ struct CameraView: View {
     private func focusAndExposureGesture(viewportSize: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                // capture 进行中（pendingFlashRestore 待还原）禁手势：避免 setExposureTargetBias
-                // 在 flash restore 之前被覆盖，AE 还原后用户偏置无效。
-                guard !isCapturing else { return }
+                // 仅在 tap → raw data + flash restore 这段窗口禁手势，避免 setExposureTargetBias
+                // 与 flash restore 互相覆盖。后处理（LUT+save）已经在背景 task，不会影响 device 状态。
+                guard !isShutterBusy else { return }
 
                 if dragStartLocation == nil {
                     dragStartLocation = value.startLocation
