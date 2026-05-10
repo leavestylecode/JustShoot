@@ -303,6 +303,17 @@ actor PhotoSaver {
         try modelContext.save()
         return photo.id
     }
+
+    /// 批量删除。在自己的 modelContext 上跑，主 @Query 通过 SwiftData 跨 context 通知自动刷新。
+    /// 用 `#Predicate` 一次 fetch 出对应 Photo 实例再 delete——避免主线程把模型对象传过来跨 actor。
+    func delete(ids: [UUID]) throws {
+        guard !ids.isEmpty else { return }
+        let idSet = Set(ids)
+        let descriptor = FetchDescriptor<Photo>(predicate: #Predicate { idSet.contains($0.id) })
+        let photos = try modelContext.fetch(descriptor)
+        for photo in photos { modelContext.delete(photo) }
+        try modelContext.save()
+    }
 }
 
 // MARK: - 自定义 LUT 模型

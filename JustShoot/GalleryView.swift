@@ -6,57 +6,93 @@ import os
 // MARK: - 相册视图（grid + drag-to-select 多选）
 //
 // 详情页（PhotoDetailView + PagerImage + ZoomingScrollView + PhotoScrubber + PhotoInfoPanel）
-// 与 ImageLoader 已拆到独立文件。本文件只保留 grid 主视图、grid cell（PhotoThumbnailView）和
+// 与 ImageLoader 已拆到独立文件。本文件保留 grid 主视图、grid cell（PhotoThumbnailView）和
 // 跳转 payload（DetailPayload）。
+//
+// **drag-to-select 命中策略**：用网格数学（已知列数 + padding + spacing 常量）从触点坐标
+// 反算 (col, row) → photo index，O(1)。比之前用 `[UUID: CGRect]` 字典 + onGeometryChange
+// 注册每个 cell frame、再 first(where: contains) O(n) 命中要快得多——也少了一份 @State，
+// 滚动时不会因为 cellFrames 写入触发 body 重算。
 struct GalleryView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Photo.timestamp, order: .reverse) private var photos: [Photo]
+    @Environment(\.displayScale) private var displayScale
+
     @State private var selectedDetail: DetailPayload?
     @State private var isSelecting = false
     @State private var selectedPhotos: Set<UUID> = []
     @State private var showDeleteConfirm = false
 
-    // Drag-to-select 状态。Photos.app 同款：选择模式下从某 cell 起拖，根据该 cell 当前选中态
-    // 锚定 mode（adding / removing），手指划过的每个 cell 应用该 mode 一次。
-    @State private var cellFrames: [UUID: CGRect] = [:]
+    // ScrollView 宽度——通过 .onGeometryChange 同步。portrait 锁定 + 全屏 ScrollView，
+    // 设一次后基本不变。cell 尺寸 / drag 命中数学都用这个常量算。
+    @State private var containerWidth: CGFloat = 0
+
+    // Drag-to-select 状态。锚定 mode（adding/removing）由起手 cell 的当前选中态决定，
+    // 一次手势内每个 cell 只生效一次（避免反向擦回触发翻飞）。
+    /// Range-based 拖选状态。**Photos.app 核心模型**：起手 cell 锚定、当前手指位置 clamp 到最近
+    /// cell、范围 = [anchor, current] 在 grid index 上的闭区间。手指反方向拖 → 范围收缩自动撤选。
+    /// 比"逐 cell visit"模式：用户不必滑过每个 cell（斜着拖到对角即覆盖整个矩形），右/下边缘外溢
+    /// clamp 到最近 cell 时"整行选中"自然涌现，路径采样防漏选也不需要了。
+    @State private var dragAnchorIndex: Int? = nil
     @State private var dragMode: DragMode? = nil
-    @State private var dragLastPoint: CGPoint? = nil
-    @State private var dragVisited: Set<UUID> = []
+    @State private var dragRangeIndices: Set<Int> = []
+
+    /// 单调递增计数——每次范围扩展（有新 cell 进入）+1，配合 .sensoryFeedback(.selection, trigger:)
+    /// 触发一次 selection haptic。SwiftUI 自动管理 generator 生命周期，与 Photos.app 体感一致。
+    @State private var dragHapticTrigger: Int = 0
+
+    /// cell→detail zoom 转场（iOS 18+ navigationTransition + matchedTransitionSource）。
+    /// ContentView 首页 tile→camera 也是同套机制，这里 grid→detail 跟齐。
+    @Namespace private var detailZoom
 
     private enum DragMode { case adding, removing }
-    /// `nonisolated` 让 `.onGeometryChange` 的 @Sendable closure 也能读这个常量。
-    /// SwiftUI View 默认 MainActor-isolated，连带它的 static 属性也是；不加 nonisolated
-    /// 在 Swift 6 完整并发模式下会报 "Main actor-isolated static property ... can not be
-    /// referenced from a Sendable closure"。值是 `String` 常量、天然线程安全。
-    nonisolated private static let gridCoordSpace = "gallery.grid"
 
-    private let gridColumns = [
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
+    /// `nonisolated` 让 .onGeometryChange / drag closure 这类 @Sendable 闭包也能读。
+    /// 都是 String/Int/CGFloat 常量、天然线程安全。
+    nonisolated private static let gridCoordSpace = "gallery.grid"
+    nonisolated private static let columns: Int = 4
+    nonisolated private static let hPadding: CGFloat = 14
+    nonisolated private static let topPadding: CGFloat = 8
+    nonisolated private static let bottomPadding: CGFloat = 20
+    nonisolated private static let spacing: CGFloat = 6
+
+    private var cellWidth: CGFloat {
+        let totalSpacing = Self.spacing * CGFloat(Self.columns - 1)
+        return max(0, (containerWidth - 2 * Self.hPadding - totalSpacing) / CGFloat(Self.columns))
+    }
+
+    private var thumbnailMaxPixel: Int {
+        max(96, Int(cellWidth * displayScale))
+    }
+
+    private static let gridColumns: [GridItem] = Array(
+        repeating: GridItem(.flexible(), spacing: Self.spacing),
+        count: Self.columns
+    )
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             if photos.isEmpty {
                 emptyState
             } else {
-                LazyVGrid(columns: gridColumns, spacing: 6) {
+                LazyVGrid(columns: Self.gridColumns, spacing: Self.spacing) {
                     ForEach(photos) { photo in
                         photoCell(photo)
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 8)
-                .padding(.bottom, 20)
+                .padding(.horizontal, Self.hPadding)
+                .padding(.top, Self.topPadding)
+                .padding(.bottom, Self.bottomPadding)
                 .coordinateSpace(.named(Self.gridCoordSpace))
-                // including: .none 时 SwiftUI 完全不安装这条 gesture，ScrollView 的 pan 不受影响；
-                // .all 时拦截 grid 区域的 drag，独占用作多选，scroll 可由 flick / status bar tap 触发。
                 .gesture(dragSelectGesture, including: isSelecting ? .all : .none)
             }
         }
         .background(Color.black)
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { width in
+            containerWidth = width
+        }
         .navigationTitle(isSelecting ? Text("\(selectedPhotos.count) selected") : Text("Gallery"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -110,8 +146,10 @@ struct GalleryView: View {
         } message: {
             Text("Delete \(selectedPhotos.count) selected photos? This cannot be undone.")
         }
+        .sensoryFeedback(.selection, trigger: dragHapticTrigger)
         .navigationDestination(item: $selectedDetail) { payload in
             PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos)
+                .navigationTransition(.zoom(sourceID: payload.startPhoto.id, in: detailZoom))
         }
     }
 
@@ -139,21 +177,13 @@ struct GalleryView: View {
     private func photoCell(_ photo: Photo) -> some View {
         PhotoThumbnailView(
             photo: photo,
+            maxPixel: thumbnailMaxPixel,
             isSelecting: isSelecting,
             isSelected: selectedPhotos.contains(photo.id)
         )
-        .aspectRatio(1, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .clipped()
         .contentShape(Rectangle())
-        // 把 cell 在 grid 命名空间里的 frame 注册到字典，drag 时用于命中测试。
-        // onDisappear 在 LazyVGrid 卸载该 cell 时清理，避免滚出视野的过期 frame 误命中。
-        .onGeometryChange(for: CGRect.self) { proxy in
-            proxy.frame(in: .named(Self.gridCoordSpace))
-        } action: { frame in
-            cellFrames[photo.id] = frame
-        }
-        .onDisappear { cellFrames.removeValue(forKey: photo.id) }
+        .matchedTransitionSource(id: photo.id, in: detailZoom)
         .onTapGesture { handleTap(photo) }
     }
 
@@ -166,13 +196,8 @@ struct GalleryView: View {
                 selectedPhotos.insert(photo.id)
             }
         } else {
-            let screen = currentScreen()
-            let bounds = screen?.bounds ?? .zero
-            let scale = screen?.scale ?? 2.0
-            let maxPixel = Int(max(bounds.width, bounds.height) * scale)
-            Task { @MainActor in
-                _ = await ImageLoader.shared.loadPreview(for: photo, maxPixel: maxPixel)
-            }
+            // PhotoDetailView 自己会按 previewMaxPixel(屏幕长边像素) 异步解码并在期间用
+            // anyCachedThumbnail 兜底——这里再 schedule 一次 loadPreview 是冗余且时机更晚。
             selectedDetail = DetailPayload(startPhoto: photo, photos: Array(photos))
         }
     }
@@ -180,82 +205,116 @@ struct GalleryView: View {
     // MARK: - Drag-to-select
 
     private var dragSelectGesture: some Gesture {
-        // minimumDistance: 10 让短 tap 不触发 drag（onTapGesture 仍接管单击切选）；
-        // 越过阈值后，drag 接管：onChanged 沿 last → current 走样本点找命中 cell。
-        DragGesture(minimumDistance: 10, coordinateSpace: .named(Self.gridCoordSpace))
+        // minimumDistance: 20——iOS 18 已知问题：阈值过低（<10）会优先于 ScrollView 滚动手势，
+        // 导致选择模式下没法垂直滚动。Apple 论坛 + 多篇 SwiftUI 实战文章建议 20–40：让 cell 单击稳
+        // 定走 .onTapGesture（toggle 选中），给 ScrollView 留滚动空间，drag-select 上手时机也清晰。
+        DragGesture(minimumDistance: 20, coordinateSpace: .named(Self.gridCoordSpace))
             .onChanged { value in
-                handleDragChange(at: value.location)
+                applyDragRange(start: value.startLocation, current: value.location)
             }
             .onEnded { _ in
                 resetDragState()
             }
     }
 
-    private func handleDragChange(at point: CGPoint) {
-        // 沿 lastPoint → currentPoint 等距取样，避免快速对角拖动跳过中间 cell（漏选）。
-        // 步长 20pt 远小于 cell 宽（~93pt @ 4 cols），保证连续行/列都能命中至少一次。
-        let from = dragLastPoint ?? point
-        let dx = point.x - from.x
-        let dy = point.y - from.y
-        let distance = (dx * dx + dy * dy).squareRoot()
-        let stepCount = max(1, Int(ceil(distance / 20)))
-        for i in 1...stepCount {
-            let t = CGFloat(i) / CGFloat(stepCount)
-            let p = CGPoint(x: from.x + dx * t, y: from.y + dy * t)
-            if let id = cellFrames.first(where: { $0.value.contains(p) })?.key {
-                visit(id)
-            }
+    /// Range-based 拖选核心。Photos.app 一致的"锚定 + 区间填充"模型——
+    /// - `start` 是 DragGesture 的 startLocation（finger touch-down 位置，即使 onChanged 在
+    ///   minimumDistance 阈值后才首次回包，startLocation 仍指向最初触点）；
+    /// - `current` 是当前手指位置；
+    /// - 范围 = [anchor, current] 闭区间，向前向后均可，反向拖时区间收缩、之前 add 的 cell 被
+    ///   反向 remove（或反之），完美对称。
+    private func applyDragRange(start: CGPoint, current: CGPoint) {
+        // 首次回包：锚定起手 cell + 决定 mode（起手 cell 已选 → 反选模式，未选 → 选中模式）。
+        if dragAnchorIndex == nil {
+            guard let anchor = nearestPhotoIndex(at: start) else { return }
+            dragAnchorIndex = anchor
+            dragMode = selectedPhotos.contains(photos[anchor].id) ? .removing : .adding
         }
-        dragLastPoint = point
+
+        guard let anchor = dragAnchorIndex,
+              let cur = nearestPhotoIndex(at: current),
+              let mode = dragMode else { return }
+
+        let lo = min(anchor, cur)
+        let hi = max(anchor, cur)
+        let newRange = Set(lo...hi)
+
+        let entered = newRange.subtracting(dragRangeIndices)
+        let exited = dragRangeIndices.subtracting(newRange)
+
+        // 进入区间的 cell 应用 mode；退出区间的 cell 反向应用——支持反方向拖回收缩区间。
+        for idx in entered {
+            applyMode(mode, to: photos[idx].id, reverse: false)
+        }
+        for idx in exited {
+            applyMode(mode, to: photos[idx].id, reverse: true)
+        }
+
+        if !entered.isEmpty {
+            dragHapticTrigger &+= 1
+        }
+
+        dragRangeIndices = newRange
     }
 
-    private func visit(_ id: UUID) {
-        // 第一次触达：根据起手 cell 当前的选中态锚定 mode——已选则本次 drag 全部"取消选中"，
-        // 未选则全部"选中"。和 Photos.app 一致。
-        if dragMode == nil {
-            dragMode = selectedPhotos.contains(id) ? .removing : .adding
+    private func applyMode(_ mode: DragMode, to id: UUID, reverse: Bool) {
+        switch (mode, reverse) {
+        case (.adding, false), (.removing, true): selectedPhotos.insert(id)
+        case (.removing, false), (.adding, true): selectedPhotos.remove(id)
         }
-        // 一次手势内每个 cell 只生效一次，反向滑回不会反转——避免抖动 / 来回擦造成状态翻飞。
-        guard !dragVisited.contains(id) else { return }
-        dragVisited.insert(id)
-        switch dragMode {
-        case .adding: selectedPhotos.insert(id)
-        case .removing: selectedPhotos.remove(id)
-        case nil: break
-        }
-        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
+    /// 把任意点 clamp 到最近 photo 的 grid index。**右/下/外溢区都会落到最近 cell**——这是
+    /// "右边缘 = 整行选中"行为的关键：手指拖到第 N 行右侧外溢区 → clamp 到第 N 行最右 cell →
+    /// 区间 [anchor, 第N行末尾] 自然覆盖前 N-1 行 + 当前行到末尾。
+    /// `point` 在 `.named(gridCoordSpace)` 坐标系下——origin = padded LazyVGrid 左上。
+    private func nearestPhotoIndex(at point: CGPoint) -> Int? {
+        let cellW = cellWidth
+        guard cellW > 0, !photos.isEmpty else { return nil }
+        let stride = cellW + Self.spacing
+        let x = point.x - Self.hPadding
+        let y = point.y - Self.topPadding
+
+        let totalRows = (photos.count + Self.columns - 1) / Self.columns
+        let row = max(0, min(totalRows - 1, Int(y / stride)))
+        let col = max(0, min(Self.columns - 1, Int(x / stride)))
+
+        // 末行可能不满 columns（e.g. 13 张照片 4 列时末行只有 1 张）——clamp 到 photos.count-1。
+        return min(row * Self.columns + col, photos.count - 1)
     }
 
     private func resetDragState() {
+        dragAnchorIndex = nil
         dragMode = nil
-        dragLastPoint = nil
-        dragVisited.removeAll()
+        dragRangeIndices.removeAll()
     }
 
     // MARK: - Actions
 
     private func deleteSelectedPhotos() {
-        let photosToDelete = photos.filter { selectedPhotos.contains($0.id) }
-        let deletedIds = photosToDelete.map { $0.id }
+        let idsToDelete = Array(selectedPhotos)
+        guard !idsToDelete.isEmpty else { return }
+        let container = modelContext.container
 
-        for photo in photosToDelete {
-            modelContext.delete(photo)
-        }
-
-        do {
-            try modelContext.save()
-            // 清理已删除照片的磁盘缓存
-            for id in deletedIds {
-                ImageLoader.shared.removeDiskCache(for: id)
-            }
-            Log.save.info("photos_deleted count=\(deletedIds.count)")
-        } catch {
-            Log.save.error("photo_delete_failed count=\(deletedIds.count) error=\(error.localizedDescription, privacy: .public)")
-        }
-
+        // 关 selection 模式 + 清状态——UI 立刻反馈，删除走后台 actor。
         selectedPhotos.removeAll()
         isSelecting = false
         resetDragState()
+
+        Task.detached(priority: .userInitiated) {
+            do {
+                let saver = PhotoSaver(modelContainer: container)
+                try await saver.delete(ids: idsToDelete)
+                // 主 @Query 通过 SwiftData 跨 context 通知自动刷新——cell 从 grid 中淡出。
+                // disk cache 清理可以慢慢来，不阻塞 UI 也不阻塞 SwiftData 写入。
+                for id in idsToDelete {
+                    ImageLoader.shared.removeDiskCache(for: id)
+                }
+                Log.save.info("photos_deleted count=\(idsToDelete.count)")
+            } catch {
+                Log.save.error("photo_delete_failed count=\(idsToDelete.count) error=\(error.localizedDescription, privacy: .public)")
+            }
+        }
     }
 }
 
@@ -271,71 +330,89 @@ private struct DetailPayload: Identifiable, Equatable, Hashable {
 // MARK: - 缩略图视图（grid cell）
 struct PhotoThumbnailView: View {
     let photo: Photo
+    let maxPixel: Int
     var isSelecting: Bool = false
     var isSelected: Bool = false
+
+    /// 同步 cache 命中：init 时直接读 NSCache，命中就立即作为 thumb 初值——避免 .task 启动那一帧
+    /// 露出 ProgressView 占位（NSCache 命中只要 µs，但 .task 会让出一次 runloop，肉眼可见一帧白）。
+    /// miss 才进入 .task 异步路径；同 photo 同 size 第二次出现就完全无闪烁。
     @State private var thumb: UIImage?
-    @Environment(\.displayScale) private var displayScale
+
+    init(photo: Photo, maxPixel: Int, isSelecting: Bool = false, isSelected: Bool = false) {
+        self.photo = photo
+        self.maxPixel = maxPixel
+        self.isSelecting = isSelecting
+        self.isSelected = isSelected
+        let cached = ImageLoader.shared.cachedThumbnail(for: photo.id, maxPixel: maxPixel)
+            ?? ImageLoader.shared.anyCachedThumbnail(for: photo.id)
+        _thumb = State(initialValue: cached)
+    }
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .topTrailing) {
-                Group {
-                    if let image = thumb {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: geometry.size.width, height: geometry.size.width)
-                            .clipped()
-                    } else {
-                        Rectangle()
-                            .fill(Color.white.opacity(0.08))
-                            .frame(width: geometry.size.width, height: geometry.size.width)
-                            .overlay(
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white.opacity(0.5)))
-                                    .scaleEffect(0.8)
-                            )
-                    }
-                }
-
-                if isSelecting {
-                    ZStack {
-                        Circle()
-                            .fill(isSelected ? Color.blue : Color.black.opacity(0.5))
-                            .frame(width: 22, height: 22)
-
-                        if isSelected {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.white)
-                        } else {
-                            Circle()
-                                .stroke(Color.white.opacity(0.8), lineWidth: 1.5)
-                                .frame(width: 18, height: 18)
-                        }
-                    }
-                    .padding(5)
-                }
-
-                if isSelecting && isSelected {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.blue, lineWidth: 2)
-                        .frame(width: geometry.size.width, height: geometry.size.width)
+        // Color.clear + .aspectRatio(1, .fit) 确立方形画布；图像在 .overlay 里以 .scaledToFill
+        // 填满，溢出由外层 .clipped() 裁到方形边界——这是 SwiftUI 标准的"图像方形裁切"惯用法。
+        // 不能用 Image(...).aspectRatio(.fill) 直接当 ZStack 子项：Image 在 .fill 模式下会以
+        // 实际像素比例外溢父框，相邻 cell 视觉上互相重叠。
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                if let image = thumb {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Color.white.opacity(0.08)
+                        .overlay(
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white.opacity(0.5)))
+                                .scaleEffect(0.8)
+                        )
                 }
             }
-            .task {
-                if thumb == nil {
-                    // Cell width is the exact tile size from GeometryReader;
-                    // multiply by display scale to get pixels.
-                    let maxPixel = Int(geometry.size.width * displayScale)
-                    thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: maxPixel)
+            .clipped()
+            // 选中遮罩——深色薄洗压暗已选 cell 的照片，让选中态在亮/暗照片上都一眼可辨；
+            // 蒙板下沉、角标上浮，互不干扰。
+            .overlay {
+                if isSelecting && isSelected {
+                    Color.black.opacity(0.4)
                 }
+            }
+            .overlay(alignment: .topTrailing) {
+                if isSelecting {
+                    selectionBadge
+                        .padding(8)
+                }
+            }
+            // task(id:) 让 maxPixel 改变时（首次容器宽度从 0 变到真实值）重新解码到精确尺寸。
+            .task(id: maxPixel) {
+                guard maxPixel > 0, thumb == nil else { return }
+                thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: maxPixel)
+            }
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityHint(isSelecting ? "Toggle selection" : "View photo")
+            .accessibilityAddTraits(isSelected ? [.isImage, .isSelected] : .isImage)
+    }
+
+    /// Photos.app 一致的选中角标：右上 22pt SF Symbol。
+    /// - 选中 = `checkmark.circle.fill` + palette rendering（白勾 + 蓝底）
+    /// - 未选 = `circle` 白色描边
+    /// - 都加一层薄阴影，保证在白色/纯亮照片上仍清晰可见
+    /// - **故意不画 cell 蓝边框 / 不缩放 / 不暗化**——Photos.app 仅角标变化，cell 本身保持原貌
+    @ViewBuilder
+    private var selectionBadge: some View {
+        Group {
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, Color.blue)
+            } else {
+                Image(systemName: "circle")
+                    .foregroundStyle(.white)
             }
         }
-        .aspectRatio(1, contentMode: .fit)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint(isSelecting ? "Toggle selection" : "View photo")
-        .accessibilityAddTraits(isSelected ? [.isImage, .isSelected] : .isImage)
+        .font(.system(size: 22, weight: .regular))
+        .shadow(color: .black.opacity(0.35), radius: 2, x: 0, y: 1)
     }
 
     private var accessibilityLabel: String {

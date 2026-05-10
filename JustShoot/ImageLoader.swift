@@ -273,25 +273,18 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         cache.removeAllObjects()
     }
 
-    /// 删除指定照片的磁盘缓存文件
+    /// 删除指定照片的磁盘缓存文件。
+    /// 内存 NSCache 不主动清——cell 已 unmount，key 不会再被命中，让 NSCache 自然按 cost/count 淘汰。
+    /// 主动移除需要遍历 key，但 NSCache 不暴露遍历 API，按写死常见尺寸列表去 remove 与实际写入尺寸
+    /// 几乎对不上（cell 用 width × displayScale 算出来的尺寸），是 dead code。
     func removeDiskCache(for photoId: UUID) {
         let fm = fileManager
-        // 清理缩略图和预览的所有尺寸变体
+        let prefix = photoId.uuidString
         for dir in [thumbsDirectory(), previewDirectory()] {
-            guard let dir else { continue }
-            let prefix = photoId.uuidString
-            if let files = try? fm.contentsOfDirectory(atPath: dir.path) {
-                for file in files where file.hasPrefix(prefix) {
-                    try? fm.removeItem(at: dir.appendingPathComponent(file))
-                }
+            guard let dir, let files = try? fm.contentsOfDirectory(atPath: dir.path) else { continue }
+            for file in files where file.hasPrefix(prefix) {
+                try? fm.removeItem(at: dir.appendingPathComponent(file))
             }
-        }
-        // 清理内存缓存中对应的条目
-        // NSCache 没有遍历 API，但 key 模式固定，尝试移除常见尺寸
-        let commonSizes = [88, 96, 256, 400, 600, 800, 1200, 2000, 3000]
-        for size in commonSizes {
-            cache.removeObject(forKey: "thumb_\(photoId.uuidString)_\(size)" as NSString)
-            cache.removeObject(forKey: "preview_\(photoId.uuidString)_\(size)" as NSString)
         }
     }
 }
