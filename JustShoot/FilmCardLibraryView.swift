@@ -60,10 +60,11 @@ struct FilmCardLibraryView: View {
     /// the same id when the user pushes.
     @Namespace private var zoomNamespace
 
+    /// Adaptive grid. `minimum: 100` keeps 3 columns on iPhone (down to the
+    /// 13 mini's 375pt width → ~109pt cells) and expands to 6+ columns on
+    /// iPad portrait without per-device math.
     private let columns = [
-        GridItem(.flexible(), spacing: 10),
-        GridItem(.flexible(), spacing: 10),
-        GridItem(.flexible(), spacing: 10)
+        GridItem(.adaptive(minimum: 100), spacing: 10)
     ]
 
     /// Brand / format threshold: count > 10 gets its own chip, the rest go into "Other".
@@ -364,9 +365,10 @@ struct FilmCardThumbnail: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .task(id: card.id) {
-            // Grid cell ~120pt; multiply by display scale, floor at 300 to
-            // satisfy the thumbnail API's minimum.
-            let pixel = max(Int(120.0 * displayScale), 300)
+            // Adaptive grid → cells range from ~100pt (iPad) to ~170pt
+            // (iPhone Pro Max with 2 cols). Size at the upper bound × scale,
+            // floored at 300 to satisfy the thumbnail API's minimum.
+            let pixel = max(Int(180.0 * displayScale), 300)
             image = await FilmCardLibrary.shared.image(for: card, maxPixel: pixel)
         }
     }

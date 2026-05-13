@@ -4,11 +4,5 @@
 <dict>
 	<key>CADisableMinimumFrameDuration</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>JustShoot needs camera access to capture photos.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>JustShoot saves your captured photos to the photo library.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>JustShoot uses your location to tag photos with where they were taken.</string>
 </dict>
 </plist>

@@ -19,11 +19,11 @@ struct ContentView: View {
     /// 每个 tile 用 source.id 作为匹配键；拍摄页 destination 同 id 应用 navigationTransition(.zoom)。
     @Namespace private var coverZoom
 
-    /// Three-column grid of preset / custom-LUT tiles.
+    /// Adaptive grid of preset / custom-LUT tiles. `minimum: 100` keeps three
+    /// columns on iPhone (incl. 13 mini → ~109pt tiles) and expands to 6+
+    /// columns on iPad portrait without per-device math.
     private let gridColumns = [
-        GridItem(.flexible(), spacing: 10),
-        GridItem(.flexible(), spacing: 10),
-        GridItem(.flexible(), spacing: 10)
+        GridItem(.adaptive(minimum: 100), spacing: 10)
     ]
 
     var body: some View {
@@ -341,9 +341,10 @@ struct FilmPresetTile: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .task(id: preset.rawValue) {
-            // 3-column grid → tiles ~120pt; multiply by display scale,
-            // floor at 300 to match the film-card library cells.
-            let pixel = max(Int(140.0 * displayScale), 300)
+            // Adaptive grid → tiles range from ~100pt (iPad) up to ~170pt
+            // (iPhone Pro Max with 2 cols). Size at the upper bound × scale,
+            // floored at 300 to satisfy the thumbnail API's minimum.
+            let pixel = max(Int(180.0 * displayScale), 300)
             image = await FilmCardImageCache.shared.loadImage(
                 imageName: preset.libraryCardImage,
                 cacheKey: "preset_\(preset.rawValue)",

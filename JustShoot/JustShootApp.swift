@@ -26,7 +26,17 @@ extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
     }
 }
 
-// MARK: - AppDelegate：全局锁定竖屏
+// MARK: - AppDelegate：全局锁定竖屏（iPhone + iPad）
+//
+// iPadOS 26 起 Apple 不再允许 app 通过 UIRequiresFullScreen 退出多任务模式，
+// 也无法在 Stage Manager / Split View 下用 requestGeometryUpdate 强制旋转。
+// 因为相机预览/手势/Metal pipeline 高度依赖竖屏几何，权衡后选择整个 app 仅支持
+// 竖屏——iPad 自适应网格在 744pt 仍能排 6 列。
+//
+// 实施：Info.plist 的 UISupportedInterfaceOrientations* 仍声明全部方向（满足
+// App Store ITMS-90475 对 iPad 多任务的最低要求），运行时由这里的 .portrait
+// 收窄到单一方向。AppDelegate 的返回值在 fullscreen / Stage Manager / Split View
+// 下都会被读取，从而把窗口约束为竖屏比例。
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         return .portrait
