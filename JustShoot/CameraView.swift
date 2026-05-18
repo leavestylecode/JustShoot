@@ -14,11 +14,14 @@ import os
 //   - MetalPreview.swift（RealtimePreviewView + Metal Coordinator）
 
 struct CameraView: View {
-    let source: FilmSource
+    /// 当前选中的胶片源。底部右侧封面打开 picker 后可切换——`@State` 让 toolbar title、
+    /// 预览 LUT (RealtimePreviewView.lutCacheKey)、右下封面、左下最近照片 badge 都自动跟随。
+    @State private var source: FilmSource
+    /// Picker 候选列表里需要展示用户导入的自定义 LUT；CameraView 自己持有 @Query 直接喂给 strip。
+    @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @Query private var presetPhotos: [Photo]
     @StateObject private var cameraManager: CameraManager
     @State private var showFlash = false
     /// 仅守护 tap → 拿到 raw photo data（含闪光灯 AE/WB 还原）这一窗口。
@@ -31,6 +34,9 @@ struct CameraView: View {
     @State private var pendingPostProcessing = 0
     private static let maxInflightProcessing = 2
     @State private var shutterPressed = false
+    /// 拍照 pipeline 完成时立即 push 进来的 88pt 缩略图 hint（避免等 @Query 通知链 ~300-500ms）。
+    /// RecentPhotosBadge 通过 @Binding 读写：source 切换时它会清空 hint 并从新 source 的 @Query
+    /// 重新 bootstrap。
     @State private var lastPhotoThumbnail: UIImage?
     @State private var focusPoint: CGPoint? = nil
     @State private var showFocusIndicator = false
@@ -44,20 +50,17 @@ struct CameraView: View {
     /// 本次手势是否由触摸落下时主动展示了 reticle。关键用途：onEnded 判定为非 tap 非 EV 时，
     /// 仅在 didShowReticleThisGesture==true 才撤销 reticle——避免把上一次活动对焦的 reticle 误抹掉。
     @State private var didShowReticleThisGesture = false
-    @State private var showPhotoDetail = false
     /// 拍照失败提示。photo data nil / LUT 失败 / SwiftData save 失败时弹 alert，
     /// 不再静默——避免用户以为拍成功而相册没新照片。
     @State private var captureError: String?
+    /// 底部胶片选择条展开状态。点击右下封面切换；选中任一胶片后自动收起。
+    @State private var showFilmPicker = false
+    /// 预览左右滑动切胶片：手势开始时的 allFilmSources 索引基线。每次 onChanged 累加 delta
+    /// 后映射到目标 index，与 iPhone 原相机滤镜横滑切换同手感。nil = 当前没有 swipe 进行中。
+    @State private var dragStartFilmIndex: Int? = nil
 
     init(source: FilmSource) {
-        self.source = source
-        let filterName = source.photoFilterName
-        _presetPhotos = Query(
-            filter: #Predicate<Photo> { photo in
-                photo.filmPresetName == filterName
-            },
-            sort: \Photo.timestamp
-        )
+        _source = State(initialValue: source)
         _cameraManager = StateObject(wrappedValue: CameraManager())
     }
 
@@ -76,7 +79,7 @@ struct CameraView: View {
                     RealtimePreviewView(manager: cameraManager, lutCacheKey: source.lutCacheKey)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .contentShape(Rectangle())
-                        .gesture(focusAndExposureGesture(viewportSize: geometry.size))
+                        .gesture(unifiedPreviewGesture(viewportSize: geometry.size))
 
                     if showFocusIndicator, let point = focusPoint {
                         FocusIndicatorView()
@@ -222,76 +225,87 @@ struct CameraView: View {
         }
         // 底部控制栏（焦距选择条已移到预览内部，不再占用底部空间）
         .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 14) {
+            VStack(spacing: 12) {
+                // 胶片选择条（按需展开）：右下封面 tap 切换。选中任一胶片后自动收起。
+                if showFilmPicker {
+                    FilmSourcePickerStrip(
+                        current: source,
+                        customLUTs: customLUTs,
+                        contentRotation: controlRotationAngle,
+                        orientation: cameraManager.currentDeviceOrientation
+                    ) { newSource in
+                        if newSource.id != source.id {
+                            cameraManager.hapticSoft.impactOccurred()
+                            source = newSource
+                            // 通常 ContentView 启动时已 preload；冷启动后从 picker 第一次切到某胶片
+                            // 也走一次保险——FilmProcessor cache 命中时零开销。
+                            FilmProcessor.shared.preload(source: newSource)
+                        }
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            showFilmPicker = false
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
                 HStack {
-                // 左：最近照片缩略图。后处理（LUT+save+thumbnail）期间叠加 spinner —
-                // 48MP 10-bit HEIF 编码 1.5-3s，用户需要明确"系统在干活"的反馈，否则会
-                // 误以为缩略图卡死。spinner 与缩略图叠加而非替换：上一张照片仍可见，新照片
-                // 一进入 lastPhotoThumbnail 就无缝切换。多张并发后处理时只显示一次。
-                Button { if !presetPhotos.isEmpty { showPhotoDetail = true } } label: {
-                    ZStack {
-                        if let thumb = lastPhotoThumbnail {
-                            Image(uiImage: thumb)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 46, height: 46)
-                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        } else {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 46, height: 46)
-                                .overlay {
-                                    Image(systemName: "photo")
-                                        .foregroundStyle(.secondary)
+                    // 左：最近照片缩略图。后处理（LUT+save+thumbnail）期间叠加 spinner —
+                    // 48MP 10-bit HEIF 编码 1.5-3s，用户需要明确"系统在干活"的反馈。
+                    // 子视图持有 source 过滤的 @Query；source 切换时它会重建并从新过滤集 bootstrap thumbnail。
+                    RecentPhotosBadge(
+                        source: source,
+                        lastThumbnailHint: $lastPhotoThumbnail,
+                        isShutterBusy: isShutterBusy,
+                        isProcessing: pendingPostProcessing > 0,
+                        controlRotationAngle: controlRotationAngle,
+                        orientation: cameraManager.currentDeviceOrientation
+                    )
+
+                    Spacer()
+
+                    // 中：快门按钮
+                    Button(action: capturePhoto) {
+                        ZStack {
+                            Circle()
+                                .stroke(.white, lineWidth: 4)
+                                .frame(width: 72, height: 72)
+                            Circle()
+                                .fill(.white)
+                                .frame(width: 60, height: 60)
+                                .scaleEffect(shutterPressed ? 0.85 : 1.0)
+                                .animation(.easeInOut(duration: 0.1), value: shutterPressed)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Capture")
+                    .accessibilityHint("Take a photo")
+
+                    Spacer()
+
+                    // 右：当前胶片封面缩略图——tap 展开 / 收起底部胶片选择条。
+                    // 列表 tile 通过 navigationTransition(.zoom) 放大成本页时，封面落位在这里。
+                    Button {
+                        cameraManager.hapticLight.impactOccurred()
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            showFilmPicker.toggle()
+                        }
+                    } label: {
+                        FilmSourceCoverThumbnail(source: source)
+                            .frame(width: 46, height: 46)
+                            .overlay {
+                                // 展开时给封面一个淡黄色描边，提示当前处于"切换中"状态。
+                                if showFilmPicker {
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .stroke(Color.yellow.opacity(0.85), lineWidth: 1.5)
                                 }
-                        }
-                        if isShutterBusy || pendingPostProcessing > 0 {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(.black.opacity(0.4))
-                                .frame(width: 46, height: 46)
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                                .tint(.white)
-                                .scaleEffect(0.7)
-                        }
+                            }
+                            .rotationEffect(controlRotationAngle)
+                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
                     }
-                    .rotationEffect(controlRotationAngle)
-                    .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
-                }
-                .accessibilityLabel(presetPhotos.isEmpty ? Text("Most recent photo") : Text("Most recent photo — \(presetPhotos.count) total"))
-                .accessibilityHint(presetPhotos.isEmpty ? Text("No photos yet") : Text("Open larger view"))
-                // 仅在快门 race 窗口（tap → raw data 到手）禁用，让详情页可以在后处理
-                // 进行中正常打开历史照片。新照片的 @Query 通知会在 save 完成后自动刷新。
-                .disabled(presetPhotos.isEmpty || isShutterBusy)
-
-                Spacer()
-
-                // 中：快门按钮
-                Button(action: capturePhoto) {
-                    ZStack {
-                        Circle()
-                            .stroke(.white, lineWidth: 4)
-                            .frame(width: 72, height: 72)
-                        Circle()
-                            .fill(.white)
-                            .frame(width: 60, height: 60)
-                            .scaleEffect(shutterPressed ? 0.85 : 1.0)
-                            .animation(.easeInOut(duration: 0.1), value: shutterPressed)
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Capture")
-                .accessibilityHint("Take a photo")
-
-                Spacer()
-
-                // 右：当前胶片封面缩略图（与左侧最近照片对称）。
-                // 列表 tile 通过 navigationTransition(.zoom) 放大成本页时，封面落位在这里。
-                // 暂作展示用；后续会挂点击扩展功能。
-                FilmSourceCoverThumbnail(source: source)
-                    .frame(width: 46, height: 46)
-                    .rotationEffect(controlRotationAngle)
-                    .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("Switch film"))
+                    .accessibilityHint(showFilmPicker ? Text("Tap to close film picker") : Text("Tap to pick another film"))
                 }
                 .padding(.horizontal, 30)
             }
@@ -300,7 +314,6 @@ struct CameraView: View {
         .onAppear {
             FilmProcessor.shared.preload(source: source)
             cameraManager.requestCameraPermission()
-            loadLastPhotoThumbnail()
         }
         .onDisappear {
             cameraManager.stopSession()
@@ -325,9 +338,6 @@ struct CameraView: View {
                 capturePhoto()
             }
         }
-        .onChange(of: presetPhotos.count) { _, _ in
-            loadLastPhotoThumbnail()
-        }
         .alert("Capture failed", isPresented: Binding(
             get: { captureError != nil },
             set: { if !$0 { captureError = nil } }
@@ -336,41 +346,10 @@ struct CameraView: View {
         } message: {
             Text(captureError ?? "")
         }
-        .sheet(isPresented: $showPhotoDetail) {
-            if let latest = presetPhotos.last {
-                NavigationStack {
-                    PhotoDetailView(photo: latest, allPhotos: presetPhotos)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button { showPhotoDetail = false } label: {
-                                    Image(systemName: "xmark")
-                                        .fontWeight(.semibold)
-                                }
-                                .tint(.white)
-                            }
-                        }
-                }
-                .presentationDetents([.large])
-                .presentationDragIndicator(.hidden)
-                .interactiveDismissDisabled(false)
-                .preferredColorScheme(.dark)
-            }
-        }
     }
 
     /// 与拍照后立即写入的 thumbnail size 对齐——同 key 命中 NSCache，零额外解码。
     fileprivate static let thumbnailMaxPixel = 88
-
-    private func loadLastPhotoThumbnail() {
-        guard let photo = presetPhotos.last else {
-            lastPhotoThumbnail = nil
-            return
-        }
-        Task { @MainActor in
-            let thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: Self.thumbnailMaxPixel)
-            lastPhotoThumbnail = thumb
-        }
-    }
 
     private func capturePhoto() {
         // 两道闸门：
@@ -491,11 +470,11 @@ struct CameraView: View {
                     )
                     Log.save.info("photo_saved id=\(id.uuidString, privacy: .public) bytes=\(finalData.count) preset=\(currentSource.photoFilterName, privacy: .public) gps=\(location != nil)")
 
-                    // 拍照成功后**立即**生成 88pt 缩略图并赋给左下角，不再等 SwiftData
-                    // @Query 通知链（PhotoSaver actor save → 跨 context 通知 → 主 @Query 重算 →
-                    // onChange → loadLastPhotoThumbnail）。这条链路在日志里隐藏 ~300-500ms 延迟,
-                    // 是用户感知"缩略图刷新慢"的根因。loadThumbnail 内部已做 in-flight dedup
-                    // 和 NSCache 写入，后续 fallback 路径会直接命中。
+                    // 拍照成功后**立即**生成 88pt 缩略图并写入 lastPhotoThumbnail（hint），
+                    // 不再等 SwiftData @Query 通知链（PhotoSaver actor save → 跨 context 通知 →
+                    // 子视图 @Query 重算 → onChange 自身的 load）。这条链路在日志里隐藏 ~300-500ms
+                    // 延迟，是用户感知"缩略图刷新慢"的根因。loadThumbnail 内部已做 in-flight dedup
+                    // 和 NSCache 写入，子视图后续 fallback 路径会直接命中。
                     let thumb = await ImageLoader.shared.loadThumbnail(
                         imageData: finalData,
                         photoId: id,
@@ -590,77 +569,164 @@ struct CameraView: View {
     ///
     /// **进 EV 双条件**：|dy| > 14pt **且** |dy| > |dx| × 1.5。挡住手抖与斜向滑动。
     /// **EV 灵敏度**：100pt = 1 EV；配合 ±1 EV 上限，满程 ±100pt 即触底。
-    private func focusAndExposureGesture(viewportSize: CGSize) -> some Gesture {
+    ///
+    /// **picker 展开时的分流**：`showFilmPicker == true` 时整条手势改为"左右滑动切胶片"，
+    /// 原对焦/EV 路径完全跳过。两套手势挂在同一个 DragGesture 上而不是条件切换 .gesture
+    /// modifier——避免 SwiftUI 重建 RealtimePreviewView 导致 MTKView 闪一下。
+    private func unifiedPreviewGesture(viewportSize: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                // 仅在 tap → raw data + flash restore 这段窗口禁手势，避免 setExposureTargetBias
-                // 与 flash restore 互相覆盖。后处理（LUT+save）已经在背景 task，不会影响 device 状态。
-                guard !isShutterBusy else { return }
-
-                if dragStartLocation == nil {
-                    dragStartLocation = value.startLocation
-                    isAdjustingExposure = false
-                    biasAtDragStart = cameraManager.exposureBias
-                    if cameraManager.isFocusLocked {
-                        // 已有活动对焦：reticle 留原位，等手势意图明确再行动
-                        didShowReticleThisGesture = false
-                    } else {
-                        didShowReticleThisGesture = true
-                        showFocusReticle(at: value.startLocation)
-                    }
-                    return
-                }
-
-                let perceived = perceivedTranslation(value.translation)
-
-                if isAdjustingExposure {
-                    // 已进 EV 模式：忽略用户感知的横向晃动，沿用户感知的竖轴从 biasAtDragStart 累加
-                    let evDelta = Float(perceived.vertical) / 100.0
-                    cameraManager.setExposureBias(biasAtDragStart + evDelta)
-                    return
-                }
-
-                if abs(perceived.vertical) > 14 && abs(perceived.vertical) > abs(perceived.horizontal) * 1.5 {
-                    isAdjustingExposure = true
-                    cameraManager.hapticSoft.impactOccurred()
-                    if cameraManager.isFocusLocked {
-                        // 活动对焦下继续微调：保留焦点，从当前 bias 累加，续期 hold timer
-                        cameraManager.refreshFocusHold()
-                    } else {
-                        // 首次拖动：提交 AVF 到起始点；setFocusAndExposure 会把 bias 清零
-                        commitFocusToDevice(at: value.startLocation, in: viewportSize)
-                        biasAtDragStart = 0
-                    }
-                    let evDelta = Float(perceived.vertical) / 100.0
-                    cameraManager.setExposureBias(biasAtDragStart + evDelta)
+                if showFilmPicker {
+                    handleFilmSwipeChanged(value)
+                } else {
+                    handleFocusEvChanged(value: value, viewportSize: viewportSize)
                 }
             }
             .onEnded { value in
-                let dy = value.translation.height
-                let dx = value.translation.width
-                let distance = sqrt(dx * dx + dy * dy)
-
-                if isAdjustingExposure {
-                    // EV 模式自然结束：续期 hold 给用户操作余裕，再安排 reticle 淡出
-                    cameraManager.refreshFocusHold()
-                    scheduleHideFocusReticle()
-                } else if distance < 10 {
-                    // 纯 tap：触摸落下未弹 reticle（活动对焦路径）→ 此刻把 reticle 移到新位置
-                    if !didShowReticleThisGesture {
-                        showFocusReticle(at: value.startLocation)
-                    }
-                    commitFocusToDevice(at: value.startLocation, in: viewportSize)
-                    scheduleHideFocusReticle()
-                } else if didShowReticleThisGesture {
-                    // 非 tap 非 EV，且本次手势自己弹过 reticle → 撤销
-                    cancelFocusReticle()
+                if showFilmPicker {
+                    handleFilmSwipeEnded(value)
+                } else {
+                    handleFocusEvEnded(value: value, viewportSize: viewportSize)
                 }
-                // 活动对焦路径下的非 tap 非 EV 手势：reticle 与 AVF 状态都不动
-
-                dragStartLocation = nil
-                isAdjustingExposure = false
-                didShowReticleThisGesture = false
             }
+    }
+
+    private func handleFocusEvChanged(value: DragGesture.Value, viewportSize: CGSize) {
+        // 仅在 tap → raw data + flash restore 这段窗口禁手势，避免 setExposureTargetBias
+        // 与 flash restore 互相覆盖。后处理（LUT+save）已经在背景 task，不会影响 device 状态。
+        guard !isShutterBusy else { return }
+
+        if dragStartLocation == nil {
+            dragStartLocation = value.startLocation
+            isAdjustingExposure = false
+            biasAtDragStart = cameraManager.exposureBias
+            if cameraManager.isFocusLocked {
+                // 已有活动对焦：reticle 留原位，等手势意图明确再行动
+                didShowReticleThisGesture = false
+            } else {
+                didShowReticleThisGesture = true
+                showFocusReticle(at: value.startLocation)
+            }
+            return
+        }
+
+        let perceived = perceivedTranslation(value.translation)
+
+        if isAdjustingExposure {
+            // 已进 EV 模式：忽略用户感知的横向晃动，沿用户感知的竖轴从 biasAtDragStart 累加
+            let evDelta = Float(perceived.vertical) / 100.0
+            cameraManager.setExposureBias(biasAtDragStart + evDelta)
+            return
+        }
+
+        if abs(perceived.vertical) > 14 && abs(perceived.vertical) > abs(perceived.horizontal) * 1.5 {
+            isAdjustingExposure = true
+            cameraManager.hapticSoft.impactOccurred()
+            if cameraManager.isFocusLocked {
+                // 活动对焦下继续微调：保留焦点，从当前 bias 累加，续期 hold timer
+                cameraManager.refreshFocusHold()
+            } else {
+                // 首次拖动：提交 AVF 到起始点；setFocusAndExposure 会把 bias 清零
+                commitFocusToDevice(at: value.startLocation, in: viewportSize)
+                biasAtDragStart = 0
+            }
+            let evDelta = Float(perceived.vertical) / 100.0
+            cameraManager.setExposureBias(biasAtDragStart + evDelta)
+        }
+    }
+
+    private func handleFocusEvEnded(value: DragGesture.Value, viewportSize: CGSize) {
+        let dy = value.translation.height
+        let dx = value.translation.width
+        let distance = sqrt(dx * dx + dy * dy)
+
+        if isAdjustingExposure {
+            // EV 模式自然结束：续期 hold 给用户操作余裕，再安排 reticle 淡出
+            cameraManager.refreshFocusHold()
+            scheduleHideFocusReticle()
+        } else if distance < 10 {
+            // 纯 tap：触摸落下未弹 reticle（活动对焦路径）→ 此刻把 reticle 移到新位置
+            if !didShowReticleThisGesture {
+                showFocusReticle(at: value.startLocation)
+            }
+            commitFocusToDevice(at: value.startLocation, in: viewportSize)
+            scheduleHideFocusReticle()
+        } else if didShowReticleThisGesture {
+            // 非 tap 非 EV，且本次手势自己弹过 reticle → 撤销
+            cancelFocusReticle()
+        }
+        // 活动对焦路径下的非 tap 非 EV 手势：reticle 与 AVF 状态都不动
+
+        dragStartLocation = nil
+        isAdjustingExposure = false
+        didShowReticleThisGesture = false
+    }
+
+    /// Picker 展开时预览的左右滑动手感：**单挡切换**——一次完整手势最多切一档胶片，
+    /// 与 iOS 系统级 swipe（分页、滤镜栏、状态切换）的离散切换语义一致。决策放在 onEnded：
+    /// 取实际位移与 predictedEndTranslation 的较大者，让"快 flick 短距离"也能触发，
+    /// 同时挡住"慢拖到一半又松手"的误操作。
+    ///
+    /// **方向**：perceived horizontal < 0（左滑）→ 下一张，> 0（右滑）→ 上一张。
+    /// **阈值**：50pt——比单 cell 宽度（52pt）略小，让"瞄准一格距离的快滑"稳定触发。
+    private static let filmSwipeThreshold: CGFloat = 50
+
+    /// Picker 候选列表，顺序与 FilmSourcePickerStrip 一致（preset 在前，自定义在后）。
+    /// FilmPreset.allCases 是常量，customLUTs 已经在 @Query 缓存里，每次重新拼开销可忽略。
+    /// 放 computed property 避免 SwiftUI body 闭包捕获 stale 数组。
+    private var allFilmSources: [FilmSource] {
+        FilmPreset.allCases.map(FilmSource.preset) + customLUTs.map(FilmSource.from)
+    }
+
+    private func handleFilmSwipeChanged(_ value: DragGesture.Value) {
+        // 单挡模式：onChanged 仅落基线，不实时切换。
+        if dragStartFilmIndex == nil {
+            dragStartFilmIndex = allFilmSources.firstIndex(of: source) ?? 0
+        }
+    }
+
+    private func handleFilmSwipeEnded(_ value: DragGesture.Value) {
+        defer { dragStartFilmIndex = nil }
+        let sources = allFilmSources
+        guard sources.count > 1, let baseIndex = dragStartFilmIndex else { return }
+
+        let dx = value.translation.width
+        let dy = value.translation.height
+        let totalDistance = sqrt(dx * dx + dy * dy)
+
+        let actual = perceivedTranslation(value.translation).horizontal
+        let predicted = perceivedTranslation(value.predictedEndTranslation).horizontal
+        // 取绝对值更大者作为"有效位移"：慢拖需要够 50pt；快 flick 即便实际只走 20pt，
+        // 预测落点也可能 > 50pt，照样切换。这是 UIKit UIScrollView paging 同款手感。
+        let effectiveDx = abs(actual) >= abs(predicted) ? actual : predicted
+
+        if abs(effectiveDx) <= Self.filmSwipeThreshold {
+            // 未达切换阈值。整体位移 < 10pt 视为 tap → 收起 picker（iPhone Camera 风格的
+            // "tap 空白处退出当前模式"）。10-50pt 区间是"想滑但没滑够"，picker 保留。
+            if totalDistance < 10 {
+                cameraManager.hapticLight.impactOccurred(intensity: 0.5)
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    showFilmPicker = false
+                }
+            }
+            return
+        }
+
+        // 左滑（dx < 0）= 下一张；右滑（dx > 0）= 上一张
+        let direction = effectiveDx < 0 ? 1 : -1
+        let targetIndex = baseIndex + direction
+
+        guard targetIndex >= 0 && targetIndex < sources.count else {
+            // 已在两端继续滑动：rigid haptic 提示"撞墙"。
+            cameraManager.hapticLight.impactOccurred(intensity: 0.6)
+            return
+        }
+
+        let newSource = sources[targetIndex]
+        cameraManager.hapticSoft.impactOccurred()
+        source = newSource
+        // ContentView 启动时已 preload；这里命中 cache 零开销，冷路径下也只是 LUT 解析一次。
+        FilmProcessor.shared.preload(source: newSource)
     }
 
     /// 把 SwiftUI translation（设备屏幕坐标）映射到**用户感知**的轴：

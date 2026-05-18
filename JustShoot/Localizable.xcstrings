@@ -781,6 +781,9 @@
         }
       }
     },
+    "Film picker" : {
+
+    },
     "Filter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1685,6 +1688,9 @@
         }
       }
     },
+    "Switch film" : {
+
+    },
     "Take a photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1701,6 +1707,12 @@
           }
         }
       }
+    },
+    "Tap to close film picker" : {
+
+    },
+    "Tap to pick another film" : {
+
     },
     "Toggle flash" : {
       "extractionState" : "manual",
