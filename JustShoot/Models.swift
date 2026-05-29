@@ -3,7 +3,7 @@ import SwiftData
 import ImageIO
 
 // MARK: - EXIF 解析结果（一次解析，多处使用）
-struct ParsedExifInfo {
+struct ParsedExifInfo: Sendable {
     let iso: String
     let shutterSpeed: String
     let aperture: String
@@ -53,7 +53,8 @@ struct ParsedExifInfo {
         // Shutter Speed
         let shutterSpeed: String = {
             guard let exif,
-                  let exposureTime = exif[kCGImagePropertyExifExposureTime as String] as? Double else { return unknownString }
+                  let exposureTime = exif[kCGImagePropertyExifExposureTime as String] as? Double,
+                  exposureTime > 0 else { return unknownString }
             if exposureTime >= 1 {
                 return String(format: "%.1fs", exposureTime)
             } else {

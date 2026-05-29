@@ -58,6 +58,13 @@ struct JustShootApp: App {
                 configurations: [modelConfiguration]
             )
         } catch {
+            // 数据丢失地雷防护：只有当没有真正的迁移可走时（schemas 仅 1 个版本），init 失败才
+            // 必然是数据库损坏 / 不兼容，删库重建是唯一恢复手段。一旦未来新增 SchemaV2 而忘了补
+            // 迁移 stage，迁移失败会落到这里——此时绝不能静默删除用户照片，改走 fatalError 强制
+            // 开发者补 .lightweight/.custom 迁移步骤。
+            guard JustShootMigrationPlan.schemas.count <= 1 else {
+                fatalError("ModelContainer init failed with a multi-version migration plan present — add a migration stage instead of wiping user data. Underlying error: \(error)")
+            }
             // 数据库损坏时尝试删除旧数据库并重建
             let url = modelConfiguration.url
             try? FileManager.default.removeItem(at: url)

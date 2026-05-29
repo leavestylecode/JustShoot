@@ -26,6 +26,24 @@ final class FilmProcessor: Sendable {
         var lutCache: [String: CubeLUT] = [:]
     }
 
+    /// GPS EXIF 时间戳格式化器——固定 UTC、格式恒定，每张照片都用到。DateFormatter 初始化开销大，
+    /// 旧实现每次拍照新建两个；hoist 成 static 复用。配置后只读，NSDateFormatter 的格式化是线程安全的，
+    /// 故用 nonisolated(unsafe) 通过 Swift 6 严格并发（语义安全，编译器无法自动证明）。
+    nonisolated(unsafe) private static let gpsDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC") ?? TimeZone(secondsFromGMT: 0) ?? .current
+        f.dateFormat = "yyyy:MM:dd"
+        return f
+    }()
+    nonisolated(unsafe) private static let gpsTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC") ?? TimeZone(secondsFromGMT: 0) ?? .current
+        f.dateFormat = "HH:mm:ss.SS"
+        return f
+    }()
+
     private init() {
         let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         self.srgbColorSpace = colorSpace
@@ -145,6 +163,12 @@ final class FilmProcessor: Sendable {
             Log.lut.error("lut_custom_parse_failed key=\(cacheKey, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
             throw error
         }
+    }
+
+    /// 删除自定义 LUT 时调用——把对应缓存条目移除。否则用户导入后又删除的 .cube 会在整个进程
+    /// 生命周期内继续占用内存（一个 64³ cube ≈ 3MB），随导入/删除次数无上限增长。
+    func removeCachedLUT(cacheKey: String) {
+        lock.withLock { $0.lutCache[cacheKey] = nil }
     }
 
     /// 获取已缓存的 LUT 数据（用于 Metal 预览创建 3D 纹理）
@@ -286,11 +310,8 @@ final class FilmProcessor: Sendable {
             // 写入 EXIF 后用户在相册里看到一组照片"GPS 时间相同"——与文件创建时间错位。
             // 坐标变化慢可接受沿用 cached，但时间必须取真值。
             let captureTime = Date()
-            let utc = TimeZone(identifier: "UTC") ?? TimeZone(secondsFromGMT: 0) ?? .current
-            let dateFmt = DateFormatter(); dateFmt.dateFormat = "yyyy:MM:dd"; dateFmt.timeZone = utc
-            let timeFmt = DateFormatter(); timeFmt.dateFormat = "HH:mm:ss.SS"; timeFmt.timeZone = utc
-            gps[kCGImagePropertyGPSDateStamp as String] = dateFmt.string(from: captureTime)
-            gps[kCGImagePropertyGPSTimeStamp as String] = timeFmt.string(from: captureTime)
+            gps[kCGImagePropertyGPSDateStamp as String] = Self.gpsDateFormatter.string(from: captureTime)
+            gps[kCGImagePropertyGPSTimeStamp as String] = Self.gpsTimeFormatter.string(from: captureTime)
 
             if loc.speed >= 0 {
                 gps[kCGImagePropertyGPSSpeed as String] = loc.speed * 3.6

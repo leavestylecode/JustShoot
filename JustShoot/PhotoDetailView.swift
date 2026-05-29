@@ -69,7 +69,9 @@ struct PhotoDetailView: View {
     }
 
     private var currentPhoto: Photo? {
-        photos.first(where: { $0.id == currentPhotoID })
+        // 同时排除已失效（跨视图删除 / 状态恢复后留下的 stale）模型——对已删除的 SwiftData
+        // @Model 访问属性会触发 "object has been deleted" 崩溃。
+        photos.first(where: { $0.id == currentPhotoID && !$0.isDeleted })
     }
 
     var body: some View {
@@ -149,6 +151,7 @@ struct PhotoDetailView: View {
         .toolbar { bottomToolbar }
         .statusBarHidden(isFullScreen)
         .onAppear {
+            reconcilePhotos()
             schedulePreheat()
         }
         .onChange(of: currentPhotoID) { _, _ in
@@ -299,6 +302,22 @@ struct PhotoDetailView: View {
     }
 
     // MARK: - Actions
+
+    /// 与底层数据对账：剔除快照里已被删除 / 失效的 Photo（跨视图删除、状态恢复会留下 stale 引用，
+    /// 渲染时访问其属性会崩）。剔除后若当前选中项已不存在，则改选首张，整册皆空则退出。
+    private func reconcilePhotos() {
+        let live = photos.filter { !$0.isDeleted }
+        if live.count != photos.count {
+            photos = live
+        }
+        if currentPhoto == nil {
+            if let first = photos.first {
+                currentPhotoID = first.id
+            } else {
+                dismiss()
+            }
+        }
+    }
 
     private func deleteCurrentPhoto() {
         guard let photoToDelete = currentPhoto else { return }

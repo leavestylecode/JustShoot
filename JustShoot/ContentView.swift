@@ -240,6 +240,9 @@ struct ContentView: View {
     private func deleteCustomLUT(_ lut: CustomLUT) {
         // 删除文件
         try? FileManager.default.removeItem(at: lut.fileURL)
+        // 同步清理 FilmProcessor 内存里这枚 LUT 的缓存——否则进程存活期间会一直占用
+        //（一个 64³ cube ≈ 3MB），随导入/删除次数无上限增长。趁 lut 仍有效先取 cacheKey。
+        FilmProcessor.shared.removeCachedLUT(cacheKey: FilmSource.from(lut).lutCacheKey)
         modelContext.delete(lut)
         try? modelContext.save()
     }

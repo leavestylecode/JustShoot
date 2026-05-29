@@ -88,7 +88,9 @@ struct DeviceFocalInfo {
 
         var constituents: [ConstituentInfo] = []
         for (idx, raw) in raws.enumerated() {
-            let lower: CGFloat = idx == 0 ? 1.0 : switchOvers[idx - 1]
+            // 越界保护：正常 switchOvers.count == constituents-1，但异形 / 未来设备若数组长度不匹配，
+            // switchOvers[idx-1] 会越界崩溃。两端都退回 maxZoom 兜底。
+            let lower: CGFloat = idx == 0 ? 1.0 : (idx - 1 < switchOvers.count ? switchOvers[idx - 1] : maxZoom)
             let upper: CGFloat = idx < switchOvers.count ? switchOvers[idx] : maxZoom
             constituents.append(ConstituentInfo(
                 device: raw.device,

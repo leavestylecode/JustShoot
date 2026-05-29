@@ -2009,27 +2009,51 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: (any Error)?) {
         if let error = error {
             Log.capture.error("delegate_process_error error=\(error.localizedDescription, privacy: .public)")
-            Task { @MainActor in self.photoDataHandler?(nil) }
+            Task { @MainActor in self.finishCapture(with: nil) }
             return
         }
         guard let imageData = photo.fileDataRepresentation() else {
             Log.capture.error("delegate_process_no_data")
-            Task { @MainActor in self.photoDataHandler?(nil) }
+            Task { @MainActor in self.finishCapture(with: nil) }
             return
         }
         Log.capture.info("delegate_process_ok bytes=\(imageData.count)")
 
         // CIImage(data:) in applyLUTPreservingMetadata already applies EXIF orientation,
         // so we pass raw data directly — no need for a separate rotate+encode step.
-        // 同一个 main-actor hop 中：先还原闪光灯 EV/WB，再通知 photoDataHandler。
+        // finishCapture 内同一 main-actor hop：先还原闪光灯 EV/WB，再通知 photoDataHandler。
         // 顺序保证下次 capturePhoto 入口看到的 device 状态已经是"还原后"。
-        Task { @MainActor in
-            if let device = self.videoCaptureDevice, let restore = self.pendingFlashRestore {
-                self.applyFlashRestore(restore, device: device)
-                self.pendingFlashRestore = nil
-            }
-            self.photoDataHandler?(imageData)
+        Task { @MainActor in self.finishCapture(with: imageData) }
+    }
+
+    /// AVF 保证的"必然终结"回调——无论 capture 成功、失败、还是被系统中断（来电 / 切后台 /
+    /// stopSession 撞期）都会最后调用一次，是 Apple 推荐的拍照清理挂载点。
+    /// 正常路径下 didFinishProcessingPhoto 已 finishCapture 并把 photoDataHandler 置 nil，此处
+    /// 即为幂等空操作；只有当处理回调从未到达（capture 被 drop）时这里才真正兜底：还原闪光灯
+    /// AE/WB + 以 nil 回调释放快门（CameraView 的 isShutterBusy），否则快门会永久卡死、设备
+    /// AE/WB 永久锁定。
+    nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishCaptureFor resolvedSettings: AVCaptureResolvedPhotoSettings, error: (any Error)?) {
+        if let error = error {
+            Log.capture.error("delegate_finish_capture_error error=\(error.localizedDescription, privacy: .public)")
         }
+        Task { @MainActor in self.finishCapture(with: nil) }
+    }
+
+    /// 拍照终结清理——幂等。保证无论成功 / 失败 / 中断，闪光灯 AE/WB 必被还原、photoDataHandler
+    /// 必被调用恰好一次（调用后即置 nil，重复进入只确保 flash 已还原）。
+    @MainActor
+    private func finishCapture(with data: Data?) {
+        if let device = videoCaptureDevice, let restore = pendingFlashRestore {
+            applyFlashRestore(restore, device: device)
+            pendingFlashRestore = nil
+        }
+        if let handler = photoDataHandler {
+            photoDataHandler = nil
+            handler(data)
+        }
+        // willCapture / exposureComplete 正常已在各自 delegate 里消费置 nil；此处兜底清场。
+        exposureCompleteHandler = nil
+        willCaptureHandler = nil
     }
 }
 
