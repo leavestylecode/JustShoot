@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 JustShoot is an iOS film camera app built with SwiftUI and SwiftData that emulates authentic film photography. The app provides 8 built-in film presets via LUT (Look-Up Table) color grading, supports user-imported `.cube` LUTs as custom filters, and ships a 550-card film-packaging library for browsing real-world film stocks. Photos are captured at HEIF/HEVC with full EXIF/GPS metadata preserved.
 
-**Current State**: Optimized for iOS 26 with the latest AVFoundation virtual-device architecture (`builtInTripleCamera` + `setPrimaryConstituentDeviceSwitchingBehavior(.locked)`), iOS 26 Liquid Glass UI for camera controls, and Swift 6 strict concurrency throughout. Under `complete` mode with zero warnings. iPhone-Camera–level interaction: tap-to-focus + drag-for-EV, orientation-aware controls under portrait UI lock, ZSL-gated lens switching, distance-aware flash with AE/WB lock-and-restore.
+**Current State**: Optimized for iOS 26 with the latest AVFoundation virtual-device architecture (`builtInTripleCamera` in pure `.auto` follow-the-system lens switching — see Lens-Switch Architecture below), iOS 26 Liquid Glass UI for camera controls, and Swift 6 strict concurrency throughout. Under `complete` mode with zero warnings. iPhone-Camera–level interaction: tap-to-focus + drag-for-EV, orientation-aware controls under portrait UI lock, device-adaptive focal options, distance-aware flash with AE/WB lock-and-restore.
 
 ## Architecture
 
@@ -55,8 +55,9 @@ JustShoot/
 │                                          FocalLengthStrip, FilmSourceCoverThumbnail,
 │                                          FlashMode, Notification.Name extension,
 │                                          UIDeviceOrientation extension, openAppSettings
-├── DeviceFocalInfo.swift           (133)  FocalLengthOption enum, ConstituentInfo,
-│                                          DeviceFocalInfo (virtual-device focal data)
+├── DeviceFocalInfo.swift           (142)  FocalLengthOption struct (device-derived),
+│                                          ConstituentInfo, DeviceFocalInfo (per-lens
+│                                          focal model + buildOptions adaptive list)
 ├── MetalPreview.swift              (291)  RealtimePreviewView + Metal Coordinator
 │                                          (CVPixelBuffer → 3D LUT compute shader)
 ├── CameraManager.swift             (1,915) Single-file AVF state machine: properties,
@@ -157,29 +158,15 @@ Task.detached @userInitiated
   └── ImageLoader.loadThumbnail(imageData, photoId, 88pt) → write to lastPhotoThumbnail
 ```
 
-### Lens-Switch Architecture (iOS 26 virtual device)
+### Lens-Switch Architecture (iOS 26 virtual device) — pure `.auto`, follow-the-system
 
-Single `AVCaptureSession` input is `builtInTripleCamera` (priority chain falls back to `builtInDualCamera` → `builtInDualWideCamera` → `builtInWideAngleCamera`). Constituent switching is driven by `videoZoomFactor` ramps with `setPrimaryConstituentDeviceSwitchingBehavior(.locked, ...)` for each focal-length option.
+Single `AVCaptureSession` input is `builtInTripleCamera` (priority chain falls back to `builtInDualCamera` → `builtInDualWideCamera` → `builtInWideAngleCamera`). **The device stays in `setPrimaryConstituentDeviceSwitchingBehavior(.auto)` its whole life — never `.locked`.** Switching focal length = just `ramp(toVideoZoomFactor: targetZoom)`; the system does its own hardware crossfade between constituents as the zoom crosses `virtualDeviceSwitchOverVideoZoomFactors`. **Which physical lens is used (tele vs. main-digital-crop) is the system's call** based on light / subject distance / quality — exactly like iPhone's own Camera (it shows main-cropped at 8× in bad conditions too). EXIF `FocalLenIn35mmFilm` is written from the selected option's mm, so framing is always correct regardless of which lens the system picks.
 
-**FOV math (piecewise linear per constituent)**:
-```
-zoom = mm × constituent.lowerBound / constituent.nativeMm
-```
-On iPhone 17 Pro (UW=13/W=24/T=100, switchovers [2.0, 8.0]):
-- 13 mm → 1.00 (UW)
-- 24 mm → 2.00 (W)
-- 35 mm → 2.92 (W)
-- 50 mm → 4.17 (W)
-- 100 mm → 8.00 (T)
-- 200 mm → 16.0 (T)
+**Focal model = per-constituent anchoring** (Apple convention, matching iPhone: main 1×=24 mm, 2×=48 mm). `zoom = mm × constituent.lowerBound / constituent.nativeMm`. On iPhone 17 Pro (UW=13/W=24/T=100, switchovers [2.0, 8.0]): 13→1.00, 24→2.05, 35→2.92, 50→4.17, 100→8.05, 200→16.0. Boundary options (24/100 mm) get `+0.05` ε to land just inside the target constituent's range. `FocalLengthOption` is a **device-derived struct** (not a hardcoded enum): `DeviceFocalInfo.buildOptions` generates the option list from the actual physical lenses, so single/dual/triple devices each get a matching set.
 
-Boundary options (24 mm, 100 mm) get `+0.05` epsilon to land strictly inside the target constituent's range — `.locked` selection on the exact threshold is ambiguous and may pick the wrong constituent.
+**`applyFocalLength` is ONE path:** `lockForConfiguration` → ensure `.auto` → `ramp(toVideoZoomFactor: targetZoom)` → safe shutter. Capture readiness (`isReadyToCapture` / `lensIsOnTarget`) waits ONLY for the zoom ramp to stop (zoom-only, **NOT** a specific constituent) + a ~150 ms ZSL grace, so the system refusing the tele never hangs the shutter. `applyFocalToken` invalidates a stale `lensSettleTask` poll when the user taps options quickly.
 
-**`applyFocalLength` two paths**:
-- **Fast path** (target constituent already active, e.g. 35 → 50 both on W): single `lockForConfiguration` → `.locked` + `ramp(toVideoZoomFactor:)` + safe shutter. Zero async wait.
-- **Slow path** (cross-constituent): Phase 0 (`.auto` + 33 ms yield to release locked min/max) → Phase 1 (single animated ramp; `.auto` crossfades the constituent during ramp) → Phase 2 (wait `isRampingVideoZoom == false`, then ≤300 ms for `activePrimaryConstituent === target`) → Phase 3 (`.locked`).
-
-`isLensTransitioning` flag + `waitForLensSettled(timeoutMs:)` prevents `capturePhoto` from picking a frame from the previous constituent's ZSL ring buffer (this was the "35 mm photo recorded as 13 mm UW" bug).
+**Lessons (learned the long way — full saga in memory `lens_switch_architecture.md`):** an earlier design used `.locked` + a "deep-ramp" (overshoot to ~10× to force the tele past `.auto`'s boundary hysteresis, then snap back). It caused visible overshoot **jitter** when the tele engaged and a multi-second **shutter hang** when the system refused the tele; every preview hack to hide the jitter (freeze, digital-zoom crossfade) just traded one artifact for another. Root truth: **you cannot force a constituent the system won't give, and a single virtual-device session can't replicate iPhone's multi-cam crossfade.** Pure `.auto` (stop fighting the system) is smooth, never hangs, far simpler, and the tele still engages when conditions allow (device-verified). **Do not reintroduce `.locked` / deep-ramp / deferred-lock without re-reading that saga.**
 
 ### Stabilization Strategy
 
@@ -303,7 +290,7 @@ GPS *timestamp* in EXIF uses capture time, **not** location-fix time, so a burst
 
 ## Common Pitfalls
 
-- **Don't combine `setPrimaryConstituentDeviceSwitchingBehavior(.auto)` and `videoZoomFactor =` in the same `lockForConfiguration` block.** When transitioning out of `.locked`, the zoom write is still clamped to the locked min/max — split into two sequential `lockForConfiguration` cycles with a 33 ms yield between (see `applyFocalLength` slow path).
+- **Stay in `.auto`; never `.locked`.** The app keeps the virtual device in `.auto` for its whole life so `applyFocalLength` can set `.auto` + `videoZoomFactor` in one `lockForConfiguration` block safely. (AVF gotcha that this avoids: when *transitioning out of* `.locked`, a zoom write in the same lock block is still clamped to the old locked min/max — but we never lock, so it never bites.) See the Lens-Switch Architecture section for why `.locked` + deep-ramp was removed.
 - **Boundary focal lengths need `+0.05` epsilon.** At zoom values *exactly* on a switchover threshold (e.g. 2.0 or 8.0), system constituent selection is ambiguous and may pick the lower-zoom constituent (giving you UW/W with digital crop instead of W/T native).
 - **Swift drops the `Device` suffix** on KVO-observable properties: Obj-C `activePrimaryConstituentDevice` → Swift `activePrimaryConstituent`. The setter `setPrimaryConstituentDeviceSwitchingBehavior(_:_)` keeps the suffix.
 - **Don't enable `isAutoDeferredPhotoDeliveryEnabled`** — only PhotoKit gets the deferred (high-quality) result; custom storage gets the early proxy.
