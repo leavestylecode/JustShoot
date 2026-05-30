@@ -358,6 +358,14 @@ struct CameraView: View {
         //     编码内存峰值 ~200-300MB×N，限 2 张以内）。达到上限时 tap 直接忽略。
         // 拿到 raw data 后立刻释放 isShutterBusy，让用户能继续按下一张快门，后处理走后台。
         // 这是 iPhone 系统相机的快门手感。
+        // 相机根本不可用（权限未授予 / 启动配置未完成 / 已离开页面）时静默忽略快门——
+        // 否则 issueCapturePhoto 会在无 active connection 时抛 NSException 崩溃。
+        // 注意用 isCaptureAvailable 而非 isReadyToCapture：镜头切换中相机是「可用但未就绪」，
+        // tap 不该被丢，而应由 capturePhoto 内部 await waitForReadyToCapture 等到位再出片。
+        guard cameraManager.isCaptureAvailable else {
+            Log.capture.debug("shutter_ignored reason=not_available")
+            return
+        }
         guard !isShutterBusy else {
             Log.capture.debug("shutter_ignored reason=shutter_busy")
             return
@@ -412,7 +420,7 @@ struct CameraView: View {
             Log.capture.info("exposure_complete dt_from_tap=\(Log.ms(since: tapTime))ms")
         }) { imageData in
             // raw photo data 已到手 + 闪光灯 AE/WB 已在 didFinishProcessingPhoto 里同步还原
-            // （CameraManager 的 delegate 顺序：applyFlashRestore → photoDataHandler）。
+            // （CameraManager 的 finishCapture 顺序：applyFlashRestore → CaptureRequest.onData）。
             // 立即释放 isShutterBusy，让用户能继续按下一张快门 —— 后续 LUT+save 走后台并发。
             isShutterBusy = false
 

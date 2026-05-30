@@ -10,7 +10,7 @@ import os
 
 // MARK: - 相机管理器
 //
-// 单文件 AVFoundation 编排：iOS 26 虚拟设备 (`builtInTripleCamera`) + `.locked` constituent
+// 单文件 AVFoundation 编排：iOS 26 虚拟设备 (`builtInTripleCamera`) + `.auto` 跟随系统的镜头
 // 切换 + ZSL × 镜头切换 race 闸门 + CMMotion 方向 + tap-to-focus + 距离感知闪光 + GPS 30s 缓存。
 //
 // 故意保留为单文件（~1,900 行）：以上每个面向都强耦合于同一 AVCaptureSession 状态机，跨文件
@@ -25,8 +25,8 @@ import os
 //   4. 对焦 / 曝光补偿
 //   5. 闪光灯曝光补偿 + 锁/还原
 //   6. 权限
-//   7. Session 配置（format / dims / stabilization / 初始焦段锁 / KVO）
-//   8. 镜头切换（fast / slow path + 安全快门）
+//   7. Session 配置（format / dims / stabilization / 初始焦段 / KVO）
+//   8. 镜头切换（.auto 跟随系统 + 安全快门）
 //   9. 拍照（capturePhoto + issue）
 //  10. 后台 / 前台 / 停止
 //  11. 设备数据 dump（调试）
@@ -39,8 +39,8 @@ class CameraManager: NSObject, ObservableObject {
     // MARK: 1. 存储属性
 
     /// 虚拟设备 AVCaptureSession（iOS 26 推荐架构）：以 .builtInTripleCamera 等虚拟设备作为
-    /// 单一 input；切焦距通过 setPrimaryConstituentDeviceSwitchingBehavior(.locked, ...) +
-    /// videoZoomFactor 完成 — 系统在内部做硬件级 constituent 切换，预览不黑屏，无需 bridgeImage。
+    /// 单一 input；切焦距 = 始终 .auto + 把 videoZoomFactor ramp 到目标 — 系统在内部按 zoom 做
+    /// 硬件级 constituent crossfade（能切长焦就切、近物/暗光裁主摄），预览不黑屏，无需 bridgeImage。
     let session = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
     /// 当前 session 的虚拟（或物理）设备 input —— 整个生命周期只 add 一次，不 swap。
@@ -63,7 +63,8 @@ class CameraManager: NSObject, ObservableObject {
     /// 切焦距时用于丢弃过时回调的单调递增 token（用户快速来回点档位时旧任务不会把
     /// 新档位的 lock 撤掉）。
     private var applyFocalToken: UInt64 = 0
-    /// beginLensTransition 启动的 grace 超时 task；新一次进入或外部 markLensSettled 时取消旧的。
+    /// 镜头切换的稳定轮询 task：beginLensSwitch 启动，每 ~30ms evaluateLensSettle 一次，直到
+    /// 镜头到位 + grace 走完（clearLensTarget），或 maxWait 兜底超时。新一次 beginLensSwitch 取消旧的。
     private var lensSettleTask: Task<Void, Never>?
 
     /// 弱引用 MTKView，用于从相机回调触发渲染。
@@ -82,13 +83,22 @@ class CameraManager: NSObject, ObservableObject {
     var previewRotationAngle: CGFloat?
     private var previewDeviceOrientation: UIDeviceOrientation?
 
-    private var photoDataHandler: ((Data?) -> Void)?
-    private var exposureCompleteHandler: (() -> Void)?
-    /// AVF 在主曝光（含闪光灯主脉冲）即将开始那一帧 fire 的回调，由
-    /// `photoOutput(_:willCapturePhotoFor:)` 在 main actor 上派发。
-    /// 用途：把屏幕白屏覆盖层与真实闪光灯同帧触发——这是 Apple 文档明确推荐的
-    /// shutter visual feedback 挂载点，避免"UI 先闪、氙气灯后亮"的脱钩感。
-    private var willCaptureHandler: (() -> Void)?
+    /// 一次拍照在途的全部状态打包成单一值对象——取代旧的 photoDataHandler /
+    /// exposureCompleteHandler / willCaptureHandler / pendingFlashRestore 四个分散 optional。
+    /// capturePhoto 入口创建、finishCapture 消费恰好一次；flashRestore 在 issueCapturePhoto
+    /// 阶段填入。每个 closure 只被对应 delegate 触发一次（AVF 保证每个 delegate 每次 capture 调一次）。
+    ///   - onData          : raw photo data（nil = 失败/中断）。finishCapture 保证调用恰好一次。
+    ///   - onWillCapture   : 主曝光起始帧——屏幕白屏挂载点（与氙气主脉冲同帧）。
+    ///   - onExposureComplete: 曝光物理完成（仅诊断）。
+    ///   - flashRestore    : 开闪光时 issue 阶段锁的 AE/WB，capture 终结时还原。随单次拍照走，
+    ///                       结构上不可能跨拍照互相覆盖（旧 pendingFlashRestore 共享字段会）。
+    private struct CaptureRequest {
+        let onData: (Data?) -> Void
+        let onWillCapture: (() -> Void)?
+        let onExposureComplete: (() -> Void)?
+        var flashRestore: FlashRestoreState?
+    }
+    private var inFlightCapture: CaptureRequest?
     @Published var flashMode: FlashMode = .off
 
     // 震动反馈（预创建复用，减少首次延迟）
@@ -97,24 +107,28 @@ class CameraManager: NSObject, ObservableObject {
     let hapticSoft = UIImpactFeedbackGenerator(style: .soft)
 
     // 等效焦距
-    @Published var currentFocalLength: FocalLengthOption = .mm35
+    @Published var currentFocalLength: FocalLengthOption = FocalLengthOption(35)
     @Published var focalInfo: DeviceFocalInfo = .placeholder
     /// 当前 zoom factor。镜头 ramp 期间被 KVO 每帧写入，UI 不直接读 —— 故意不 @Published,
-    /// 避免每帧触发 SwiftUI 全 body 重算（旧实现在 35→100mm slow-path 期间能让 CameraView body
-    /// 重算 30+ 次，把主线程交给 SwiftUI 而非预览渲染）。
+    /// 避免每帧触发 SwiftUI 全 body 重算（一次跨档 ramp 能让 CameraView body 重算 30+ 次，
+    /// 把主线程交给 SwiftUI 而非预览渲染）。
     var currentZoomFactor: CGFloat = 1.0
     /// 当前实际激活的物理 constituent（KVO 自虚拟设备 activePrimaryConstituentDevice）。
     /// 仅用于 log，UI 不读。
     private var activeConstituentName: String = ""
-    /// 镜头切换进行中（slow path Phase 0–3 + 200ms grace period）。
-    /// **关键作用**：capturePhoto 在 issue 给 AVF 之前 await 此 flag 归 false——避免
-    /// ZSL ring buffer 里上一颗 constituent 的旧帧被选作出片源。等效焦距 35mm 的照片在
-    /// 元数据里"被报成 13mm 镜头拍摄"的根因，就是这个 race。Capture 内部由 waitForLensSettled
-    /// 串行化，UI 不需要看 —— 不 @Published 避免无谓的 SwiftUI 重算。
-    var isLensTransitioning: Bool = false
-    /// 当前切换目标 constituent。constituentObservation 命中时（active === expected）即认为
-    /// 镜头硬件已切到位，slow path Phase 3 lock 后再加 200ms grace 让 ZSL ring 完全换血。
-    private var expectedConstituent: AVCaptureDevice?
+    /// 切镜头的目标终态——「就绪」判定的唯一依据。nil = 没有进行中的切换（已稳定）。
+    /// 取代旧的 isLensTransitioning(Bool) + expectedConstituent(device)：旧设计把「是否在切换」
+    /// 和「切到哪」分开存，且由 3 条 markLensSettled 路径各自翻转，任一条漏判一个条件
+    /// （如 isRampingVideoZoom）就会过早放行 capture，出片落在过冲 zoom 上 → EXIF 焦段偏。
+    /// 现在「是否到位」完全派生自设备真值（lensIsOnTarget），KVO/轮询只触发重新评估、不翻转状态——
+    /// 漏条件这一整类 bug 结构性消失。不 @Published（避免无谓的 SwiftUI 重算），仅供 capture 闸门读。
+    private struct LensTarget {
+        let zoom: CGFloat                  // 期望的最终 videoZoomFactor（取景）
+        let zslGraceMs: Int                // zoom 到位后给系统 constituent crossfade 收尾的额外等待
+    }
+    private var lensTarget: LensTarget?
+    /// 设备首次满足 lensIsOnTarget() 的时刻。用于判断 ZSL grace 是否走完；设备回退（重新 ramp）时清空。
+    private var lensOnTargetSince: CFAbsoluteTime?
     private var zoomObservation: NSKeyValueObservation?
     private var constituentObservation: NSKeyValueObservation?
     private var focalLengthPicker: AVCaptureIndexPicker?
@@ -155,23 +169,16 @@ class CameraManager: NSObject, ObservableObject {
     /// 定位权限被拒绝或受限时，UI 显示「位置已关闭」提示
     @Published var locationPermissionDenied: Bool = false
 
-    // 拍照曝光补偿 / WB 还原
-    //
-    // 旧实现把 4 个标量散在 CameraManager 上：previousExposureTargetBias、previousWBMode、
-    // lockedExposureForFlashCapture、lockedWBForFlashCapture。每次 capturePhoto 直接覆盖。
-    // 风险：连按两次闪光灯快门时，第二次 lock 在第一次 didFinishProcessingPhoto 还原之前
-    // 就把 previousExposureTargetBias 覆盖成"调整后的偏置"，还原后从此 AE 永远跑偏。
-    //
-    // 新实现：把"需要还原什么"打包成一个值，pendingFlashRestore 同时只允许 0 或 1 个。
-    // capturePhoto 入口若发现 pendingFlashRestore != nil，说明上一次还原没跑完（异常路径），
-    // 立即先还原再开新的。配合 isCapturing 全程持有，正常路径下 dict 永远只有 0 或 1 个 entry。
+    // 闪光灯 AE/WB 还原状态。现在内联在 CaptureRequest.flashRestore 里随单次拍照生命周期走，
+    // 不再是 CameraManager 上的共享字段——每次拍照各自持有，结构上不可能跨拍照互相覆盖
+    // （旧实现连按两次闪光快门时第二次 lock 会覆盖第一次的还原值，导致 AE 永久跑偏）。
+    // didFinishCaptureFor 这个 AVF 保证的终结回调确保 flashRestore 必被消费恰好一次。
     private struct FlashRestoreState {
         let exposureTargetBias: Float
         let wbMode: AVCaptureDevice.WhiteBalanceMode
         let lockedExposure: Bool
         let lockedWB: Bool
     }
-    private var pendingFlashRestore: FlashRestoreState?
     private var focusHoldTimer: Timer?
     private let tapFocusHoldDuration: TimeInterval = 3.0
     private var focusObservation: NSKeyValueObservation?
@@ -183,10 +190,10 @@ class CameraManager: NSObject, ObservableObject {
     @Published var isFocusLocked = false
     /// 用户曝光补偿（EV）。tap-to-focus 后上下滑动手势驱动；focus 释放（timer / subject-area）时归零。
     /// 与 device.exposureTargetBias 镜像同步——后者在 flash capture 路径里会被临时改写，但 capture
-    /// 完成后会通过 pendingFlashRestore 恢复，对外表现仍等于这里。
+    /// 完成后会通过 CaptureRequest.flashRestore 恢复，对外表现仍等于这里。
     @Published var exposureBias: Float = 0
 
-    /// 虚拟（或物理）设备 — 整个生命周期固定，不 swap。constituent 由系统按 zoom + .locked
+    /// 虚拟（或物理）设备 — 整个生命周期固定，不 swap。constituent 由系统在 `.auto` 下按 zoom
     /// 在内部切换。session 配置完成前为 nil。
     private var captureDevice: AVCaptureDevice?
 
@@ -211,9 +218,8 @@ class CameraManager: NSObject, ObservableObject {
         setupOrientationMonitoring()
     }
 
-    /// 按 iOS 26 推荐顺序选取后置 capture device。优先虚拟设备：让系统在内部完成 constituent
-    /// 切换（硬件级 crossfade，无黑屏），同时通过 setPrimaryConstituentDeviceSwitchingBehavior(.locked)
-    /// 严格控制每个焦距档位实际使用哪颗物理镜头。
+    /// 按 iOS 26 推荐顺序选取后置 capture device。优先虚拟设备：让系统在 `.auto` 下按 videoZoomFactor
+    /// 在内部完成 constituent 切换（硬件级 crossfade，无黑屏，能切长焦就切、近物/暗光裁主摄）。
     /// 优先级：triple（UW+W+T）→ dual（W+T）→ dualWide（UW+W）→ 单 wide 兜底。
     private static func discoverBestCaptureDevice() -> AVCaptureDevice? {
         let priorities: [AVCaptureDevice.DeviceType] = [
@@ -451,7 +457,7 @@ class CameraManager: NSObject, ObservableObject {
     /// 拍同一卷胶片在更极端光比下用户应该换胶片或开闪光灯，而不是把 EV 推到 ±3。
     /// 收紧上限的副效果：sun rail 满程对应 ±1 EV，单次 100pt 即可走完全程，体感更直接。
     /// 注意：flash capture 路径会在 lock 期间临时改写 device.exposureTargetBias，capture 完成后
-    /// 通过 pendingFlashRestore 还原到本方法写入的值。所以即使在 capture 之间多次拖动也是安全的——
+    /// 通过 CaptureRequest.flashRestore 还原到本方法写入的值。所以即使在 capture 之间多次拖动也是安全的——
     /// 只要 isCapturing 守护住了拍照进行中不让此方法触发（CameraView 那一层的 guard）。
     func setExposureBias(_ bias: Float) {
         guard let device = videoCaptureDevice else { return }
@@ -633,10 +639,9 @@ class CameraManager: NSObject, ObservableObject {
                     }
 
                     self.applyBestFormatAndModes(on: device)
-                    // 关键：在 startRunning 之前把 videoZoomFactor + .locked 钉到目标焦段，
-                    // 让 ZSL ring 一开始就只收正确 constituent 的帧——见 lockInitialFocalLength 注释
-                    // 里描述的"35mm 拍出 UW 镜头照片"那个 race 的根因 + 修复。
-                    self.lockInitialFocalLength(on: device, focal: initialFocal)
+                    // 关键：在 startRunning 之前把 videoZoomFactor 设到目标焦段，让 ZSL ring 一开始就
+                    // 只收正确 constituent 的帧——见 setInitialFocalLength 注释里的 race 根因 + 修复。
+                    self.setInitialFocalLength(on: device, focal: initialFocal)
 
                     if captureSession.canAddOutput(output) {
                         captureSession.addOutput(output)
@@ -689,18 +694,16 @@ class CameraManager: NSObject, ObservableObject {
         // 虚拟设备：activeFormat / constituentDevices / virtualDeviceSwitchOverVideoZoomFactors 均已可用
         focalInfo = DeviceFocalInfo.from(virtualDevice: device)
         if !focalInfo.options.contains(currentFocalLength) {
-            currentFocalLength = focalInfo.options.contains(.mm35) ? .mm35 : (focalInfo.options.first ?? .mm24)
+            currentFocalLength = focalInfo.defaultOption
         }
 
-        // 镜头硬件锁已在 sessionQueue 配置阶段完成（lockInitialFocalLength），这里不再重复
-        // applyFocalLength——后者会走 slow path 把 .locked 临时撤回 .auto，反而打开 race 窗口。
-        // 仅同步 MainActor 上的 currentZoomFactor 反映已生效的 zoom，让 UI 的焦距条立刻准。
+        // 初始 zoom 已在 sessionQueue 配置阶段设好（setInitialFocalLength），这里不再重复
+        // applyFocalLength（会多发一次 ramp）。仅同步 MainActor 上的 currentZoomFactor 反映已生效的
+        // zoom，让 UI 的焦距条立刻准。
         currentZoomFactor = focalInfo.virtualZoomFactor(for: currentFocalLength)
-        // 启动期同样视作"过渡中"：让前 ~200ms 的 startRunning warmup 帧（哪怕硬件已切到 W,
-        // ISP 第一帧偶尔仍带上一颗的影子）走 waitForLensSettled 排空。constituent KVO 命中或
-        // 250ms 兜底后清掉 flag——见 markLensSettled。
-        expectedConstituent = focalInfo.constituent(for: currentFocalLength)?.device
-        beginLensTransition(graceMs: 250)
+        // 启动期同样登记一次镜头切换：让前 ~250ms 的 startRunning warmup 帧被 isReadyToCapture 挡在外面
+        // 排空。zoom 启动即在 target（setInitialFocalLength 已设），到位即起 250ms ZSL grace；600ms 兜底。
+        beginLensSwitch(zoom: currentZoomFactor, zslGraceMs: 250, maxWaitMs: 600)
         applyVideoOrientationToOutputs()
         configTimer.end("zoom=\(String(format: "%.2f", currentZoomFactor))x")
 
@@ -816,22 +819,38 @@ class CameraManager: NSObject, ObservableObject {
     /// 用与 `capturePhoto` 完全一致的 codec / dims / quality settings 预热 photo pipeline。
     /// settings 必须与真实拍摄完全匹配，否则系统按"模板未命中"重走冷启动路径。
     private func prepareForFirstCapture() {
-        let settings: AVCapturePhotoSettings
-        if photoOutput.availablePhotoCodecTypes.contains(.hevc) {
-            settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
-        } else {
-            settings = AVCapturePhotoSettings()
+        func makeWarmSettings(flash: AVCaptureDevice.FlashMode) -> AVCapturePhotoSettings {
+            let s: AVCapturePhotoSettings
+            if photoOutput.availablePhotoCodecTypes.contains(.hevc) {
+                s = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
+            } else {
+                s = AVCapturePhotoSettings()
+            }
+            s.maxPhotoDimensions = photoOutput.maxPhotoDimensions
+            s.photoQualityPrioritization = .balanced
+            if let device = videoCaptureDevice, device.hasFlash {
+                s.flashMode = flash
+            }
+            return s
         }
-        settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
-        settings.photoQualityPrioritization = .balanced
+        // 预热 flash off + on 两套模板：用户开着闪光灯拍的第一张也能命中热路径。
+        // 否则首张闪光照仍会触发 Smart HDR / ZSL pipeline 冷启动（实测 ~2-3s）。
+        // settings 字段必须与真实 capture 一致，否则系统按"模板未命中"重走冷路径。
+        let templates: [AVCapturePhotoSettings] = {
+            var t = [makeWarmSettings(flash: .off)]
+            if let device = videoCaptureDevice, device.hasFlash {
+                t.append(makeWarmSettings(flash: .on))
+            }
+            return t
+        }()
 
         let output = photoOutput
         sessionQueue.async {
-            output.setPreparedPhotoSettingsArray([settings]) { prepared, error in
+            output.setPreparedPhotoSettingsArray(templates) { prepared, error in
                 if let error {
                     Log.session.error("photo_pipeline_prepare_failed error=\(error.localizedDescription, privacy: .public)")
                 } else {
-                    Log.session.info("photo_pipeline_prepared ready=\(prepared)")
+                    Log.session.info("photo_pipeline_prepared ready=\(prepared) templates=\(templates.count)")
                 }
             }
         }
@@ -991,30 +1010,18 @@ class CameraManager: NSObject, ObservableObject {
         Log.session.info("📷 stabilization_applied device=\(device.localizedName, privacy: .public) preferred=\(name, privacy: .public) active=\(conn.activeVideoStabilizationMode.rawValue)")
     }
 
-    /// 在 session config block 内（startRunning 之前）把虚拟设备锁到目标焦段。
+    /// 在 session config block 内（startRunning 之前）设好初始焦段的虚拟 zoom。
     ///
-    /// **修复的 bug**：之前的实现在 startRunning 之后才异步走 slow path 切镜头——此时
-    /// ZSL ring buffer 已经在收 zoom=1.0 (UW) 的帧，等 slow path Phase 3 lock 完成已过
-    /// 300+ ms。这段时间内用户按快门，AVF 从 ring 里挑帧出片，照片元数据里的 LensModel /
-    /// 物理 FocalLength 全是 UW，最后用户下载 35mm 拍的照片发现镜头是 13mm。
+    /// **为什么在 startRunning 之前设**：让 startRunning 产出的第一帧就来自正确的 constituent，
+    /// ZSL ring buffer 从生下来就干净——否则用户在启动早期按快门，AVF 可能从 ring 里挑到启动
+    /// 默认 zoom 的帧出片，照片记成错的镜头/焦段。
     ///
-    /// **修复策略**：在 beginConfiguration / addInput 之后、addOutput / startRunning 之前,
-    /// 把 videoZoomFactor 直接钉到目标焦段对应的虚拟 zoom，并切到 .locked。这样 startRunning
-    /// 产出的第一帧就来自正确的 constituent，ring buffer 从生下来就是干净的。
-    ///
-    /// `.locked` 在配置阶段调用：此时 device 还没产帧，activePrimaryConstituent 可能是 nil
-    /// 或默认值。但**hardware 在 startRunning 时按当前 videoZoomFactor 选 constituent**,
-    /// 所以 zoom=2.92 一定让硬件挑 W；.locked 只是把这个选择钉住不让后续 AE 漂移。
-    /// 即便 .locked 在配置阶段语义上"锁到当前活动"，硬件层面新的 active 选择仍以 zoom 为准。
-    ///
+    /// 用 `.auto`（与 applyFocalLength 一致，全程不 `.locked`）：设 videoZoomFactor，硬件在
+    /// startRunning 时按它选 constituent，之后系统按条件自动 crossfade。
     /// 走 nonisolated：从 sessionQueue.async 直接调用，不跨回 MainActor。
-    nonisolated private func lockInitialFocalLength(on device: AVCaptureDevice, focal: FocalLengthOption) {
+    nonisolated private func setInitialFocalLength(on device: AVCaptureDevice, focal: FocalLengthOption) {
         let info = DeviceFocalInfo.from(virtualDevice: device)
-        let resolved: FocalLengthOption = {
-            if info.options.contains(focal) { return focal }
-            if info.options.contains(.mm35) { return .mm35 }
-            return info.options.first ?? .mm24
-        }()
+        let resolved: FocalLengthOption = info.options.contains(focal) ? focal : info.defaultOption
         guard let target = info.constituent(for: resolved) else {
             Log.session.error("focal_init_lock_no_constituent option=\(resolved.rawValue)")
             return
@@ -1027,14 +1034,15 @@ class CameraManager: NSObject, ObservableObject {
 
         do {
             try device.lockForConfiguration()
-            // 先设 zoom（硬件据此选 constituent），再 .locked 钉住——同一 lock block 内原子提交
+            // .auto 跟随系统（与 applyFocalLength 一致，全程不 .locked）：设初始 zoom，系统据此选 constituent。
+            // 启动时默认就是 .auto，所以 .auto + zoom 写在同一 lock 块内安全（无「转出 .locked」的夹取坑）。
+            device.setPrimaryConstituentDeviceSwitchingBehavior(.auto, restrictedSwitchingBehaviorConditions: [])
             device.videoZoomFactor = targetZoom
-            device.setPrimaryConstituentDeviceSwitchingBehavior(.locked, restrictedSwitchingBehaviorConditions: [])
             // 安全快门也在此处一并下，避免 startRunning 后第一帧 AE 跑到 1s 上限
             let safeShutter = self.computeSafeShutterDuration(focalMm: resolved.rawValue, format: device.activeFormat)
             device.activeMaxExposureDuration = safeShutter
             device.unlockForConfiguration()
-            Log.session.info("focal_locked_at_config option=\(resolved.rawValue)mm zoom=\(String(format: "%.2f", targetZoom)) target=\(target.device.localizedName, privacy: .public)")
+            Log.session.info("focal_init_at_config option=\(resolved.rawValue)mm zoom=\(String(format: "%.2f", targetZoom)) target=\(target.device.localizedName, privacy: .public)")
         } catch {
             Log.session.error("focal_init_lock_failed error=\(error.localizedDescription, privacy: .public)")
         }
@@ -1071,12 +1079,15 @@ class CameraManager: NSObject, ObservableObject {
             let isRamping = dev.isRampingVideoZoom
             Task { @MainActor in
                 self.currentZoomFactor = newZoom
+                // ramp 推进/停止都戳一下镜头稳定评估（基于设备真值，含 isRampingVideoZoom + zoom 命中）
+                self.evaluateLensSettle()
                 if isRamping { return }
-                // 等效焦距 = primaryNativeMm × videoZoomFactor（与系统选哪颗 constituent 无关，
-                // 因为 videoZoomFactor 是虚拟设备坐标系下的 FOV 比率）。
-                let nativeMm = self.focalInfo.primaryNativeMm
-                guard nativeMm > 0 else { return }
-                let mm = Float(newZoom) * nativeMm
+                // 等效焦距按当前活跃 constituent 的原生焦距 + 数字裁切倍率反推（与 virtualZoomFactor
+                // 正向同一模型、与 iPhone 原相机一致）。比 primaryNativeMm × zoom 准——后者把最广镜头的
+                // 取整标称外推到长焦端会累积误差（200mm 档会被读成 208mm，可能误跳档）。
+                let active = self.videoCaptureDevice?.activePrimaryConstituent
+                let mm = self.focalInfo.equivalentMm(forZoom: newZoom, activeConstituent: active)
+                guard mm > 0 else { return }
                 let closest = self.focalInfo.options.min { abs($0.mm - mm) < abs($1.mm - mm) }
                 if let closest, closest != self.currentFocalLength {
                     self.syncCurrentFocalLength(closest)
@@ -1099,33 +1110,20 @@ class CameraManager: NSObject, ObservableObject {
             }
         }
 
-        // activePrimaryConstituentDevice：诊断 .locked 是否生效。.locked 期望该值不会因
-        // videoZoomFactor 跨阈值而漂移；漂移即说明锁失效，应在日志里被立刻看见。
-        // 顺带承担一个职责：active name 命中 expectedConstituent.localizedName 时清
-        // isLensTransitioning——这样 capturePhoto 的 waitForLensSettled 不必硬等 grace 超时,
-        // 绝大多数情况几十 ms 就放行。
-        // 用 localizedName 字符串对比而非引用对比是因为：AVCaptureDevice 非 Sendable,
-        // 把它捕获进 Task @MainActor 在 Swift 6 strict concurrency 下会报 sending 警告；
-        // localizedName 在同一 session 生命周期内唯一标识 constituent，String 是 Sendable。
+        // activePrimaryConstituentDevice：记录系统当前实际用哪颗物理镜头（`.auto` 下由系统按 zoom +
+        // 条件决定），并在 active 变化时戳一下 evaluateLensSettle 重新评估取景是否到位。
+        // 到位判定本身只看 zoom（见 lensIsOnTarget），不看 constituent——系统用哪颗都是合法结果。
+        // 用 localizedName 只为打日志：AVCaptureDevice 非 Sendable，捕获进 Task @MainActor 会报
+        // sending 警告；String 是 Sendable。
         constituentObservation = device.observe(\.activePrimaryConstituent, options: [.new]) { [weak self] _, change in
             guard let self else { return }
-            let activeName = change.newValue.flatMap { $0?.localizedName }
-            let logName = activeName ?? "nil"
+            let logName = change.newValue.flatMap { $0?.localizedName } ?? "nil"
             Task { @MainActor in
                 if self.activeConstituentName != logName {
                     self.activeConstituentName = logName
                     Log.session.info("constituent_active_changed name=\(logName, privacy: .public)")
                 }
-                if self.isLensTransitioning,
-                   let expectedName = self.expectedConstituent?.localizedName,
-                   let activeName,
-                   activeName == expectedName {
-                    // 硬件已切到位。再给一帧 grace（~50ms）让 ZSL ring 收新帧再放行。
-                    Task { @MainActor [weak self] in
-                        try? await Task.sleep(for: .milliseconds(50))
-                        self?.markLensSettled(reason: "constituent_match")
-                    }
-                }
+                self.evaluateLensSettle()
             }
         }
     }
@@ -1154,83 +1152,106 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - 8. 镜头切换（fast / slow path）+ 安全快门
+    // MARK: - 8. 镜头切换（.auto 跟随系统）+ 安全快门
 
-    /// 等待镜头切换稳定。capturePhoto 在 issue 给 AVF 之前调用——保证 ZSL ring 已经
-    /// 换上新 constituent 的帧，不会从旧镜头的缓冲帧里挑出片。
-    /// 600ms 上限保证就算 transition flag 因异常没被清掉，快门也不会永久卡住。
-    func waitForLensSettled(timeoutMs: Int = 3500) async {
-        guard isLensTransitioning else { return }
+    // MARK: 就绪谓词（单一真相）+ 镜头稳定状态机
+    //
+    // 「能不能拍」不再是被多处回调翻转的布尔标志，而是对设备真值的派生谓词。两层语义分开：
+    //   - isCaptureAvailable：session + connection 这类「根本能力」。CameraView 快门入口读它，
+    //     false 时静默忽略 tap（权限未授予 / 未配置 / 已离开）。镜头切换中仍为 true（tap 该等、不该丢）。
+    //   - isReadyToCapture：在前者基础上再要求镜头到位 + ZSL grace。capturePhoto 内部 await 它。
+    // P1（connection）、P2（ramp/zoom）都被收进这两处判定，任何调用方都不可能漏条件。
+
+    /// 根本可用性：session 已配置 + photo connection active。无 active connection 时
+    /// photoOutput.capturePhoto 会抛 NSException 崩溃（Obj-C 异常无法 catch），用它在入口兜住。
+    var isCaptureAvailable: Bool {
+        sessionConfigured && (photoOutput.connection(with: .video)?.isActive == true)
+    }
+
+    /// 完全就绪：根本可用 + 镜头到位 + ZSL grace 走完。capturePhoto 内部 await 它。
+    var isReadyToCapture: Bool {
+        guard isCaptureAvailable else { return false }
+        guard lensTarget != nil else { return true }      // 无进行中的切换 = 已稳定
+        return lensIsOnTarget() && lensGracePassed()
+    }
+
+    /// 镜头取景是否到位：zoom ramp 已停 && zoom 命中目标。**只看 zoom（取景），不看 constituent**——
+    /// `.auto` 下用哪颗物理镜头由系统按条件决定（能切长焦就切、近物/暗光裁主摄），都是合法结果，
+    /// capture 不该等某颗特定镜头（否则系统拒绝长焦时快门假死）。zoom ramp 总会停，所以这总会到位。
+    private func lensIsOnTarget() -> Bool {
+        guard let t = lensTarget else { return true }
+        guard let device = videoCaptureDevice else { return false }
+        return !device.isRampingVideoZoom && abs(device.videoZoomFactor - t.zoom) < 0.1
+    }
+
+    /// 镜头到位后 ZSL grace 是否走完。lensOnTargetSince 由 evaluateLensSettle 在「首次到位」时打点。
+    private func lensGracePassed() -> Bool {
+        guard let t = lensTarget, let since = lensOnTargetSince else { return false }
+        return (CFAbsoluteTimeGetCurrent() - since) * 1000 >= Double(t.zslGraceMs)
+    }
+
+    /// 重新评估镜头是否稳定。由 constituent/zoom KVO 与 lensSettleTask 轮询「戳一下」触发——
+    /// 它们不再各自翻转状态，只让这里基于设备真值重新判断（单一判定点）。到位即打点 since、
+    /// 回退（又开始 ramp）即清空 since 让 grace 重新计时、到位且 grace 走完即 clearLensTarget。
+    private func evaluateLensSettle() {
+        guard lensTarget != nil else { return }
+        if lensIsOnTarget() {
+            if lensOnTargetSince == nil { lensOnTargetSince = CFAbsoluteTimeGetCurrent() }
+            if lensGracePassed() { clearLensTarget(reason: "on_target") }
+        } else {
+            lensOnTargetSince = nil
+        }
+    }
+
+    /// 标记一次镜头切换彻底结束（幂等）。on-target + grace 命中，或 maxWait 兜底超时调用。
+    private func clearLensTarget(reason: String) {
+        guard let t = lensTarget else { return }
+        lensSettleTask?.cancel(); lensSettleTask = nil
+        let active = videoCaptureDevice?.activePrimaryConstituent?.localizedName ?? "nil"
+        Log.session.info("lens_settled reason=\(reason, privacy: .public) active=\(active, privacy: .public) zoom=\(String(format: "%.2f", t.zoom))")
+        lensTarget = nil
+        lensOnTargetSince = nil
+    }
+
+    /// 开始一次镜头切换：登记目标 zoom + 启动稳定轮询。capture 就绪只看 zoom 到位（见 lensIsOnTarget）。
+    /// - zslGraceMs: zoom 到位后给系统 constituent crossfade 收尾的额外等待。
+    /// - maxWaitMs: 兜底放弃时刻，即便始终没到位也强制 clearLensTarget，绝不让快门永久卡住。
+    private func beginLensSwitch(zoom: CGFloat, zslGraceMs: Int, maxWaitMs: Int) {
+        lensTarget = LensTarget(zoom: zoom, zslGraceMs: zslGraceMs)
+        lensOnTargetSince = nil
+        let token = applyFocalToken
+        lensSettleTask?.cancel()
+        lensSettleTask = Task { @MainActor [weak self] in
+            let deadline = CFAbsoluteTimeGetCurrent() + Double(maxWaitMs) / 1000.0
+            while !Task.isCancelled {
+                guard let self, self.applyFocalToken == token else { return }
+                self.evaluateLensSettle()
+                if self.lensTarget == nil { return }            // 已稳定
+                if CFAbsoluteTimeGetCurrent() >= deadline {
+                    self.clearLensTarget(reason: "max_wait(\(maxWaitMs)ms)")
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(30))
+            }
+        }
+    }
+
+    /// capturePhoto 在 issue 前 await 直到 isReadyToCapture 或超时。唯一闸门，取代旧的
+    /// waitForLensSettled + waitForConstituentMatch 两段分散判定。timeoutMs 仅异常兜底——
+    /// 正常路径下镜头到位 + grace 走完即放行（实测几十 ms）。超时也放行（绝不永久卡快门），
+    /// 但打 error 便于排查；4000 是异常兜底，远大于一次 zoom ramp 实际所需（百 ms 级）。
+    func waitForReadyToCapture(timeoutMs: Int = 4000) async {
+        if isReadyToCapture { return }
         let start = CFAbsoluteTimeGetCurrent()
         let deadline = start + Double(timeoutMs) / 1000.0
-        while isLensTransitioning, CFAbsoluteTimeGetCurrent() < deadline {
+        while !isReadyToCapture, CFAbsoluteTimeGetCurrent() < deadline {
             try? await Task.sleep(for: .milliseconds(15))
         }
         let waited = (CFAbsoluteTimeGetCurrent() - start) * 1000
-        Log.capture.info("lens_settle_wait waited=\(String(format: "%.0f", waited))ms still_transitioning=\(self.isLensTransitioning)")
-    }
-
-    /// capturePhoto 二次闸门：确认 active constituent === expected。slow-path 在
-    /// constituent mismatch 时不锁、保留 .auto，给系统自然 crossfade 的最后窗口。命中即返回,
-    /// 超时也放行（至少不卡死快门）。绝大多数已经在 waitForLensSettled 期间命中，这里只跑几十 ms。
-    func waitForConstituentMatch(timeoutMs: Int) async {
-        guard let device = videoCaptureDevice,
-              let expected = expectedConstituent else { return }
-        if device.activePrimaryConstituent === expected { return }
-        let start = CFAbsoluteTimeGetCurrent()
-        let deadline = start + Double(timeoutMs) / 1000.0
-        while device.activePrimaryConstituent !== expected, CFAbsoluteTimeGetCurrent() < deadline {
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-        let waited = (CFAbsoluteTimeGetCurrent() - start) * 1000
-        let matched = device.activePrimaryConstituent === expected
-        if matched {
-            Log.capture.info("constituent_settle_ok waited=\(String(format: "%.0f", waited))ms")
+        if isReadyToCapture {
+            Log.capture.info("capture_ready_wait waited=\(String(format: "%.0f", waited))ms")
         } else {
-            Log.capture.error("constituent_settle_timeout waited=\(String(format: "%.0f", waited))ms expected=\(expected.localizedName, privacy: .public) active=\(device.activePrimaryConstituent?.localizedName ?? "nil", privacy: .public)")
-        }
-    }
-
-    /// slow-path mismatch 兜底：后台 watcher 监视 active === target，命中即在 lock 块内
-    /// 原子地 commit `.locked`，钉死 constituent 防止 .auto 反复横跳。
-    ///
-    /// 解决的 bug：100mm 的 targetZoom=8.05 紧贴 W↔T switchover 阈值，`.auto` 在边界态不稳定——
-    /// AE/AF re-evaluate（如用户对焦后）系统会反复在 W/T 之间切。slow-path 结束时若 active 还在 W,
-    /// "保留 .auto 等自然 commit"路径下，T 来了又走，capture 落在 W 上的 8x 数码裁切（即用户报的
-    /// "100mm 用的是 24mm 镜头拍摄的"）。Deferred lock 抢在第一次 commit T 时把 constituent 钉死。
-    ///
-    /// 锁的原子性：lockForConfiguration 持锁期间系统无法切 constituent，所以"读 active === target"
-    /// 与"写 .locked"在同一 lock 块内是原子的。读到 target 才写 .locked，否则解锁继续 polling。
-    /// applyFocalToken 用于失效——用户中途切换焦段会让旧 watcher 直接退出。
-    private func armDeferredLockToTarget(_ targetDevice: AVCaptureDevice, focalToken: UInt64, timeoutSec: Double) {
-        Task { @MainActor [weak self] in
-            guard let self, let device = self.videoCaptureDevice else { return }
-            let start = CFAbsoluteTimeGetCurrent()
-            let deadline = start + timeoutSec
-            while CFAbsoluteTimeGetCurrent() < deadline {
-                if self.applyFocalToken != focalToken { return }
-                if device.activePrimaryConstituent === targetDevice {
-                    do {
-                        try device.lockForConfiguration()
-                        let activeInLock = device.activePrimaryConstituent === targetDevice
-                        if activeInLock {
-                            device.setPrimaryConstituentDeviceSwitchingBehavior(.locked, restrictedSwitchingBehaviorConditions: [])
-                        }
-                        device.unlockForConfiguration()
-                        if activeInLock {
-                            let waited = (CFAbsoluteTimeGetCurrent() - start) * 1000
-                            Log.session.info("focal_deferred_lock_ok target=\(targetDevice.localizedName, privacy: .public) waited=\(String(format: "%.0f", waited))ms")
-                            return
-                        }
-                        // 极少见：active 在我们读到 → 拿到 lock 之间又变了。继续 polling。
-                    } catch {
-                        Log.session.error("focal_deferred_lock_failed error=\(error.localizedDescription, privacy: .public)")
-                        return
-                    }
-                }
-                try? await Task.sleep(for: .milliseconds(50))
-            }
-            Log.session.error("focal_deferred_lock_timeout target=\(targetDevice.localizedName, privacy: .public) timeout=\(String(format: "%.1f", timeoutSec))s active=\(device.activePrimaryConstituent?.localizedName ?? "nil", privacy: .public)")
+            Log.capture.error("capture_ready_timeout waited=\(String(format: "%.0f", waited))ms on_target=\(self.lensIsOnTarget()) avail=\(self.isCaptureAvailable)")
         }
     }
 
@@ -1270,29 +1291,6 @@ class CameraManager: NSObject, ObservableObject {
         applyFocalLength(option, animated: animated, fromZoom: previousZoom)
     }
 
-    /// 标记进入"镜头切换中"状态。capturePhoto 会 await 直到此 flag 归 false 再发给 AVF。
-    /// 默认 600ms 兜底超时；调用方传 graceMs 控制启动期 / slow-path 完成后的余量（让 ZSL 换血）。
-    /// 同样的 flag 在 lensSettleTask 里被定时器或 constituent KVO 命中时清掉——双保险。
-    private func beginLensTransition(graceMs: Int) {
-        isLensTransitioning = true
-        lensSettleTask?.cancel()
-        lensSettleTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(graceMs))
-            guard let self, !Task.isCancelled else { return }
-            self.markLensSettled(reason: "grace_timeout(\(graceMs)ms)")
-        }
-    }
-
-    /// 把 isLensTransitioning 清掉。constituent KVO 命中（active === expected）或 grace 超时调用。
-    /// 幂等：已经 false 时直接返回，避免重复打日志。
-    private func markLensSettled(reason: String) {
-        guard isLensTransitioning else { return }
-        lensSettleTask?.cancel()
-        lensSettleTask = nil
-        isLensTransitioning = false
-        Log.session.info("lens_settled reason=\(reason, privacy: .public) active=\(self.activeConstituentName, privacy: .public) expected=\(self.expectedConstituent?.localizedName ?? "nil", privacy: .public)")
-    }
-
     /// 单点更新 currentFocalLength 并同步 Camera Control picker 的选中索引。
     /// 程序化设置 selectedIndex 不会回调 picker action，因此安全无重入。
     private func syncCurrentFocalLength(_ option: FocalLengthOption) {
@@ -1306,22 +1304,17 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// 切焦距。两条路径：
+    /// 切焦距（`.auto` 跟随系统，iPhone 同款）。**单一路径**：始终保持
+    /// `setPrimaryConstituentDeviceSwitchingBehavior(.auto)`，只把 videoZoomFactor 平滑 ramp 到目标
+    /// 焦段对应的虚拟 zoom；系统在 ramp 跨越 switchover 阈值时自己做硬件 crossfade 切 constituent。
     ///
-    /// **快路径**（target constituent 已激活，如 35mm→50mm 都在 W 上）：单 lock 块内
-    /// `.locked` + ramp + 安全快门，零异步等待，瞬时响应。
+    /// **不再 `.locked`、不再 deep-ramp 过冲**——这是把多轮真机教训收敛后的终点：强锁 + 过冲既会
+    /// 抖动（过冲到 ~10x 再退回），又会在系统拒绝长焦时假死。长焦用不用最终由系统按光线/距离/画质
+    /// 判定（近物/暗光裁主摄），任何代码强求不来——`.auto` 直接接受系统决定，和 iPhone 行为一致。
     ///
-    /// **慢路径**（跨 constituent，如 35mm→100mm）：
-    ///   - Phase 0: 独立 lock 块解 `.locked → .auto`，yield 33ms 让 AVF 把 min/max 展回 [1, max]。
-    ///     **不能与 zoom 写共用同一锁块**—— zoom 写入仍按旧 .locked min/max clamp，跨档卡住。
-    ///   - Phase 1: 单段动画 ramp 直接到 targetZoom。`.auto` 模式下，ramp 经过 switchover 阈值时
-    ///     系统硬件级自动 crossfade 切换 constituent —— 这就是 iPhone 原相机连续 zoom 的丝滑感。
-    ///   - Phase 2: 等 ramp 完成（KVO `isRampingVideoZoom`）+ constituent 收敛到 target。
-    ///   - Phase 3: `.locked` 钉住 constituent，防止后续 AE/zoom 漂移。
-    ///
-    /// 边界焦距（24mm zoom=2.0、100mm zoom=8.0）在 switchover 上，加 0.05 ε 推进 target 区间内部,
-    /// 避免 ramp 落在边界时系统选错 constituent。FOV 偏差 < 1%，肉眼不可察。
-    /// `applyFocalToken` 防止快速来回点导致旧 task 把新档位的 lock 撤掉。
+    /// 边界焦距（24mm zoom=2.0、100mm zoom=8.0）仍加 0.05 ε 推进区间内部，鼓励系统选目标 constituent。
+    /// capture 就绪（isReadyToCapture）只等 zoom ramp 停 + ZSL grace，不再等特定 constituent，所以
+    /// 系统拒长焦时快门不假死。`applyFocalToken` 让快速连点时旧 lensSettleTask 轮询失效。
     private func applyFocalLength(_ option: FocalLengthOption, animated: Bool = true, fromZoom: CGFloat? = nil) {
         guard let device = videoCaptureDevice else {
             Log.session.error("focal_apply_no_device option=\(option.rawValue)")
@@ -1342,201 +1335,38 @@ class CameraManager: NSObject, ObservableObject {
         let targetZoom = needsBoundaryBias ? baseZoom + 0.05 : baseZoom
 
         applyFocalToken &+= 1
-        let myToken = applyFocalToken
 
         // 自适应 ramp 速率：跨度越大越快，小幅切换更柔和（同 iPhone 原相机）
         let ratio = fromZoom.map { max(targetZoom / $0, $0 / targetZoom) } ?? 2.0
         let rampRate: Float = if ratio < 1.5 { 4.0 } else if ratio < 3.0 { 8.0 } else { 16.0 }
 
-        // ============= 快路径：target constituent 已激活，直接 ramp =============
-        // 适用 35→50（同 W）、100→200（同 T）等场景。零异步等待，体验最丝滑。
-        if device.activePrimaryConstituent === target.device {
-            do {
-                try device.lockForConfiguration()
-                // 幂等：已 .locked 时是 no-op；从 .auto 状态进入则锁到当前 target constituent
-                device.setPrimaryConstituentDeviceSwitchingBehavior(.locked, restrictedSwitchingBehaviorConditions: [])
-                let postLockMin = device.minAvailableVideoZoomFactor
-                let postLockMax = device.activeFormat.videoMaxZoomFactor
-                let finalZoom = max(postLockMin, min(postLockMax, targetZoom))
-
-                if animated {
-                    device.ramp(toVideoZoomFactor: finalZoom, withRate: rampRate)
-                } else {
-                    device.videoZoomFactor = finalZoom
-                }
-                self.currentZoomFactor = finalZoom
-
-                let safeShutter = self.computeSafeShutterDuration(focalMm: option.rawValue, format: device.activeFormat)
-                device.activeMaxExposureDuration = safeShutter
-                device.unlockForConfiguration()
-
-                let active = device.activePrimaryConstituent?.localizedName ?? "nil"
-                Log.session.info("focal_applied path=fast option=\(option.rawValue)mm active=\(active, privacy: .public) zoom=\(String(format: "%.2f", finalZoom))x animated=\(animated)")
-            } catch {
-                Log.session.error("focal_fast_lock_failed error=\(error.localizedDescription, privacy: .public)")
-            }
-            return
-        }
-
-        // ============= 慢路径：跨 constituent =============
-        // 进慢路径意味着 ZSL ring 即将经历"旧 constituent 帧 → 切换中模糊帧 → 新 constituent 帧"
-        // 三段过渡。capturePhoto 必须等到这段过渡完才发出 issue，否则出片元数据会带上旧镜头。
-        //
-        // **iOS 26 .auto hysteresis bug**：targetZoom 正好踩在 switchover 阈值附近时（如 100mm
-        // zoom=8.05 紧贴 W↔T 边界 zoom=8.0），系统宁可让旧 constituent 数码裁切也不切。即使 +0.05
-        // ε、或后台 deferred-lock polling 5s，都救不回来 —— 用户报告"100mm 拍出 24mm 镜头"的根因。
-        //
-        // **修复**：跨 constituent + targetZoom 接近目标区间下界时，Phase 1 不直冲 targetZoom，而是
-        // ramp 到深处（lowerBound + 2.0，例 100mm 的 zoom=10），让 .auto 在远离边界处下决心切换；
-        // 等 active === target 后，**同一 lock 块内** .locked + ramp 回 targetZoom（.locked 把
-        // minAvailableVideoZoomFactor 钉到 lowerBound=8.0，ramp 8.05 完全合法）。
-        // 视觉上：100mm 时画面短暂"过冲"到 ~120mm 再退回 100mm，远好过卡在 W 数码裁切上。
-        //
-        // 旧实现尝试 dwell 在 +0.5（zoom=8.5）失败 —— 余量太小，仍在 hysteresis 窗内；+2.0 给系统
-        // 充分空间。即便深 ramp 后仍 mismatch（极端情况），也会 ramp 回 targetZoom 保证视野和
-        // EXIF 焦段正确，再启动 deferred-lock 兜底。
-        expectedConstituent = target.device
-        // Phase 0(100ms) + Phase 1(deep ramp ≤1500ms) + Phase 2(constituent ≤1500ms) + Phase 3(lock + snap-back ≤500ms)
-        // + 200ms ZSL grace ≈ 3800ms 上限。slow-path 自身在结束时 markLensSettled，这里只是兜底。
-        beginLensTransition(graceMs: 3800)
-
-        // 决定 Phase 1 ramp 目标。深 ramp 的目的是绕过 iOS 26 .auto 在 switchover 边界的
-        // hysteresis bug，但**仅观察到 W↔T 边界（zoom=8.0）有这个 bug**——100mm 的 zoom=8.05
-        // 直冲会卡在 W 数码裁切。UW↔W 边界（zoom=2.0）实测 .auto 能正常切换。
-        //
-        // 所以 deep ramp 限制为 target 是 T 镜头时启用（nativeMm ≥ 50 覆盖所有 iPhone 的 T:
-        // 52/56/65/77/100/120mm）。否则一律直冲 targetZoom：
-        //  - 24mm（W 下界 +0.05 ε）：直冲 2.05，连续 zoom，无 overshoot；
-        //  - 13mm（UW 下界）：直冲 1.0；
-        //  - 35/50mm（W 区间内部）：直冲对应 zoom；
-        //  - 200mm（T 区间内部 zoom=16）：targetZoom 离下界 > 1.0，nearLowerBound=false，不会触发 deep ramp。
-        // 唯一会启用 deep ramp 的场景：target 是 T 且 targetZoom 接近 T 下界，即 100mm 这一档。
-        // 旧实现让 24mm 也 deep ramp 到 zoom=4（52mm 视野）再退回 24mm，画面来回闪烁（用户报）。
-        let lowerBound = target.virtualZoomRange.lowerBound
-        let upperBound = target.virtualZoomRange.upperBound
-        let nearLowerBound = (targetZoom - lowerBound) < 1.0
-        let canDeepRamp = (upperBound - lowerBound) > 2.0
-        let targetIsTele = target.nativeMm >= 50
-        let needsDeepRamp = nearLowerBound && canDeepRamp && targetIsTele
-        let phase1Target: CGFloat = needsDeepRamp ? min(lowerBound + 2.0, upperBound) : targetZoom
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-
-            // Phase 0: 释放上一次的 .locked，切回 .auto，让 minAvailableVideoZoomFactor 展回 [1, max]
-            do {
-                try device.lockForConfiguration()
-                device.setPrimaryConstituentDeviceSwitchingBehavior(.auto, restrictedSwitchingBehaviorConditions: [])
-                device.unlockForConfiguration()
-            } catch {
-                Log.session.error("focal_phase0_unlock_failed error=\(error.localizedDescription, privacy: .public)")
-                return
-            }
-            // 100ms ≈ 3 帧 @30fps。33ms 在 iOS 26 上不够稳：偶发 .auto 还没真正接管 zoom 范围,
-            // Phase 1 的 ramp 写入仍按旧 .locked min/max 被夹住，导致跨 constituent 切换看似成功
-            // 但实际 active 还停在旧 constituent 上。
-            try? await Task.sleep(for: .milliseconds(100))
-            if self.applyFocalToken != myToken { return }
-
-            // Phase 1: ramp 到 phase1Target（needsDeepRamp 时是 lowerBound+2.0 的深处，否则就是 targetZoom）
-            do {
-                try device.lockForConfiguration()
-                if animated {
-                    device.ramp(toVideoZoomFactor: phase1Target, withRate: rampRate)
-                } else {
-                    device.videoZoomFactor = phase1Target
-                }
-                self.currentZoomFactor = phase1Target
-                // 安全快门：按目标焦段（不是 phase1Target 的等效焦段）算，因为最终落在 targetZoom 上
-                let safeShutter = self.computeSafeShutterDuration(focalMm: option.rawValue, format: device.activeFormat)
-                device.activeMaxExposureDuration = safeShutter
-                device.unlockForConfiguration()
-            } catch {
-                Log.session.error("focal_phase1_lock_failed error=\(error.localizedDescription, privacy: .public)")
-                return
-            }
-
-            // Phase 2: 等 ramp 完成（KVO isRampingVideoZoom = false），1500ms 兜底
+        // 单一路径：始终 .auto，只把 videoZoomFactor 平滑 ramp 到目标。系统在 ramp 跨越 switchover
+        // 阈值时自己做硬件 crossfade 切 constituent（能切长焦就切、近物/暗光裁主摄）。device 全程不
+        // .locked，所以 .auto + zoom 写在同一 lock 块内安全（无「转出 .locked 时 zoom 被旧 min/max
+        // 夹住」的老坑）。不再 deep-ramp 过冲 → 无前后抖动；不再等特定 constituent → 系统拒长焦不假死。
+        let maxZoom = device.activeFormat.videoMaxZoomFactor
+        let finalZoom = max(1.0, min(maxZoom, targetZoom))
+        do {
+            try device.lockForConfiguration()
+            device.setPrimaryConstituentDeviceSwitchingBehavior(.auto, restrictedSwitchingBehaviorConditions: [])
             if animated {
-                let rampDeadline = Date().addingTimeInterval(1.5)
-                while device.isRampingVideoZoom, Date() < rampDeadline {
-                    try? await Task.sleep(for: .milliseconds(20))
-                    if self.applyFocalToken != myToken { return }
-                }
-            }
-            // ramp 完成后 .auto 仍可能要 ~1s 才真正 commit 跨 constituent 的 crossfade（iOS 26 在
-            // 大跨度下尤其明显）。1500ms 兜底；needsDeepRamp 路径下深 ramp 已远离边界，正常会很快命中。
-            let consDeadline = Date().addingTimeInterval(1.5)
-            while device.activePrimaryConstituent !== target.device, Date() < consDeadline {
-                try? await Task.sleep(for: .milliseconds(20))
-                if self.applyFocalToken != myToken { return }
-            }
-            if self.applyFocalToken != myToken { return }
-
-            // Phase 3: lock + 如有需要 snap 回 targetZoom。
-            // - match：lock 块内 .locked + ramp 回 targetZoom（.locked 已把 min 钉到 lowerBound,
-            //   ramp 到 targetZoom（如 8.05）完全合法，且系统不会再切 constituent）。
-            // - mismatch：保留 .auto，仍 ramp 回 targetZoom 保证视野和 EXIF 焦段正确,
-            //   启动 deferred-lock 5s 后台 watcher 兜底。
-            let activeBeforeLock = device.activePrimaryConstituent
-            let match = activeBeforeLock === target.device
-            let needsZoomSnapBack = abs(device.videoZoomFactor - targetZoom) > 0.05
-            if match {
-                do {
-                    try device.lockForConfiguration()
-                    device.setPrimaryConstituentDeviceSwitchingBehavior(.locked, restrictedSwitchingBehaviorConditions: [])
-                    if needsZoomSnapBack {
-                        // ramp 回 targetZoom，速率加倍让 overshoot 退回更快
-                        if animated {
-                            device.ramp(toVideoZoomFactor: targetZoom, withRate: rampRate * 2)
-                        } else {
-                            device.videoZoomFactor = targetZoom
-                        }
-                        self.currentZoomFactor = targetZoom
-                    }
-                    device.unlockForConfiguration()
-                } catch {
-                    Log.session.error("focal_phase3_lock_failed error=\(error.localizedDescription, privacy: .public)")
-                    return
-                }
-                // 等 snap-back ramp 完成（≤500ms），让 ZSL ring 在 targetZoom 上收齐新帧
-                if needsZoomSnapBack && animated {
-                    let snapDeadline = Date().addingTimeInterval(0.5)
-                    while device.isRampingVideoZoom, Date() < snapDeadline {
-                        try? await Task.sleep(for: .milliseconds(20))
-                        if self.applyFocalToken != myToken { return }
-                    }
-                }
+                device.ramp(toVideoZoomFactor: finalZoom, withRate: rampRate)
             } else {
-                Log.session.error("focal_constituent_mismatch target=\(target.device.localizedName, privacy: .public) active=\(activeBeforeLock?.localizedName ?? "nil", privacy: .public) zoom=\(String(format: "%.2f", device.videoZoomFactor))x deep_ramp=\(needsDeepRamp) — staying in .auto, deferred-lock armed (5s)")
-                if needsZoomSnapBack {
-                    do {
-                        try device.lockForConfiguration()
-                        if animated {
-                            device.ramp(toVideoZoomFactor: targetZoom, withRate: rampRate * 2)
-                        } else {
-                            device.videoZoomFactor = targetZoom
-                        }
-                        self.currentZoomFactor = targetZoom
-                        device.unlockForConfiguration()
-                    } catch {
-                        Log.session.error("focal_phase3_snapback_failed error=\(error.localizedDescription, privacy: .public)")
-                    }
-                }
-                self.armDeferredLockToTarget(target.device, focalToken: myToken, timeoutSec: 5.0)
+                device.videoZoomFactor = finalZoom
             }
-
-            let active = activeBeforeLock?.localizedName ?? "nil"
-            Log.session.info("focal_applied path=slow option=\(option.rawValue)mm target=\(target.device.localizedName, privacy: .public) active=\(active, privacy: .public) match=\(match) deep_ramp=\(needsDeepRamp) phase1_zoom=\(String(format: "%.2f", phase1Target))x final_zoom=\(String(format: "%.2f", device.videoZoomFactor))x animated=\(animated)")
-
-            // Phase 3 之后再留 200ms grace 让 ZSL ring 收满新 constituent + 新 zoom 的帧再放行 capture
-            // （constituent KVO 那条路径只覆盖 active 切到位的瞬间；这里覆盖 active 早就切到位
-            // 但 KVO 没新通知的场景——拍摄前 active 一直没变，但锁刚生效 ring 还没刷新）
-            try? await Task.sleep(for: .milliseconds(200))
-            if self.applyFocalToken == myToken {
-                self.markLensSettled(reason: "slow_path_complete")
-            }
+            self.currentZoomFactor = finalZoom
+            let safeShutter = self.computeSafeShutterDuration(focalMm: option.rawValue, format: device.activeFormat)
+            device.activeMaxExposureDuration = safeShutter
+            device.unlockForConfiguration()
+            let active = device.activePrimaryConstituent?.localizedName ?? "nil"
+            Log.session.info("focal_applied option=\(option.rawValue)mm target_zoom=\(String(format: "%.2f", finalZoom))x active=\(active, privacy: .public) animated=\(animated)")
+        } catch {
+            Log.session.error("focal_apply_lock_failed error=\(error.localizedDescription, privacy: .public)")
         }
+
+        // capture 就绪只等 zoom ramp 停（取景到位）+ 一点 ZSL grace 给系统的 constituent crossfade 收尾；
+        // 不再等特定 constituent（系统说了算）——所以系统拒绝长焦时快门不假死。maxWait 仅异常兜底。
+        beginLensSwitch(zoom: finalZoom, zslGraceMs: 150, maxWaitMs: 1200)
     }
 
     // MARK: - 9. 拍照
@@ -1546,34 +1376,37 @@ class CameraManager: NSObject, ObservableObject {
         onExposureComplete: (() -> Void)? = nil,
         completion: @escaping (Data?) -> Void
     ) {
-        photoDataHandler = completion
-        exposureCompleteHandler = onExposureComplete
-        willCaptureHandler = onWillCapture
+        inFlightCapture = CaptureRequest(
+            onData: completion,
+            onWillCapture: onWillCapture,
+            onExposureComplete: onExposureComplete,
+            flashRestore: nil
+        )
 
-        // 镜头切换正在进行（启动期 250ms grace / slow-path Phase 0–3 / 锁后 200ms ZSL refill）
-        // 时，await 直到 isLensTransitioning 归 false 再 issue 给 AVF。
-        // 修的根因：上一版没有这道闸门 → ZSL ring 里上一颗 constituent 的帧被选作出片源 →
-        // 用户选 35mm 拍出来的照片元数据是 13mm UW 镜头。waitForLensSettled 上限兜底,
-        // 不会让快门永久卡住。
-        // 第二道闸门：slow-path mismatch 时不锁 constituent，保留 .auto；这里在 issue 前快速确认
-        // active === expected。slow-path 的 deep-ramp 修复后正常情况下 0ms 就放行；只有极端情况
-        // （deep ramp 也救不了的边界焦段）才会等满超时。从 800ms 缩到 200ms：mismatch 持续时
-        // 用户感知"快门按了等近 1s 才闪"的延迟（用户原报问题），缩短后即便 mismatch 也只多 200ms。
-        let initialIsLensTransitioning = isLensTransitioning
+        // 唯一闸门：await 直到 isReadyToCapture（根本可用 + 镜头到位 + ZSL grace）再 issue 给 AVF。
+        // 取代旧的 isLensTransitioning + waitForLensSettled + waitForConstituentMatch 三段分散判定——
+        // 三者现在都收敛进 isReadyToCapture 这一处谓词。修的根因：ZSL ring 里上一颗 constituent /
+        // 过冲 zoom 的旧帧被选作出片源 → 用户选 35mm / 100mm 拍出的照片元数据/视野是错的镜头/焦段。
+        // waitForReadyToCapture 内有 4s 兜底，不会让快门永久卡住。
         Task { @MainActor [weak self] in
             guard let self else { return }
-            if initialIsLensTransitioning {
-                await self.waitForLensSettled()
-            }
-            await self.waitForConstituentMatch(timeoutMs: 200)
+            await self.waitForReadyToCapture()
             self.issueCapturePhoto()
         }
     }
 
-    /// capturePhoto 主体——拆出来是为了让外层 capturePhoto 能 await waitForLensSettled。
-    /// 必须 @MainActor：访问 photoOutput / videoCaptureDevice / pendingFlashRestore / flashMode。
+    /// capturePhoto 主体——拆出来是为了让外层 capturePhoto 能 await waitForReadyToCapture。
+    /// 必须 @MainActor：访问 photoOutput / videoCaptureDevice / inFlightCapture / flashMode。
     private func issueCapturePhoto() {
         let issueTime = Log.now()
+        // 防御性兜底：waitForReadyToCapture 返回 ready 到这里之间仍隔着调度边界，其间 session 可能被
+        // 切后台 / stopSession 拆掉 connection。无 active connection 时 photoOutput.capturePhoto 会抛
+        // NSException 崩溃——这里改为优雅终结：还原闪光灯 AE/WB + 以 nil 释放快门（CameraView 的 isShutterBusy）。
+        guard photoOutput.connection(with: .video)?.isActive == true else {
+            Log.capture.error("capture_skip reason=no_active_connection")
+            finishCapture(with: nil)
+            return
+        }
         // HEIF/HEVC 编码：相同视觉质量下文件比 JPEG 小 ~50%，是 iPhone Camera 的默认格式。
         // 48MP cap 后 24mm 单张 JPEG ~25-35MB，HEIF 直接降到 ~6-10MB；35mm/100mm 等中等焦段也都同步缩。
         // 系统不支持 HEVC（极少见，旧设备）时 fallback 到 JPEG。
@@ -1597,16 +1430,13 @@ class CameraManager: NSObject, ObservableObject {
         if let device = videoCaptureDevice, device.hasFlash {
             settings.flashMode = (flashMode == .on) ? .on : .off
             if flashMode == .on {
-                // 异常路径自愈：上一次的 pendingFlashRestore 没被消费（极少见，比如
-                // didFinishProcessingPhoto 被 dropped），先把旧状态还原再开新的，
-                // 避免 previousExposureTargetBias 被覆盖成"调整后的偏置值"。
-                if let stale = pendingFlashRestore {
-                    Log.capture.error("flash_restore_leaked recovering")
-                    applyFlashRestore(stale, device: device)
-                    pendingFlashRestore = nil
-                }
-
-                let bias = calculateFlashExposureBias(device: device)
+                // 距离感知 flash bias 是"用户未表达意图时的智能默认"；用户若在 sun rail 上主动
+                // 拨过 EV（exposureBias != 0），把它叠加到 flash bias 上——与 iPhone 原相机一致：
+                // EV 补偿在含闪光的测光结果之上继续生效。userBias=0 时 combinedBias==flashBias，
+                // 与旧行为完全等价。savedBias 读的是 device.exposureTargetBias（已镜像等于 userBias），
+                // capture 完成后经 CaptureRequest.flashRestore 还原回 userBias，@Published exposureBias 全程不变。
+                let flashBias = calculateFlashExposureBias(device: device)
+                let combinedBias = flashBias + exposureBias
                 do {
                     try device.lockForConfiguration()
                     let savedBias = device.exposureTargetBias
@@ -1614,7 +1444,7 @@ class CameraManager: NSObject, ObservableObject {
                     var didLockExposure = false
                     var didLockWB = false
 
-                    let clamped = max(device.minExposureTargetBias, min(device.maxExposureTargetBias, bias))
+                    let clamped = max(device.minExposureTargetBias, min(device.maxExposureTargetBias, combinedBias))
                     device.setExposureTargetBias(clamped) { _ in }
                     if device.isExposureModeSupported(.locked) {
                         device.exposureMode = .locked
@@ -1628,7 +1458,10 @@ class CameraManager: NSObject, ObservableObject {
                     }
                     device.unlockForConfiguration()
 
-                    pendingFlashRestore = FlashRestoreState(
+                    // 还原状态写进本次拍照的 CaptureRequest——随单次拍照走，不会跨拍照覆盖。
+                    // 不再需要旧的「stale pendingFlashRestore 自愈」分支：per-request 结构上无法泄漏，
+                    // 且 didFinishCaptureFor 终结回调保证 flashRestore 必被消费恰好一次。
+                    inFlightCapture?.flashRestore = FlashRestoreState(
                         exposureTargetBias: savedBias,
                         wbMode: savedWBMode,
                         lockedExposure: didLockExposure,
@@ -1653,7 +1486,7 @@ class CameraManager: NSObject, ObservableObject {
         let output = photoOutput
         let delegate = self
         // 闪光灯路径需要 200ms 延迟让 lockExposure + setExposureTargetBias 真正生效。
-        let needsFlashDelay = (pendingFlashRestore?.lockedExposure ?? false)
+        let needsFlashDelay = (inFlightCapture?.flashRestore?.lockedExposure ?? false)
 
         // 调度到 sessionQueue：AVCapturePhotoOutput 操作不占用主线程，快门响应更快
         let deadline: DispatchTime = needsFlashDelay ? .now() + 0.20 : .now()
@@ -1992,18 +1825,12 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
     /// UI 白屏挂在这里 → 与真实闪光灯物理同帧，告别"先白屏后亮灯"的脱钩感。
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, willCapturePhotoFor resolvedSettings: AVCaptureResolvedPhotoSettings) {
         Log.capture.info("delegate_will_capture")
-        Task { @MainActor in
-            self.willCaptureHandler?()
-            self.willCaptureHandler = nil
-        }
+        Task { @MainActor in self.inFlightCapture?.onWillCapture?() }
     }
 
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didCapturePhotoFor resolvedSettings: AVCaptureResolvedPhotoSettings) {
         Log.capture.info("delegate_did_capture dims=\(resolvedSettings.photoDimensions.width)x\(resolvedSettings.photoDimensions.height)")
-        Task { @MainActor in
-            self.exposureCompleteHandler?()
-            self.exposureCompleteHandler = nil
-        }
+        Task { @MainActor in self.inFlightCapture?.onExposureComplete?() }
     }
 
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: (any Error)?) {
@@ -2021,14 +1848,14 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
 
         // CIImage(data:) in applyLUTPreservingMetadata already applies EXIF orientation,
         // so we pass raw data directly — no need for a separate rotate+encode step.
-        // finishCapture 内同一 main-actor hop：先还原闪光灯 EV/WB，再通知 photoDataHandler。
+        // finishCapture 内同一 main-actor hop：先还原闪光灯 EV/WB，再回调 CaptureRequest.onData。
         // 顺序保证下次 capturePhoto 入口看到的 device 状态已经是"还原后"。
         Task { @MainActor in self.finishCapture(with: imageData) }
     }
 
     /// AVF 保证的"必然终结"回调——无论 capture 成功、失败、还是被系统中断（来电 / 切后台 /
     /// stopSession 撞期）都会最后调用一次，是 Apple 推荐的拍照清理挂载点。
-    /// 正常路径下 didFinishProcessingPhoto 已 finishCapture 并把 photoDataHandler 置 nil，此处
+    /// 正常路径下 didFinishProcessingPhoto 已 finishCapture 并把 inFlightCapture 置 nil，此处
     /// 即为幂等空操作；只有当处理回调从未到达（capture 被 drop）时这里才真正兜底：还原闪光灯
     /// AE/WB + 以 nil 回调释放快门（CameraView 的 isShutterBusy），否则快门会永久卡死、设备
     /// AE/WB 永久锁定。
@@ -2039,21 +1866,17 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         Task { @MainActor in self.finishCapture(with: nil) }
     }
 
-    /// 拍照终结清理——幂等。保证无论成功 / 失败 / 中断，闪光灯 AE/WB 必被还原、photoDataHandler
-    /// 必被调用恰好一次（调用后即置 nil，重复进入只确保 flash 已还原）。
+    /// 拍照终结清理——幂等。消费单个 CaptureRequest：还原闪光灯 AE/WB（若有）再回调 onData，
+    /// 顺序保证下次 capturePhoto 入口看到的 device 状态已是「还原后」。inFlightCapture 一旦取出即置 nil，
+    /// 重复进入（didFinishProcessingPhoto 后 didFinishCaptureFor 再来）直接 return，onData 必恰好调用一次。
     @MainActor
     private func finishCapture(with data: Data?) {
-        if let device = videoCaptureDevice, let restore = pendingFlashRestore {
+        guard let req = inFlightCapture else { return }
+        inFlightCapture = nil
+        if let device = videoCaptureDevice, let restore = req.flashRestore {
             applyFlashRestore(restore, device: device)
-            pendingFlashRestore = nil
         }
-        if let handler = photoDataHandler {
-            photoDataHandler = nil
-            handler(data)
-        }
-        // willCapture / exposureComplete 正常已在各自 delegate 里消费置 nil；此处兜底清场。
-        exposureCompleteHandler = nil
-        willCaptureHandler = nil
+        req.onData(data)
     }
 }
 

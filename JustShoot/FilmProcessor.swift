@@ -27,16 +27,16 @@ final class FilmProcessor: Sendable {
     }
 
     /// GPS EXIF 时间戳格式化器——固定 UTC、格式恒定，每张照片都用到。DateFormatter 初始化开销大，
-    /// 旧实现每次拍照新建两个；hoist 成 static 复用。配置后只读，NSDateFormatter 的格式化是线程安全的，
-    /// 故用 nonisolated(unsafe) 通过 Swift 6 严格并发（语义安全，编译器无法自动证明）。
-    nonisolated(unsafe) private static let gpsDateFormatter: DateFormatter = {
+    /// 旧实现每次拍照新建两个；hoist 成 static 复用。iOS 26 SDK 起 DateFormatter 本身已是 Sendable，
+    /// 配置后只读，直接作 static let 共享即可（无需 nonisolated(unsafe)）。
+    private static let gpsDateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.timeZone = TimeZone(identifier: "UTC") ?? TimeZone(secondsFromGMT: 0) ?? .current
         f.dateFormat = "yyyy:MM:dd"
         return f
     }()
-    nonisolated(unsafe) private static let gpsTimeFormatter: DateFormatter = {
+    private static let gpsTimeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.timeZone = TimeZone(identifier: "UTC") ?? TimeZone(secondsFromGMT: 0) ?? .current
