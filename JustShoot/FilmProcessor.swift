@@ -256,13 +256,21 @@ final class FilmProcessor: Sendable {
         // 文件体积比 8-bit + 0.95 大 ~50–80%（200mm/12MP 约 300KB → 700–900KB），
         // 对齐 iPhone Camera 的同场景出片大小。
         // 兜底链：heif10 → 8-bit HEIC → JPEG（极旧设备无 HEVC 编码器）。
+        // 渲染输出的真实像素尺寸 = LUT 输出 CIImage 的 extent（= 裁切后的输入 extent）。
+        // 这是判断"文件为何小"的关键诊断量：几百 KB 若伴随完整 ~22MP 尺寸 → 编码质量问题；
+        // 若尺寸本身就小 → 采集/解码端把分辨率丢了。
+        let outExtent = output.extent
+        let outMP = (outExtent.isInfinite || outExtent.isEmpty) ? 0 : (outExtent.width * outExtent.height) / 1_000_000
+
         let rendered: Data
+        let codec: String
         if let heif10 = try? ciContext.heif10Representation(
             of: output,
             colorSpace: srgbColorSpace,
             options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
         ) {
             rendered = heif10
+            codec = "heif10"
         } else if let heif8 = ciContext.heifRepresentation(
             of: output,
             format: .RGBA8,
@@ -271,6 +279,7 @@ final class FilmProcessor: Sendable {
         ) {
             Log.lut.info("lut_render_fallback codec=heif8 reason=heif10_unavailable")
             rendered = heif8
+            codec = "heif8"
         } else if let jpeg = ciContext.jpegRepresentation(
             of: output,
             colorSpace: srgbColorSpace,
@@ -278,10 +287,16 @@ final class FilmProcessor: Sendable {
         ) {
             Log.lut.info("lut_render_fallback codec=jpeg reason=heif_unavailable")
             rendered = jpeg
+            codec = "jpeg"
         } else {
             Log.lut.error("lut_apply_failed reason=render_failed")
             return nil
         }
+
+        // 🔑 一击定位行：编码刚完成、metadata 注入前。codec / 输出像素尺寸 / 百万像素 / 质量参数 /
+        // 输入原始字节 / 编码后字节 全在一行。若 rendered_bytes 这里就只有几百 KB 而 out_dims 是完整
+        // ~5500×4100，则问题在编码质量；若 out_dims 本身就小，则问题在采集/解码端。
+        Log.lut.info("lut_render_done codec=\(codec, privacy: .public) out_dims=\(Int(outExtent.width))x\(Int(outExtent.height)) mp=\(String(format: "%.1f", outMP)) quality=\(String(format: "%.2f", Double(outputQuality))) in_bytes=\(imageData.count) rendered_bytes=\(rendered.count)")
 
         // 注入 metadata：把原始 source props 中的 EXIF/TIFF/GPS 等字典通过 CGImageDestination 写到
         // 已编码的图像上。**source 和 destination 是同一 imageType 时，AddImageFromSource 是 fast copy +
@@ -331,13 +346,21 @@ final class FilmProcessor: Sendable {
             metadata[kCGImagePropertyExifDictionary as String] = exif
         }
 
-        // CGImageSourceGetType 自动识别 HEIC/JPEG，destination 用同一 type 写回 → fast copy 路径。
+        // CGImageSourceGetType 自动识别 HEIC/JPEG，destination 用同一 type 写回。
         // metadata 字典中的 PixelWidth/Height 等 size 字段会被 destination 用 LUT 渲染后的真实尺寸覆盖，
         // 不会和实际图像 dim 冲突。
+        //
+        // ⚠️ 关键修复（2026-06-06，日志实测）：CGImageDestinationAddImageFromSource 对 HEIC **不是**
+        // 字节级 fast-copy——它会解码后按目标默认压缩质量**重新编码**，把 9.7MB 重压成 ~850KB
+        // （rendered_bytes=9724987 → final_bytes=848401）。这是"相册照片只有几百KB"的真正根因。
+        // 必须在 destination 创建选项 + 单图属性里都显式把 lossy 质量设回 outputQuality(1.0)，
+        // 让这一步的重编码走最高质量、文件大小与画质对齐 LUT 渲染产物。
+        let qualityOptions: [CFString: Any] = [kCGImageDestinationLossyCompressionQuality: outputQuality]
+        metadata[kCGImageDestinationLossyCompressionQuality as String] = outputQuality
         guard let renderedSource = CGImageSourceCreateWithData(rendered as CFData, nil),
               let mutableData = CFDataCreateMutable(nil, 0),
               let imageType = CGImageSourceGetType(renderedSource),
-              let destination = CGImageDestinationCreateWithData(mutableData, imageType, 1, nil) else {
+              let destination = CGImageDestinationCreateWithData(mutableData, imageType, 1, qualityOptions as CFDictionary) else {
             return nil
         }
 
@@ -348,6 +371,8 @@ final class FilmProcessor: Sendable {
             return nil
         }
         let finalData = mutableData as Data
+        // final_bytes 应≈rendered_bytes（已强制 q=outputQuality 重编码）。若 final ≪ rendered，说明质量参数没生效。
+        Log.lut.info("lut_final_done codec=\(codec, privacy: .public) rendered_bytes=\(rendered.count) final_bytes=\(finalData.count) out_dims=\(Int(outExtent.width))x\(Int(outExtent.height)) gps=\(location != nil)")
         timer.end("in=\(imageData.count)B out=\(finalData.count)B gps=\(location != nil)")
         return finalData
     }

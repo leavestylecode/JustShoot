@@ -12,6 +12,8 @@ import SwiftUI
 // 卡片背景用低调实色（白 6% 圆角），而非 .glassEffect——与首页去玻璃后的风格保持一致。
 struct SettingsView: View {
     @Environment(\.openURL) private var openURL
+    /// 照片输出画质档。与 CameraView 共享同一 @AppStorage key，拍照时读取生效（无需重启 app）。
+    @AppStorage("photoOutputQuality") private var photoQuality: PhotoQuality = .default
 
     // TODO: 上架后填入真实 App Store 数字 ID（apps.apple.com/app/id<这里>）。
     private let appStoreId = "0000000000"
@@ -23,6 +25,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     appHeader
+                    photoQualitySection
                     feedbackSection
                     Spacer(minLength: 16)
                     versionFooter
@@ -56,6 +59,50 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
+            }
+        }
+    }
+
+    // MARK: - 照片画质（用户可配置）
+    //
+    // 四档落在同一张卡片里，选中项右侧打绿色对勾。每行带副标题说明大致体积/用途，
+    // 默认 .standard 对齐 iPhone 原相机。改动即时写入 @AppStorage，下一张拍照就生效。
+    private var photoQualitySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Photo Quality")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 4)
+
+            sectionCard {
+                ForEach(PhotoQuality.allCases) { quality in
+                    Button {
+                        photoQuality = quality
+                    } label: {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(quality.displayName)
+                                    .foregroundStyle(.white)
+                                Text(quality.sizeHint)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if photoQuality == quality {
+                                Image(systemName: "checkmark")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.green)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if quality != PhotoQuality.allCases.last {
+                        Divider().overlay(Color.white.opacity(0.08))
+                    }
+                }
             }
         }
     }

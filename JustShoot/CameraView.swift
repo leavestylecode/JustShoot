@@ -17,6 +17,9 @@ struct CameraView: View {
     /// 当前选中的胶片源。底部右侧封面打开 picker 后可切换——`@State` 让 toolbar title、
     /// 预览 LUT (RealtimePreviewView.lutCacheKey)、右下封面、左下最近照片 badge 都自动跟随。
     @State private var source: FilmSource
+    /// 用户在设置页选的输出画质档。拍照时读它的 compressionQuality 传给 LUT 编码 + metadata 注入。
+    /// 默认 .standard（对齐 iPhone 原相机体积）。
+    @AppStorage("photoOutputQuality") private var photoQuality: PhotoQuality = .default
     /// Picker 候选列表里需要展示用户导入的自定义 LUT；CameraView 自己持有 @Query 直接喂给 strip。
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @Environment(\.dismiss) private var dismiss
@@ -402,6 +405,8 @@ struct CameraView: View {
         let container = modelContext.container
 
         let focalMm = cameraManager.currentFocalLength.rawValue
+        // 在 MainActor 上读取用户选的画质档，捕获进后台 task（detached 里不能再读 @AppStorage）。
+        let outputQuality = photoQuality.compressionQuality
         cameraManager.capturePhoto(onWillCapture: {
             // AVF 主曝光起始帧——开闪光灯时即氙气主脉冲发射的瞬间，关闪光灯时 ZSL/responsive
             // 让这一刻在 tap 后 50–150ms 内 fire。在这里驱动白屏，UI 与真实光线同帧。
@@ -455,7 +460,7 @@ struct CameraView: View {
                 let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(
                     imageData: data,
                     lutCacheKey: currentSource.lutCacheKey,
-                    outputQuality: 1.0,
+                    outputQuality: outputQuality,
                     location: location,
                     focalLengthIn35mm: focalMm
                 )
@@ -464,6 +469,12 @@ struct CameraView: View {
                 if processedData == nil {
                     Log.capture.error("lut_fallback_raw bytes=\(finalData.count)")
                 }
+
+                // 🔑 拍摄链路尺寸总览（一行看全貌）：焦段 + 原始采集字节 + LUT 后最终字节 + LUT 是否成功。
+                // 配合 FilmProcessor 的 lut_render_done（含输出像素尺寸）即可定位"几百KB"出在哪一节：
+                //   raw_bytes 就小  → 采集端分辨率/质量没拿到
+                //   raw 大、final 小 → LUT 编码把它压小了
+                Log.capture.info("capture_size_summary focal=\(focalMm)mm quality=\(String(format: "%.2f", Double(outputQuality))) raw_bytes=\(data.count) final_bytes=\(finalData.count) lut_ok=\(processedData != nil)")
 
                 let displayLabel: String? = {
                     if case .custom(_, let name, _, _) = currentSource { return name }

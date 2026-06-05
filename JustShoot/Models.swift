@@ -2,6 +2,53 @@ import Foundation
 import SwiftData
 import ImageIO
 
+// MARK: - 照片输出画质（用户可配置，存 @AppStorage("photoOutputQuality")）
+//
+// LUT 渲染（heif10Representation）+ metadata 注入（AddImageFromSource 重编码）两步都用这个
+// compressionQuality。HEVC 的 质量→体积 高度非线性：q1.0 近无损但 12MP 就 8–10MB，从 1.0 往下
+// 掉得极快。默认 .standard(0.8) 对齐 iPhone 原相机出片体积（约 2–3MB）与观感；想要近无损用
+// .maximum，想省空间用 .compact。sizeHint 的 MB 区间是 12MP HEIC/HEVC 的经验值（实测可微调）。
+enum PhotoQuality: String, CaseIterable, Identifiable, Sendable {
+    case maximum
+    case high
+    case standard
+    case compact
+
+    var id: String { rawValue }
+
+    /// kCGImageDestinationLossyCompressionQuality 值（0...1）。
+    var compressionQuality: CGFloat {
+        switch self {
+        case .maximum:  return 1.0
+        case .high:     return 0.9
+        case .standard: return 0.8
+        case .compact:  return 0.6
+        }
+    }
+
+    /// 默认档：对齐 iPhone 原相机。
+    static let `default`: PhotoQuality = .standard
+
+    var displayName: String {
+        switch self {
+        case .maximum:  return String(localized: "Maximum")
+        case .high:     return String(localized: "High")
+        case .standard: return String(localized: "Standard")
+        case .compact:  return String(localized: "Space Saving")
+        }
+    }
+
+    /// 设置页副标题：大致体积 + 用途定位。
+    var sizeHint: String {
+        switch self {
+        case .maximum:  return String(localized: "Near-lossless · about 8–10 MB")
+        case .high:     return String(localized: "High detail · about 4–5 MB")
+        case .standard: return String(localized: "Matches iPhone Camera · about 2–3 MB")
+        case .compact:  return String(localized: "Smaller files · about 1–1.5 MB")
+        }
+    }
+}
+
 // MARK: - EXIF 解析结果（一次解析，多处使用）
 struct ParsedExifInfo: Sendable {
     let iso: String
