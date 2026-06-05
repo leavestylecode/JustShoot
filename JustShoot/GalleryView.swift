@@ -103,16 +103,22 @@ struct GalleryView: View {
         // 选择模式隐藏底部 tab 栏，让位给 Download / Delete 操作栏（Photos.app 一致）。
         .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
         .toolbar {
-            ToolbarItemGroup(placement: .navigationBarTrailing) {
+            // 全选放左上、xmark 放右上——两端分置，不挤在一起。
+            ToolbarItem(placement: .navigationBarLeading) {
                 if isSelecting {
-                    // 选择模式：右上角放「全选」+「xmark 退出」两个按钮，方便取消。
                     Button("Select All") { toggleSelectAll() }
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if isSelecting {
                     Button { exitSelection() } label: {
                         Image(systemName: "xmark")
                     }
                     .accessibilityLabel("Done selecting")
                 } else if !photos.isEmpty {
-                    Button("Select") { isSelecting = true }
+                    Button("Select") {
+                        withAnimation(.easeInOut(duration: 0.25)) { isSelecting = true }
+                    }
                 }
             }
         }
@@ -120,30 +126,24 @@ struct GalleryView: View {
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 if isSelecting {
-                    // 下载：批量存入系统相册（保留 EXIF/GPS 元数据）。
+                    // 下载：批量存入系统相册（保留 EXIF/GPS 元数据）。图标 only。
                     Button(action: saveSelectedPhotos) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "square.and.arrow.down")
-                                .font(.system(size: 16))
-                            Text("Download")
-                                .font(.system(size: 16, weight: .medium))
-                        }
-                        .foregroundColor(selectedPhotos.isEmpty ? .gray : .white)
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 18))
+                            .foregroundColor(selectedPhotos.isEmpty ? .gray : .white)
                     }
                     .disabled(selectedPhotos.isEmpty || isSavingBatch)
+                    .accessibilityLabel("Download")
 
                     Spacer()
 
                     Button(action: { showDeleteConfirm = true }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 16))
-                            Text("Delete")
-                                .font(.system(size: 16, weight: .medium))
-                        }
-                        .foregroundColor(selectedPhotos.isEmpty ? .gray : .red)
+                        Image(systemName: "trash")
+                            .font(.system(size: 18))
+                            .foregroundColor(selectedPhotos.isEmpty ? .gray : .red)
                     }
                     .disabled(selectedPhotos.isEmpty)
+                    .accessibilityLabel("Delete")
                 }
             }
         }
@@ -319,8 +319,11 @@ struct GalleryView: View {
     }
 
     /// 退出选择模式（右上 xmark）：清空选中、复位拖选状态、恢复 tab 栏。
+    /// isSelecting 切换包在 withAnimation 里——驱动 tab 栏 ↔ 底部操作栏的过渡平滑滑入/滑出。
     private func exitSelection() {
-        isSelecting = false
+        withAnimation(.easeInOut(duration: 0.25)) {
+            isSelecting = false
+        }
         selectedPhotos.removeAll()
         resetDragState()
     }
@@ -399,7 +402,7 @@ struct GalleryView: View {
 
         // 关 selection 模式 + 清状态——UI 立刻反馈，删除走后台 actor。
         selectedPhotos.removeAll()
-        isSelecting = false
+        withAnimation(.easeInOut(duration: 0.25)) { isSelecting = false }
         resetDragState()
 
         Task.detached(priority: .userInitiated) {
