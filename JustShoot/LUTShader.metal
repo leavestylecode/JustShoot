@@ -15,7 +15,7 @@ struct PreviewParams {
 // Single-pass compute kernel: rotation + aspect-fill crop + 3D LUT color grading
 // Replaces the CIImage pipeline (orient → CIColorCube → scale → CIContext.render)
 kernel void previewLUT(
-    texture2d<half, access::read>    input  [[texture(0)]],
+    texture2d<half, access::sample> input  [[texture(0)]],
     texture3d<float, access::sample> lut    [[texture(1)]],
     texture2d<half, access::write>   output [[texture(2)]],
     constant PreviewParams &params          [[buffer(0)]],
@@ -59,8 +59,12 @@ kernel void previewLUT(
         return;
     }
 
-    // Read input pixel (bgra8Unorm → half4 RGBA by hardware swizzle)
-    half4 color = input.read(uint2(uint(srcX), uint(srcY)));
+    // Sample input pixel with bilinear filtering (bgra8Unorm → half4 RGBA by
+    // hardware swizzle). Was a point `read` with integer-truncated coords, which
+    // aliased/shimmered on high-frequency detail when the sensor buffer is
+    // minified into a smaller viewport; linear sampling smooths the downscale.
+    constexpr sampler inputSampler(filter::linear, address::clamp_to_edge);
+    half4 color = input.sample(inputSampler, float2((srcX + 0.5) / inW, (srcY + 0.5) / inH));
 
     // 3D LUT lookup with correct texel-center mapping
     // Maps input [0,1] → texture coords [0.5/dim, (dim-0.5)/dim] for accurate sampling

@@ -52,6 +52,11 @@ struct PhotoDetailView: View {
     /// 中间所有 cancel 掉的 Task 在 sleep 里就退出，省掉 TaskGroup 重建/调度开销。
     private static let preloadDebounceMs: UInt64 = 70
 
+    /// thumb warmup 只预热当前页 ±N 张，不是整册。原实现 orderedByDistance 走 0..<count——
+    /// 即便有 cap=4 节流，仍会逐张在 MainActor 上 fault 整个 externalStorage blob（5000 张 =
+    /// 5000 次磁盘读 + 瞬时内存）。thumb 用 50 项共享 NSCache，预热整册只会自相淘汰，纯浪费。
+    private static let preheatThumbnailRadius = 12
+
     init(photo: Photo, allPhotos: [Photo]) {
         _photos = State(initialValue: allPhotos)
         _currentPhotoID = State(initialValue: photo.id)
@@ -172,7 +177,7 @@ struct PhotoDetailView: View {
         }
         .sheet(isPresented: $showingInfo) {
             if let photo = currentPhoto {
-                PhotoInfoPanel(photo: photo, getImageDimensions: getImageDimensions)
+                PhotoInfoPanel(photo: photo)
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
             }
@@ -194,7 +199,7 @@ struct PhotoDetailView: View {
         thumbWarmupTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: Self.preloadDebounceMs * 1_000_000)
             if Task.isCancelled { return }
-            let ordered = orderedByDistance(from: currentIndex)
+            let ordered = orderedByDistance(from: currentIndex, radius: Self.preheatThumbnailRadius)
             await withTaskGroup(of: Void.self) { group in
                 var inflight = 0
                 let cap = 4
@@ -232,11 +237,13 @@ struct PhotoDetailView: View {
         }
     }
 
-    private func orderedByDistance(from index: Int) -> [Photo] {
+    /// 当前页向两侧交替展开的 Photo 列表，最多到 ±radius——预热只关心邻近页，不走整册。
+    private func orderedByDistance(from index: Int, radius: Int) -> [Photo] {
         var result: [Photo] = []
-        result.reserveCapacity(photos.count)
         let count = photos.count
-        for d in 0..<count {
+        let maxD = min(radius, count)
+        result.reserveCapacity(min(2 * radius + 1, count))
+        for d in 0...maxD {
             if d == 0 {
                 if photos.indices.contains(index) { result.append(photos[index]) }
             } else {
@@ -323,35 +330,37 @@ struct PhotoDetailView: View {
         guard let photoToDelete = currentPhoto else { return }
         let deletedId = photoToDelete.id
         let deletedIdx = currentIndex
+        let container = modelContext.container
 
-        modelContext.delete(photoToDelete)
-        do {
-            try modelContext.save()
-            Log.save.info("photo_deleted id=\(deletedId.uuidString, privacy: .public) remaining=\(self.photos.count - 1)")
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        // 关键：先选好"下一张" id 再 mutate 数组——`scrollPosition(id:)` 的 binding 在删除瞬间就
+        // 指向一个仍存在的 photo.id，避免 selection 暂时找不到匹配 id 的瞬态。优先选右邻（idx+1），
+        // 最末位时回退到左邻（idx-1）。两次 @State 写入会被 SwiftUI 在同一个 render tick 里 batch。
+        let nextID: UUID? = {
+            if photos.count <= 1 { return nil }
+            if deletedIdx + 1 < photos.count { return photos[deletedIdx + 1].id }
+            if deletedIdx - 1 >= 0 { return photos[deletedIdx - 1].id }
+            return nil
+        }()
 
-            // 关键：先选好"下一张" id 再 mutate 数组——`scrollPosition(id:)` 的 binding 在删除瞬间就
-            // 指向一个仍存在的 photo.id，避免 selection 暂时找不到匹配 id 的瞬态。优先选右邻（idx+1），
-            // 最末位时回退到左邻（idx-1）。两次 @State 写入会被 SwiftUI 在同一个 render tick 里 batch。
-            let nextID: UUID? = {
-                if photos.count <= 1 { return nil }
-                if deletedIdx + 1 < photos.count { return photos[deletedIdx + 1].id }
-                if deletedIdx - 1 >= 0 { return photos[deletedIdx - 1].id }
-                return nil
-            }()
+        // 乐观 UI：立即从本地快照移除并切换选中项；SwiftData 删除/落盘 + disk cache 清理走后台
+        // actor（与 GalleryView.deleteSelectedPhotos 一致），不再在主线程同步 save 阻塞翻页/缩放动画。
+        photos.remove(at: deletedIdx)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        if let nextID {
+            currentPhotoID = nextID
+        } else {
+            dismiss()
+        }
 
-            photos.remove(at: deletedIdx)
-            ImageLoader.shared.removeDiskCache(for: deletedId)
-            // NSCache 内存条目随后续访问/内存压力自然过期；这里无需手动清理 @State 字典
-            // 因为已经全部迁移到 NSCache + PagerImage 局部 @State。
-
-            if let nextID {
-                currentPhotoID = nextID
-            } else {
-                dismiss()
+        Task.detached(priority: .userInitiated) {
+            do {
+                let saver = PhotoSaver(modelContainer: container)
+                try await saver.delete(ids: [deletedId])
+                ImageLoader.shared.removeDiskCache(for: deletedId)
+                Log.save.info("photo_deleted id=\(deletedId.uuidString, privacy: .public)")
+            } catch {
+                Log.save.error("photo_delete_failed id=\(deletedId.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
             }
-        } catch {
-            Log.save.error("photo_delete_failed error=\(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -371,16 +380,6 @@ struct PhotoDetailView: View {
         case .success: return .green
         case .failed: return .red
         }
-    }
-
-    private func getImageDimensions(from imageData: Data) -> (width: Int, height: Int)? {
-        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
-              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any],
-              let width = properties[kCGImagePropertyPixelWidth as String] as? Int,
-              let height = properties[kCGImagePropertyPixelHeight as String] as? Int else {
-            return nil
-        }
-        return (width, height)
     }
 
     private func saveToPhotoLibrary() {
@@ -899,7 +898,10 @@ private struct ThumbnailStripCell: View {
 // MARK: - 照片信息面板
 private struct PhotoInfoPanel: View {
     let photo: Photo
-    let getImageDimensions: (Data) -> (width: Int, height: Int)?
+    /// 离主线程解析后填入；初始 .empty 让首帧显示占位（"Unknown"），解析完成再刷新。
+    /// 关键：解析（CGImageSource + 元数据 copy）从前述 body 内的 @MainActor 同步路径挪到 .task
+    /// 的 detached 子任务，info 面板首次展开不再卡主线程 fault + 解析整张 22MP HEIF。
+    @State private var exif: ParsedExifInfo = .empty
 
     var body: some View {
         ScrollView {
@@ -927,13 +929,13 @@ private struct PhotoInfoPanel: View {
                     GridItem(.flexible()),
                     GridItem(.flexible())
                 ], spacing: 12) {
-                    ExifInfoCard(icon: "camera.aperture", title: "Aperture", value: photo.aperture)
-                    ExifInfoCard(icon: "timer", title: "Shutter", value: photo.shutterSpeed)
-                    ExifInfoCard(icon: "speedometer", title: "ISO", value: photo.iso)
-                    ExifInfoCard(icon: "scope", title: "Focal length", value: photo.focalLength)
-                    ExifInfoCard(icon: "bolt.fill", title: "Flash", value: photo.flashMode)
-                    if let dims = getImageDimensions(photo.imageData) {
-                        ExifInfoCard(icon: "aspectratio", title: "Size", value: "\(dims.width)×\(dims.height)")
+                    ExifInfoCard(icon: "camera.aperture", title: "Aperture", value: exif.aperture)
+                    ExifInfoCard(icon: "timer", title: "Shutter", value: exif.shutterSpeed)
+                    ExifInfoCard(icon: "speedometer", title: "ISO", value: exif.iso)
+                    ExifInfoCard(icon: "scope", title: "Focal length", value: exif.focalLength)
+                    ExifInfoCard(icon: "bolt.fill", title: "Flash", value: exif.flashMode)
+                    if let w = exif.pixelWidth, let h = exif.pixelHeight {
+                        ExifInfoCard(icon: "aspectratio", title: "Size", value: "\(w)×\(h)")
                     } else {
                         ExifInfoCard(icon: "aspectratio", title: "Size", value: String(localized: "Unknown"))
                     }
@@ -957,7 +959,7 @@ private struct PhotoInfoPanel: View {
                     }
                 }
 
-                if let device = photo.deviceInfo {
+                if let device = exif.deviceInfo {
                     Divider()
                     HStack {
                         Image(systemName: "iphone")
@@ -970,6 +972,12 @@ private struct PhotoInfoPanel: View {
                 }
             }
             .padding()
+        }
+        .task(id: photo.id) {
+            let data = photo.imageData   // MainActor 读 externalStorage（一次）
+            exif = await Task.detached(priority: .userInitiated) {
+                ParsedExifInfo.parse(from: data)
+            }.value
         }
     }
 }

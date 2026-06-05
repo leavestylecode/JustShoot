@@ -13,6 +13,9 @@ struct ParsedExifInfo: Sendable {
     let gpsInfo: (latitude: String, longitude: String, altitude: String)?
     let deviceInfo: (make: String, model: String, software: String)?
     let lensInfo: String
+    /// 像素尺寸——与其它 EXIF 字段同一次解析得到，省掉信息面板里另开一个 CGImageSource 读 blob。
+    let pixelWidth: Int?
+    let pixelHeight: Int?
 
     private static var unknownString: String { String(localized: "Unknown") }
     private static var unknownLensString: String { String(localized: "Unknown lens") }
@@ -27,7 +30,8 @@ struct ParsedExifInfo: Sendable {
         ParsedExifInfo(
             iso: unknownString, shutterSpeed: unknownString, aperture: unknownString,
             focalLength: unknownString, exposureMode: unknownString, flashMode: unknownString,
-            gpsInfo: nil, deviceInfo: nil, lensInfo: unknownLensString
+            gpsInfo: nil, deviceInfo: nil, lensInfo: unknownLensString,
+            pixelWidth: nil, pixelHeight: nil
         )
     }
 
@@ -134,10 +138,15 @@ struct ParsedExifInfo: Sendable {
             return builtInLensString
         }()
 
+        // 像素尺寸直接从已读到的 properties 取——不必再开一个 CGImageSource。
+        let pixelWidth = properties[kCGImagePropertyPixelWidth as String] as? Int
+        let pixelHeight = properties[kCGImagePropertyPixelHeight as String] as? Int
+
         return ParsedExifInfo(
             iso: iso, shutterSpeed: shutterSpeed, aperture: aperture,
             focalLength: focalLength, exposureMode: exposureMode, flashMode: flashMode,
-            gpsInfo: gpsInfo, deviceInfo: deviceInfo, lensInfo: lensInfo
+            gpsInfo: gpsInfo, deviceInfo: deviceInfo, lensInfo: lensInfo,
+            pixelWidth: pixelWidth, pixelHeight: pixelHeight
         )
     }
 }
