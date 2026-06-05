@@ -374,7 +374,6 @@ struct FilmPresetTile: View {
             }
         }
         .clipShape(shape)
-        .glassEffect(.regular, in: shape)
     }
 }
 
@@ -417,6 +416,5 @@ struct CustomLUTTile: View {
                 .foregroundColor(Self.accent)
         }
         .clipShape(shape)
-        .glassEffect(.regular, in: shape)
     }
 }
