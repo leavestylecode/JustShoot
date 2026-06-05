@@ -123,7 +123,7 @@ struct RecentPhotosBadge: View {
             lastThumbnailHint = nil
             return
         }
-        let thumb = await ImageLoader.shared.loadThumbnail(for: p, maxPixel: Self.thumbnailMaxPixel)
+        let thumb = await PhotoImage.thumbnail(for: p, maxPixel: Self.thumbnailMaxPixel)
         lastThumbnailHint = thumb
     }
 }

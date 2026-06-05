@@ -111,13 +111,6 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         return ctx.makeImage() ?? cgImage
     }
 
-    /// 便捷重载：在主 actor 上预取 `Photo` 的 imageData/id，再转发到 Sendable 版本。
-    /// 调用点仍然写 `loadPreview(for: photo, ...)`，但 Sendable 契约由 @MainActor 担保。
-    @MainActor
-    func loadPreview(for photo: Photo, maxPixel: Int) async -> UIImage? {
-        await loadPreview(imageData: photo.imageData, photoId: photo.id, maxPixel: maxPixel)
-    }
-
     /// 同步查内存 cache（不触发 disk / 解码）。命中则零延迟，用于 view body 第一次评估时
     /// 给出占位图——避免 SwiftUI .task 启动那一帧露出黑屏。
     @MainActor
@@ -230,12 +223,6 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         }
 
         return result
-    }
-
-    /// 便捷重载：在主 actor 上预取 `Photo` 的 imageData/id。
-    @MainActor
-    func loadThumbnail(for photo: Photo, maxPixel: Int) async -> UIImage? {
-        await loadThumbnail(imageData: photo.imageData, photoId: photo.id, maxPixel: maxPixel)
     }
 
     /// 加载缩略图。调用者须在 actor 上预取 imageData/photoId，避免跨 actor 传递 SwiftData `Photo` 模型。

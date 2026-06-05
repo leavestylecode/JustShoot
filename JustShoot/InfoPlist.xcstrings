@@ -63,6 +63,18 @@
           }
         }
       }
+    },
+    "NSPhotoLibraryUsageDescription" : {
+      "comment" : "Privacy - Photo Library Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "JustShoot stores your shots in the Photos library and shows them in its in-app gallery."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

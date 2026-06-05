@@ -471,9 +471,28 @@ struct CameraView: View {
                 }()
 
                 do {
+                    // 真相源 = 系统相册：先写入 JustShoot 相簿拿回 localIdentifier。写入失败（权限拒绝
+                    // 等）则兜底把字节暂存内部，待授权后由 PhotoMigrator 迁移——绝不丢拍摄结果。
+                    var assetID: String? = nil
+                    var fallbackData: Data? = nil
+                    do {
+                        assetID = try await PhotoLibrary.save(
+                            imageData: finalData,
+                            creationDate: Date(),
+                            latitude: location?.coordinate.latitude,
+                            longitude: location?.coordinate.longitude,
+                            altitude: location?.altitude,
+                            locationTimestamp: location?.timestamp
+                        )
+                    } catch {
+                        Log.save.error("photos_write_failed_fallback_internal error=\(error.localizedDescription, privacy: .public)")
+                        fallbackData = finalData
+                    }
+
                     let saver = PhotoSaver(modelContainer: container)
                     let id = try await saver.save(
-                        imageData: finalData,
+                        assetLocalIdentifier: assetID,
+                        imageData: fallbackData,
                         filmPresetName: currentSource.photoFilterName,
                         filmDisplayLabel: displayLabel,
                         latitude: location?.coordinate.latitude,
@@ -481,7 +500,7 @@ struct CameraView: View {
                         altitude: location?.altitude,
                         locationTimestamp: location?.timestamp
                     )
-                    Log.save.info("photo_saved id=\(id.uuidString, privacy: .public) bytes=\(finalData.count) preset=\(currentSource.photoFilterName, privacy: .public) gps=\(location != nil)")
+                    Log.save.info("photo_saved id=\(id.uuidString, privacy: .public) asset=\(assetID ?? "nil", privacy: .public) bytes=\(finalData.count) preset=\(currentSource.photoFilterName, privacy: .public) gps=\(location != nil)")
 
                     // 拍照成功后**立即**生成 88pt 缩略图并写入 lastPhotoThumbnail（hint），
                     // 不再等 SwiftData @Query 通知链（PhotoSaver actor save → 跨 context 通知 →

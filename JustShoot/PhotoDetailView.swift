@@ -33,15 +33,10 @@ struct PhotoDetailView: View {
     /// 屏幕长边（点）× scale = 高分预览解码尺寸。@State + 一次性 init 避免每次 body re-eval 都
     /// `walk(connectedScenes)`（量小但能省就省，且确保 PagerImage 在所有 body 评估里看到稳定值）。
     @State private var previewMaxPixel: Int
-    @State private var saveStatus: SaveStatus = .none
-    @State private var saveResetTask: Task<Void, Never>?
     @State private var showingInfo = false
-    @State private var showDeleteConfirm = false
     @State private var isFullScreen = false
     @State private var thumbWarmupTask: Task<Void, Never>?
     @State private var previewPreloadTask: Task<Void, Never>?
-
-    enum SaveStatus { case none, saving, success, failed }
 
     /// 占位缩略图目标像素——大约屏幕长边的 1/3，`PagerImage` 占位 + `PhotoScrubber` cell 共享同一份
     /// NSCache 解码（两边都用这个 key）。单张 ~80KB，100 张 ~8MB 落 NSCache，受 totalCostLimit 自然
@@ -171,12 +166,6 @@ struct PhotoDetailView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             ImageLoader.shared.clearCache()
         }
-        .alert("Delete photo", isPresented: $showDeleteConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) { deleteCurrentPhoto() }
-        } message: {
-            Text("Delete this photo? This cannot be undone.")
-        }
         .sheet(isPresented: $showingInfo) {
             if let photo = currentPhoto {
                 PhotoInfoPanel(photo: photo)
@@ -202,39 +191,44 @@ struct PhotoDetailView: View {
             try? await Task.sleep(nanoseconds: Self.preloadDebounceMs * 1_000_000)
             if Task.isCancelled { return }
             let ordered = orderedByDistance(from: currentIndex, radius: Self.preheatThumbnailRadius)
-            await withTaskGroup(of: Void.self) { group in
-                var inflight = 0
-                let cap = 4
-                for photo in ordered {
-                    if Task.isCancelled { break }
-                    if inflight >= cap {
-                        _ = await group.next()
-                        inflight -= 1
+            // 资产路径：批量 PHCachingImageManager 预取（idle 后台预解码）；遗留路径：节流解码。
+            var assetIDs: [String] = []
+            var legacy: [(UUID, Data)] = []
+            for photo in ordered {
+                if let aid = photo.assetLocalIdentifier { assetIDs.append(aid) }
+                else if let data = photo.imageData { legacy.append((photo.id, data)) }
+            }
+            if !assetIDs.isEmpty {
+                AssetImageLoader.shared.startCaching(ids: assetIDs, maxPixel: placeholder)
+            }
+            if !legacy.isEmpty {
+                await withTaskGroup(of: Void.self) { group in
+                    var inflight = 0
+                    let cap = 4
+                    for (id, data) in legacy {
+                        if Task.isCancelled { break }
+                        if inflight >= cap {
+                            _ = await group.next()
+                            inflight -= 1
+                        }
+                        group.addTask {
+                            _ = await ImageLoader.shared.loadThumbnail(imageData: data, photoId: id, maxPixel: placeholder)
+                        }
+                        inflight += 1
                     }
-                    let id = photo.id
-                    let data = photo.imageData // MainActor 上读 SwiftData externalStorage
-                    group.addTask {
-                        _ = await ImageLoader.shared.loadThumbnail(imageData: data, photoId: id, maxPixel: placeholder)
-                    }
-                    inflight += 1
                 }
             }
         }
 
-        // ±2 高分预览：5 张 × ~17MB ≈ 85MB，加 thumb cache 约 111MB，在 NSCache 上限内。
-        // ImageLoader 的 in-flight dedup 让同 key 并发请求合一份；这里只做"请求触发"，不等返回。
+        // ±2 高分预览预热：资产走 PHImageManager（自带缓存），遗留走 ImageLoader。PhotoImage 在
+        // @MainActor 上分流后进入异步取图；顺序 await 即可（命中后立即返回）。
         previewPreloadTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: Self.preloadDebounceMs * 1_000_000)
             if Task.isCancelled { return }
             let center = currentIndex
             for i in (center - 2)...(center + 2) where photos.indices.contains(i) {
                 if Task.isCancelled { break }
-                let photo = photos[i]
-                let id = photo.id
-                let data = photo.imageData
-                Task.detached(priority: .userInitiated) {
-                    _ = await ImageLoader.shared.loadPreview(imageData: data, photoId: id, maxPixel: pixel)
-                }
+                _ = await PhotoImage.preview(for: photos[i], maxPixel: pixel)
             }
         }
     }
@@ -288,21 +282,12 @@ struct PhotoDetailView: View {
     @ToolbarContentBuilder
     private var bottomToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
-            Button {
-                saveToPhotoLibrary()
-            } label: {
-                Image(systemName: saveButtonIcon)
-            }
-            .tint(saveButtonColor)
-            .disabled(saveStatus == .saving)
-            .accessibilityLabel(saveStatus == .saving ? Text("Saving…") :
-                                  saveStatus == .success ? Text("Saved") :
-                                  saveStatus == .failed ? Text("Save failed") : Text("Save to Photos"))
-
             Spacer()
 
+            // 照片已在系统相册（JustShoot 相簿），无需「保存到相册」。删除走 PhotoKit，系统弹原生
+            // 确认 + 「最近删除」可恢复。
             Button(role: .destructive) {
-                showDeleteConfirm = true
+                deleteCurrentPhoto()
             } label: {
                 Image(systemName: "trash")
             }
@@ -332,11 +317,11 @@ struct PhotoDetailView: View {
         guard let photoToDelete = currentPhoto else { return }
         let deletedId = photoToDelete.id
         let deletedIdx = currentIndex
+        let assetID = photoToDelete.assetLocalIdentifier
         let container = modelContext.container
 
-        // 关键：先选好"下一张" id 再 mutate 数组——`scrollPosition(id:)` 的 binding 在删除瞬间就
-        // 指向一个仍存在的 photo.id，避免 selection 暂时找不到匹配 id 的瞬态。优先选右邻（idx+1），
-        // 最末位时回退到左邻（idx-1）。两次 @State 写入会被 SwiftUI 在同一个 render tick 里 batch。
+        // 先选好"下一张" id：删除确认后 `scrollPosition(id:)` 的 binding 立刻指向仍存在的 photo.id，
+        // 避免 selection 瞬态。优先右邻（idx+1），最末位回退左邻（idx-1）。
         let nextID: UUID? = {
             if photos.count <= 1 { return nil }
             if deletedIdx + 1 < photos.count { return photos[deletedIdx + 1].id }
@@ -344,116 +329,23 @@ struct PhotoDetailView: View {
             return nil
         }()
 
-        // 乐观 UI：立即从本地快照移除并切换选中项；SwiftData 删除/落盘 + disk cache 清理走后台
-        // actor（与 GalleryView.deleteSelectedPhotos 一致），不再在主线程同步 save 阻塞翻页/缩放动画。
-        photos.remove(at: deletedIdx)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        if let nextID {
-            currentPhotoID = nextID
-        } else {
-            dismiss()
-        }
-
-        Task.detached(priority: .userInitiated) {
+        // 真相源在系统相册：先 PHAsset 删除（系统弹原生确认）。用户确认 → 更新 UI + 删索引行；
+        // 取消 → 抛错，照片原样保留（不做乐观移除，避免删失败后照片"复活"闪烁）。
+        Task { @MainActor in
             do {
+                if let assetID { try await PhotoLibrary.delete(localIdentifiers: [assetID]) }
+                if let idx = photos.firstIndex(where: { $0.id == deletedId }) {
+                    photos.remove(at: idx)
+                }
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                if let nextID { currentPhotoID = nextID } else { dismiss() }
                 let saver = PhotoSaver(modelContainer: container)
                 try await saver.delete(ids: [deletedId])
                 ImageLoader.shared.removeDiskCache(for: deletedId)
                 Log.save.info("photo_deleted id=\(deletedId.uuidString, privacy: .public)")
             } catch {
-                Log.save.error("photo_delete_failed id=\(deletedId.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+                Log.save.info("photo_delete_cancelled_or_failed id=\(deletedId.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
             }
-        }
-    }
-
-    private var saveButtonIcon: String {
-        switch saveStatus {
-        case .none: return "arrow.down"   // 与相册选择模式的下载按钮一致
-        case .saving: return "arrow.triangle.2.circlepath"
-        case .success: return "checkmark"
-        case .failed: return "exclamationmark.triangle"
-        }
-    }
-
-    private var saveButtonColor: Color {
-        switch saveStatus {
-        case .none: return .white
-        case .saving: return .blue
-        case .success: return .green
-        case .failed: return .red
-        }
-    }
-
-    private func saveToPhotoLibrary() {
-        guard let photo = currentPhoto, !photo.imageData.isEmpty else { return }
-
-        saveStatus = .saving
-        let imageData = photo.imageData
-        let photoRef = photo
-        let timer = Log.perf("photos_export", logger: Log.save)
-        Log.save.info("photos_export_begin bytes=\(imageData.count) id=\(photo.id.uuidString, privacy: .public)")
-
-        Task {
-            let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
-            guard status == .authorized || status == .limited else {
-                Log.save.error("photos_auth_denied status=\(status.rawValue)")
-                await MainActor.run {
-                    saveStatus = .failed
-                    resetSaveStatus()
-                }
-                return
-            }
-
-            do {
-                try await PHPhotoLibrary.shared().performChanges {
-                    let request = PHAssetCreationRequest.forAsset()
-                    request.creationDate = photoRef.timestamp
-
-                    if let lat = photoRef.latitude, let lon = photoRef.longitude {
-                        request.location = CLLocation(
-                            coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                            altitude: photoRef.altitude ?? 0,
-                            horizontalAccuracy: 10,
-                            verticalAccuracy: 10,
-                            timestamp: photoRef.locationTimestamp ?? photoRef.timestamp
-                        )
-                    }
-
-                    let options = PHAssetResourceCreationOptions()
-                    // 用 CGImageSource 自适配检测真实 UTI（HEIC/JPEG），不再硬编码——LUT 管线已切到
-                    // HEIF 后 imageData 是 HEIC，仍写 "public.jpeg" 会让 PhotoKit 报 PHPhotosErrorDomain 3302
-                    // (data 与声明 UTI 不一致)。
-                    if let src = CGImageSourceCreateWithData(imageData as CFData, nil),
-                       let uti = CGImageSourceGetType(src) {
-                        options.uniformTypeIdentifier = uti as String
-                    }
-                    request.addResource(with: .photo, data: imageData, options: options)
-                }
-
-                timer.end("result=ok")
-                await MainActor.run {
-                    saveStatus = .success
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    resetSaveStatus()
-                }
-            } catch {
-                Log.save.error("photos_export_failed error=\(error.localizedDescription, privacy: .public)")
-                await MainActor.run {
-                    saveStatus = .failed
-                    UINotificationFeedbackGenerator().notificationOccurred(.error)
-                    resetSaveStatus()
-                }
-            }
-        }
-    }
-
-    private func resetSaveStatus() {
-        // Cancellable 句柄：连续点保存或快速离场时，旧的 reset task 不会再覆写到新状态上。
-        saveResetTask?.cancel()
-        saveResetTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
-            if Task.isCancelled { return }
-            saveStatus = .none
         }
     }
 }
@@ -492,7 +384,15 @@ private struct PagerImage: View {
         preview
             ?? ImageLoader.shared.cachedPreview(for: photo.id, maxPixel: previewMaxPixel)
             ?? asyncThumb
+            ?? assetCachedThumb
             ?? ImageLoader.shared.anyCachedThumbnail(for: photo.id)
+    }
+
+    /// 资产路径的同步首帧探测：grid/scrubber 已把 placeholder 尺寸缩略图写进 AssetImageLoader
+    /// 缓存时，进详情那一帧直接复用（先糊后清，消除黑屏占位）。
+    private var assetCachedThumb: UIImage? {
+        guard let aid = photo.assetLocalIdentifier else { return nil }
+        return AssetImageLoader.shared.cachedThumbnail(id: aid, maxPixel: PhotoDetailView.placeholderMaxPixel)
     }
 
     var body: some View {
@@ -511,10 +411,10 @@ private struct PagerImage: View {
             // 避免高分 preview 已在 cache 里时还白白解一张 thumb，body 重渲染顺序不当时
             // 还会触发主图降级闪烁。
             if displayImage == nil {
-                asyncThumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: PhotoDetailView.placeholderMaxPixel)
+                asyncThumb = await PhotoImage.thumbnail(for: photo, maxPixel: PhotoDetailView.placeholderMaxPixel)
             }
             if preview == nil {
-                preview = await ImageLoader.shared.loadPreview(for: photo, maxPixel: previewMaxPixel)
+                preview = await PhotoImage.preview(for: photo, maxPixel: previewMaxPixel)
             }
         }
     }
@@ -891,7 +791,7 @@ private struct ThumbnailStripCell: View {
         .animation(.easeOut(duration: 0.2), value: isSelected)
         .task {
             if thumb == nil {
-                thumb = await ImageLoader.shared.loadThumbnail(for: photo, maxPixel: Self.loadMaxPixel)
+                thumb = await PhotoImage.thumbnail(for: photo, maxPixel: Self.loadMaxPixel)
             }
         }
     }
@@ -976,7 +876,8 @@ private struct PhotoInfoPanel: View {
             .padding()
         }
         .task(id: photo.id) {
-            let data = photo.imageData   // MainActor 读 externalStorage（一次）
+            // 资产照片从系统相册异步取原始字节再解析；遗留照片直接读内部 blob。
+            guard let data = await PhotoImage.exifData(for: photo) else { return }
             exif = await Task.detached(priority: .userInitiated) {
                 ParsedExifInfo.parse(from: data)
             }.value

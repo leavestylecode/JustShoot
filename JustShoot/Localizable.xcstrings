@@ -155,9 +155,6 @@
         }
       }
     },
-    "Allow Photos access in Settings to save photos." : {
-
-    },
     "Altitude %@m" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -518,9 +515,6 @@
         }
       }
     },
-    "Couldn't save the selected photos." : {
-
-    },
     "Current film: %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -726,9 +720,6 @@
       }
     },
     "Done selecting" : {
-
-    },
-    "Download" : {
 
     },
     "Exposures" : {

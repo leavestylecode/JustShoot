@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 // MARK: - 底部 Tab 栏（iOS 26 原生 TabView）
 //
@@ -16,6 +17,7 @@ import SwiftUI
 // 选中态用 @SceneStorage 持久化——场景恢复后回到上次停留的 tab。
 struct MainTabView: View {
     @SceneStorage("selectedTab") private var selectedTab = 0
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -54,5 +56,9 @@ struct MainTabView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         .tint(.white)
         .preferredColorScheme(.dark)
+        // 启动时注册系统相册变化观察者：app 前台时在「照片」里删图会实时同步剪掉本地索引。
+        .task {
+            PhotoLibrarySync.shared.start(container: modelContext.container)
+        }
     }
 }

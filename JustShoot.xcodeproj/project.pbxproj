@@ -157,6 +157,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "JustShoot needs camera access to capture photos.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "JustShoot uses your location to tag photos with where they were taken.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "JustShoot saves your captured photos to the photo library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "JustShoot stores your shots in the Photos library and shows them in its in-app gallery.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -198,6 +199,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "JustShoot needs camera access to capture photos.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "JustShoot uses your location to tag photos with where they were taken.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "JustShoot saves your captured photos to the photo library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "JustShoot stores your shots in the Photos library and shows them in its in-app gallery.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

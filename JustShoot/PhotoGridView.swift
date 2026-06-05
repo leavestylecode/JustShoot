@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Photos
 
 // MARK: - 网格布局选项（左上角菜单切换，@AppStorage 持久化）
 enum GalleryDensity: Int, CaseIterable, Identifiable {
@@ -215,10 +216,17 @@ struct PhotoGridView: UIViewRepresentable {
         // MARK: Prefetch
         func collectionView(_ cv: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
             let px = thumbPixel(for: cv)
+            // 资产照片批量交给 PHCachingImageManager 预取；遗留内部照片走 ImageLoader 解码预取。
+            var assetIDs: [String] = []
             for ip in indexPaths {
                 guard let id = dataSource.itemIdentifier(for: ip), let photo = photoByID[id] else { continue }
-                PhotoCell.prefetch(photo: photo, maxPixel: px)
+                if let aid = photo.assetLocalIdentifier {
+                    assetIDs.append(aid)
+                } else {
+                    PhotoCell.prefetch(photo: photo, maxPixel: px)
+                }
             }
+            if !assetIDs.isEmpty { AssetImageLoader.shared.startCaching(ids: assetIDs, maxPixel: px) }
         }
     }
 }
@@ -253,6 +261,7 @@ final class PhotoCell: UICollectionViewCell {
     private let dimOverlay = UIView()
     private let badge = UIImageView()
     private var loadToken = UUID()
+    private var assetRequestID: PHImageRequestID = PHInvalidImageRequestID
 
     var isEditingMode = false { didSet { updateSelectionVisual() } }
     override var isSelected: Bool { didSet { updateSelectionVisual() } }
@@ -293,6 +302,10 @@ final class PhotoCell: UICollectionViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
+        if assetRequestID != PHInvalidImageRequestID {
+            AssetImageLoader.shared.cancel(assetRequestID)
+            assetRequestID = PHInvalidImageRequestID
+        }
         loadToken = UUID()
         imageView.image = nil
         isEditingMode = false
@@ -304,39 +317,53 @@ final class PhotoCell: UICollectionViewCell {
         loadThumbnail(photo: photo, maxPixel: maxPixel)
     }
 
-    // MARK: 缩略图加载（缓存→磁盘→fault 原图，逐级降级，token 防错位）
+    // MARK: 缩略图加载
     private func loadThumbnail(photo: Photo, maxPixel: Int) {
         let id = photo.id
-        // 1. 同步 NSCache 命中 → 立即显示，零延迟、零 blob fault
+
+        // 资产路径（真相源在系统相册）：同步缓存命中即零延迟；否则 PHImageManager opportunistic
+        // 渐进交付（先糊后清），cell 复用时用 assetRequestID 取消。
+        if let aid = photo.assetLocalIdentifier {
+            if let img = AssetImageLoader.shared.cachedThumbnail(id: aid, maxPixel: maxPixel) {
+                imageView.image = img
+                return
+            }
+            let token = UUID()
+            loadToken = token
+            assetRequestID = AssetImageLoader.shared.requestThumbnail(id: aid, maxPixel: maxPixel) { [weak self] img in
+                guard let self, self.loadToken == token, let img else { return }
+                self.imageView.image = img
+            }
+            return
+        }
+
+        // 遗留内部字节路径（迁移完成前）：缓存→磁盘→fault 原图，逐级降级，token 防错位。
         if let img = ImageLoader.shared.cachedThumbnail(for: id, maxPixel: maxPixel)
             ?? ImageLoader.shared.anyCachedThumbnail(for: id) {
             imageView.image = img
             return
         }
+        guard let data = photo.imageData else { return }
         let token = UUID()
         loadToken = token
         Task { @MainActor in
-            // 2. 磁盘缩略图（按 id），不 fault 原图 blob
             if let img = await ImageLoader.shared.cachedOrDiskThumbnail(photoId: id, maxPixel: maxPixel) {
                 if self.loadToken == token { self.imageView.image = img }
                 return
             }
-            // 3. 兜底：fault 原图 + 离主线程解码
-            let data = photo.imageData
             if let img = await ImageLoader.shared.loadThumbnail(imageData: data, photoId: id, maxPixel: maxPixel) {
                 if self.loadToken == token { self.imageView.image = img }
             }
         }
     }
 
-    /// 预取（prefetchItemsAt）：缓存/磁盘命中即跳过，未命中才 fault + 解码——提前到 idle 时段做，
-    /// 滚到屏上时 cell 直接命中缓存。ImageLoader 的 in-flight dedup 防止预取与显示重复解码。
+    /// 遗留内部照片预取（资产照片由 Coordinator 批量 PHCachingImageManager 预取）。
     static func prefetch(photo: Photo, maxPixel: Int) {
         let id = photo.id
         if ImageLoader.shared.cachedThumbnail(for: id, maxPixel: maxPixel) != nil { return }
+        guard let data = photo.imageData else { return }
         Task { @MainActor in
             if await ImageLoader.shared.cachedOrDiskThumbnail(photoId: id, maxPixel: maxPixel) != nil { return }
-            let data = photo.imageData
             _ = await ImageLoader.shared.loadThumbnail(imageData: data, photoId: id, maxPixel: maxPixel)
         }
     }

@@ -19,9 +19,6 @@ struct GalleryView: View {
     @State private var selectedDetail: DetailPayload?
     @State private var isSelecting = false
     @State private var selectedPhotos: Set<UUID> = []
-    @State private var showDeleteConfirm = false
-    @State private var isSavingBatch = false
-    @State private var saveError: String?
 
     // 网格布局（左上角菜单切换，持久化）
     @AppStorage("gallery.density") private var density: GalleryDensity = .standard
@@ -79,18 +76,11 @@ struct GalleryView: View {
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 if isSelecting {
-                    // 下载：批量存入系统相册（保留 EXIF/GPS 元数据）。图标 only。
-                    Button(action: saveSelectedPhotos) {
-                        Image(systemName: "arrow.down")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(selectedPhotos.isEmpty ? .gray : .green)
-                    }
-                    .disabled(selectedPhotos.isEmpty || isSavingBatch)
-                    .accessibilityLabel("Download")
-
                     Spacer()
 
-                    Button(action: { showDeleteConfirm = true }) {
+                    // 照片真相源已在系统相册（JustShoot 相簿），无需再「导出」。删除走 PhotoKit，
+                    // 系统会弹原生删除确认，可在「最近删除」恢复。
+                    Button(action: deleteSelectedPhotos) {
                         Image(systemName: "trash")
                             .font(.system(size: 18))
                             .foregroundColor(selectedPhotos.isEmpty ? .gray : .red)
@@ -100,21 +90,10 @@ struct GalleryView: View {
                 }
             }
         }
-        .alert("Confirm delete", isPresented: $showDeleteConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                deleteSelectedPhotos()
-            }
-        } message: {
-            Text("Delete \(selectedPhotos.count) selected photos? This cannot be undone.")
-        }
-        .alert("Save failed", isPresented: Binding(
-            get: { saveError != nil },
-            set: { if !$0 { saveError = nil } }
-        )) {
-            Button("OK", role: .cancel) { saveError = nil }
-        } message: {
-            Text(saveError ?? "")
+        // 冷同步：进画廊时剪掉「app 关闭期间在系统相册被删」的照片对应的本地索引行。
+        // app 前台时的实时同步由 PhotoLibrarySync 观察者负责（见 MainTabView）。
+        .task {
+            await PhotoSaver(modelContainer: modelContext.container).pruneDeletedAssets()
         }
         // 详情用 sheet 呈现：原生下滑关闭，且 sheet 盖在 tab 栏之上（详情不与底部冲突）。
         .sheet(item: $selectedDetail) { payload in
@@ -194,108 +173,35 @@ struct GalleryView: View {
         selectedPhotos.removeAll()
     }
 
-    /// 批量保存选中照片到系统相册（保留拍摄时间 / GPS / 原始 HEIC-or-JPEG 字节）。
-    /// 在主 actor 上把 @Model 投影成 Sendable 的 SavePhotoItem，再在一个 performChanges 事务里
-    /// 全部写入——避免把非 Sendable 的 Photo 带入异步上下文。保存成功不自动退出选择模式（退出由
-    /// 用户点 xmark 决定），仅给成功 haptic。
-    private func saveSelectedPhotos() {
-        let ids = selectedPhotos
-        let items: [SavePhotoItem] = photos
-            .filter { ids.contains($0.id) }
-            .map { SavePhotoItem(imageData: $0.imageData, timestamp: $0.timestamp,
-                                 latitude: $0.latitude, longitude: $0.longitude,
-                                 altitude: $0.altitude, locationTimestamp: $0.locationTimestamp) }
-        guard !items.isEmpty else { return }
-
-        isSavingBatch = true
-        let count = items.count
-        let timer = Log.perf("gallery_export", logger: Log.save)
-
-        Task {
-            let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
-            guard status == .authorized || status == .limited else {
-                await MainActor.run {
-                    isSavingBatch = false
-                    saveError = String(localized: "Allow Photos access in Settings to save photos.")
-                    UINotificationFeedbackGenerator().notificationOccurred(.error)
-                }
-                return
-            }
-
-            do {
-                try await PHPhotoLibrary.shared().performChanges {
-                    for item in items {
-                        let request = PHAssetCreationRequest.forAsset()
-                        request.creationDate = item.timestamp
-                        if let lat = item.latitude, let lon = item.longitude {
-                            request.location = CLLocation(
-                                coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                                altitude: item.altitude ?? 0,
-                                horizontalAccuracy: 10, verticalAccuracy: 10,
-                                timestamp: item.locationTimestamp ?? item.timestamp
-                            )
-                        }
-                        let options = PHAssetResourceCreationOptions()
-                        // 用 CGImageSource 检测真实 UTI（HEIC/JPEG），硬编码 jpeg 会让 HEIC 触发
-                        // PHPhotosErrorDomain 3302（data 与声明 UTI 不一致）。
-                        if let src = CGImageSourceCreateWithData(item.imageData as CFData, nil),
-                           let uti = CGImageSourceGetType(src) {
-                            options.uniformTypeIdentifier = uti as String
-                        }
-                        request.addResource(with: .photo, data: item.imageData, options: options)
-                    }
-                }
-                timer.end("result=ok count=\(count)")
-                await MainActor.run {
-                    isSavingBatch = false
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                }
-            } catch {
-                Log.save.error("gallery_export_failed count=\(count) error=\(error.localizedDescription, privacy: .public)")
-                await MainActor.run {
-                    isSavingBatch = false
-                    saveError = String(localized: "Couldn't save the selected photos.")
-                    UINotificationFeedbackGenerator().notificationOccurred(.error)
-                }
-            }
-        }
-    }
-
+    /// 删除选中照片。真相源在系统相册：先 PHAsset 删除（系统弹原生确认，支持「最近删除」恢复），
+    /// 确认成功后再删 SwiftData 索引行。用户在系统弹窗取消 → 抛错 → 保留所有行，UI 不变。
+    /// 全部为遗留内部照片（无 assetLocalIdentifier，迁移窗口内极少见）时直接删行。
     private func deleteSelectedPhotos() {
-        let idsToDelete = Array(selectedPhotos)
-        guard !idsToDelete.isEmpty else { return }
+        let ids = selectedPhotos
+        let toDelete = photos.filter { ids.contains($0.id) }
+        guard !toDelete.isEmpty else { return }
+        let assetIDs = toDelete.compactMap { $0.assetLocalIdentifier }
+        let rowIDs = toDelete.map { $0.id }
         let container = modelContext.container
 
-        // 关 selection 模式 + 清状态——UI 立刻反馈，删除走后台 actor。
-        selectedPhotos.removeAll()
-        withAnimation(.easeInOut(duration: 0.25)) { isSelecting = false }
-
-        Task.detached(priority: .userInitiated) {
+        Task { @MainActor in
             do {
-                let saver = PhotoSaver(modelContainer: container)
-                try await saver.delete(ids: idsToDelete)
-                // 主 @Query 通过 SwiftData 跨 context 通知自动刷新——cell 从 grid 中淡出。
-                // disk cache 清理可以慢慢来，不阻塞 UI 也不阻塞 SwiftData 写入。
-                for id in idsToDelete {
-                    ImageLoader.shared.removeDiskCache(for: id)
+                if !assetIDs.isEmpty {
+                    try await PhotoLibrary.delete(localIdentifiers: assetIDs)
                 }
-                Log.save.info("photos_deleted count=\(idsToDelete.count)")
+                let saver = PhotoSaver(modelContainer: container)
+                try await saver.delete(ids: rowIDs)
+                for id in rowIDs { ImageLoader.shared.removeDiskCache(for: id) }
+                selectedPhotos.removeAll()
+                withAnimation(.easeInOut(duration: 0.25)) { isSelecting = false }
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                Log.save.info("photos_deleted count=\(rowIDs.count)")
             } catch {
-                Log.save.error("photo_delete_failed count=\(idsToDelete.count) error=\(error.localizedDescription, privacy: .public)")
+                // 用户取消系统删除确认 / 删除失败：保留索引行，不改 UI。
+                Log.save.info("photos_delete_cancelled_or_failed count=\(rowIDs.count) error=\(error.localizedDescription, privacy: .public)")
             }
         }
     }
-}
-
-// MARK: - 批量保存载体
-/// Sendable 投影：把要写入相册的字段从非 Sendable 的 @Model Photo 抽出来，安全跨 actor 传递。
-private struct SavePhotoItem: Sendable {
-    let imageData: Data
-    let timestamp: Date
-    let latitude: Double?
-    let longitude: Double?
-    let altitude: Double?
-    let locationTimestamp: Date?
 }
 
 // MARK: - Detail navigation payload

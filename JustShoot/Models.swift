@@ -156,7 +156,12 @@ struct ParsedExifInfo: Sendable {
 final class Photo: Identifiable {
     var id: UUID
     var timestamp: Date
-    @Attribute(.externalStorage) var imageData: Data
+    /// 系统相册 PHAsset 的本地标识符——**真相源**。迁移完成后所有照片都有值；仅在「拍摄时相册
+    /// 写入失败、字节兜底暂存待迁移」或「旧版本遗留尚未迁移」时为 nil。
+    var assetLocalIdentifier: String?
+    /// 遗留 / 兜底内部字节：新架构默认 nil（真相源在系统相册）。仅当相册写入失败兜底暂存、或旧
+    /// 版本数据尚未迁移时有值；迁入相册后置 nil 以释放 externalStorage。
+    @Attribute(.externalStorage) var imageData: Data?
     var filmPresetName: String?
     var filmDisplayLabel: String?
     var latitude: Double?
@@ -167,17 +172,20 @@ final class Photo: Identifiable {
     /// EXIF 解析缓存（Transient：不持久化，按需解析一次）
     @Transient private var _parsedExif: ParsedExifInfo?
 
-    init(imageData: Data, filmPresetName: String? = nil) {
+    init(assetLocalIdentifier: String?, imageData: Data?, filmPresetName: String? = nil) {
         self.id = UUID()
         self.timestamp = Date()
+        self.assetLocalIdentifier = assetLocalIdentifier
         self.imageData = imageData
         self.filmPresetName = filmPresetName
     }
 
-    /// 一次性解析并缓存所有 EXIF 信息
+    /// 一次性解析并缓存所有 EXIF 信息。仅对遗留内部字节有效；资产照片的 EXIF 由
+    /// `PhotoImage.exifData` 异步从相册取数据后解析（见 PhotoInfoPanel）。
     var parsedExif: ParsedExifInfo {
         if let cached = _parsedExif { return cached }
-        let info = ParsedExifInfo.parse(from: imageData)
+        guard let data = imageData else { return .empty }
+        let info = ParsedExifInfo.parse(from: data)
         _parsedExif = info
         return info
     }
@@ -295,7 +303,8 @@ extension Photo {
 actor PhotoSaver {
     /// 返回新 photo 的 id；失败抛错由 caller 报给 UI。
     func save(
-        imageData: Data,
+        assetLocalIdentifier: String?,
+        imageData: Data?,
         filmPresetName: String,
         filmDisplayLabel: String?,
         latitude: Double?,
@@ -303,7 +312,7 @@ actor PhotoSaver {
         altitude: Double?,
         locationTimestamp: Date?
     ) throws -> UUID {
-        let photo = Photo(imageData: imageData, filmPresetName: filmPresetName)
+        let photo = Photo(assetLocalIdentifier: assetLocalIdentifier, imageData: imageData, filmPresetName: filmPresetName)
         if let label = filmDisplayLabel { photo.filmDisplayLabel = label }
         photo.latitude = latitude
         photo.longitude = longitude
@@ -323,6 +332,30 @@ actor PhotoSaver {
         let photos = try modelContext.fetch(descriptor)
         for photo in photos { modelContext.delete(photo) }
         try modelContext.save()
+    }
+
+    /// 反向同步（library → app）：把指向「系统相册里已不存在的资产」的索引行剔除。真相源在相册，
+    /// 用户在系统「照片」里删掉某张后，这里据「资产是否还 fetch 得到」判定并删行（@Query 自动刷新）。
+    ///
+    /// 安全前提：仅在已授权时执行——未授权时 fetch 会全空，会被误判成「全部删除」。
+    /// `existingAssetIdentifiers` 在未授权时返回 nil，这里直接跳过，**绝不误删**。
+    /// 只处理有 assetLocalIdentifier 的行；兜底内部照片（identifier == nil）永不在此剔除。
+    func pruneDeletedAssets() {
+        let descriptor = FetchDescriptor<Photo>(predicate: #Predicate { $0.assetLocalIdentifier != nil })
+        guard let photos = try? modelContext.fetch(descriptor), !photos.isEmpty else { return }
+        let ids = photos.compactMap { $0.assetLocalIdentifier }
+        guard let existing = PhotoLibrary.existingAssetIdentifiers(from: ids) else { return }
+
+        var prunedRowIDs: [UUID] = []
+        for photo in photos {
+            guard let aid = photo.assetLocalIdentifier, !existing.contains(aid) else { continue }
+            prunedRowIDs.append(photo.id)
+            modelContext.delete(photo)
+        }
+        guard !prunedRowIDs.isEmpty else { return }
+        try? modelContext.save()
+        for id in prunedRowIDs { ImageLoader.shared.removeDiskCache(for: id) }
+        Log.save.info("photos_pruned_deleted count=\(prunedRowIDs.count)")
     }
 }
 
