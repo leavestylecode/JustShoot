@@ -90,7 +90,9 @@ struct RecentPhotosBadge: View {
             lastThumbnailHint = nil
             await loadFromQuery()
         }
-        .onChange(of: photos.count) { _, _ in
+        // 按"最新一张的身份"刷新，而不是 count：删一张再拍一张时 count 不变，
+        // 但 photos.last 已换人——挂 count 会让角标停留在旧缩略图。
+        .onChange(of: photos.last?.id) { _, _ in
             Task { await loadFromQuery() }
         }
         .sheet(isPresented: $showDetail) {

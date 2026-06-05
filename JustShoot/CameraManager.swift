@@ -1776,7 +1776,7 @@ class CameraManager: NSObject, ObservableObject {
             setLocationDenied(false)
             startLocationUpdates()
         case .notDetermined:
-            // 请求授权后等待 delegate 回调 didChangeAuthorization 再启动
+            // 请求授权后等待 delegate 回调 locationManagerDidChangeAuthorization 再启动
             locationManager.requestWhenInUseAuthorization()
         case .denied, .restricted:
             setLocationDenied(true)
@@ -1895,7 +1895,10 @@ extension CameraManager: CLLocationManagerDelegate {
         Log.gps.error("gps_fail error=\(error.localizedDescription, privacy: .public)")
     }
 
-    nonisolated func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+    // iOS 14 起 `didChangeAuthorization:` 已废弃；用现代回调，读 manager.authorizationStatus。
+    // CLAuthorizationStatus 是 Sendable，先取标量再跳 @MainActor（与本类其它 KVO/delegate 一致）。
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
         Task { @MainActor in
             Log.gps.info("gps_auth_changed status=\(status.rawValue)")
             switch status {

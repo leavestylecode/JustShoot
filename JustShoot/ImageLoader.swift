@@ -106,12 +106,14 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     /// 给出占位图——避免 SwiftUI .task 启动那一帧露出黑屏。
     @MainActor
     func cachedPreview(for photoId: UUID, maxPixel: Int) -> UIImage? {
-        cache.object(forKey: "preview_\(photoId.uuidString)_\(maxPixel)" as NSString)
+        let maxPixel = max(maxPixel, 256)
+        return cache.object(forKey: "preview_\(photoId.uuidString)_\(maxPixel)" as NSString)
     }
 
     @MainActor
     func cachedThumbnail(for photoId: UUID, maxPixel: Int) -> UIImage? {
-        cache.object(forKey: "thumb_\(photoId.uuidString)_\(maxPixel)" as NSString)
+        let maxPixel = max(maxPixel, 96)
+        return cache.object(forKey: "thumb_\(photoId.uuidString)_\(maxPixel)" as NSString)
     }
 
     /// 探测常见 thumb 尺寸（按高分辨率优先）找任意一份可用的——大屏 detail 页用 600，gallery
@@ -137,6 +139,9 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     /// 加载大图预览。imageData/photoId 必须在调用者所在的 actor 上预取，避免跨 actor 传递非 Sendable 的 `Photo`。
     /// 同 key 并发请求会被 in-flight dedup 合并成一份 Task.detached——见 `inflight` 注释。
     func loadPreview(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
+        // 钳到解码下限后再算 key/URL/解码尺寸：三者用同一有效值，避免 maxPixel=100 与 256
+        // 解出同样像素却存成两份（重复 decode + 重复落盘）。cachedPreview 同步快路径同样钳值。
+        let maxPixel = max(maxPixel, 256)
         let key = "preview_\(photoId.uuidString)_\(maxPixel)"
         if let cached = cache.object(forKey: key as NSString) { return cached }
 
@@ -163,7 +168,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
                 guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
                 let downOptions: [CFString: Any] = [
                     kCGImageSourceCreateThumbnailFromImageAlways: true,
-                    kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 256),
+                    kCGImageSourceThumbnailMaxPixelSize: maxPixel,
                     kCGImageSourceCreateThumbnailWithTransform: true
                 ]
                 guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
@@ -183,10 +188,11 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
 
         let result = await task.value
 
-        // 用 subscript-set-nil 让 closure body 自然返回 Void，避免 removeValue 的可选返回值被
-        // withLock 透传给调用方触发"unused result"警告。
+        // 只在 dict 里存的还是「我 await 的这个 Task」时才清除：两个并发 caller 都跑到这里时，
+        // 若期间已有第三个 caller 为同 key 注册了新 Task，盲目清 nil 会把那个 fresh Task 从去重表
+        // 里删掉，导致后续 caller 错过去重、重复 decode。Task 是 Hashable，== 即身份比较。
         inflight.withLock { state in
-            state.previews[key] = nil
+            if state.previews[key] == task { state.previews[key] = nil }
         }
 
         return result
@@ -202,6 +208,8 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     /// 同 key 并发请求会被 in-flight dedup 合并——常见场景：schedulePreheat 与 ThumbnailStripCell.task
     /// 同时请求同一张 600px thumb，旧实现会双重 decode 抢 CPU。
     func loadThumbnail(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
+        // 同 loadPreview：钳到解码下限再算 key/URL/解码尺寸，避免 88 与 96 解出同像素存两份。
+        let maxPixel = max(maxPixel, 96)
         let key = "thumb_\(photoId.uuidString)_\(maxPixel)"
         if let cached = cache.object(forKey: key as NSString) { return cached }
 
@@ -223,7 +231,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
                 guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
                 let thumbOptions: [CFString: Any] = [
                     kCGImageSourceCreateThumbnailFromImageAlways: true,
-                    kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 96),
+                    kCGImageSourceThumbnailMaxPixelSize: maxPixel,
                     kCGImageSourceCreateThumbnailWithTransform: true
                 ]
                 guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
@@ -242,8 +250,9 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
 
         let result = await task.value
 
+        // 同 loadPreview：仅当存的还是自己 await 的那个 Task 时才清，避免误删后注册的 fresh Task。
         inflight.withLock { state in
-            state.thumbs[key] = nil
+            if state.thumbs[key] == task { state.thumbs[key] = nil }
         }
 
         return result

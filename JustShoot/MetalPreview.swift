@@ -61,8 +61,12 @@ struct RealtimePreviewView: UIViewRepresentable {
         private var textureCache: CVMetalTextureCache?
 
         // 3D LUT 纹理缓存（每个预设一个，首次使用时创建）
+        // 一个 64³ LUT 在 rgba32Float 下约 4MB，胶片条划一圈会把所有用过的 LUT 都留在 GPU
+        // 内存里——旧实现永不淘汰。加 LRU 上限：只保留最近用过的 N 个，其余在创建新纹理时驱逐。
         private var lutTextures: [String: any MTLTexture] = [:]
         private var lutDimensions: [String: Int] = [:]
+        private var lutAccessOrder: [String] = []   // LRU：队首=最久未用
+        private static let maxCachedLUTs = 8
 
         // Triple-buffer 信号量：限制 GPU 最多 3 帧 in-flight，防止命令堆积
         // nonisolated：`DispatchSemaphore` 线程安全，且 GPU completion handler 在后台线程触发
@@ -168,12 +172,11 @@ struct RealtimePreviewView: UIViewRepresentable {
                 return
             }
 
-            // 获取或创建 3D LUT 纹理
-            guard let lutTexture = getOrCreateLUTTexture(cacheKey: lutCacheKey) else {
+            // 获取或创建 3D LUT 纹理（纹理与维度一起返回，二者永不可能不同步）
+            guard let (lutTexture, lutDim) = getOrCreateLUTTexture(cacheKey: lutCacheKey) else {
                 inflightSemaphore.signal()
                 return
             }
-            let lutDim = lutDimensions[lutCacheKey] ?? 25
 
             let outW = drawable.texture.width
             let outH = drawable.texture.height
@@ -245,8 +248,11 @@ struct RealtimePreviewView: UIViewRepresentable {
 
         // MARK: - 3D LUT 纹理管理
 
-        private func getOrCreateLUTTexture(cacheKey: String) -> (any MTLTexture)? {
-            if let cached = lutTextures[cacheKey] { return cached }
+        private func getOrCreateLUTTexture(cacheKey: String) -> (texture: any MTLTexture, dim: Int)? {
+            if let cached = lutTextures[cacheKey], let dim = lutDimensions[cacheKey] {
+                touchLUT(cacheKey)
+                return (cached, dim)
+            }
 
             guard let device = metalDevice else { return nil }
 
@@ -282,7 +288,26 @@ struct RealtimePreviewView: UIViewRepresentable {
 
             lutTextures[cacheKey] = texture
             lutDimensions[cacheKey] = dim
-            return texture
+            touchLUT(cacheKey)
+            evictLUTsIfNeeded()
+            return (texture, dim)
+        }
+
+        /// 标记 cacheKey 为最近使用：从顺序表移除后追加到队尾。
+        private func touchLUT(_ cacheKey: String) {
+            if let idx = lutAccessOrder.firstIndex(of: cacheKey) {
+                lutAccessOrder.remove(at: idx)
+            }
+            lutAccessOrder.append(cacheKey)
+        }
+
+        /// 超过上限时从队首（最久未用）驱逐，texture/dimension 两表同步删除——二者始终一致。
+        private func evictLUTsIfNeeded() {
+            while lutAccessOrder.count > Self.maxCachedLUTs {
+                let oldest = lutAccessOrder.removeFirst()
+                lutTextures[oldest] = nil
+                lutDimensions[oldest] = nil
+            }
         }
 
         private func rotationFromAngle(_ angle: CGFloat) -> UInt32 {
