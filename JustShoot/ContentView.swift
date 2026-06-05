@@ -72,8 +72,9 @@ struct ContentView: View {
                 .padding(.bottom, 20)
             }
             .background(Color.black)
-            .navigationTitle("JustShoot")
-            .navigationBarTitleDisplayMode(.large)
+            // 首页不再显示大标题"JustShoot"（改用底部 tab 栏导航）；保留紧凑 nav bar 承载左上
+            // 的 + 导入按钮。相册 / 卡片库已提升为 tab，原工具栏入口与其字符串 destination 一并移除。
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
@@ -84,26 +85,6 @@ struct ContentView: View {
                     }
                     .accessibilityLabel("Import LUT")
                     .accessibilityHint("Pick a .cube file to use as a custom filter")
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(value: "cards") {
-                        Image(systemName: "books.vertical")
-                            .font(.system(size: 15, weight: .medium))
-                    }
-                    .accessibilityLabel("Film Library")
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(value: "gallery") {
-                        Image(systemName: "photo.stack")
-                            .font(.system(size: 15, weight: .medium))
-                    }
-                    .accessibilityLabel("Gallery")
-                }
-            }
-            .navigationDestination(for: String.self) { value in
-                switch value {
-                case "cards": FilmCardLibraryView()
-                default:      GalleryView()
                 }
             }
             .navigationDestination(for: FilmSource.self) { source in

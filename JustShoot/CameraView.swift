@@ -179,6 +179,8 @@ struct CameraView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
+        // 全屏相机 push 时隐藏底部 tab 栏——否则 tab 栏会压在取景器/快门之上。
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             // 左上：返回
             ToolbarItem(placement: .navigationBarLeading) {
