@@ -118,7 +118,9 @@ struct CameraView: View {
             // 在 MTKView 里是无损裁切（scale_x == scale_y），出片也保留全 sensor FOV。
             // 取消 2:3 (135 胶片) 裁切后：tap-to-focus 坐标无需偏移修正，FOV 也最大化。
             .aspectRatio(3.0/4.0, contentMode: .fit)
-            .padding(.horizontal, 4)
+            // 两侧留标准内容边距（16pt），让预览左右边缘与顶部工具栏按钮、底部控制行（同 16pt）
+            // 三排对齐，而不是几乎贴边。
+            .padding(.horizontal, 16)
 
             // 权限被拒绝时的引导
             if cameraManager.cameraPermissionDenied {
@@ -309,7 +311,8 @@ struct CameraView: View {
                     .accessibilityLabel(Text("Switch film"))
                     .accessibilityHint(showFilmPicker ? Text("Tap to close film picker") : Text("Tap to pick another film"))
                 }
-                .padding(.horizontal, 30)
+                // 与预览两侧边距对齐（16pt）：badge / 封面缩略图的外缘与预览左右边缘成一条线。
+                .padding(.horizontal, 16)
             }
             .padding(.bottom, 10)
         }

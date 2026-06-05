@@ -132,6 +132,9 @@
         }
       }
     },
+    "© 2026 Leavestylecode" : {
+
+    },
     "200" : {
 
     },
@@ -784,6 +787,9 @@
     "Film picker" : {
 
     },
+    "Films" : {
+
+    },
     "Filter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1110,6 +1116,12 @@
         }
       }
     },
+    "JustShoot %@" : {
+
+    },
+    "Library" : {
+
+    },
     "Location off" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1382,6 +1394,9 @@
         }
       }
     },
+    "Photos" : {
+
+    },
     "Pick a .cube file to use as a custom filter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1449,6 +1464,9 @@
           }
         }
       }
+    },
+    "Rate on the App Store" : {
+
     },
     "Red" : {
       "extractionState" : "manual",
@@ -1602,6 +1620,12 @@
           }
         }
       }
+    },
+    "Send Feedback" : {
+
+    },
+    "Settings" : {
+
     },
     "Shutter" : {
       "extractionState" : "manual",
@@ -1815,6 +1839,9 @@
           }
         }
       }
+    },
+    "Version %@" : {
+
     },
     "View photo" : {
       "extractionState" : "manual",

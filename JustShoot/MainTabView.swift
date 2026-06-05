@@ -22,25 +22,32 @@ struct MainTabView: View {
             Tab(value: 0) {
                 ContentView()
             } label: {
-                Label("Films", systemImage: "camera.filters")
+                // 图标-only：label 只放 Image（不含 Text）→ tab 栏不显示文案；
+                // 各页面顶部仍保留自己的 navigationTitle 提供上下文。accessibilityLabel 补回语义。
+                Image(systemName: "camera.filters")
+                    .accessibilityLabel("Films")
             }
 
             Tab(value: 1) {
                 NavigationStack { GalleryView() }
             } label: {
-                Label("Photos", systemImage: "photo.stack")
+                Image(systemName: "photo.stack")
+                    .accessibilityLabel("Photos")
             }
 
             Tab(value: 2) {
                 NavigationStack { FilmCardLibraryView() }
             } label: {
-                Label("Library", systemImage: "books.vertical")
+                Image(systemName: "books.vertical")
+                    .accessibilityLabel("Library")
             }
 
-            Tab(value: 3) {
+            // Settings 用 .search role → iOS 26 把它分隔到 tab 栏尾部的"搜索位"。
+            Tab(value: 3, role: .search) {
                 SettingsView()
             } label: {
-                Label("Settings", systemImage: "gearshape")
+                Image(systemName: "gearshape")
+                    .accessibilityLabel("Settings")
             }
         }
         .tint(.white)
