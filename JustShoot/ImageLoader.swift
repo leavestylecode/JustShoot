@@ -136,6 +136,24 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         return nil
     }
 
+    /// 只查 NSCache + 磁盘缩略图（按 photoId+maxPixel），命中返回，未命中返回 nil——**不 fault 原图
+    /// blob、不解码原图**。相册网格 cell / 预取优先走这条：已生成过缩略图的照片滚动时不再把整张大图
+    /// blob fault 进主线程（SwiftData externalStorage 读必须在主 actor，是滚动卡顿的主因）。
+    func cachedOrDiskThumbnail(photoId: UUID, maxPixel: Int) async -> UIImage? {
+        let maxPixel = max(maxPixel, 96)
+        let key = "thumb_\(photoId.uuidString)_\(maxPixel)"
+        if let cached = cache.object(forKey: key as NSString) { return cached }
+        guard let url = thumbnailURL(for: photoId, maxPixel: maxPixel) else { return nil }
+        return await Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self,
+                  self.fileManager.fileExists(atPath: url.path),
+                  let data = try? Data(contentsOf: url),
+                  let img = UIImage(data: data) else { return nil }
+            self.cacheImage(img, forKey: key as NSString)
+            return img
+        }.value
+    }
+
     /// 加载大图预览。imageData/photoId 必须在调用者所在的 actor 上预取，避免跨 actor 传递非 Sendable 的 `Photo`。
     /// 同 key 并发请求会被 in-flight dedup 合并成一份 Task.detached——见 `inflight` 注释。
     func loadPreview(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
