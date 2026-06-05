@@ -128,9 +128,9 @@ struct GalleryView: View {
                 if isSelecting {
                     // 下载：批量存入系统相册（保留 EXIF/GPS 元数据）。图标 only。
                     Button(action: saveSelectedPhotos) {
-                        Image(systemName: "square.and.arrow.down")
+                        Image(systemName: "arrow.down.circle")
                             .font(.system(size: 18))
-                            .foregroundColor(selectedPhotos.isEmpty ? .gray : .white)
+                            .foregroundColor(selectedPhotos.isEmpty ? .gray : .green)
                     }
                     .disabled(selectedPhotos.isEmpty || isSavingBatch)
                     .accessibilityLabel("Download")
@@ -222,12 +222,20 @@ struct GalleryView: View {
     // MARK: - Drag-to-select
 
     private var dragSelectGesture: some Gesture {
-        // minimumDistance: 20——iOS 18 已知问题：阈值过低（<10）会优先于 ScrollView 滚动手势，
-        // 导致选择模式下没法垂直滚动。Apple 论坛 + 多篇 SwiftUI 实战文章建议 20–40：让 cell 单击稳
-        // 定走 .onTapGesture（toggle 选中），给 ScrollView 留滚动空间，drag-select 上手时机也清晰。
-        DragGesture(minimumDistance: 20, coordinateSpace: .named(Self.gridCoordSpace))
+        // 长按 ~0.25s 后才进入拖动多选。旧实现是纯 DragGesture(minimumDistance: 20)，与 ScrollView
+        // 抢手势——选择模式下上下滑动超过 20pt 就被判成 drag-select，频繁误选。改成
+        // LongPressGesture.sequenced(before: DragGesture)：
+        //   · 普通快速上下滑（没按住）→ 长按不成立 → ScrollView 正常滚动，绝不误选；
+        //   · 按住 cell ~0.25s 再拖 → 锚定起手 cell + 区间填充多选；
+        //   · 单击 cell 仍走 .onTapGesture 逐个 toggle。
+        // 这是 iOS Files/Photos 一致的「按住-拖拽」多选语义，彻底分离滚动与选择。
+        LongPressGesture(minimumDuration: 0.25)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.gridCoordSpace)))
             .onChanged { value in
-                applyDragRange(start: value.startLocation, current: value.location)
+                // .second(true, drag?)：长按已成立、进入拖动阶段。drag 为 nil 时（刚成立未移动）跳过。
+                if case .second(true, let drag?) = value {
+                    applyDragRange(start: drag.startLocation, current: drag.location)
+                }
             }
             .onEnded { _ in
                 resetDragState()
