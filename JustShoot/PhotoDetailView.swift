@@ -150,6 +150,8 @@ struct PhotoDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isFullScreen)
+        // 详情页（从相册 push 进来）始终不显示底部 tab 栏。
+        .toolbar(.hidden, for: .tabBar)
         .toolbar(isFullScreen ? .hidden : .visible, for: .navigationBar)
         .toolbar(isFullScreen ? .hidden : .visible, for: .bottomBar)
         .toolbar { navigationToolbar }

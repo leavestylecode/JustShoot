@@ -88,8 +88,10 @@ struct GalleryView: View {
                 .padding(.horizontal, Self.hPadding)
                 .padding(.top, Self.topPadding)
                 .padding(.bottom, Self.bottomPadding)
-                .coordinateSpace(.named(Self.gridCoordSpace))
-                .gesture(dragSelectGesture, including: isSelecting ? .all : .none)
+                // 拖选手势已移除：SwiftUI 自定义 DragGesture/LongPress 与 ScrollView 抢手势——要么
+                // 误选、要么（长按方案）卡死滚动。选择模式暂改为点按逐个 toggle，滚动恢复顺畅。
+                // 真正的 Photos.app 式「两指拖动多选 + 不抢滚动」需要 UICollectionView（原生
+                // shouldBeginMultipleSelectionInteractionAt），见 GalleryGridView 重构。
             }
         }
         .background(Color.black)
@@ -128,8 +130,8 @@ struct GalleryView: View {
                 if isSelecting {
                     // 下载：批量存入系统相册（保留 EXIF/GPS 元数据）。图标 only。
                     Button(action: saveSelectedPhotos) {
-                        Image(systemName: "arrow.down.circle")
-                            .font(.system(size: 18))
+                        Image(systemName: "arrow.down")
+                            .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(selectedPhotos.isEmpty ? .gray : .green)
                     }
                     .disabled(selectedPhotos.isEmpty || isSavingBatch)
