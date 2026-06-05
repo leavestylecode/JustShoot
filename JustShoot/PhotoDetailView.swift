@@ -368,7 +368,7 @@ struct PhotoDetailView: View {
 
     private var saveButtonIcon: String {
         switch saveStatus {
-        case .none: return "square.and.arrow.down"
+        case .none: return "arrow.down"   // 与相册选择模式的下载按钮一致
         case .saving: return "arrow.triangle.2.circlepath"
         case .success: return "checkmark"
         case .failed: return "exclamationmark.triangle"

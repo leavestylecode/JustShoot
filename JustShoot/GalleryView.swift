@@ -23,6 +23,10 @@ struct GalleryView: View {
     @State private var isSavingBatch = false
     @State private var saveError: String?
 
+    // 网格布局（左上角菜单切换，持久化）
+    @AppStorage("gallery.density") private var density: GalleryDensity = .standard
+    @AppStorage("gallery.shape") private var shape: GalleryShape = .rounded
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -31,13 +35,18 @@ struct GalleryView: View {
             } else {
                 PhotoGridView(
                     photos: photos,
+                    columns: density.columns,
+                    cornerRadius: shape.cornerRadius,
                     isSelecting: $isSelecting,
                     selectedPhotos: $selectedPhotos,
                     onOpen: { photo in
                         selectedDetail = DetailPayload(startPhoto: photo, photos: Array(photos))
                     }
                 )
-                .ignoresSafeArea(edges: .bottom)
+                // 忽略上下安全区：collection view 延伸到 nav 栏 / tab 栏之下，靠
+                // contentInsetAdjustmentBehavior=.automatic 把首/末行内边距顶到安全区内，
+                // 内容可以滚到顶部 nav 栏之下。
+                .ignoresSafeArea()
             }
         }
         .navigationTitle(isSelecting ? Text("\(selectedPhotos.count) selected") : Text("Gallery"))
@@ -49,6 +58,8 @@ struct GalleryView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 if isSelecting {
                     Button("Select All") { toggleSelectAll() }
+                } else if !photos.isEmpty {
+                    layoutMenu
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -105,9 +116,41 @@ struct GalleryView: View {
         } message: {
             Text(saveError ?? "")
         }
-        .navigationDestination(item: $selectedDetail) { payload in
-            PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos)
+        // 详情用 sheet 呈现：原生下滑关闭，且 sheet 盖在 tab 栏之上（详情不与底部冲突）。
+        .sheet(item: $selectedDetail) { payload in
+            NavigationStack {
+                PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button { selectedDetail = nil } label: {
+                                Image(systemName: "xmark").fontWeight(.semibold)
+                            }
+                            .tint(.white)
+                        }
+                    }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.hidden)
+            .preferredColorScheme(.dark)
         }
+    }
+
+    /// 左上角网格布局切换：Menu + 两个 inline Picker（密度 + 形状）。切换后 @AppStorage 落库、
+    /// PhotoGridView 平滑 reflow。
+    private var layoutMenu: some View {
+        Menu {
+            Picker("Grid size", selection: $density) {
+                ForEach(GalleryDensity.allCases) { d in Text(d.displayName).tag(d) }
+            }
+            .pickerStyle(.inline)
+            Picker("Corners", selection: $shape) {
+                ForEach(GalleryShape.allCases) { s in Text(s.displayName).tag(s) }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: "square.grid.2x2")
+        }
+        .accessibilityLabel("Grid layout options")
     }
 
     // MARK: - Subviews

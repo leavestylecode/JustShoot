@@ -1,6 +1,30 @@
 import SwiftUI
 import UIKit
 
+// MARK: - 网格布局选项（左上角菜单切换，@AppStorage 持久化）
+enum GalleryDensity: Int, CaseIterable, Identifiable {
+    case large = 3       // 3 列，大图
+    case standard = 4    // 4 列（默认）
+    case small = 5       // 5 列，小图
+    var id: Int { rawValue }
+    var columns: Int { rawValue }
+    var displayName: LocalizedStringKey {
+        switch self {
+        case .large:    return "Large"
+        case .standard: return "Standard"
+        case .small:    return "Small"
+        }
+    }
+}
+
+enum GalleryShape: String, CaseIterable, Identifiable {
+    case rounded
+    case square
+    var id: String { rawValue }
+    var displayName: LocalizedStringKey { self == .rounded ? "Rounded" : "Square" }
+    var cornerRadius: CGFloat { self == .rounded ? 8 : 0 }
+}
+
 // MARK: - 相册网格（UICollectionView，UIViewRepresentable 桥接）
 //
 // 为什么用 UIKit 而不是 SwiftUI LazyVGrid（调研结论，2024-2025 WWDC + Apple 论坛）：
@@ -14,12 +38,12 @@ import UIKit
 // 隐藏、下载/删除、详情 push 仍在 GalleryView（SwiftUI），通过 @Binding 双向同步。
 struct PhotoGridView: UIViewRepresentable {
     let photos: [Photo]
+    let columns: Int            // 网格列数（密度）——左上角菜单切换
+    let cornerRadius: CGFloat   // cell 圆角（直角 0 / 圆角 8）
     @Binding var isSelecting: Bool
     @Binding var selectedPhotos: Set<UUID>
     let onOpen: (Photo) -> Void
 
-    // 布局常量（与旧 SwiftUI 网格一致）
-    static let columns: CGFloat = 4
     static let spacing: CGFloat = 6
     static let sectionInsets = UIEdgeInsets(top: 8, left: 14, bottom: 20, right: 14)
 
@@ -27,6 +51,7 @@ struct PhotoGridView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UICollectionView {
         let layout = SquareGridLayout()
+        layout.columns = CGFloat(columns)
         let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
         cv.backgroundColor = .black
         cv.alwaysBounceVertical = true
@@ -36,26 +61,39 @@ struct PhotoGridView: UIViewRepresentable {
         cv.prefetchDataSource = context.coordinator
         cv.contentInsetAdjustmentBehavior = .automatic
         cv.register(PhotoCell.self, forCellWithReuseIdentifier: PhotoCell.reuseID)
+        context.coordinator.cornerRadius = cornerRadius
         context.coordinator.makeDataSource(for: cv)
         context.coordinator.apply(photos: photos, animating: false)
         return cv
     }
 
     func updateUIView(_ cv: UICollectionView, context: Context) {
-        context.coordinator.parent = self
-        context.coordinator.apply(photos: photos, animating: true)
+        let coord = context.coordinator
+        coord.parent = self
+        coord.apply(photos: photos, animating: true)
+        // 形状切换：动画更新可见 cell 圆角
+        if coord.cornerRadius != cornerRadius {
+            coord.cornerRadius = cornerRadius
+            coord.applyCornerRadius(cv, radius: cornerRadius)
+        }
+        // 密度切换：改列数 → 平滑 reflow → 按新尺寸重载可见缩略图
+        if let layout = cv.collectionViewLayout as? SquareGridLayout, Int(layout.columns) != columns {
+            layout.columns = CGFloat(columns)
+            coord.animateColumnChange(cv)
+        }
         // 同步编辑模式（isSelecting）→ 刷新可见 cell 的角标 + 选中暗化
         if cv.isEditing != isSelecting {
             cv.isEditing = isSelecting
-            context.coordinator.refreshEditingVisual(cv)
+            coord.refreshEditingVisual(cv)
         }
         // 同步选中集合（Select All / 退出清空等外部变更 → 驱动 cv 选中态）
-        context.coordinator.syncSelection(cv, to: selectedPhotos)
+        coord.syncSelection(cv, to: selectedPhotos)
     }
 
     // MARK: - Coordinator
     final class Coordinator: NSObject, UICollectionViewDelegate, UICollectionViewDataSourcePrefetching {
         var parent: PhotoGridView
+        var cornerRadius: CGFloat = 8
         private var dataSource: UICollectionViewDiffableDataSource<Int, UUID>!
         private var photoByID: [UUID: Photo] = [:]
         private var lastIDs: [UUID] = []
@@ -67,7 +105,8 @@ struct PhotoGridView: UIViewRepresentable {
                 [weak self] cv, indexPath, id in
                 let cell = cv.dequeueReusableCell(withReuseIdentifier: PhotoCell.reuseID, for: indexPath) as! PhotoCell
                 guard let self, let photo = self.photoByID[id] else { return cell }
-                cell.configure(photo: photo, editing: cv.isEditing, maxPixel: self.thumbPixel(for: cv))
+                cell.configure(photo: photo, editing: cv.isEditing,
+                               maxPixel: self.thumbPixel(for: cv), cornerRadius: self.cornerRadius)
                 return cell
             }
         }
@@ -103,6 +142,32 @@ struct PhotoGridView: UIViewRepresentable {
             for case let cell as PhotoCell in cv.visibleCells {
                 cell.isEditingMode = cv.isEditing
             }
+        }
+
+        /// 形状切换：动画更新可见 cell 圆角（新 dequeue 的 cell 由 configure 直接拿）。
+        func applyCornerRadius(_ cv: UICollectionView, radius: CGFloat) {
+            UIView.animate(withDuration: 0.2) {
+                for case let cell as PhotoCell in cv.visibleCells {
+                    cell.contentView.layer.cornerRadius = radius
+                }
+            }
+        }
+
+        /// 密度切换：invalidate 触发平滑 reflow，完成后按新尺寸 reconfigure 可见缩略图（放大不糊）。
+        func animateColumnChange(_ cv: UICollectionView) {
+            cv.performBatchUpdates({
+                cv.collectionViewLayout.invalidateLayout()
+            }, completion: { [weak self] _ in
+                self?.reloadVisibleThumbnails(cv)
+            })
+        }
+
+        private func reloadVisibleThumbnails(_ cv: UICollectionView) {
+            let ids = cv.indexPathsForVisibleItems.compactMap { dataSource.itemIdentifier(for: $0) }
+            guard !ids.isEmpty else { return }
+            var snap = dataSource.snapshot()
+            snap.reconfigureItems(ids)
+            dataSource.apply(snap, animatingDifferences: false)
         }
 
         func thumbPixel(for cv: UICollectionView) -> Int {
@@ -160,10 +225,12 @@ struct PhotoGridView: UIViewRepresentable {
 
 // MARK: - 方形等距网格布局（4 列，自动按宽度算 cell 边长）
 final class SquareGridLayout: UICollectionViewFlowLayout {
+    var columns: CGFloat = 4
+
     override func prepare() {
         super.prepare()
         guard let cv = collectionView else { return }
-        let cols = PhotoGridView.columns
+        let cols = columns
         let spacing = PhotoGridView.spacing
         minimumInteritemSpacing = spacing
         minimumLineSpacing = spacing
@@ -193,8 +260,7 @@ final class PhotoCell: UICollectionViewCell {
     override init(frame: CGRect) {
         super.init(frame: frame)
         contentView.clipsToBounds = true
-        contentView.layer.cornerRadius = 8
-        contentView.layer.cornerCurve = .continuous
+        contentView.layer.cornerCurve = .continuous   // 圆角值由 configure(cornerRadius:) 设置
         contentView.backgroundColor = UIColor.white.withAlphaComponent(0.08)
 
         imageView.contentMode = .scaleAspectFill
@@ -232,7 +298,8 @@ final class PhotoCell: UICollectionViewCell {
         isEditingMode = false
     }
 
-    func configure(photo: Photo, editing: Bool, maxPixel: Int) {
+    func configure(photo: Photo, editing: Bool, maxPixel: Int, cornerRadius: CGFloat) {
+        contentView.layer.cornerRadius = cornerRadius
         isEditingMode = editing
         loadThumbnail(photo: photo, maxPixel: maxPixel)
     }

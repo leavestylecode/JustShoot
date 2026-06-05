@@ -20,19 +20,31 @@ func currentScreen() -> UIScreen? {
 // init 后所有可变状态都仅通过线程安全 API 写入
 final class ImageLoader: ObservableObject, @unchecked Sendable {
     static let shared = ImageLoader()
-    private let cache = NSCache<NSString, UIImage>()
+    private let cache = NSCache<NSString, UIImage>()          // 缩略图
+    /// 详情大图预览单独一个 cache——大图单张 ~24MB（2868×2152 RGBA8），若和缩略图共用，进详情时
+    /// 网格缩略图还占着缓存，±N 预览环一进来就把彼此挤爆、反复淘汰再从磁盘重载（disk_hit 抖动 + 卡顿）。
+    /// 隔离后预览只和预览竞争，预加载环稳稳命中内存。
+    private let previewCache = NSCache<NSString, UIImage>()
     private let fileManager = FileManager.default
 
-    /// 按设备物理内存自适应：上限 = min(128MB, RAM/32)
-    /// 低端设备（2GB RAM）约 64MB；高端设备（8GB RAM）封顶 128MB
+    /// 缩略图缓存上限：min(128MB, RAM/32)。低端 2GB≈64MB，高端 8GB 封顶 128MB。
     private static func defaultCostLimit() -> Int {
         let mem = Int(ProcessInfo.processInfo.physicalMemory)
         return min(128 * 1024 * 1024, mem / 32)
     }
 
+    /// 预览缓存上限：min(200MB, RAM/16)。要装得下「当前页 + ±1 预加载环 + 余量」（~6-8 张大图）。
+    /// 8GB→200MB(~8张)，4GB→200MB，2GB→128MB(~5张，仍够环不抖)。
+    private static func previewCostLimit() -> Int {
+        let mem = Int(ProcessInfo.processInfo.physicalMemory)
+        return min(200 * 1024 * 1024, mem / 16)
+    }
+
     private init() {
         cache.countLimit = 50
         cache.totalCostLimit = Self.defaultCostLimit()
+        previewCache.countLimit = 10
+        previewCache.totalCostLimit = Self.previewCostLimit()
     }
 
     // MARK: - In-flight dedup
@@ -73,6 +85,10 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         cache.setObject(image, forKey: key, cost: memoryCost(of: image))
     }
 
+    private func cachePreview(_ image: UIImage, forKey key: NSString) {
+        previewCache.setObject(image, forKey: key, cost: memoryCost(of: image))
+    }
+
     /// 把带 alpha channel 的 CGImage 重绘成 opaque RGB，去掉无意义的 alpha 字节。
     /// 触发场景：HEIC 源经 CGImageSourceCreateThumbnailAtIndex 出来的 CGImage 默认带 RGBA，
     /// 内容明明 opaque——直接 jpegData 会报"opaque image with AlphaLast"且文件多 25%。
@@ -107,7 +123,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     @MainActor
     func cachedPreview(for photoId: UUID, maxPixel: Int) -> UIImage? {
         let maxPixel = max(maxPixel, 256)
-        return cache.object(forKey: "preview_\(photoId.uuidString)_\(maxPixel)" as NSString)
+        return previewCache.object(forKey: "preview_\(photoId.uuidString)_\(maxPixel)" as NSString)
     }
 
     @MainActor
@@ -161,7 +177,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         // 解出同样像素却存成两份（重复 decode + 重复落盘）。cachedPreview 同步快路径同样钳值。
         let maxPixel = max(maxPixel, 256)
         let key = "preview_\(photoId.uuidString)_\(maxPixel)"
-        if let cached = cache.object(forKey: key as NSString) { return cached }
+        if let cached = previewCache.object(forKey: key as NSString) { return cached }
 
         // Atomic check-and-register：同 key 已有 in-flight Task 就复用，否则注册新 Task。
         // 临界区只做 dict 读写（< 1µs），符合 OSAllocatedUnfairLock 的"持锁极短"用例。
@@ -174,7 +190,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
                    self.fileManager.fileExists(atPath: url.path),
                    let data = try? Data(contentsOf: url),
                    let img = UIImage(data: data) {
-                    self.cacheImage(img, forKey: key as NSString)
+                    self.cachePreview(img, forKey: key as NSString)
                     Log.gallery.debug("preview_disk_hit id=\(photoId.uuidString, privacy: .public) max=\(maxPixel)")
                     return img
                 }
@@ -192,7 +208,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
                 guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
                 let opaque = ImageLoader.makeOpaque(cgThumb)
                 let image = UIImage(cgImage: opaque)
-                self.cacheImage(image, forKey: key as NSString)
+                self.cachePreview(image, forKey: key as NSString)
                 if let url = self.previewURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
                     try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                     try? jpeg.write(to: url, options: .atomic)
@@ -298,6 +314,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
 
     func clearCache() {
         cache.removeAllObjects()
+        previewCache.removeAllObjects()
     }
 
     /// 删除指定照片的磁盘缓存文件。

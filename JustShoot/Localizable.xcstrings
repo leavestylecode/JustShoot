@@ -481,6 +481,9 @@
         }
       }
     },
+    "Corners" : {
+
+    },
     "Couldn't access the file" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1023,6 +1026,12 @@
         }
       }
     },
+    "Grid layout options" : {
+
+    },
+    "Grid size" : {
+
+    },
     "Head to the camera to start shooting" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1129,6 +1138,9 @@
       }
     },
     "JustShoot %@" : {
+
+    },
+    "Large" : {
 
     },
     "Library" : {
@@ -1514,6 +1526,9 @@
         }
       }
     },
+    "Rounded" : {
+
+    },
     "Save failed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1672,6 +1687,15 @@
           }
         }
       }
+    },
+    "Small" : {
+
+    },
+    "Square" : {
+
+    },
+    "Standard" : {
+
     },
     "Start shooting with this film" : {
       "extractionState" : "manual",
