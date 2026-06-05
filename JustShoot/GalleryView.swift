@@ -2,6 +2,9 @@ import SwiftUI
 import SwiftData
 import UIKit
 import os
+import Photos
+import CoreLocation
+import ImageIO
 
 // MARK: - 相册视图（grid + drag-to-select 多选）
 //
@@ -22,6 +25,8 @@ struct GalleryView: View {
     @State private var isSelecting = false
     @State private var selectedPhotos: Set<UUID> = []
     @State private var showDeleteConfirm = false
+    @State private var isSavingBatch = false
+    @State private var saveError: String?
 
     // ScrollView 宽度——通过 .onGeometryChange 同步。portrait 锁定 + 全屏 ScrollView，
     // 设一次后基本不变。cell 尺寸 / drag 命中数学都用这个常量算。
@@ -95,21 +100,19 @@ struct GalleryView: View {
         }
         .navigationTitle(isSelecting ? Text("\(selectedPhotos.count) selected") : Text("Gallery"))
         .navigationBarTitleDisplayMode(.inline)
+        // 选择模式隐藏底部 tab 栏，让位给 Download / Delete 操作栏（Photos.app 一致）。
+        .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                if !photos.isEmpty {
-                    Button(isSelecting ? "Select All" : "Select") {
-                        if isSelecting {
-                            let allPhotoIds = Set(photos.map { $0.id })
-                            if selectedPhotos.count == allPhotoIds.count {
-                                selectedPhotos.removeAll()
-                            } else {
-                                selectedPhotos = allPhotoIds
-                            }
-                        } else {
-                            isSelecting = true
-                        }
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                if isSelecting {
+                    // 选择模式：右上角放「全选」+「xmark 退出」两个按钮，方便取消。
+                    Button("Select All") { toggleSelectAll() }
+                    Button { exitSelection() } label: {
+                        Image(systemName: "xmark")
                     }
+                    .accessibilityLabel("Done selecting")
+                } else if !photos.isEmpty {
+                    Button("Select") { isSelecting = true }
                 }
             }
         }
@@ -117,11 +120,17 @@ struct GalleryView: View {
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 if isSelecting {
-                    Button("Cancel") {
-                        isSelecting = false
-                        selectedPhotos.removeAll()
-                        resetDragState()
+                    // 下载：批量存入系统相册（保留 EXIF/GPS 元数据）。
+                    Button(action: saveSelectedPhotos) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "square.and.arrow.down")
+                                .font(.system(size: 16))
+                            Text("Download")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        .foregroundColor(selectedPhotos.isEmpty ? .gray : .white)
                     }
+                    .disabled(selectedPhotos.isEmpty || isSavingBatch)
 
                     Spacer()
 
@@ -145,6 +154,14 @@ struct GalleryView: View {
             }
         } message: {
             Text("Delete \(selectedPhotos.count) selected photos? This cannot be undone.")
+        }
+        .alert("Save failed", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )) {
+            Button("OK", role: .cancel) { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
         }
         .sensoryFeedback(.selection, trigger: dragHapticTrigger)
         .navigationDestination(item: $selectedDetail) { payload in
@@ -291,6 +308,90 @@ struct GalleryView: View {
 
     // MARK: - Actions
 
+    /// 全选 / 取消全选：已全选则清空，否则选中全部。
+    private func toggleSelectAll() {
+        let allPhotoIds = Set(photos.map { $0.id })
+        if selectedPhotos.count == allPhotoIds.count {
+            selectedPhotos.removeAll()
+        } else {
+            selectedPhotos = allPhotoIds
+        }
+    }
+
+    /// 退出选择模式（右上 xmark）：清空选中、复位拖选状态、恢复 tab 栏。
+    private func exitSelection() {
+        isSelecting = false
+        selectedPhotos.removeAll()
+        resetDragState()
+    }
+
+    /// 批量保存选中照片到系统相册（保留拍摄时间 / GPS / 原始 HEIC-or-JPEG 字节）。
+    /// 在主 actor 上把 @Model 投影成 Sendable 的 SavePhotoItem，再在一个 performChanges
+    /// 事务里全部写入——避免把非 Sendable 的 Photo 带入异步上下文。保存成功不自动退出选择模式
+    /// （退出由用户点 xmark 决定），仅给成功 haptic。
+    private func saveSelectedPhotos() {
+        let ids = selectedPhotos
+        let items: [SavePhotoItem] = photos
+            .filter { ids.contains($0.id) }
+            .map { SavePhotoItem(imageData: $0.imageData, timestamp: $0.timestamp,
+                                 latitude: $0.latitude, longitude: $0.longitude,
+                                 altitude: $0.altitude, locationTimestamp: $0.locationTimestamp) }
+        guard !items.isEmpty else { return }
+
+        isSavingBatch = true
+        let count = items.count
+        let timer = Log.perf("gallery_export", logger: Log.save)
+
+        Task {
+            let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+            guard status == .authorized || status == .limited else {
+                await MainActor.run {
+                    isSavingBatch = false
+                    saveError = String(localized: "Allow Photos access in Settings to save photos.")
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                }
+                return
+            }
+
+            do {
+                try await PHPhotoLibrary.shared().performChanges {
+                    for item in items {
+                        let request = PHAssetCreationRequest.forAsset()
+                        request.creationDate = item.timestamp
+                        if let lat = item.latitude, let lon = item.longitude {
+                            request.location = CLLocation(
+                                coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                                altitude: item.altitude ?? 0,
+                                horizontalAccuracy: 10, verticalAccuracy: 10,
+                                timestamp: item.locationTimestamp ?? item.timestamp
+                            )
+                        }
+                        let options = PHAssetResourceCreationOptions()
+                        // 用 CGImageSource 检测真实 UTI（HEIC/JPEG），硬编码 jpeg 会让 HEIC 触发
+                        // PHPhotosErrorDomain 3302（data 与声明 UTI 不一致）。
+                        if let src = CGImageSourceCreateWithData(item.imageData as CFData, nil),
+                           let uti = CGImageSourceGetType(src) {
+                            options.uniformTypeIdentifier = uti as String
+                        }
+                        request.addResource(with: .photo, data: item.imageData, options: options)
+                    }
+                }
+                timer.end("result=ok count=\(count)")
+                await MainActor.run {
+                    isSavingBatch = false
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                }
+            } catch {
+                Log.save.error("gallery_export_failed count=\(count) error=\(error.localizedDescription, privacy: .public)")
+                await MainActor.run {
+                    isSavingBatch = false
+                    saveError = String(localized: "Couldn't save the selected photos.")
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                }
+            }
+        }
+    }
+
     private func deleteSelectedPhotos() {
         let idsToDelete = Array(selectedPhotos)
         guard !idsToDelete.isEmpty else { return }
@@ -316,6 +417,17 @@ struct GalleryView: View {
             }
         }
     }
+}
+
+// MARK: - 批量保存载体
+/// Sendable 投影：把要写入相册的字段从非 Sendable 的 @Model Photo 抽出来，安全跨 actor 传递。
+private struct SavePhotoItem: Sendable {
+    let imageData: Data
+    let timestamp: Date
+    let latitude: Double?
+    let longitude: Double?
+    let altitude: Double?
+    let locationTimestamp: Date?
 }
 
 // MARK: - Detail navigation payload
