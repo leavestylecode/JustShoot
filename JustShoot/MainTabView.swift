@@ -50,6 +50,8 @@ struct MainTabView: View {
                     .accessibilityLabel("Settings")
             }
         }
+        // 向下滚动时自动收起成 mini tab 栏（iOS 26），上滑恢复——给内容腾出更多竖向空间。
+        .tabBarMinimizeBehavior(.onScrollDown)
         .tint(.white)
         .preferredColorScheme(.dark)
     }
