@@ -65,11 +65,12 @@ struct SettingsView: View {
 
     // MARK: - 照片画质（用户可配置）
     //
-    // 四档落在同一张卡片里，选中项右侧打绿色对勾。每行带副标题说明大致体积/用途，
-    // 默认 .standard 对齐 iPhone 原相机。改动即时写入 @AppStorage，下一张拍照就生效。
+    // 多语言简化策略：档位差异全用「语言无关」的视觉元素表达——左侧 4 段条形(等级) + 体积数字(MB)，
+    // 不显示任何需翻译的档位名（名字只留给 VoiceOver 朗读）。整屏唯一需翻译的就是标题「Photo Quality」。
+    // 选中项右侧打绿色对勾；默认 .standard。改动即时写入 @AppStorage，下一张拍照就生效。
     private var photoQualitySection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Photo Quality")
+            Label("Photo Quality", systemImage: "photo")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.leading, 4)
@@ -79,14 +80,12 @@ struct SettingsView: View {
                     Button {
                         photoQuality = quality
                     } label: {
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(quality.displayName)
-                                    .foregroundStyle(.white)
-                                Text(quality.sizeHint)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                        HStack(spacing: 14) {
+                            QualityLevelBars(level: quality.level)
+                            Text(quality.approximateSize)
+                                .font(.subheadline)
+                                .monospacedDigit()
+                                .foregroundStyle(.white)
                             Spacer()
                             if photoQuality == quality {
                                 Image(systemName: "checkmark")
@@ -94,8 +93,12 @@ struct SettingsView: View {
                                     .foregroundStyle(.green)
                             }
                         }
-                        .padding(.vertical, 2)
+                        .padding(.vertical, 4)
                         .contentShape(Rectangle())
+                        // 视觉是图标+数字；VoiceOver 用本地化档位名朗读，无障碍不丢信息。
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(quality.displayName), \(quality.approximateSize)")
+                        .accessibilityAddTraits(photoQuality == quality ? [.isButton, .isSelected] : .isButton)
                     }
                     .buttonStyle(.plain)
 
@@ -163,6 +166,25 @@ struct SettingsView: View {
             .padding(16)
             .frame(maxWidth: .infinity)
             .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 20))
+    }
+}
+
+// MARK: - 画质等级条形指示（语言无关）
+//
+// 4 段递增高度的小条，绿色填到 level（1...4）。"更多条 = 更高画质/更大体积" 是跨语言直觉，
+// 替代了需翻译的档位名。纯绘制，无文字。
+private struct QualityLevelBars: View {
+    let level: Int   // 1...4
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 2.5) {
+            ForEach(1...4, id: \.self) { i in
+                RoundedRectangle(cornerRadius: 1, style: .continuous)
+                    .fill(i <= level ? Color.green : Color.white.opacity(0.18))
+                    .frame(width: 3.5, height: 5 + CGFloat(i) * 3.5)
+            }
+        }
+        .frame(width: 26, height: 19, alignment: .bottom)
     }
 }
 
