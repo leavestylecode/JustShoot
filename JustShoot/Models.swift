@@ -29,18 +29,8 @@ enum PhotoQuality: String, CaseIterable, Identifiable, Sendable {
     /// 默认档：对齐 iPhone 原相机。
     static let `default`: PhotoQuality = .standard
 
-    /// 档位等级 1...4（4=最高画质/最大体积）。设置页用语言无关的条形指示来表达，不靠文字。
-    var level: Int {
-        switch self {
-        case .compact:  return 1
-        case .standard: return 2
-        case .high:     return 3
-        case .maximum:  return 4
-        }
-    }
-
-    /// 大致文件体积（12MP HEIC 经验值）。纯数字 + "MB" 跨语言通用，无需本地化——这是简化多语言、
-    /// 优先用「图标/数字」表达的核心：UI 上只显示条形 + 这个体积串。
+    /// 大致文件体积（12MP HEIC 经验值）。纯数字 + "MB" 跨语言通用，无需本地化——设置页每行右侧
+    /// 直接显示它，作为档位之间最直观的区分。
     var approximateSize: String {
         switch self {
         case .maximum:  return "8–10 MB"
@@ -50,7 +40,7 @@ enum PhotoQuality: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// 仅供 VoiceOver 朗读用的本地化名（视觉上不显示；可翻译文字压到这 4 个最短词）。
+    /// 档位本地化名（设置页行标题 + VoiceOver）。仅 4 个最短词，翻译负担极小。
     var displayName: String {
         switch self {
         case .maximum:  return String(localized: "Maximum")
