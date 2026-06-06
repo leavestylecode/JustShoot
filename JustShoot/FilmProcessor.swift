@@ -339,7 +339,19 @@ final class FilmProcessor: Sendable {
             metadata[kCGImagePropertyGPSDictionary as String] = gps
         }
 
-        // 覆写等效焦距（EXIF：FocalLenIn35mmFilm）
+        // 覆写等效焦距（EXIF：FocalLenIn35mmFilm）。覆写前先把系统**原始**写入的焦距打出来——
+        // 这是"哪颗物理镜头真正出片"的 ground truth（capture_focal 是 dispatch 时刻的快照，系统可能在
+        // 曝光瞬间又切了镜头；而这里的 EXIF 是出片数据自带的，最权威）：
+        //   phys      = 物理镜头实际焦距(mm，如主摄≈6.8mm、长焦≈15.7mm)——直接看出系统用了哪颗镜头
+        //   cam_equiv = 系统自己算的 35mm 等效（我们即将用 overwrite_to 覆盖它）
+        //   lens      = 镜头型号串（含焦距），再次印证物理镜头
+        if let srcExif = metadata[kCGImagePropertyExifDictionary as String] as? [String: Any] {
+            let phys = (srcExif[kCGImagePropertyExifFocalLength as String] as? Double).map { String(format: "%.2fmm", $0) } ?? "nil"
+            let camEquiv = srcExif[kCGImagePropertyExifFocalLenIn35mmFilm as String].map { "\($0)mm" } ?? "nil"
+            let lensModel = srcExif[kCGImagePropertyExifLensModel as String] as? String ?? "nil"
+            Log.lut.info("lut_exif_focal phys=\(phys, privacy: .public) cam_equiv=\(camEquiv, privacy: .public) overwrite_to=\(focalLengthIn35mm.map { "\($0)mm" } ?? "nil", privacy: .public) lens=\(lensModel, privacy: .public)")
+        }
+
         if let fl35 = focalLengthIn35mm {
             var exif = metadata[kCGImagePropertyExifDictionary as String] as? [String: Any] ?? [:]
             exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] = fl35

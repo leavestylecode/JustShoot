@@ -1040,6 +1040,12 @@
         }
       }
     },
+    "High" : {
+
+    },
+    "High detail · about 4–5 MB" : {
+
+    },
     "Import" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1188,6 +1194,12 @@
         }
       }
     },
+    "Matches iPhone Camera · about 2–3 MB" : {
+
+    },
+    "Maximum" : {
+
+    },
     "Most recent photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1238,6 +1250,9 @@
           }
         }
       }
+    },
+    "Near-lossless · about 8–10 MB" : {
+
     },
     "No matches" : {
       "extractionState" : "manual",
@@ -1408,6 +1423,9 @@
           }
         }
       }
+    },
+    "Photo Quality" : {
+
     },
     "Photos" : {
 
@@ -1680,6 +1698,12 @@
       }
     },
     "Small" : {
+
+    },
+    "Smaller files · about 1–1.5 MB" : {
+
+    },
+    "Space Saving" : {
 
     },
     "Square" : {

@@ -1498,6 +1498,23 @@ class CameraManager: NSObject, ObservableObject {
         let capStr = self.formatExposureCMTime(self.videoCaptureDevice?.activeMaxExposureDuration)
         let liveStr = self.formatExposureCMTime(self.videoCaptureDevice?.exposureDuration)
         Log.capture.info("capture_dispatch flash=\(self.flashMode.rawValue, privacy: .public) flash_delay=\(needsFlashDelay ? 200 : 0)ms rotation=\(rotationAngle.map { "\(Int($0))°" } ?? "nil", privacy: .public) max_dims=\(reqDims.width)x\(reqDims.height) safe_shutter=\(capStr, privacy: .public) live_exposure=\(liveStr, privacy: .public)")
+
+        // 焦距可观测性：把"用户选的等效焦距 / 系统实际选用的物理镜头 / 当前变焦倍率 / 在该镜头上的
+        // 数码裁切倍率"一行打全。说明：
+        //   equiv_set   = 用户档位的 35mm 等效焦距，也是写进 EXIF(FocalLenIn35mmFilm) 的值
+        //   lens        = 系统 `.auto` 下实际激活的物理 constituent + 它的 Apple 标称 35mm 等效
+        //                 （UW=13 / W=24 / T=100）。系统可能在弱光/近摄时给主摄裁切而非长焦——这里能看出
+        //   zoom        = 虚拟设备当前 videoZoomFactor
+        //   equiv_live  = 由 zoom×当前镜头反推的实际等效焦距（理论上≈equiv_set，偏差说明镜头没切到位）
+        //   digi_crop   = equiv_set / 镜头标称，即在这颗物理镜头上又做了多少数码裁切（1.0=原生无裁切）
+        let activeLens = self.videoCaptureDevice?.activePrimaryConstituent
+        let lensName = activeLens?.localizedName ?? "nil"
+        let lensNativeMm = activeLens?.nominalFocalLengthIn35mmFilm ?? 0
+        let liveZoom = self.videoCaptureDevice?.videoZoomFactor ?? 0
+        let equivSet = self.currentFocalLength.rawValue
+        let equivLive = self.focalInfo.equivalentMm(forZoom: liveZoom, activeConstituent: activeLens)
+        let digiCrop = lensNativeMm > 0 ? Float(equivSet) / lensNativeMm : 0
+        Log.capture.info("capture_focal equiv_set=\(equivSet)mm equiv_live=\(String(format: "%.1f", equivLive))mm lens=\(lensName, privacy: .public)/\(String(format: "%.0f", lensNativeMm))mm zoom=\(String(format: "%.2f", liveZoom))x digi_crop=\(String(format: "%.2f", digiCrop))x")
         sessionQueue.asyncAfter(deadline: deadline) {
             if let angle = rotationAngle,
                let connection = output.connection(with: .video),
