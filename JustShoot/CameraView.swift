@@ -124,6 +124,11 @@ struct CameraView: View {
             // 两侧留标准内容边距（16pt），让预览左右边缘与顶部工具栏按钮、底部控制行（同 16pt）
             // 三排对齐，而不是几乎贴边。
             .padding(.horizontal, 16)
+            // 选择条展开时把预览贴到可用区底部——否则预览是居中的，safeAreaInset 撑高后会在
+            // 预览底边与选择条之间留出一段「居中余量」（看起来像离预览很远）。贴底后选择条紧贴预览，
+            // 与快门的距离交给底部 VStack 的 spacing 控制。收起时恢复居中。
+            .frame(maxWidth: .infinity, maxHeight: .infinity,
+                   alignment: showFilmPicker ? .bottom : .center)
 
             // 权限被拒绝时的引导
             if cameraManager.cameraPermissionDenied {
@@ -232,7 +237,10 @@ struct CameraView: View {
         }
         // 底部控制栏（焦距选择条已移到预览内部，不再占用底部空间）
         .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 12) {
+            // 胶片选择条作为 inset 的一部分：弹出时撑高底部 inset → 预览整体上移，
+            // 选择条落在「上移后的预览」与「快门行」之间。toggle 包在 withAnimation 里，
+            // 预览上移与选择条出现一起做动画。
+            VStack(spacing: 22) {
                 // 胶片选择条（按需展开）：右下封面 tap 切换。选中任一胶片后自动收起。
                 if showFilmPicker {
                     FilmSourcePickerStrip(
@@ -252,7 +260,11 @@ struct CameraView: View {
                             showFilmPicker = false
                         }
                     }
-                    .padding(.horizontal, 14)
+                    // 与预览/控制行同一 16pt 内容栅格对齐；阴影让它读作浮层而非贴底的条带。
+                    // 顶部留 10pt，与贴底后的预览底边之间一点呼吸（不至于完全贴死）。
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
+                    .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
@@ -298,6 +310,8 @@ struct CameraView: View {
                             showFilmPicker.toggle()
                         }
                     } label: {
+                        // 整块随设备方向旋转，与左下角照片角标（RecentPhotosBadge）同款 rotationEffect
+                        // + 同款 spring，旋转手感完全一致。封面无 glass 描边，整块旋转也不会显得放大。
                         FilmSourceCoverThumbnail(source: source)
                             .frame(width: 46, height: 46)
                             .overlay {
@@ -737,8 +751,12 @@ struct CameraView: View {
         let dy = value.translation.height
         let totalDistance = sqrt(dx * dx + dy * dy)
 
-        let actual = perceivedTranslation(value.translation).horizontal
-        let predicted = perceivedTranslation(value.predictedEndTranslation).horizontal
+        // 注意：切胶片用**屏幕横轴**（value.translation.width），不走 perceivedTranslation 旋转重映射。
+        // picker 选择条是一条横向排布、不随设备方向旋转的条带（只有 cell 内容旋转）；横握时它在
+        // 屏幕上仍是左右排布，因此「沿条带方向左右滑」= 屏幕横滑，所有持机方向下保持一致。
+        // 对焦/EV 那套需要按用户感知轴重映射（上滑变亮），但本手势的参照物是屏幕上的条带，不该重映射。
+        let actual = value.translation.width
+        let predicted = value.predictedEndTranslation.width
         // 取绝对值更大者作为"有效位移"：慢拖需要够 50pt；快 flick 即便实际只走 20pt，
         // 预测落点也可能 > 50pt，照样切换。这是 UIKit UIScrollView paging 同款手感。
         let effectiveDx = abs(actual) >= abs(predicted) ? actual : predicted

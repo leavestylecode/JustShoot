@@ -214,6 +214,8 @@ struct FilmSourcePickerCell: View {
 
     var body: some View {
         Button(action: onTap) {
+            // 整块随设备方向旋转，与右下角封面 / 左下角照片角标同款手感。cell 只有极淡描边
+            // （未选 0.08 / 选中黄 2pt），不像 glass 那样有高光，整块旋转不显得放大。
             cover
                 .frame(width: Self.coverSize, height: Self.coverSize)
                 .overlay {

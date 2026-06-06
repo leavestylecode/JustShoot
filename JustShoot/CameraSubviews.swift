@@ -241,7 +241,9 @@ struct FilmSourceCoverThumbnail: View {
             }
         }
         .clipShape(shape)
-        .glassEffect(.regular, in: shape)
+        // 不用 glassEffect：与左下角照片角标渲染一致——纯封面图裁成圆角方块，整块随设备方向旋转。
+        // glass 的高光描边会让旋转中途的方块对角线特别显眼（看起来像突然放大），左角标没有这层描边，
+        // 所以整块旋转也不刺眼。去掉 glass 后两边外观与旋转手感完全统一。
         .task(id: source.id) {
             // 46pt × scale ≈ 138 px；预留余量取 200，与列表缓存的 cacheKey 解耦避免反复解码。
             guard case .preset(let preset) = source else {
