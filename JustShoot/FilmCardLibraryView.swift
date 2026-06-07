@@ -44,6 +44,92 @@ enum CardColorPalette {
     }
 }
 
+// MARK: - Grid layout options (left-toolbar menu, @AppStorage-persisted)
+//
+// Mirrors the gallery's GalleryDensity / GalleryShape pattern (PhotoGridView) so the
+// two browse screens feel consistent, extended with a circular cover option and a
+// caption show/hide toggle for the library's card-style thumbnails.
+
+/// Thumbnail grid density. The raw value doubles as the adaptive minimum cell width
+/// (driving column count off a minimum lets iPad expand to 6+ columns for free, while
+/// iPhone lands on 2 / 3 / 4 columns).
+enum FilmGridDensity: Int, CaseIterable, Identifiable {
+    case large = 150       // ~2 columns on iPhone
+    case standard = 100    // ~3 columns (default — matches the previous fixed layout)
+    case small = 78        // ~4 columns
+    var id: Int { rawValue }
+
+    var minItemWidth: CGFloat { CGFloat(rawValue) }
+
+    var displayName: LocalizedStringKey {
+        switch self {
+        case .large:    return "Large"
+        case .standard: return "Standard"
+        case .small:    return "Small"
+        }
+    }
+
+    /// Column spacing; rows add a little extra for the caption.
+    var itemSpacing: CGFloat {
+        switch self {
+        case .large:    return 12
+        case .standard: return 10
+        case .small:    return 8
+        }
+    }
+    var rowSpacing: CGFloat { itemSpacing + 4 }
+
+    /// Corner radius used when the cover shape is `.rounded` (scales with density).
+    var cornerRadius: CGFloat {
+        switch self {
+        case .large:    return 14
+        case .standard: return 10
+        case .small:    return 8
+        }
+    }
+
+    /// Caption type shrinks with denser grids.
+    var titleFontSize: CGFloat {
+        switch self {
+        case .large:    return 13
+        case .standard: return 11
+        case .small:    return 10
+        }
+    }
+    var metaFontSize: CGFloat {
+        switch self {
+        case .large:    return 11
+        case .standard: return 10
+        case .small:    return 9
+        }
+    }
+}
+
+/// Cover clip shape. Extends the gallery's rounded/square set with a circular option.
+enum FilmCoverShape: String, CaseIterable, Identifiable {
+    case rounded
+    case square
+    case circle
+    var id: String { rawValue }
+
+    var displayName: LocalizedStringKey {
+        switch self {
+        case .rounded: return "Rounded"
+        case .square:  return "Square"
+        case .circle:  return "Circle"
+        }
+    }
+
+    /// Shape for `.clipShape`. `roundedRadius` comes from the active density.
+    func clipShape(roundedRadius: CGFloat) -> AnyShape {
+        switch self {
+        case .rounded: return AnyShape(RoundedRectangle(cornerRadius: roundedRadius, style: .continuous))
+        case .square:  return AnyShape(Rectangle())
+        case .circle:  return AnyShape(Circle())
+        }
+    }
+}
+
 // MARK: - Library main view
 
 struct FilmCardLibraryView: View {
@@ -55,17 +141,20 @@ struct FilmCardLibraryView: View {
     /// ISO selection. Contains stringified main ISO values ("50"/"100"/…) or `otherKey` for "Other".
     @State private var selectedISOs: Set<String> = []
     @State private var showFilterSheet = false
+    /// View-options menu state (left toolbar), persisted across launches.
+    @AppStorage("filmLibrary.density") private var density: FilmGridDensity = .standard
+    @AppStorage("filmLibrary.shape") private var coverShape: FilmCoverShape = .rounded
+    @AppStorage("filmLibrary.showsCaption") private var showsCaption = true
     /// Shared namespace for the iOS 18 zoom navigation transition. The grid
     /// thumbnail tagged with `card.id` morphs into the detail view tagged with
     /// the same id when the user pushes.
     @Namespace private var zoomNamespace
 
-    /// Adaptive grid. `minimum: 100` keeps 3 columns on iPhone (down to the
-    /// 13 mini's 375pt width → ~109pt cells) and expands to 6+ columns on
-    /// iPad portrait without per-device math.
-    private let columns = [
-        GridItem(.adaptive(minimum: 100), spacing: 10)
-    ]
+    /// Adaptive grid driven by the active density's minimum cell width — 2 / 3 / 4
+    /// columns on iPhone, expanding to 6+ on iPad without per-device math.
+    private var columns: [GridItem] {
+        [GridItem(.adaptive(minimum: density.minItemWidth), spacing: density.itemSpacing)]
+    }
 
     /// Brand / format threshold: count > 10 gets its own chip, the rest go into "Other".
     private static let majorBrandThreshold = 10
@@ -80,10 +169,13 @@ struct FilmCardLibraryView: View {
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: density.rowSpacing) {
                 ForEach(filteredCards) { card in
                     NavigationLink(value: card) {
-                        FilmCardThumbnail(card: card)
+                        FilmCardThumbnail(card: card,
+                                          density: density,
+                                          coverShape: coverShape,
+                                          showsCaption: showsCaption)
                     }
                     .buttonStyle(.plain)
                     .matchedTransitionSource(id: card.id, in: zoomNamespace)
@@ -92,11 +184,17 @@ struct FilmCardLibraryView: View {
             .padding(.horizontal, 14)
             .padding(.top, 8)
             .padding(.bottom, 24)
+            // Animate the cheap caption insert/remove; let density / shape changes snap
+            // (reflowing hundreds of cells under a spring is the biggest jank source).
+            .animation(.smooth, value: showsCaption)
         }
         .background(Color.black)
         .navigationTitle(Text("Film Library"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                layoutMenu
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
                     showFilterSheet = true
@@ -144,6 +242,31 @@ struct FilmCardLibraryView: View {
             }
         }
         .preferredColorScheme(.dark)
+    }
+
+    // MARK: - View options menu
+
+    /// Left-toolbar menu: grid density + cover shape + caption show/hide.
+    /// Mirrors the gallery's layout menu; selections persist via @AppStorage.
+    private var layoutMenu: some View {
+        Menu {
+            Picker("Grid size", selection: $density) {
+                ForEach(FilmGridDensity.allCases) { d in Text(d.displayName).tag(d) }
+            }
+            .pickerStyle(.inline)
+            Picker("Cover shape", selection: $coverShape) {
+                ForEach(FilmCoverShape.allCases) { s in Text(s.displayName).tag(s) }
+            }
+            .pickerStyle(.inline)
+            Picker("Caption", selection: $showsCaption) {
+                Text("Show").tag(true)
+                Text("Hide").tag(false)
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: "square.grid.2x2")
+        }
+        .accessibilityLabel("Grid layout options")
     }
 
     // MARK: - Filter computation
@@ -314,11 +437,17 @@ struct BrandChipEntry: Hashable {
 
 struct FilmCardThumbnail: View {
     let card: FilmCard
+    let density: FilmGridDensity
+    let coverShape: FilmCoverShape
+    let showsCaption: Bool
     @State private var image: UIImage?
     @Environment(\.displayScale) private var displayScale
 
+    /// Captions center under circular covers (Artists-style), left-align otherwise.
+    private var isCircle: Bool { coverShape == .circle }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: isCircle ? .center : .leading, spacing: 6) {
             ZStack {
                 Color.white.opacity(0.05)
                 if let image {
@@ -332,45 +461,52 @@ struct FilmCardThumbnail: View {
                 }
             }
             .aspectRatio(1, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .clipShape(coverShape.clipShape(roundedRadius: density.cornerRadius))
 
-            VStack(alignment: .leading, spacing: 2) {
-                // Product names are proper nouns from source data — render verbatim.
-                // Fall back to the localized "Unknown" string when product is missing.
-                Group {
-                    if let product = card.product, !product.isEmpty {
-                        Text(verbatim: product)
-                    } else {
-                        Text("Unknown")
-                    }
-                }
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.white.opacity(0.85))
-                .lineLimit(1)
-
-                HStack(spacing: 4) {
-                    if let iso = card.iso {
-                        Text(verbatim: "ISO \(iso)")
-                            .font(.system(size: 10))
-                            .foregroundColor(.white.opacity(0.45))
-                    }
-                    if let format = card.format {
-                        Text(verbatim: format)
-                            .font(.system(size: 10))
-                            .foregroundColor(.white.opacity(0.45))
-                            .lineLimit(1)
-                    }
-                }
+            if showsCaption {
+                caption
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .task(id: card.id) {
-            // Adaptive grid → cells range from ~100pt (iPad) to ~170pt
-            // (iPhone Pro Max with 2 cols). Size at the upper bound × scale,
+            // Stable pixel anchor (independent of density) so switching grid size is
+            // a cache hit, not a re-decode. Sized for the largest cell × scale,
             // floored at 300 to satisfy the thumbnail API's minimum.
-            let pixel = max(Int(180.0 * displayScale), 300)
+            let pixel = max(Int(200.0 * displayScale), 300)
             image = await FilmCardLibrary.shared.image(for: card, maxPixel: pixel)
         }
+    }
+
+    @ViewBuilder
+    private var caption: some View {
+        VStack(alignment: isCircle ? .center : .leading, spacing: 2) {
+            // Product names are proper nouns from source data — render verbatim.
+            // Fall back to the localized "Unknown" string when product is missing.
+            Group {
+                if let product = card.product, !product.isEmpty {
+                    Text(verbatim: product)
+                } else {
+                    Text("Unknown")
+                }
+            }
+            .font(.system(size: density.titleFontSize, weight: .medium))
+            .foregroundColor(.white.opacity(0.85))
+            .lineLimit(1)
+
+            HStack(spacing: 4) {
+                if let iso = card.iso {
+                    Text(verbatim: "ISO \(iso)")
+                        .font(.system(size: density.metaFontSize))
+                        .foregroundColor(.white.opacity(0.45))
+                }
+                if let format = card.format {
+                    Text(verbatim: format)
+                        .font(.system(size: density.metaFontSize))
+                        .foregroundColor(.white.opacity(0.45))
+                        .lineLimit(1)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: isCircle ? .center : .leading)
     }
 }
 
