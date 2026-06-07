@@ -30,17 +30,19 @@ struct CameraView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var cameraManager: CameraManager
     @State private var showFlash = false
-    /// 仅守护 tap → 拿到 raw photo data（含闪光灯 AE/WB 还原）这一窗口。
-    /// 拿到 data 后立刻释放，让用户能继续按下一张快门 —— 后处理 pipeline 由
-    /// pendingPostProcessing 计数 + 上限 2 并发守护，避免 N 张 48MP HEIF 编码同时占满
-    /// 内存触发 jetsam，又不至于像旧实现那样卡 1.5–3s 才能再拍。
+    /// 曝光窗口去抖：仅守护 tap → 静态图就绪（含闪光灯 AE/WB 还原）这一小段（live/非 live 都 ~300ms）。
+    /// 由 cameraManager 的 `onShutterReady` 回调放开——**不再等 live 配对视频的 ~1.5s 录制窗口**。
+    /// 放开后用户即可按下一张；在途的多张拍照由 CameraManager 按 uniqueID 分桶、互不覆盖。
     @State private var isShutterBusy = false
-    /// 后处理（LUT + save + 缩略图）正在跑的张数。spinner 与连按节流都看它。
-    /// 上限 2：iPhone 17 Pro 单张 48MP HEIF10 编码峰值内存 ~200-300MB，2 张并发可控。
+    /// 在途重活计数（曝光 + 后处理全程）：tap 时 +1 预留槽位，后台 LUT/转码/写库全部跑完才 -1。
+    /// spinner 与连按节流都看它。tap 时就 +1（而非等交付）是关键：live 的配对视频要 ~1.5s 才到，
+    /// 若等交付才计数，这 ~1.5s 内门是「开」的，用户连点会瞬间排起 N 条「48MP 编码 + 视频转码」
+    /// 流水线 → 内存峰值失控。tap 即预留，让 gate 始终反映真实在途量。
     @State private var pendingPostProcessing = 0
-    /// 后处理并发上限。普通拍照 2 张并发可控；Live Photo 时单张还要叠一段 ~3s 视频逐帧 LUT 转码，
-    /// 内存峰值更高 → 降到 1，避免两条「48MP HEIF + 视频转码」流水线同时跑触发 jetsam。
-    private var maxInflightProcessing: Int { livePhotoEnabled ? 1 : 2 }
+    /// 在途重活并发上限。单张 48MP HEIF10 编码峰值内存 ~200-300MB。普通拍照 3 张并发可控；
+    /// Live Photo 每张还要叠一段视频逐帧 LUT 转码，内存峰值更高 → 限 2，避免多条重流水线同时跑
+    /// 触发 jetsam，又能让用户「连拍 2 张再缓一下」而不是每张都卡死等上一张走完。
+    private var maxInflightProcessing: Int { livePhotoEnabled ? 2 : 3 }
     @State private var shutterPressed = false
     /// 拍照 pipeline 完成时立即 push 进来的 88pt 缩略图 hint（避免等 @Query 通知链 ~300-500ms）。
     /// RecentPhotosBadge 通过 @Binding 读写：source 切换时它会清空 hint 并从新 source 的 @Query
@@ -398,11 +400,10 @@ struct CameraView: View {
 
     private func capturePhoto() {
         // 两道闸门：
-        //  1) isShutterBusy — 上一张的 tap → raw data + 闪光灯 AE/WB 还原这段窗口（必须串行）。
-        //  2) pendingPostProcessing >= maxInflightProcessing — 后处理并发上限（48MP HEIF10
-        //     编码内存峰值 ~200-300MB×N，限 2 张以内）。达到上限时 tap 直接忽略。
-        // 拿到 raw data 后立刻释放 isShutterBusy，让用户能继续按下一张快门，后处理走后台。
-        // 这是 iPhone 系统相机的快门手感。
+        //  1) isShutterBusy — 仅守护 tap → 静态图就绪 + 闪光灯 AE/WB 还原这段小窗口（~300ms，
+        //     live/非 live 同）。由 onShutterReady 放开，**不再等 live 视频的 ~1.5s**。
+        //  2) pendingPostProcessing >= maxInflightProcessing — 在途重活并发上限（live=2 / 普通=3）。
+        //     达到上限时 tap 直接忽略。tap 时即 +1 预留（见属性注释），避免 live 的视频窗口期门「虚开」。
         // 相机根本不可用（权限未授予 / 启动配置未完成 / 已离开页面）时静默忽略快门——
         // 否则 issueCapturePhoto 会在无 active connection 时抛 NSException 崩溃。
         // 注意用 isCaptureAvailable 而非 isReadyToCapture：镜头切换中相机是「可用但未就绪」，
@@ -424,6 +425,9 @@ struct CameraView: View {
         Log.capture.info("shutter_tap source=\(source.photoFilterName, privacy: .public) pending_post=\(pendingPostProcessing)")
 
         isShutterBusy = true
+        // tap 即预留一个在途重活槽位：覆盖「曝光 + 等 live 视频 + 后处理」全程，直到后台 task 跑完才 -1。
+        // 必须在这里 +1 而非等交付，否则 live 的 ~1.5s 视频窗口内门会虚开、连点排爆内存（见属性注释）。
+        pendingPostProcessing += 1
         shutterPressed = true
         cameraManager.hapticMedium.impactOccurred()
 
@@ -465,16 +469,21 @@ struct CameraView: View {
         }, onExposureComplete: {
             // 仅 log——曝光物理完成的延迟可观察 ZSL 冷启动 / pre-flash AE 收敛耗时。
             Log.capture.info("exposure_complete dt_from_tap=\(Log.ms(since: tapTime))ms")
+        }, onShutterReady: {
+            // 静态图已拍下 + 闪光灯 AE/WB 已还原 → 立即放开快门，让用户能按下一张。
+            // live 配对视频（~1.5s 环形缓冲）与全部后处理仍在后台进行，不阻塞这一步。
+            // 这是把「快门可再按」从「完整交付」解耦后的核心收益：live 模式快门响应从 ~1.5s 降到 ~300ms。
+            isShutterBusy = false
         }) { result in
-            // 拍照交付：闪光灯 AE/WB 已在 CameraManager.deliverCaptureIfReady 里于静态图就绪时还原。
+            // 拍照交付（启动后处理的信号，**不是**放开快门的信号——快门早在 onShutterReady 放开了）。
+            // 闪光灯 AE/WB 已在 CameraManager.deliverCaptureIfReady 里于静态图就绪时还原。
             // 非 live：result 在静态图就绪时立即到达。live：等静态图 + 动态视频两个交付物齐了才到达
             // （视频是 shutter 前后 ~1.5s 环形缓冲，故 live 时此回调约在 tap 后 ~1.5s）。
-            // 此刻释放 isShutterBusy，后续 LUT/视频转码/save 走后台。
-            isShutterBusy = false
-
             guard let result else {
                 Log.capture.error("photo_data_nil dt_from_tap=\(Log.ms(since: tapTime))ms")
                 shutterPressed = false
+                // 失败：释放 tap 时预留的在途槽位（onShutterReady 已/会经 terminal 放开 isShutterBusy）。
+                pendingPostProcessing = max(0, pendingPostProcessing - 1)
                 captureError = String(localized: "Capture failed: couldn't get image data, please try again")
                 return
             }
@@ -483,11 +492,8 @@ struct CameraView: View {
             let photoDisplayTime = result.photoDisplayTime
             Log.capture.info("photo_data_received bytes=\(data.count) live=\(liveMovieURL != nil) dt_from_tap=\(Log.ms(since: tapTime))ms")
 
-            // 进后台并发后处理之前先占个位，连按时第二张能感知"已有 1 张在跑"。
-            pendingPostProcessing += 1
-
             Task.detached(priority: .userInitiated) {
-                // defer 兜底：即便 LUT/save 抛错，pendingPostProcessing 也必须递减，
+                // defer 兜底：即便 LUT/save 抛错，tap 时预留的 pendingPostProcessing 槽位也必须递减，
                 // 否则连按 maxInflight 次后按钮永久 disabled。
                 defer {
                     Task { @MainActor in
