@@ -78,64 +78,88 @@ struct CameraView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            // 预览区
-            GeometryReader { geometry in
-                ZStack(alignment: .bottom) {
-                    // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade,
-                    // 预览不黑屏），不再需要 bridgeImage 帧桥接。
-                    // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
-                    // 不挂在 ZStack 上是为了避免与底部 FocalLengthStrip 的 simultaneousGesture
-                    // 同时触发——子视图各自管自己的命中区域。
-                    RealtimePreviewView(manager: cameraManager, lutCacheKey: source.lutCacheKey)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .contentShape(Rectangle())
-                        .gesture(unifiedPreviewGesture(viewportSize: geometry.size))
+            // 预览 + 焦距/LUT 控制区：自上而下成一个整体并**靠上排布**——预览在上、焦距条紧贴其下、
+            // LUT 选择条按需展开落在焦距条之下。靠上排布让顶部不再空出大块「居中余量」，富余空间
+            // 落到控制区与底部快门之间。焦距/LUT 都在预览下方独立命中区，取景时不会误触。
+            VStack(spacing: 12) {
+                // 预览区
+                GeometryReader { geometry in
+                    ZStack(alignment: .bottom) {
+                        // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade,
+                        // 预览不黑屏），不再需要 bridgeImage 帧桥接。
+                        // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
+                        RealtimePreviewView(manager: cameraManager, lutCacheKey: source.lutCacheKey)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .contentShape(Rectangle())
+                            .gesture(unifiedPreviewGesture(viewportSize: geometry.size))
 
-                    if showFocusIndicator, let point = focusPoint {
-                        FocusIndicatorView()
-                            .position(point)
+                        if showFocusIndicator, let point = focusPoint {
+                            FocusIndicatorView()
+                                .position(point)
 
-                        // 曝光补偿 sun rail（iPhone Camera 风格）：靠近预览右边缘时翻到对焦框左侧,
-                        // 永远保持在可视区域内。allowsHitTesting(false) 让手势穿透到下层预览,
-                        // 用户可以直接在 sun 图标上继续拖动。
-                        ExposureSunRail(
-                            bias: cameraManager.exposureBias,
-                            isAdjusting: isAdjustingExposure
-                        )
-                        // 长轴始终沿用户视角竖直——controlRotationAngle 把内容旋转到用户上方为正。
-                        // sunYOffset(bias>0) 在旋转后的局部坐标里 = "用户视角向上"，与上滑变亮的手势同向。
-                        .rotationEffect(controlRotationAngle)
-                        .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
-                        .position(sunRailPosition(focus: point, viewport: geometry.size))
-                        .allowsHitTesting(false)
+                            // 曝光补偿 sun rail（iPhone Camera 风格）：靠近预览右边缘时翻到对焦框左侧,
+                            // 永远保持在可视区域内。allowsHitTesting(false) 让手势穿透到下层预览,
+                            // 用户可以直接在 sun 图标上继续拖动。
+                            ExposureSunRail(
+                                bias: cameraManager.exposureBias,
+                                isAdjusting: isAdjustingExposure
+                            )
+                            // 长轴始终沿用户视角竖直——controlRotationAngle 把内容旋转到用户上方为正。
+                            // sunYOffset(bias>0) 在旋转后的局部坐标里 = "用户视角向上"，与上滑变亮的手势同向。
+                            .rotationEffect(controlRotationAngle)
+                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
+                            .position(sunRailPosition(focus: point, viewport: geometry.size))
+                            .allowsHitTesting(false)
+                        }
                     }
-
-                    // 焦距选择条悬浮在预览底部（iPhone Camera 风格）。容器与位置在所有方向下都
-                    // 不变，只是内部数字跟随设备方向旋转，让用户视角下文字方向正确。
-                    FocalLengthStrip(
-                        focalInfo: cameraManager.focalInfo,
-                        current: cameraManager.currentFocalLength,
-                        contentRotation: controlRotationAngle
-                    ) { option in
-                        cameraManager.hapticSoft.impactOccurred()
-                        cameraManager.setFocalLength(option)
-                    }
-                    .padding(.bottom, 14)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // 3:4 纵向 = iPhone 传感器原生纵横比。预览 viewport 与 sensor 输出对齐，aspect-fill
+                // 在 MTKView 里是无损裁切（scale_x == scale_y），出片也保留全 sensor FOV。
+                // 取消 2:3 (135 胶片) 裁切后：tap-to-focus 坐标无需偏移修正，FOV 也最大化。
+                .aspectRatio(3.0/4.0, contentMode: .fit)
+
+                // 焦距选择条（iPhone Camera 风格）：常驻，紧贴预览底边。容器/位置在所有方向下都不变，
+                // 只内部数字随设备方向旋转，让用户视角下文字方向正确。
+                FocalLengthStrip(
+                    focalInfo: cameraManager.focalInfo,
+                    current: cameraManager.currentFocalLength,
+                    contentRotation: controlRotationAngle
+                ) { option in
+                    cameraManager.hapticSoft.impactOccurred()
+                    cameraManager.setFocalLength(option)
+                }
+
+                // 胶片(LUT)选择条按需展开：与焦距条同处预览下方控制区、落在其下方——同一图层纵向排布,
+                // 不替换、不遮挡焦距条。右下封面 tap 切换；选中任一胶片后自动收起。
+                if showFilmPicker {
+                    FilmSourcePickerStrip(
+                        current: source,
+                        customLUTs: customLUTs,
+                        contentRotation: controlRotationAngle,
+                        orientation: cameraManager.currentDeviceOrientation
+                    ) { newSource in
+                        if newSource.id != source.id {
+                            cameraManager.hapticSoft.impactOccurred()
+                            source = newSource
+                            // 通常 ContentView 启动时已 preload；冷启动后从 picker 第一次切到某胶片
+                            // 也走一次保险——FilmProcessor cache 命中时零开销。
+                            FilmProcessor.shared.preload(source: newSource)
+                        }
+                        withAnimation(.easeInOut(duration: 0.22)) {
+                            showFilmPicker = false
+                        }
+                    }
+                    // 阴影让它读作浮层而非贴底的条带。
+                    .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
-            // 3:4 纵向 = iPhone 传感器原生纵横比。预览 viewport 与 sensor 输出对齐，aspect-fill
-            // 在 MTKView 里是无损裁切（scale_x == scale_y），出片也保留全 sensor FOV。
-            // 取消 2:3 (135 胶片) 裁切后：tap-to-focus 坐标无需偏移修正，FOV 也最大化。
-            .aspectRatio(3.0/4.0, contentMode: .fit)
-            // 两侧留标准内容边距（16pt），让预览左右边缘与顶部工具栏按钮、底部控制行（同 16pt）
-            // 三排对齐，而不是几乎贴边。
+            // 两侧留标准内容边距（16pt），让预览左右边缘与顶部工具栏按钮、底部控制行（同 16pt）对齐。
             .padding(.horizontal, 16)
-            // 选择条展开时把预览贴到可用区底部——否则预览是居中的，safeAreaInset 撑高后会在
-            // 预览底边与选择条之间留出一段「居中余量」（看起来像离预览很远）。贴底后选择条紧贴预览，
-            // 与快门的距离交给底部 VStack 的 spacing 控制。收起时恢复居中。
-            .frame(maxWidth: .infinity, maxHeight: .infinity,
-                   alignment: showFilmPicker ? .bottom : .center)
+            // 整组垂直居中：富余空间在组上下平分（spacer / 预览 / 焦距 /(LUT) / spacer）。
+            // 展开 LUT 栏时整组变高、自然向上下两侧扩展，预览与焦距条始终居中而非被推到一边。
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
             // 权限被拒绝时的引导
             if cameraManager.cameraPermissionDenied {
@@ -259,39 +283,10 @@ struct CameraView: View {
                 .accessibilityHint("Toggle flash")
             }
         }
-        // 底部控制栏（焦距选择条已移到预览内部，不再占用底部空间）
+        // 底部快门行。焦距条 / LUT 选择条已上移到预览下方的控制区（见 body 顶部 VStack），
+        // 这里只保留「最近照片 / 快门 / 胶片封面」一行。
         .safeAreaInset(edge: .bottom) {
-            // 胶片选择条作为 inset 的一部分：弹出时撑高底部 inset → 预览整体上移，
-            // 选择条落在「上移后的预览」与「快门行」之间。toggle 包在 withAnimation 里，
-            // 预览上移与选择条出现一起做动画。
-            VStack(spacing: 22) {
-                // 胶片选择条（按需展开）：右下封面 tap 切换。选中任一胶片后自动收起。
-                if showFilmPicker {
-                    FilmSourcePickerStrip(
-                        current: source,
-                        customLUTs: customLUTs,
-                        contentRotation: controlRotationAngle,
-                        orientation: cameraManager.currentDeviceOrientation
-                    ) { newSource in
-                        if newSource.id != source.id {
-                            cameraManager.hapticSoft.impactOccurred()
-                            source = newSource
-                            // 通常 ContentView 启动时已 preload；冷启动后从 picker 第一次切到某胶片
-                            // 也走一次保险——FilmProcessor cache 命中时零开销。
-                            FilmProcessor.shared.preload(source: newSource)
-                        }
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            showFilmPicker = false
-                        }
-                    }
-                    // 与预览/控制行同一 16pt 内容栅格对齐；阴影让它读作浮层而非贴底的条带。
-                    // 顶部留 10pt，与贴底后的预览底边之间一点呼吸（不至于完全贴死）。
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
-                    .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-
+            VStack(spacing: 18) {
                 HStack {
                     // 左：最近照片缩略图。后处理（LUT+save+thumbnail）期间叠加 spinner —
                     // 48MP 10-bit HEIF 编码 1.5-3s，用户需要明确"系统在干活"的反馈。
