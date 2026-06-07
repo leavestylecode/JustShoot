@@ -28,6 +28,7 @@ struct CameraView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.displayScale) private var displayScale
     @StateObject private var cameraManager: CameraManager
     @State private var showFlash = false
     /// 曝光窗口去抖：仅守护 tap → 静态图就绪（含闪光灯 AE/WB 还原）这一小段（live/非 live 都 ~300ms）。
@@ -355,6 +356,8 @@ struct CameraView: View {
         .onAppear {
             FilmProcessor.shared.preload(source: source)
             cameraManager.requestCameraPermission()
+            // 后台预热 picker 封面缩略图，消除「第一次展开 LUT 栏时 8 张封面同帧冷解码」的掉帧。
+            FilmSourcePickerStrip.preloadCovers(displayScale: displayScale)
         }
         .onDisappear {
             cameraManager.stopSession()
