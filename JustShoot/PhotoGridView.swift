@@ -31,11 +31,11 @@ enum GalleryShape: String, CaseIterable, Identifiable {
 // 为什么用 UIKit 而不是 SwiftUI LazyVGrid（调研结论，2024-2025 WWDC + Apple 论坛）：
 //   1. 滚动流畅度：UICollectionView 的 cell 复用 + DataSourcePrefetching 后台预解码是十几年
 //      打磨的成熟方案；LazyVGrid 在数百+ cell 时依赖图要 eager 追踪全部行，滚动掉帧。
-//   2. 滚动 vs 拖动多选：苹果原生 shouldBeginMultipleSelectionInteractionAt（两指平移）由系统
-//      在手势识别器层面和单指滚动区分开，零冲突；SwiftUI 自定义 DragGesture/LongPress 必然和
-//      ScrollView 抢手势（要么误选、要么卡死滚动）。
+//   2. 选择交互：进入编辑模式后用系统原生 allowsMultipleSelectionDuringEditing 管理多选，
+//      手势/选中态由系统维护；SwiftUI 自定义 DragGesture/LongPress 必然和 ScrollView 抢手势
+//      （要么误选、要么卡死滚动）。（两指平移直接起手多选已禁用——见 shouldBegin… 返回 false。）
 //
-// 与 SwiftUI 外壳的分工：网格滚动/cell/预取/原生多选在这里（UIKit）；选择状态、工具栏、tab 栏
+// 与 SwiftUI 外壳的分工：网格滚动/cell/预取/多选在这里（UIKit）；选择状态、工具栏、tab 栏
 // 隐藏、下载/删除、详情 push 仍在 GalleryView（SwiftUI），通过 @Binding 双向同步。
 struct PhotoGridView: UIViewRepresentable {
     let photos: [Photo]
@@ -195,22 +195,11 @@ struct PhotoGridView: UIViewRepresentable {
             parent.selectedPhotos.remove(id)
         }
 
-        // MARK: 原生两指拖动多选（系统自动与单指滚动区分）
+        // MARK: 两指拖动多选——已禁用
+        // 只允许通过工具栏「选择」按钮进入编辑模式；返回 false 关掉系统原生的两指平移多选，
+        // 避免浏览时误触。（didBeginMultipleSelectionInteractionAt 随之永不触发，故删除。）
         func collectionView(_ cv: UICollectionView, shouldBeginMultipleSelectionInteractionAt indexPath: IndexPath) -> Bool {
-            true
-        }
-
-        func collectionView(_ cv: UICollectionView, didBeginMultipleSelectionInteractionAt indexPath: IndexPath) {
-            // 两指平移起手即进入编辑模式（即便此前不在选择模式）。同步设 cv.isEditing 让手势立即生效，
-            // 再把 binding 推回 SwiftUI（驱动工具栏切换 + 隐藏 tab 栏）。
-            if !cv.isEditing {
-                cv.isEditing = true
-                refreshEditingVisual(cv)
-            }
-            if !parent.isSelecting {
-                let binding = parent.$isSelecting
-                DispatchQueue.main.async { binding.wrappedValue = true }
-            }
+            false
         }
 
         // MARK: Prefetch
