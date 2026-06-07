@@ -103,6 +103,65 @@ enum PhotoLibrary {
         return id
     }
 
+    // MARK: - 保存 Live Photo
+    //
+    // 与 save 同构，但在同一 PHAssetCreationRequest 上挂两个资源：.photo（已套 LUT 的 HEIC 字节）
+    // + .pairedVideo（已套 LUT、写好 content identifier + still-image-time 的 .mov 文件）。Photos
+    // 据两个资源里相同的 content identifier 把它们识别为一张 Live Photo。视频用 shouldMoveFile=true：
+    // 保存即移动临时文件进图库，省一次拷贝，事务结束后临时文件已不在原处（caller 的 cleanup 兜底）。
+    static func saveLivePhoto(
+        imageData: Data,
+        videoURL: URL,
+        creationDate: Date,
+        latitude: Double?,
+        longitude: Double?,
+        altitude: Double?,
+        locationTimestamp: Date?
+    ) async throws -> String {
+        try await ensureAuthorized()
+
+        let idBox = Box<String?>(nil)
+        try await PHPhotoLibrary.shared().performChanges {
+            let creation = PHAssetCreationRequest.forAsset()
+            creation.creationDate = creationDate
+
+            if let lat = latitude, let lon = longitude {
+                creation.location = CLLocation(
+                    coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                    altitude: altitude ?? 0,
+                    horizontalAccuracy: 10,
+                    verticalAccuracy: 10,
+                    timestamp: locationTimestamp ?? creationDate
+                )
+            }
+
+            let photoOptions = PHAssetResourceCreationOptions()
+            if let src = CGImageSourceCreateWithData(imageData as CFData, nil),
+               let uti = CGImageSourceGetType(src) {
+                photoOptions.uniformTypeIdentifier = uti as String
+            }
+            creation.addResource(with: .photo, data: imageData, options: photoOptions)
+
+            let videoOptions = PHAssetResourceCreationOptions()
+            videoOptions.shouldMoveFile = true
+            creation.addResource(with: .pairedVideo, fileURL: videoURL, options: videoOptions)
+
+            guard let placeholder = creation.placeholderForCreatedAsset else { return }
+            idBox.value = placeholder.localIdentifier
+
+            if let album = findAlbum(),
+               let albumChange = PHAssetCollectionChangeRequest(for: album) {
+                albumChange.addAssets([placeholder] as NSArray)
+            } else {
+                let albumCreation = PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: albumTitle)
+                albumCreation.addAssets([placeholder] as NSArray)
+            }
+        }
+
+        guard let id = idBox.value else { throw PhotoLibraryError.saveFailed }
+        return id
+    }
+
     /// 同步查找已存在的 JustShoot 相簿（仅在 performChanges 闭包内调用，结果不跨 await）。
     private static func findAlbum() -> PHAssetCollection? {
         let opts = PHFetchOptions()
@@ -262,6 +321,26 @@ final class AssetImageLoader: @unchecked Sendable {
                 if resumed.value { return }
                 resumed.value = true
                 cont.resume(returning: image)
+            }
+        }
+    }
+
+    /// 加载 PHLivePhoto（详情页长按播放用）。targetSize 给屏幕尺寸即可；PHImageManager 自带缓存 +
+    /// iCloud 回源。highQualityFormat 单次回调，可安全 resume 一次。
+    func livePhoto(id: String, targetSize: CGSize) async -> PHLivePhoto? {
+        guard let asset = asset(id: id) else { return nil }
+        let opts = PHLivePhotoRequestOptions()
+        opts.deliveryMode = .highQualityFormat
+        opts.isNetworkAccessAllowed = true
+        return await withCheckedContinuation { (cont: CheckedContinuation<PHLivePhoto?, Never>) in
+            let resumed = Box(false)
+            manager.requestLivePhoto(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: opts) { livePhoto, info in
+                // opportunistic 可能多次回调；highQualityFormat 理论一次，但仍以 Box 守护只 resume 一次。
+                let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+                if degraded && livePhoto == nil { return }
+                if resumed.value { return }
+                resumed.value = true
+                cont.resume(returning: livePhoto)
             }
         }
     }

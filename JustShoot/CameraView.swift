@@ -20,6 +20,9 @@ struct CameraView: View {
     /// 用户在设置页选的输出画质档。拍照时读它的 compressionQuality 传给 LUT 编码 + metadata 注入。
     /// 默认 .standard（对齐 iPhone 原相机体积）。
     @AppStorage("photoOutputQuality") private var photoQuality: PhotoQuality = .default
+    /// Live Photo 开关（顶栏切换，默认开，像 iPhone 原相机）。开启时每张拍照同时录一段动态视频，
+    /// 静态图与视频都套当前胶片 LUT 后存为系统相册 Live Photo。仅在设备支持时顶栏才显示该按钮。
+    @AppStorage("livePhotoEnabled") private var livePhotoEnabled = true
     /// Picker 候选列表里需要展示用户导入的自定义 LUT；CameraView 自己持有 @Query 直接喂给 strip。
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @Environment(\.dismiss) private var dismiss
@@ -35,7 +38,9 @@ struct CameraView: View {
     /// 后处理（LUT + save + 缩略图）正在跑的张数。spinner 与连按节流都看它。
     /// 上限 2：iPhone 17 Pro 单张 48MP HEIF10 编码峰值内存 ~200-300MB，2 张并发可控。
     @State private var pendingPostProcessing = 0
-    private static let maxInflightProcessing = 2
+    /// 后处理并发上限。普通拍照 2 张并发可控；Live Photo 时单张还要叠一段 ~3s 视频逐帧 LUT 转码，
+    /// 内存峰值更高 → 降到 1，避免两条「48MP HEIF + 视频转码」流水线同时跑触发 jetsam。
+    private var maxInflightProcessing: Int { livePhotoEnabled ? 1 : 2 }
     @State private var shutterPressed = false
     /// 拍照 pipeline 完成时立即 push 进来的 88pt 缩略图 hint（避免等 @Query 通知链 ~300-500ms）。
     /// RecentPhotosBadge 通过 @Binding 读写：source 切换时它会清空 hint 并从新 source 的 @Query
@@ -221,7 +226,23 @@ struct CameraView: View {
                 }
             }
 
-            // 右上：闪光灯
+            // 右上：Live Photo 开关（仅设备支持时显示）+ 闪光灯
+            if cameraManager.isLivePhotoSupported {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        cameraManager.hapticLight.impactOccurred()
+                        livePhotoEnabled.toggle()
+                    } label: {
+                        Image(systemName: livePhotoEnabled ? "livephoto" : "livephoto.slash")
+                            .rotationEffect(controlRotationAngle)
+                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
+                    }
+                    .tint(livePhotoEnabled ? .yellow : .white)
+                    .accessibilityLabel(livePhotoEnabled ? Text("Live Photo on") : Text("Live Photo off"))
+                    .accessibilityHint("Toggle Live Photo")
+                }
+            }
+
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     cameraManager.toggleFlashMode()
@@ -392,7 +413,7 @@ struct CameraView: View {
             Log.capture.debug("shutter_ignored reason=shutter_busy")
             return
         }
-        guard pendingPostProcessing < Self.maxInflightProcessing else {
+        guard pendingPostProcessing < maxInflightProcessing else {
             Log.capture.debug("shutter_ignored reason=post_processing_full pending=\(pendingPostProcessing)")
             return
         }
@@ -421,7 +442,7 @@ struct CameraView: View {
         let focalMm = cameraManager.currentFocalLength.rawValue
         // 在 MainActor 上读取用户选的画质档，捕获进后台 task（detached 里不能再读 @AppStorage）。
         let outputQuality = photoQuality.compressionQuality
-        cameraManager.capturePhoto(onWillCapture: {
+        cameraManager.capturePhoto(live: livePhotoEnabled, onWillCapture: {
             // AVF 主曝光起始帧——开闪光灯时即氙气主脉冲发射的瞬间，关闪光灯时 ZSL/responsive
             // 让这一刻在 tap 后 50–150ms 内 fire。在这里驱动白屏，UI 与真实光线同帧。
             //
@@ -442,19 +463,23 @@ struct CameraView: View {
         }, onExposureComplete: {
             // 仅 log——曝光物理完成的延迟可观察 ZSL 冷启动 / pre-flash AE 收敛耗时。
             Log.capture.info("exposure_complete dt_from_tap=\(Log.ms(since: tapTime))ms")
-        }) { imageData in
-            // raw photo data 已到手 + 闪光灯 AE/WB 已在 didFinishProcessingPhoto 里同步还原
-            // （CameraManager 的 finishCapture 顺序：applyFlashRestore → CaptureRequest.onData）。
-            // 立即释放 isShutterBusy，让用户能继续按下一张快门 —— 后续 LUT+save 走后台并发。
+        }) { result in
+            // 拍照交付：闪光灯 AE/WB 已在 CameraManager.deliverCaptureIfReady 里于静态图就绪时还原。
+            // 非 live：result 在静态图就绪时立即到达。live：等静态图 + 动态视频两个交付物齐了才到达
+            // （视频是 shutter 前后 ~1.5s 环形缓冲，故 live 时此回调约在 tap 后 ~1.5s）。
+            // 此刻释放 isShutterBusy，后续 LUT/视频转码/save 走后台。
             isShutterBusy = false
 
-            guard let data = imageData else {
+            guard let result else {
                 Log.capture.error("photo_data_nil dt_from_tap=\(Log.ms(since: tapTime))ms")
                 shutterPressed = false
                 captureError = String(localized: "Capture failed: couldn't get image data, please try again")
                 return
             }
-            Log.capture.info("photo_data_received bytes=\(data.count) dt_from_tap=\(Log.ms(since: tapTime))ms")
+            let data = result.imageData
+            let liveMovieURL = result.livePhotoMovieURL
+            let photoDisplayTime = result.photoDisplayTime
+            Log.capture.info("photo_data_received bytes=\(data.count) live=\(liveMovieURL != nil) dt_from_tap=\(Log.ms(since: tapTime))ms")
 
             // 进后台并发后处理之前先占个位，连按时第二张能感知"已有 1 张在跑"。
             pendingPostProcessing += 1
@@ -471,12 +496,37 @@ struct CameraView: View {
                 let location = await manager.cachedOrFreshLocation()
                 Log.gps.info("gps_resolved present=\(location != nil) age=\(location.map { String(format: "%.1fs", Date().timeIntervalSince($0.timestamp)) } ?? "nil", privacy: .public)")
 
+                // Live Photo 动态视频先处理：套同一胶片 LUT + 重写 still-image-time 配对元数据，产出
+                // 过滤后的 .mov，并**返回 AVCapture 写入的 content identifier**——它要原样写进下面静态图
+                // 的 MakerApple["17"]，两端 id 一致才被 Photos 识别为一张 Live Photo。
+                // 视频处理失败则降级为只存静态图（绝不丢拍摄结果）。源视频用完即删。
+                var filteredMovieURL: URL? = nil
+                var contentID: String? = nil
+                if let srcMovie = liveMovieURL {
+                    let out = FileManager.default.temporaryDirectory
+                        .appendingPathComponent("livephoto_lut_\(UUID().uuidString).mov")
+                    do {
+                        contentID = try await LivePhotoProcessor.process(
+                            sourceURL: srcMovie,
+                            lutCacheKey: currentSource.lutCacheKey,
+                            photoDisplayTime: photoDisplayTime,
+                            outputURL: out
+                        )
+                        filteredMovieURL = out
+                    } catch {
+                        Log.save.error("livephoto_video_failed error=\(error.localizedDescription, privacy: .public)")
+                        try? FileManager.default.removeItem(at: out)
+                    }
+                    try? FileManager.default.removeItem(at: srcMovie)
+                }
+
                 let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(
                     imageData: data,
                     lutCacheKey: currentSource.lutCacheKey,
                     outputQuality: outputQuality,
                     location: location,
-                    focalLengthIn35mm: focalMm
+                    focalLengthIn35mm: focalMm,
+                    contentIdentifier: contentID   // 与上面视频同一 id 配对；非 live / 视频失败时为 nil
                 )
 
                 let finalData = processedData ?? data
@@ -501,17 +551,33 @@ struct CameraView: View {
                     var assetID: String? = nil
                     var fallbackData: Data? = nil
                     do {
-                        assetID = try await PhotoLibrary.save(
-                            imageData: finalData,
-                            creationDate: Date(),
-                            latitude: location?.coordinate.latitude,
-                            longitude: location?.coordinate.longitude,
-                            altitude: location?.altitude,
-                            locationTimestamp: location?.timestamp
-                        )
+                        if let movie = filteredMovieURL {
+                            // Live Photo：静态图 + 配对视频一并写入相册（saveLivePhoto 内部 shouldMoveFile，
+                            // 成功即把临时视频移入图库）。
+                            assetID = try await PhotoLibrary.saveLivePhoto(
+                                imageData: finalData,
+                                videoURL: movie,
+                                creationDate: Date(),
+                                latitude: location?.coordinate.latitude,
+                                longitude: location?.coordinate.longitude,
+                                altitude: location?.altitude,
+                                locationTimestamp: location?.timestamp
+                            )
+                        } else {
+                            assetID = try await PhotoLibrary.save(
+                                imageData: finalData,
+                                creationDate: Date(),
+                                latitude: location?.coordinate.latitude,
+                                longitude: location?.coordinate.longitude,
+                                altitude: location?.altitude,
+                                locationTimestamp: location?.timestamp
+                            )
+                        }
                     } catch {
                         Log.save.error("photos_write_failed_fallback_internal error=\(error.localizedDescription, privacy: .public)")
                         fallbackData = finalData
+                        // 相册写入失败：过滤视频已不会进库，删掉临时文件（兜底只暂存静态图字节）。
+                        if let movie = filteredMovieURL { try? FileManager.default.removeItem(at: movie) }
                     }
 
                     let saver = PhotoSaver(modelContainer: container)
@@ -520,12 +586,13 @@ struct CameraView: View {
                         imageData: fallbackData,
                         filmPresetName: currentSource.photoFilterName,
                         filmDisplayLabel: displayLabel,
+                        isLivePhoto: filteredMovieURL != nil,
                         latitude: location?.coordinate.latitude,
                         longitude: location?.coordinate.longitude,
                         altitude: location?.altitude,
                         locationTimestamp: location?.timestamp
                     )
-                    Log.save.info("photo_saved id=\(id.uuidString, privacy: .public) asset=\(assetID ?? "nil", privacy: .public) bytes=\(finalData.count) preset=\(currentSource.photoFilterName, privacy: .public) gps=\(location != nil)")
+                    Log.save.info("photo_saved id=\(id.uuidString, privacy: .public) asset=\(assetID ?? "nil", privacy: .public) bytes=\(finalData.count) preset=\(currentSource.photoFilterName, privacy: .public) live=\(filteredMovieURL != nil) gps=\(location != nil)")
 
                     // 拍照成功后**立即**生成 88pt 缩略图并写入 lastPhotoThumbnail（hint），
                     // 不再等 SwiftData @Query 通知链（PhotoSaver actor save → 跨 context 通知 →

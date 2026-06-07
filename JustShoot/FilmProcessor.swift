@@ -188,7 +188,12 @@ final class FilmProcessor: Sendable {
     }
 
     /// 应用 LUT 并保留/添加元数据（拍照用，统一 sRGB 色彩空间）
-    func applyLUTPreservingMetadata(imageData: Data, lutCacheKey: String, outputQuality: CGFloat = 1.0, location: CLLocation? = nil, focalLengthIn35mm: Int? = nil) -> Data? {
+    ///
+    /// - contentIdentifier: 非 nil 时把它写进 MakerApple 字典 key "17"——这是 Live Photo 静态图
+    ///   与配对视频关联的 content identifier。静态图被 LUT 重编码后 AVCapture 原写入的 MakerApple
+    ///   可能不可靠存活，所以由调用方显式传入同一个 UUID，两端（这里 + LivePhotoProcessor 写视频）
+    ///   各自显式写入，配对不依赖原始字节往返。
+    func applyLUTPreservingMetadata(imageData: Data, lutCacheKey: String, outputQuality: CGFloat = 1.0, location: CLLocation? = nil, focalLengthIn35mm: Int? = nil, contentIdentifier: String? = nil) -> Data? {
         // 读取原始 metadata（AVCapture 写入的完整 EXIF / TIFF / Maker / 色彩空间字典）。
         // 一次读取，后面 orientation 判断 + metadata 注入都复用，避免重复打开 CGImageSource。
         let sourceProps: [String: Any] = {
@@ -356,6 +361,15 @@ final class FilmProcessor: Sendable {
             var exif = metadata[kCGImagePropertyExifDictionary as String] as? [String: Any] ?? [:]
             exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] = fl35
             metadata[kCGImagePropertyExifDictionary as String] = exif
+        }
+
+        // Live Photo 配对：把 content identifier 写进 MakerApple 字典 key "17"。配对视频侧
+        // （LivePhotoProcessor）写同一个 id 到 QuickTime content.identifier，Photos 据此把两个
+        // 资源识别为一张 Live Photo。这里显式写入（而非依赖原始 MakerApple 往返存活），更稳。
+        if let cid = contentIdentifier {
+            var maker = metadata[kCGImagePropertyMakerAppleDictionary as String] as? [String: Any] ?? [:]
+            maker["17"] = cid
+            metadata[kCGImagePropertyMakerAppleDictionary as String] = maker
         }
 
         // CGImageSourceGetType 自动识别 HEIC/JPEG，destination 用同一 type 写回。

@@ -33,6 +33,15 @@ import os
 //  12. 位置服务
 //  13. AVCapturePhotoCaptureDelegate / CLLocationManagerDelegate / 其它 delegate
 
+/// 一次拍照的完整产出，跨 actor 边界传给 CameraView 的后处理。非 live 时只有 imageData，
+/// 其余为 nil/invalid。live 时还带配对视频文件 URL + content identifier + still-image-time，
+/// 供 LivePhotoProcessor 套 LUT 并重写配对元数据后存为 Live Photo。
+struct CaptureResult: Sendable {
+    let imageData: Data
+    let livePhotoMovieURL: URL?
+    let photoDisplayTime: CMTime
+}
+
 @MainActor
 class CameraManager: NSObject, ObservableObject {
 
@@ -93,13 +102,24 @@ class CameraManager: NSObject, ObservableObject {
     ///   - flashRestore    : 开闪光时 issue 阶段锁的 AE/WB，capture 终结时还原。随单次拍照走，
     ///                       结构上不可能跨拍照互相覆盖（旧 pendingFlashRestore 共享字段会）。
     private struct CaptureRequest {
-        let onData: (Data?) -> Void
+        let onData: (CaptureResult?) -> Void
         let onWillCapture: (() -> Void)?
         let onExposureComplete: (() -> Void)?
         var flashRestore: FlashRestoreState?
+        /// 本次拍照是否要求 Live Photo（issue 阶段已设 livePhotoMovieFileURL）。true 时 onData 要等
+        /// 静态图 + 动态视频两个交付物都到齐（或 didFinishCaptureFor 终结兜底）才回调一次。
+        let expectsLiveMovie: Bool
+        // —— 两个异步交付物的累积状态（仅 @MainActor 读写）——
+        var stillArrived = false
+        var stillData: Data?
+        var movieArrived = false
+        var movieURL: URL?
+        var photoDisplayTime: CMTime = .invalid
     }
     private var inFlightCapture: CaptureRequest?
     @Published var flashMode: FlashMode = .off
+    /// photoOutput 是否支持 Live Photo（session 配置后回填）。UI 据此显示/隐藏 Live 开关。
+    @Published var isLivePhotoSupported: Bool = false
 
     // 震动反馈（预创建复用，减少首次延迟）
     let hapticLight = UIImpactFeedbackGenerator(style: .light)
@@ -662,6 +682,13 @@ class CameraManager: NSObject, ObservableObject {
                             output.isZeroShutterLagEnabled = true
                         }
 
+                        // Live Photo：整生命周期开启捕获能力（与 videoDataOutput 预览共存，现代 iOS 支持）。
+                        // 开启≠每张都拍 Live——是否产出动态视频由 per-capture 是否设 livePhotoMovieFileURL
+                        // 决定（见 issueCapturePhoto），所以 UI 开关只控制 per-capture，不必重配 session。
+                        if output.isLivePhotoCaptureSupported {
+                            output.isLivePhotoCaptureEnabled = true
+                        }
+
                         // 输出锁定 12MP 附近（4032×3024）。锐度来自 active format 降采样。
                         self.applyMaxPhotoDimensions(output: output, device: device)
                     }
@@ -690,6 +717,8 @@ class CameraManager: NSObject, ObservableObject {
         rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
         observeCaptureRotationAngle()
         videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
+
+        isLivePhotoSupported = photoOutput.isLivePhotoCaptureEnabled
 
         // 虚拟设备：activeFormat / constituentDevices / virtualDeviceSwitchOverVideoZoomFactors 均已可用
         focalInfo = DeviceFocalInfo.from(virtualDevice: device)
@@ -1372,15 +1401,20 @@ class CameraManager: NSObject, ObservableObject {
     // MARK: - 9. 拍照
 
     func capturePhoto(
+        live: Bool = false,
         onWillCapture: (() -> Void)? = nil,
         onExposureComplete: (() -> Void)? = nil,
-        completion: @escaping (Data?) -> Void
+        completion: @escaping (CaptureResult?) -> Void
     ) {
+        // 只有 photoOutput 真支持 Live Photo 时才认这次为 live。配对 content id 不在此生成——
+        // 由 AVCapture 自动写入原始字节，后处理阶段读出后统一写进重编码产物。
+        let wantsLive = live && photoOutput.isLivePhotoCaptureEnabled
         inFlightCapture = CaptureRequest(
             onData: completion,
             onWillCapture: onWillCapture,
             onExposureComplete: onExposureComplete,
-            flashRestore: nil
+            flashRestore: nil,
+            expectsLiveMovie: wantsLive
         )
 
         // 唯一闸门：await 直到 isReadyToCapture（根本可用 + 镜头到位 + ZSL grace）再 issue 给 AVF。
@@ -1404,7 +1438,7 @@ class CameraManager: NSObject, ObservableObject {
         // NSException 崩溃——这里改为优雅终结：还原闪光灯 AE/WB + 以 nil 释放快门（CameraView 的 isShutterBusy）。
         guard photoOutput.connection(with: .video)?.isActive == true else {
             Log.capture.error("capture_skip reason=no_active_connection")
-            finishCapture(with: nil)
+            deliverCaptureIfReady(terminal: true)
             return
         }
         // HEIF/HEVC 编码：相同视觉质量下文件比 JPEG 小 ~50%，是 iPhone Camera 的默认格式。
@@ -1474,8 +1508,23 @@ class CameraManager: NSObject, ObservableObject {
         settings.embedsDepthDataInPhoto = false
         settings.embedsPortraitEffectsMatteInPhoto = false
         settings.embedsSemanticSegmentationMattesInPhoto = false
-        // 闪光灯下恒定色彩（Constant Color）减少白平衡偏移
-        if photoOutput.isConstantColorSupported, flashMode == .on {
+
+        // Live Photo：本次拍照要求动态视频时，给 settings 挂一个唯一临时 .mov 路径。
+        // **不要**自己写 content identifier——AVCapture 会自动生成并写进静态图与视频原始字节，
+        // 通过 livePhotoMovieMetadata 指定它会直接抛 NSInvalidArgumentException 崩溃。配对 id 由后处理
+        // 阶段从原始视频读出后，统一写进重编码的视频与静态图（见 LivePhotoProcessor / CameraView）。
+        // 视频在 didFinishProcessingLivePhotoToMovieFileAt 回调里到达（约 shutter 后 ~1.5s，因为 Live
+        // 视频是 shutter 前后各 ~1.5s 的环形缓冲）。
+        let wantsLive = (inFlightCapture?.expectsLiveMovie == true)
+        if wantsLive, photoOutput.isLivePhotoCaptureEnabled {
+            let movieURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("livephoto_src_\(UUID().uuidString).mov")
+            settings.livePhotoMovieFileURL = movieURL
+        }
+
+        // 闪光灯下恒定色彩（Constant Color）减少白平衡偏移。Live Photo 与 Constant Color（内部走
+        // bracketed capture）不兼容——live 时跳过，避免 AVF 拒绝 settings。
+        if photoOutput.isConstantColorSupported, flashMode == .on, !wantsLive {
             settings.isConstantColorEnabled = true
         }
 
@@ -1853,47 +1902,100 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: (any Error)?) {
         if let error = error {
             Log.capture.error("delegate_process_error error=\(error.localizedDescription, privacy: .public)")
-            Task { @MainActor in self.finishCapture(with: nil) }
+            // 静态图失败 = 无可保存内容，立即以终结方式释放（即便还等着 live 视频也不必再等）。
+            Task { @MainActor in
+                self.inFlightCapture?.stillArrived = true
+                self.deliverCaptureIfReady(terminal: true)
+            }
             return
         }
         guard let imageData = photo.fileDataRepresentation() else {
             Log.capture.error("delegate_process_no_data")
-            Task { @MainActor in self.finishCapture(with: nil) }
+            Task { @MainActor in
+                self.inFlightCapture?.stillArrived = true
+                self.deliverCaptureIfReady(terminal: true)
+            }
             return
         }
         Log.capture.info("delegate_process_ok bytes=\(imageData.count)")
 
         // CIImage(data:) in applyLUTPreservingMetadata already applies EXIF orientation,
         // so we pass raw data directly — no need for a separate rotate+encode step.
-        // finishCapture 内同一 main-actor hop：先还原闪光灯 EV/WB，再回调 CaptureRequest.onData。
-        // 顺序保证下次 capturePhoto 入口看到的 device 状态已经是"还原后"。
-        Task { @MainActor in self.finishCapture(with: imageData) }
+        // 静态图到达：记下数据 + 标记到位，立即尝试交付（非 live 即刻完成；live 时还要等视频）。
+        // 闪光灯 AE/WB 在 deliver 里于静态图就绪时立刻还原，不被 live 视频的 ~1.5s 录制窗口拖累。
+        Task { @MainActor in
+            self.inFlightCapture?.stillData = imageData
+            self.inFlightCapture?.stillArrived = true
+            self.deliverCaptureIfReady(terminal: false)
+        }
+    }
+
+    /// Live Photo 动态视频录制结束（约 shutter 后 ~1.5s）——仅 log，文件尚未写完。
+    nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishRecordingLivePhotoMovieForEventualFileAt outputFileURL: URL, resolvedSettings: AVCaptureResolvedPhotoSettings) {
+        Log.capture.info("delegate_live_recording_done")
+    }
+
+    /// Live Photo 动态视频文件写好——拿到 URL + photoDisplayTime（静态帧对应时刻）。
+    nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingLivePhotoToMovieFileAt outputFileURL: URL, duration: CMTime, photoDisplayTime: CMTime, resolvedSettings: AVCaptureResolvedPhotoSettings, error: (any Error)?) {
+        if let error = error {
+            Log.capture.error("delegate_live_movie_error error=\(error.localizedDescription, privacy: .public)")
+            // 视频失败：标记到位但 URL 为 nil → 交付时降级为「只存静态图」，绝不卡死。
+            Task { @MainActor in
+                self.inFlightCapture?.movieArrived = true
+                self.deliverCaptureIfReady(terminal: false)
+            }
+            return
+        }
+        Log.capture.info("delegate_live_movie_ok dur=\(String(format: "%.2f", duration.seconds))s display=\(String(format: "%.2f", photoDisplayTime.seconds))s")
+        Task { @MainActor in
+            self.inFlightCapture?.movieURL = outputFileURL
+            self.inFlightCapture?.photoDisplayTime = photoDisplayTime
+            self.inFlightCapture?.movieArrived = true
+            self.deliverCaptureIfReady(terminal: false)
+        }
     }
 
     /// AVF 保证的"必然终结"回调——无论 capture 成功、失败、还是被系统中断（来电 / 切后台 /
     /// stopSession 撞期）都会最后调用一次，是 Apple 推荐的拍照清理挂载点。
-    /// 正常路径下 didFinishProcessingPhoto 已 finishCapture 并把 inFlightCapture 置 nil，此处
-    /// 即为幂等空操作；只有当处理回调从未到达（capture 被 drop）时这里才真正兜底：还原闪光灯
-    /// AE/WB + 以 nil 回调释放快门（CameraView 的 isShutterBusy），否则快门会永久卡死、设备
-    /// AE/WB 永久锁定。
+    /// 正常路径下静态图（+live 视频）已 deliver 并把 inFlightCapture 置 nil，此处即为幂等空操作；
+    /// 只有当某个交付物从未到达（capture 被 drop）时这里才真正兜底：以 terminal 强制交付当前已有
+    /// 内容（或 nil）+ 还原闪光灯 AE/WB，否则快门会永久卡死、设备 AE/WB 永久锁定。
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishCaptureFor resolvedSettings: AVCaptureResolvedPhotoSettings, error: (any Error)?) {
         if let error = error {
             Log.capture.error("delegate_finish_capture_error error=\(error.localizedDescription, privacy: .public)")
         }
-        Task { @MainActor in self.finishCapture(with: nil) }
+        Task { @MainActor in self.deliverCaptureIfReady(terminal: true) }
     }
 
-    /// 拍照终结清理——幂等。消费单个 CaptureRequest：还原闪光灯 AE/WB（若有）再回调 onData，
-    /// 顺序保证下次 capturePhoto 入口看到的 device 状态已是「还原后」。inFlightCapture 一旦取出即置 nil，
-    /// 重复进入（didFinishProcessingPhoto 后 didFinishCaptureFor 再来）直接 return，onData 必恰好调用一次。
+    /// 拍照交付——幂等。等齐本次拍照要求的交付物（非 live：静态图；live：静态图 + 动态视频）后
+    /// 回调 onData 恰好一次。闪光灯 AE/WB 在静态图就绪时（或终结时）立刻还原，不等 live 视频，
+    /// 保证下次 capturePhoto 入口看到的 device 状态已是「还原后」。inFlightCapture 一旦交付即置 nil，
+    /// 重复进入（多个 delegate 回调）直接 return。
+    /// - terminal: didFinishCaptureFor 兜底调用时为 true，强制交付（即便交付物未齐）。
     @MainActor
-    private func finishCapture(with data: Data?) {
-        guard let req = inFlightCapture else { return }
-        inFlightCapture = nil
-        if let device = videoCaptureDevice, let restore = req.flashRestore {
-            applyFlashRestore(restore, device: device)
+    private func deliverCaptureIfReady(terminal: Bool) {
+        guard var req = inFlightCapture else { return }
+
+        // 还原闪光灯 AE/WB：静态图一就绪（或终结）就做，不被 live 视频录制窗口拖累。只做一次。
+        if let restore = req.flashRestore, req.stillArrived || terminal {
+            if let device = videoCaptureDevice { applyFlashRestore(restore, device: device) }
+            req.flashRestore = nil
+            inFlightCapture = req   // 回写已清空的 flashRestore，避免重复还原
         }
-        req.onData(data)
+
+        let movieReady = !req.expectsLiveMovie || req.movieArrived
+        guard terminal || (req.stillArrived && movieReady) else { return }
+
+        inFlightCapture = nil
+        if let data = req.stillData {
+            req.onData(CaptureResult(
+                imageData: data,
+                livePhotoMovieURL: req.movieURL,
+                photoDisplayTime: req.photoDisplayTime
+            ))
+        } else {
+            req.onData(nil)
+        }
     }
 }
 
