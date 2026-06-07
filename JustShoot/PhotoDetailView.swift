@@ -16,9 +16,47 @@ import os
 // NSCache 命中策略。同文件 + `private` 比拆 N 个 ~100 行的 helper file 更内聚，与 Apple
 // SwiftUI sample 的"feature 一文件"做法一致。
 
+// MARK: - 下拉退出控制器
+//
+// 交互式 drag-to-dismiss（iPhone 相册手感）：fit 比例下向下拖 → 照片跟手下移 + 缩小、背景渐暗、
+// chrome 隐藏；过阈值（距离 or 速度）松手即关闭，否则弹回。手势由每页的 ZoomingScrollView 上一个
+// 受控 UIPanGestureRecognizer 驱动（只在 fit 比例 + 向下 + 竖向主导时 begin，放大态让位给平移、
+// 横滑翻页不受影响），把竖向位移回报给本控制器，PhotoDetailView 据此变换内容并决定关闭。
+@MainActor
+final class DragDismissController: ObservableObject {
+    /// 当前向下位移（pt，>=0）。驱动内容 offset/scale + 背景透明度。
+    @Published var translation: CGFloat = 0
+    /// 是否正在下拉。驱动 chrome（导航栏/工具栏/scrubber/角标）的隐藏。
+    @Published var dragging = false
+    /// 触发实际关闭（PhotoDetailView 在 onAppear 注入 `dismiss()`）。
+    var onDismiss: (() -> Void)?
+
+    private let dismissDistance: CGFloat = 150   // 位移阈值
+    private let dismissVelocity: CGFloat = 900   // 速度阈值（快速向下甩）
+
+    func begin() { dragging = true }
+
+    func update(_ dy: CGFloat) {
+        translation = max(0, dy)
+    }
+
+    func end(translation dy: CGFloat, velocity vy: CGFloat) {
+        if dy > dismissDistance || vy > dismissVelocity {
+            onDismiss?()
+            // 关闭动画走 cover 自身；这里不重置，避免回弹一帧。
+        } else {
+            withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.85)) {
+                translation = 0
+            }
+            dragging = false
+        }
+    }
+}
+
 struct PhotoDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @StateObject private var dismisser = DragDismissController()
 
     @State private var photos: [Photo]
     /// `scrollPosition(id:)` 与所有 cross-component 同步都按 photo.id 走，不按 index。
@@ -34,7 +72,6 @@ struct PhotoDetailView: View {
     /// `walk(connectedScenes)`（量小但能省就省，且确保 PagerImage 在所有 body 评估里看到稳定值）。
     @State private var previewMaxPixel: Int
     @State private var showingInfo = false
-    @State private var isFullScreen = false
     @State private var thumbWarmupTask: Task<Void, Never>?
     @State private var previewPreloadTask: Task<Void, Never>?
 
@@ -74,9 +111,15 @@ struct PhotoDetailView: View {
         photos.first(where: { $0.id == currentPhotoID && !$0.isDeleted })
     }
 
+    /// 下拉进度 0…1（位移 / 触发距离的 ~1.6 倍，让缩放/渐暗更克制）。驱动内容 scale + 背景透明度。
+    private var dismissProgress: CGFloat {
+        min(1, max(0, dismisser.translation) / 240)
+    }
+
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // 背景随下拉渐暗（关闭时透出底层相册的过渡感）。
+            Color.black.opacity(1 - dismissProgress * 0.6).ignoresSafeArea()
 
             if photos.isEmpty {
                 VStack(spacing: 16) {
@@ -88,18 +131,14 @@ struct PhotoDetailView: View {
                         .foregroundColor(.gray)
                 }
             } else {
-                VStack(spacing: 0) {
-                    // SwiftUI 5+ 推荐的分页范式（取代 iOS 16 时代的 TabView .page）：
-                    //   ScrollView + LazyHStack + .scrollTargetBehavior(.paging) + .scrollPosition(id:)
-                    // 比 TabView 强在：
-                    //   1) LazyHStack 真正按需 materialize cell（TabView 也 lazy 但仍要把所有 ForEach
-                    //      identifier 物化一遍；上千张照片时差距明显）。
-                    //   2) `.scrollPosition(id:)` 是显式的双向 binding，scrubber 同步语义干净；
-                    //      旧 TabView selection binding 与 UIPageViewController 内部状态有几个已知 bug。
-                    //   3) 后续要加 `.scrollTransition` / `.containerRelativeFrame` 自定义页面进出动画，
-                    //      TabView 完全不支持。
-                    //   4) 与 iOS 17+ 其它 scroll API（scrollClipDisabled、scrollBounceBehavior、
-                    //      scrollTargetLayout）协同自然。
+                // 内容整体随下拉做 offset + scale（drag-to-dismiss）。包一层 ZStack 让全屏主图 + 渐变 +
+                // chrome 作为一个单位一起变换。
+                ZStack {
+                    // 分页主图**全屏铺满**（铺到导航栏 / scrubber / 底部工具栏之下），照片占满整屏，
+                    // chrome 浮在其上。SwiftUI 5+ 推荐的分页范式（取代 TabView .page）：
+                    //   ScrollView + LazyHStack + .scrollTargetBehavior(.paging) + .scrollPosition(id:)。
+                    // 每页用 containerRelativeFrame 填满 ScrollView 视口（现在因 ignoresSafeArea = 全屏），
+                    // ZoomingScrollView 据此把图 aspect-fit 到整屏——竖图填满竖屏高度。
                     ScrollView(.horizontal) {
                         LazyHStack(spacing: 0) {
                             ForEach(photos) { photoItem in
@@ -107,52 +146,64 @@ struct PhotoDetailView: View {
                                     photo: photoItem,
                                     isCurrent: photoItem.id == currentPhotoID,
                                     previewMaxPixel: previewMaxPixel,
-                                    onSingleTap: {
-                                        // 单击切 chrome——动画从 0.2 缩到 0.12s。`single.require(toFail: double)`
-                                        // 已经吃掉 ~250ms 等双击失败，这层动画再多 0.2s 累计感觉很迟钝；
-                                        // 0.12s 仍然有过渡感（不会 hard cut）但贴近用户手指 release 的时序。
-                                        withAnimation(.easeInOut(duration: 0.12)) { isFullScreen.toggle() }
-                                    }
+                                    dismisser: dismisser
                                 )
-                                // 每页填满 ScrollView 视口（横+竖）。containerSize 来自外层 ScrollView 的
-                                // frame（由 maxHeight: .infinity 在 VStack 里撑开决定），不依赖 LazyHStack
-                                // 子项尺寸，所以不会形成"子项要 container 尺寸 / container 要子项尺寸"的循环。
                                 .containerRelativeFrame([.horizontal, .vertical])
                                 .id(photoItem.id)
                             }
                         }
-                        // `.scrollTargetLayout()` 把 LazyHStack 标成"snap candidate 集合"——`.paging`
-                        // 才知道按子项边界做 page snap，而不是按视口宽度盲滑。
                         .scrollTargetLayout()
                     }
                     .scrollTargetBehavior(.paging)
                     .scrollPosition(id: $currentPhotoID)
                     .scrollIndicators(.hidden)
-                    // ScrollView 在 horizontal 模式下默认按内容 intrinsic 高定高；给一个 `maxHeight: .infinity`
-                    // 让它在 VStack 里吃满"剩余高度"（scrubber 是固定高），子项的 containerRelativeFrame
-                    // 才有稳定的 vertical container 尺寸可参照。
-                    .frame(maxHeight: .infinity)
-                    // 嵌套 UIScrollView 的原生协议：zoom > 1 时内层 UIScrollView 吃掉 pan 用作平移，
-                    // 到水平边界让位给外层 ScrollView 翻页（见 ZoomingScrollView.gestureRecognizerShouldBegin）；
-                    // zoom == 1 时内层不可滚，pan 直接给外层 swipe。与 iPhone Photos.app 行为一致。
+                    .ignoresSafeArea()
 
-                    PhotoScrubber(photos: photos, currentPhotoID: $currentPhotoID)
-                        .padding(.vertical, 6)
-                        .opacity(isFullScreen ? 0 : 1)
-                        .animation(.easeInOut(duration: 0.12), value: isFullScreen)
+                    // 底部可读性渐变：让浮在亮图上的 scrubber / 底部工具栏仍清晰。纯装饰，不拦手势。
+                    // 下拉时隐藏（只留照片在动）。
+                    VStack {
+                        Spacer()
+                        LinearGradient(colors: [.clear, .black.opacity(0.45)], startPoint: .top, endPoint: .bottom)
+                            .frame(height: 150)
+                    }
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .opacity(dismisser.dragging ? 0 : 1)
+
+                    // chrome 层（**安全区内**：上沿落在导航栏下方、下沿落在底部工具栏上方），浮在全屏图上。
+                    // 中间是空 Spacer（不拦截手势）→ 主图区的缩放/平移/翻页手势照常穿透到下层 ScrollView；
+                    // 只有顶部 LIVE 角标与底部 scrubber 这两个实体区域参与命中。下拉时隐藏。
+                    VStack(spacing: 0) {
+                        HStack {
+                            if let p = currentPhoto, p.isLivePhoto {
+                                LiveBadge().allowsHitTesting(false)
+                            }
+                            Spacer()
+                        }
+                        .padding(.leading, 16)
+                        .padding(.top, 8)
+
+                        Spacer()
+
+                        PhotoScrubber(photos: photos, currentPhotoID: $currentPhotoID)
+                            .padding(.vertical, 6)
+                    }
+                    .opacity(dismisser.dragging ? 0 : 1)
                 }
+                .scaleEffect(1 - dismissProgress * 0.15)
+                .offset(y: dismisser.translation)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(isFullScreen)
         // 详情页（从相册 push 进来）始终不显示底部 tab 栏。
         .toolbar(.hidden, for: .tabBar)
-        .toolbar(isFullScreen ? .hidden : .visible, for: .navigationBar)
-        .toolbar(isFullScreen ? .hidden : .visible, for: .bottomBar)
+        // 下拉退出时把系统导航栏/底部工具栏一起隐藏，只留照片在动（与 iPhone 相册一致）。
+        .toolbar(dismisser.dragging ? .hidden : .visible, for: .navigationBar)
+        .toolbar(dismisser.dragging ? .hidden : .visible, for: .bottomBar)
         .toolbar { navigationToolbar }
         .toolbar { bottomToolbar }
-        .statusBarHidden(isFullScreen)
         .onAppear {
+            dismisser.onDismiss = { dismiss() }
             reconcilePhotos()
             schedulePreheat()
         }
@@ -365,7 +416,7 @@ private struct PagerImage: View {
     let photo: Photo
     let isCurrent: Bool
     let previewMaxPixel: Int
-    let onSingleTap: () -> Void
+    let dismisser: DragDismissController
 
     @State private var preview: UIImage?
     @State private var asyncThumb: UIImage?
@@ -397,8 +448,18 @@ private struct PagerImage: View {
 
     var body: some View {
         Group {
-            if let image = displayImage {
-                ZoomablePhotoView(image: image, isCurrent: isCurrent, onSingleTap: onSingleTap)
+            if photo.isLivePhoto {
+                // Live Photo：当前页用可缩放的 PHLivePhotoView（长按播放含音轨）；displayImage 作为
+                // live 资源加载前的占位静图。
+                LivePhotoPage(
+                    photo: photo,
+                    isCurrent: isCurrent,
+                    fallback: displayImage,
+                    targetMaxPixel: previewMaxPixel,
+                    dismisser: dismisser
+                )
+            } else if let image = displayImage {
+                ZoomablePhotoView(image: image, isCurrent: isCurrent, dismisser: dismisser)
             } else {
                 ZStack {
                     Color.black
@@ -436,40 +497,51 @@ private struct ZoomablePhotoView: UIViewRepresentable {
     /// scrubber 切走某页时，下次切回来不会带着旧 zoom + 偏移（与 Photos.app 一致：
     /// 滑离当前页等于"放手"，再回来从头开始）。
     let isCurrent: Bool
-    var onSingleTap: (() -> Void)?
+    let dismisser: DragDismissController
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> ZoomingScrollView {
-        let view = ZoomingScrollView()
-        view.coordinator = context.coordinator
-        view.setImage(image)
-        return view
+        let iv = UIImageView()
+        iv.contentMode = .scaleAspectFit
+        iv.image = image
+        context.coordinator.imageView = iv
+        return ZoomingScrollView(contentView: iv, naturalSize: image.size, dismiss: dismisser)
     }
 
     func updateUIView(_ view: ZoomingScrollView, context: Context) {
-        context.coordinator.onSingleTap = onSingleTap
-        view.setImage(image)
+        if let iv = context.coordinator.imageView, iv.image !== image {
+            // 同源 thumb→preview 升清：直接换 UIImageView 的图，aspect 一致时 updateNaturalSize
+            // 不重排、保留 zoom（从软到锐零位移）；aspect 变才重排。
+            iv.image = image
+            view.updateNaturalSize(image.size)
+        }
         if !isCurrent && view.zoomScale > view.minimumZoomScale + 0.01 {
             view.setZoomScale(view.minimumZoomScale, animated: false)
         }
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    final class Coordinator {
-        var onSingleTap: (() -> Void)?
-    }
+    final class Coordinator { var imageView: UIImageView? }
 }
 
 /// imageView 是 zoomable view，frame 在 bounds 里做 aspect-fit；缩放时通过 contentInset 把图
 /// 居中——图比 viewport 小时左右/上下加 inset 充当 letterbox，比 viewport 大时 inset=0
 /// 让 UIScrollView 接管平移。bouncesZoom 让 pinch-out 越过 minimumZoomScale 时有原生 rubber-band。
-private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
-    weak var coordinator: ZoomablePhotoView.Coordinator?
-    private let imageView = UIImageView()
+// 内容无关：承载任意 contentView（静图 UIImageView / Live Photo PHLivePhotoView）+ 一个
+// naturalSize（用于 aspect-fit）。缩放/平移/双击/边界翻页逻辑两类内容完全复用。
+private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
+    let contentView: UIView
+    private var naturalSize: CGSize
     private var lastBoundsSize: CGSize = .zero
+    /// 下拉退出控制器（弱引用，由 SwiftUI 层持有）。dismissPan 把竖向位移回报给它。
+    private weak var dismissController: DragDismissController?
+    private var dismissPan: UIPanGestureRecognizer!
 
-    override init(frame: CGRect) {
-        super.init(frame: frame)
+    init(contentView: UIView, naturalSize: CGSize, dismiss: DragDismissController) {
+        self.contentView = contentView
+        self.naturalSize = naturalSize
+        self.dismissController = dismiss
+        super.init(frame: .zero)
         backgroundColor = .black
         delegate = self
         minimumZoomScale = 1.0
@@ -481,79 +553,81 @@ private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
         // 外层的 page swipe；判完释放，外层已错过 swipe 起点，结果是当前页
         // snap-back 后再 catch-up——用户感知就是"当前照片弹回去，新照片从左边重新弹出"。
         // pinch 走 pinchGestureRecognizer，与 isScrollEnabled 无关，pinch-to-zoom 仍可正常触发。
+        // 对 Live Photo：PHLivePhotoView 自带的「触摸长按播放」是长按手势，与本类的 pan/pinch/双击
+        // 互不冲突，fit 态（pan 关）下长按照常播放。
         isScrollEnabled = false
         showsHorizontalScrollIndicator = false
         showsVerticalScrollIndicator = false
         contentInsetAdjustmentBehavior = .never
         decelerationRate = .fast
 
-        imageView.contentMode = .scaleAspectFit
-        imageView.isUserInteractionEnabled = true
-        addSubview(imageView)
+        contentView.isUserInteractionEnabled = true   // PHLivePhotoView 需要它接收长按播放
+        addSubview(contentView)
 
-        let single = UITapGestureRecognizer(target: self, action: #selector(handleSingleTap))
-        single.numberOfTapsRequired = 1
+        // 双击放大/还原。单击不再有交互（已去掉沉浸模式），故不再注册单击识别器，也无需
+        // require(toFail:)——双击直接生效，无 ~250ms 等待。
         let double = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
         double.numberOfTapsRequired = 2
-        single.require(toFail: double)
-        addGestureRecognizer(single)
         addGestureRecognizer(double)
+
+        // 下拉退出 pan：只在 fit 比例 + 向下 + 竖向主导时 begin（见 gestureRecognizerShouldBegin），
+        // 单指（maximumNumberOfTouches=1，避免双指捏合误触）。与外层横向分页 pan 并存（不同轴）。
+        let pan = UIPanGestureRecognizer(target: self, action: #selector(handleDismissPan(_:)))
+        pan.maximumNumberOfTouches = 1
+        pan.delegate = self
+        addGestureRecognizer(pan)
+        dismissPan = pan
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
 
-    func setImage(_ image: UIImage) {
-        let prev = imageView.image
-        guard prev !== image else { return }
-        imageView.image = image
-        // 同源 thumb→preview 升级时 aspect 一致，**不重排**——保留用户当前 zoomScale + offset，
-        // UIImageView 直接用更高分辨率的同一帧贴回去，从软到锐零位移。
-        // aspect 真正变化时（首次设图 / 切到不同照片）才强制重排并 reset zoom。
-        if let prev, sameAspect(prev.size, image.size) {
-            return
-        }
+    /// 内容自然尺寸更新（静图 thumb→preview 升清、或切到另一张/另一段 Live Photo）。
+    /// aspect 不变（同源升清）→ 不重排、保留当前 zoom + offset；aspect 变 → 重排并 reset zoom。
+    func updateNaturalSize(_ size: CGSize) {
+        guard size.width > 0, size.height > 0 else { return }
+        if sameAspect(naturalSize, size) { naturalSize = size; return }
+        naturalSize = size
         lastBoundsSize = .zero
         setNeedsLayout()
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        guard bounds.size != .zero, imageView.image != nil else { return }
+        guard bounds.size != .zero, naturalSize.width > 0, naturalSize.height > 0 else { return }
         if bounds.size != lastBoundsSize {
-            // 第一次（lastBoundsSize == .zero）走完整 reset；后续的 bounds 变化（chrome 切换 /
-            // safe area 变化等）只重算 imageView frame 并按比例 preserve zoomScale + offset，
+            // 第一次（lastBoundsSize == .zero）走完整 reset；后续的 bounds 变化（旋转 /
+            // safe area 变化等）只重算 content frame 并按比例 preserve zoomScale + offset，
             // 不打断用户当前的放大查看。
             let isInitial = lastBoundsSize == .zero
-            relayoutImage(resetZoom: isInitial, oldBounds: lastBoundsSize)
+            relayoutContent(resetZoom: isInitial, oldBounds: lastBoundsSize)
             lastBoundsSize = bounds.size
         }
-        centerImageView()
+        centerContent()
     }
 
-    private func relayoutImage(resetZoom: Bool, oldBounds: CGSize) {
-        guard let image = imageView.image else { return }
+    private func relayoutContent(resetZoom: Bool, oldBounds: CGSize) {
         let viewSize = bounds.size
-        let imageAspect = image.size.width / image.size.height
+        let aspect = naturalSize.width / naturalSize.height
         let viewAspect = viewSize.width / viewSize.height
-        let fitted: CGSize = imageAspect > viewAspect
-            ? CGSize(width: viewSize.width, height: viewSize.width / imageAspect)
-            : CGSize(width: viewSize.height * imageAspect, height: viewSize.height)
+        let fitted: CGSize = aspect > viewAspect
+            ? CGSize(width: viewSize.width, height: viewSize.width / aspect)
+            : CGSize(width: viewSize.height * aspect, height: viewSize.height)
 
         if resetZoom {
-            imageView.frame = CGRect(origin: .zero, size: fitted)
+            contentView.frame = CGRect(origin: .zero, size: fitted)
             contentSize = fitted
             setZoomScale(minimumZoomScale, animated: false)
             return
         }
 
-        // 保 zoom：把 imageView frame 缩放到新 fit 尺寸；contentSize / contentOffset
+        // 保 zoom：把 content frame 缩放到新 fit 尺寸；contentSize / contentOffset
         // 按 viewport 缩放比例做线性映射，让屏幕上"看到"的相对位置基本不变。
         let scaleX = oldBounds.width > 0 ? viewSize.width / oldBounds.width : 1
         let scaleY = oldBounds.height > 0 ? viewSize.height / oldBounds.height : 1
         let scale = min(scaleX, scaleY) // 安全起见取较小，避免越界
         let oldZoom = zoomScale
         let oldOffset = contentOffset
-        imageView.frame = CGRect(origin: .zero, size: fitted)
+        contentView.frame = CGRect(origin: .zero, size: fitted)
         contentSize = CGSize(width: fitted.width * oldZoom, height: fitted.height * oldZoom)
         setZoomScale(oldZoom, animated: false)
         contentOffset = CGPoint(x: oldOffset.x * scale, y: oldOffset.y * scale)
@@ -564,18 +638,18 @@ private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
         return abs(a.width / a.height - b.width / b.height) < 0.01
     }
 
-    private func centerImageView() {
+    private func centerContent() {
         let viewSize = bounds.size
-        let contentSize = imageView.frame.size
-        let x = max(0, (viewSize.width - contentSize.width) / 2)
-        let y = max(0, (viewSize.height - contentSize.height) / 2)
+        let size = contentView.frame.size
+        let x = max(0, (viewSize.width - size.width) / 2)
+        let y = max(0, (viewSize.height - size.height) / 2)
         contentInset = UIEdgeInsets(top: y, left: x, bottom: y, right: x)
     }
 
-    func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
+    func viewForZooming(in scrollView: UIScrollView) -> UIView? { contentView }
 
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
-        centerImageView()
+        centerContent()
         // 跟随 zoomScale 切换 pan：放大后允许内层平移；回到 fit 后立即把 pan 还给外层 ScrollView。
         let canPan = zoomScale > minimumZoomScale + 0.01
         if isScrollEnabled != canPan {
@@ -583,16 +657,12 @@ private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
         }
     }
 
-    @objc private func handleSingleTap() {
-        coordinator?.onSingleTap?()
-    }
-
     @objc private func handleDoubleTap(_ gr: UITapGestureRecognizer) {
         if zoomScale > minimumZoomScale + 0.01 {
             setZoomScale(minimumZoomScale, animated: true)
         } else {
             let target: CGFloat = 2.0
-            let point = gr.location(in: imageView)
+            let point = gr.location(in: contentView)
             let size = bounds.size
             let rect = CGRect(
                 x: point.x - size.width / (2 * target),
@@ -619,6 +689,13 @@ private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     // 用户从中间起手 pan 到边缘的情况不归这里：那条路径会先 rubber-band，松手再起手才能翻——
     // 与 Photos.app 一致（边缘起手才是切页操作）。
     override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        // 下拉退出 pan：仅 fit 比例（未放大）+ 起手向下 + 竖向主导才启用。放大态让位给内层平移，
+        // 横向/向上手势不触发——横滑翻页与放大平移都不受影响。
+        if gestureRecognizer === dismissPan {
+            guard zoomScale <= minimumZoomScale + 0.01 else { return false }
+            let v = dismissPan.velocity(in: self)
+            return v.y > 0 && abs(v.y) > abs(v.x) * 1.2
+        }
         let baseDecision = super.gestureRecognizerShouldBegin(gestureRecognizer)
         guard gestureRecognizer === panGestureRecognizer,
               baseDecision,
@@ -636,6 +713,118 @@ private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate {
         if velocity.x > 0 && atLeft { return false }   // 左边缘 + 右滑 → 让外层 ScrollView 翻上一张
         if velocity.x < 0 && atRight { return false }  // 右边缘 + 左滑 → 让外层 ScrollView 翻下一张
         return baseDecision
+    }
+
+    // 让下拉退出 pan 与外层横向分页 ScrollView 的 pan 并存（不同轴，不会真冲突）。返回 true 即足以
+    // 允许同时识别（UIKit：任一方返回 true 即放行）。
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        gestureRecognizer === dismissPan
+    }
+
+    // 下拉退出手势驱动。位移/速度用 **window 坐标** 量取——内容正被 SwiftUI offset 下移，若用 self
+    // 坐标会与位移形成反馈环（量到的位移被自身移动抵消）。window 不变换，量到的就是真实手指位移。
+    @objc private func handleDismissPan(_ gr: UIPanGestureRecognizer) {
+        let ref: UIView = window ?? self
+        switch gr.state {
+        case .began:
+            dismissController?.begin()
+        case .changed:
+            dismissController?.update(gr.translation(in: ref).y)
+        case .ended, .cancelled, .failed:
+            dismissController?.end(translation: gr.translation(in: ref).y,
+                                   velocity: gr.velocity(in: ref).y)
+        default:
+            break
+        }
+    }
+}
+
+// MARK: - Live Photo 页（PHLivePhotoView 长按播放）
+//
+// 当前页是 Live Photo 时替代 ZoomablePhotoView：基于 PHLivePhotoView，系统自带「触摸并长按播放」
+// 手势（含音轨）。加载 PHLivePhoto 前先显示 fallback 静图（消除黑屏）。左上角 LIVE 角标做静态标识。
+// 只为 isCurrent 的页加载 live 资源——相邻页只显示静图占位，省内存。
+private struct LivePhotoPage: View {
+    let photo: Photo
+    let isCurrent: Bool
+    let fallback: UIImage?
+    let targetMaxPixel: Int
+    let dismisser: DragDismissController
+
+    @State private var livePhoto: PHLivePhoto?
+
+    var body: some View {
+        ZStack {
+            Color.black
+            if let livePhoto, let size = fallback?.size {
+                // 可缩放 Live Photo：放进通用 ZoomingScrollView（双指缩放/双击/平移），PHLivePhotoView
+                // 自带的长按播放照常。naturalSize 取自 fallback 静图（与 Live Photo 同次拍摄、aspect 一致）。
+                ZoomableLivePhotoView(livePhoto: livePhoto, naturalSize: size, isCurrent: isCurrent, dismisser: dismisser)
+            } else if let fallback {
+                Image(uiImage: fallback)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+            }
+        }
+        // LIVE 角标不在这里画——图片区会延伸到导航栏下方，贴顶会被导航栏遮挡。改由 PhotoDetailView
+        // 在安全区内（导航栏下方）统一绘制，见 body 的 .overlay。
+        // photo.id + isCurrent 任一变化都重评估：翻到该页（isCurrent 变 true）即异步加载 live 资源。
+        .task(id: "\(photo.id.uuidString)-\(isCurrent)") {
+            guard isCurrent, livePhoto == nil, let aid = photo.assetLocalIdentifier else { return }
+            let side = CGFloat(targetMaxPixel)
+            livePhoto = await AssetImageLoader.shared.livePhoto(id: aid, targetSize: CGSize(width: side, height: side))
+        }
+    }
+}
+
+/// 可缩放 Live Photo：PHLivePhotoView 放进通用 ZoomingScrollView，复用静图那套缩放/平移/双击/
+/// 边界翻页逻辑。PHLivePhotoView 自带的「触摸长按播放」（含音轨）是长按手势，与缩放/平移互不冲突。
+private struct ZoomableLivePhotoView: UIViewRepresentable {
+    let livePhoto: PHLivePhoto
+    let naturalSize: CGSize
+    let isCurrent: Bool
+    let dismisser: DragDismissController
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> ZoomingScrollView {
+        let lpv = PHLivePhotoView()
+        lpv.contentMode = .scaleAspectFit
+        lpv.livePhoto = livePhoto
+        context.coordinator.liveView = lpv
+        return ZoomingScrollView(contentView: lpv, naturalSize: naturalSize, dismiss: dismisser)
+    }
+
+    func updateUIView(_ view: ZoomingScrollView, context: Context) {
+        if let lpv = context.coordinator.liveView, lpv.livePhoto !== livePhoto {
+            lpv.livePhoto = livePhoto
+            view.updateNaturalSize(naturalSize)
+        }
+        // 切走当前页时还原 zoom（与静图一致）。
+        if !isCurrent && view.zoomScale > view.minimumZoomScale + 0.01 {
+            view.setZoomScale(view.minimumZoomScale, animated: false)
+        }
+    }
+
+    final class Coordinator { var liveView: PHLivePhotoView? }
+}
+
+/// 左上角 LIVE 标识（仿系统相册详情页）。
+private struct LiveBadge: View {
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "livephoto")
+            Text("LIVE")
+        }
+        .font(.system(size: 12, weight: .semibold))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.ultraThinMaterial, in: Capsule())
     }
 }
 

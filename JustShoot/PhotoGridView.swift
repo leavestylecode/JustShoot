@@ -249,6 +249,9 @@ final class PhotoCell: UICollectionViewCell {
     private let imageView = UIImageView()
     private let dimOverlay = UIView()
     private let badge = UIImageView()
+    /// Live Photo 角标（左上，仿系统相册）。与右上的选择角标分居两角，不冲突。
+    private let liveBadge = UIImageView()
+    private var isLive = false
     private var loadToken = UUID()
     private var assetRequestID: PHImageRequestID = PHInvalidImageRequestID
 
@@ -285,6 +288,22 @@ final class PhotoCell: UICollectionViewCell {
             badge.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
             badge.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
         ])
+
+        liveBadge.contentMode = .center
+        liveBadge.translatesAutoresizingMaskIntoConstraints = false
+        liveBadge.isHidden = true
+        liveBadge.image = UIImage(systemName: "livephoto",
+                                  withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold))?
+            .withTintColor(.white, renderingMode: .alwaysOriginal)
+        liveBadge.layer.shadowColor = UIColor.black.cgColor
+        liveBadge.layer.shadowOpacity = 0.4
+        liveBadge.layer.shadowRadius = 2
+        liveBadge.layer.shadowOffset = CGSize(width: 0, height: 1)
+        contentView.addSubview(liveBadge)
+        NSLayoutConstraint.activate([
+            liveBadge.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
+            liveBadge.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 6),
+        ])
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -297,11 +316,14 @@ final class PhotoCell: UICollectionViewCell {
         }
         loadToken = UUID()
         imageView.image = nil
+        isLive = false
+        liveBadge.isHidden = true
         isEditingMode = false
     }
 
     func configure(photo: Photo, editing: Bool, maxPixel: Int, cornerRadius: CGFloat) {
         contentView.layer.cornerRadius = cornerRadius
+        isLive = photo.isLivePhoto
         isEditingMode = editing
         loadThumbnail(photo: photo, maxPixel: maxPixel)
     }
@@ -360,6 +382,8 @@ final class PhotoCell: UICollectionViewCell {
     // MARK: 选中视觉（Photos.app 一致：仅角标 + 暗化，不画边框/不缩放）
     private func updateSelectionVisual() {
         badge.isHidden = !isEditingMode
+        // Live 角标只在非编辑态显示——编辑态让位给选择角标 + 暗化，保持与系统相册一致的简洁。
+        liveBadge.isHidden = !isLive || isEditingMode
         dimOverlay.isHidden = !(isEditingMode && isSelected)
         guard isEditingMode else { return }
         let base = UIImage.SymbolConfiguration(pointSize: 22, weight: .regular)

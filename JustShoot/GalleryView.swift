@@ -95,8 +95,10 @@ struct GalleryView: View {
         .task {
             await PhotoSaver(modelContainer: modelContext.container).pruneDeletedAssets()
         }
-        // 详情用 sheet 呈现：原生下滑关闭，且 sheet 盖在 tab 栏之上（详情不与底部冲突）。
-        .sheet(item: $selectedDetail) { payload in
+        // 详情用 fullScreenCover 呈现：**真全屏**（边到边，无 sheet 顶部留白/圆角），照片占满整屏。
+        // 下滑退出由 PhotoDetailView 内的交互式 drag-to-dismiss 实现（fit 比例下拉照片跟手缩小+背景
+        // 渐暗+chrome 隐藏，过阈值松手关闭）；右上 xmark 作为补充关闭入口。
+        .fullScreenCover(item: $selectedDetail) { payload in
             NavigationStack {
                 PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos)
                     .toolbar {
@@ -108,8 +110,6 @@ struct GalleryView: View {
                         }
                     }
             }
-            .presentationDetents([.large])
-            .presentationDragIndicator(.hidden)
             .preferredColorScheme(.dark)
         }
     }

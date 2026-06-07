@@ -403,6 +403,16 @@
         }
       }
     },
+    "Caption" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文案"
+          }
+        }
+      }
+    },
     "Capture" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -450,6 +460,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拍摄失败：未能获取图像数据，请重试"
+          }
+        }
+      }
+    },
+    "Circle" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圆形"
           }
         }
       }
@@ -521,6 +541,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法解析 .cube 文件：%@"
+          }
+        }
+      }
+    },
+    "Cover shape" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "封面形状"
           }
         }
       }
@@ -1064,6 +1094,16 @@
         }
       }
     },
+    "Hide" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐藏"
+          }
+        }
+      }
+    },
     "High" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1176,6 +1216,15 @@
       }
     },
     "Library" : {
+
+    },
+    "LIVE" : {
+
+    },
+    "Live Photo off" : {
+
+    },
+    "Live Photo on" : {
 
     },
     "Location off" : {
@@ -1713,6 +1762,16 @@
     "Settings" : {
 
     },
+    "Show" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示"
+          }
+        }
+      }
+    },
     "Shutter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1881,6 +1940,9 @@
         }
       }
     },
+    "Toggle Live Photo" : {
+
+    },
     "Toggle selection" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2016,56 +2078,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "黄"
-          }
-        }
-      }
-    },
-    "Circle" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "圆形"
-          }
-        }
-      }
-    },
-    "Cover shape" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "封面形状"
-          }
-        }
-      }
-    },
-    "Caption" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "文案"
-          }
-        }
-      }
-    },
-    "Show" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "显示"
-          }
-        }
-      }
-    },
-    "Hide" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "隐藏"
           }
         }
       }
