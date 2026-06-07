@@ -209,11 +209,10 @@ struct CameraView: View {
                 .accessibilityLabel("Back")
             }
 
-            // 中间：胶片名 + 可选的位置状态
+            // 中间：仅可选的位置状态（胶片名标题已去掉——当前胶片由底部右下封面 + picker 表达，
+            // 取景器中央保持干净）。位置被拒时才显示一个警示按钮。
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
-                    Text(source.displayName)
-                        .font(.subheadline.weight(.semibold))
                     if cameraManager.locationPermissionDenied {
                         Button(action: openAppSettings) {
                             Label("Location off", systemImage: "location.slash.fill")
