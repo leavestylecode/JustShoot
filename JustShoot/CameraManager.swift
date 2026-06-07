@@ -1391,6 +1391,32 @@ class CameraManager: NSObject, ObservableObject {
         // 夹住」的老坑）。不再 deep-ramp 过冲 → 无前后抖动；不再等特定 constituent → 系统拒长焦不假死。
         let maxZoom = device.activeFormat.videoMaxZoomFactor
         let finalZoom = max(1.0, min(maxZoom, targetZoom))
+
+        // 乐观更新 UI 焦距 + 立即登记镜头切换目标。此刻设备 zoom 仍是旧值，lensIsOnTarget() 因
+        // |旧 zoom − finalZoom| > 0.1 而为 false，isReadyToCapture 仍正确 gate（不会误判已就绪而
+        // 让 ZSL 选到旧帧）——所以可以安全地先登记、再异步配置设备。
+        self.currentZoomFactor = finalZoom
+        // capture 就绪只等 zoom ramp 停（取景到位）+ 一点 ZSL grace 给系统的 constituent crossfade 收尾；
+        // 不再等特定 constituent（系统说了算）——所以系统拒绝长焦时快门不假死。maxWait 仅异常兜底。
+        beginLensSwitch(zoom: finalZoom, zslGraceMs: 150, maxWaitMs: 1200)
+
+        // 设备 I/O（lockForConfiguration + ramp + 安全快门）移到 sessionQueue 执行。streaming 中
+        // **首次** lockForConfiguration 会阻塞调用线程数百 ms（系统等采集管线到安全配置点）；放在
+        // 主线程就会卡住预览/手势 → 用户感知的「第一次切焦距卡顿」。与 adjustFrameRateForPressure
+        // 同款「设备配置走 sessionQueue」模式（Apple AVCam 惯例）。.auto + ramp 单一路径逻辑不变。
+        sessionQueue.async { [weak self] in
+            self?.configureFocalOnSessionQueue(
+                device: device, finalZoom: finalZoom, rampRate: rampRate,
+                animated: animated, focalMm: option.rawValue
+            )
+        }
+    }
+
+    /// applyFocalLength 的设备配置段，在 sessionQueue 上执行（nonisolated，不触碰 @MainActor 状态）。
+    /// 把 lockForConfiguration/ramp 从主线程移走，避免首次配置阻塞主线程导致预览掉帧。
+    nonisolated private func configureFocalOnSessionQueue(
+        device: AVCaptureDevice, finalZoom: CGFloat, rampRate: Float, animated: Bool, focalMm: Int
+    ) {
         do {
             try device.lockForConfiguration()
             device.setPrimaryConstituentDeviceSwitchingBehavior(.auto, restrictedSwitchingBehaviorConditions: [])
@@ -1399,19 +1425,14 @@ class CameraManager: NSObject, ObservableObject {
             } else {
                 device.videoZoomFactor = finalZoom
             }
-            self.currentZoomFactor = finalZoom
-            let safeShutter = self.computeSafeShutterDuration(focalMm: option.rawValue, format: device.activeFormat)
+            let safeShutter = computeSafeShutterDuration(focalMm: focalMm, format: device.activeFormat)
             device.activeMaxExposureDuration = safeShutter
             device.unlockForConfiguration()
             let active = device.activePrimaryConstituent?.localizedName ?? "nil"
-            Log.session.info("focal_applied option=\(option.rawValue)mm target_zoom=\(String(format: "%.2f", finalZoom))x active=\(active, privacy: .public) animated=\(animated)")
+            Log.session.info("focal_applied option=\(focalMm)mm target_zoom=\(String(format: "%.2f", finalZoom))x active=\(active, privacy: .public) animated=\(animated)")
         } catch {
             Log.session.error("focal_apply_lock_failed error=\(error.localizedDescription, privacy: .public)")
         }
-
-        // capture 就绪只等 zoom ramp 停（取景到位）+ 一点 ZSL grace 给系统的 constituent crossfade 收尾；
-        // 不再等特定 constituent（系统说了算）——所以系统拒绝长焦时快门不假死。maxWait 仅异常兜底。
-        beginLensSwitch(zoom: finalZoom, zslGraceMs: 150, maxWaitMs: 1200)
     }
 
     // MARK: - 9. 拍照
