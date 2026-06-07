@@ -231,6 +231,10 @@ struct ContentView: View {
     // MARK: - Preload
 
     private func preloadResources() async {
+        // 后台预热 Metal 预览资源（device + LUT compute PSO），避免首次进入拍摄页时在 .zoom
+        // 转场期间于主线程同步实例化设备 / 编译 shader 导致掉帧。与 LUT 解析并行、互不阻塞。
+        PreviewMetalResources.warm()
+
         // 在主 actor 上把 @Model 的 CustomLUT 投影为 Sendable 的 FilmSource，
         // 避免把非 Sendable 的 SwiftData 模型带入 Task.detached
         let customSources: [FilmSource] = customLUTs.map { FilmSource.from($0) }

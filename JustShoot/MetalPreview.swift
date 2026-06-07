@@ -3,13 +3,55 @@ import MetalKit
 @preconcurrency import CoreVideo
 import os
 
+// MARK: - 进程级共享 Metal 资源（启动预热，消除首次进入拍摄页的转场掉帧）
+//
+// MTLDevice 实例化 + default library 加载 + LUT compute PSO 编译，首次都在主线程花几十~上百 ms。
+// 旧实现把它们放在 RealtimePreviewView.makeUIView → Coordinator.setup 里同步创建，正好落在
+// 「列表 tile → 拍摄页」的 .zoom 转场期间 → 转场掉帧（用户感知的「第一次进入卡顿」），GPU/驱动
+// 也要到进入后第一秒才热起来，连带第一次切焦距的预览也掉帧。
+//
+// 改为进程级共享、app 启动时在后台预热一次、全进程复用：makeUIView 只取现成 device，setup 只取
+// 现成 PSO，转场不再被 Metal 初始化阻塞。device/library/PSO 的创建是线程安全的，可在后台线程做。
+final class PreviewMetalResources: @unchecked Sendable {
+    static let shared = PreviewMetalResources()
+
+    let device: (any MTLDevice)?
+    let computePipeline: (any MTLComputePipelineState)?
+
+    private init() {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            self.device = nil
+            self.computePipeline = nil
+            return
+        }
+        self.device = device
+        guard let library = device.makeDefaultLibrary(),
+              let function = library.makeFunction(name: "previewLUT"),
+              let pipeline = try? device.makeComputePipelineState(function: function) else {
+            Log.session.error("metal_shader_load_failed")
+            self.computePipeline = nil
+            return
+        }
+        self.computePipeline = pipeline
+    }
+
+    /// 启动时在后台触发 shared 的实例化（device + PSO 编译），让首次进入拍摄页时已就绪。
+    /// 幂等：shared 是 lazy 单例，多次调用只会命中已构建实例。
+    static func warm() {
+        Task.detached(priority: .userInitiated) {
+            _ = PreviewMetalResources.shared
+        }
+    }
+}
+
 // MARK: - 实时预览视图（全 Metal 管线：CVPixelBuffer → compute shader → drawable）
 struct RealtimePreviewView: UIViewRepresentable {
     let manager: CameraManager
     let lutCacheKey: String
 
     func makeUIView(context: Context) -> MTKView {
-        guard let device = MTLCreateSystemDefaultDevice() else {
+        // 复用启动时预热好的共享 device，避免在转场期间于主线程实例化 GPU 设备。
+        guard let device = PreviewMetalResources.shared.device ?? MTLCreateSystemDefaultDevice() else {
             let fallback = MTKView(frame: .zero)
             fallback.backgroundColor = .black
             return fallback
@@ -102,13 +144,18 @@ struct RealtimePreviewView: UIViewRepresentable {
             CVMetalTextureCacheCreate(nil, nil, device, nil, &cache)
             textureCache = cache
 
-            // 加载 compute shader
-            guard let library = device.makeDefaultLibrary(),
-                  let function = library.makeFunction(name: "previewLUT") else {
+            // compute PSO 由进程级共享资源在启动时预编译，这里直接复用——makeUIView 不再于
+            // 转场期间同步编译 shader。兜底：极端情况下共享资源缺失（如 Metal 不可用回退路径
+            // 自建了 device）时本地构建一次，保证功能不退化。
+            if let shared = PreviewMetalResources.shared.computePipeline,
+               PreviewMetalResources.shared.device === device {
+                computePipeline = shared
+            } else if let library = device.makeDefaultLibrary(),
+                      let function = library.makeFunction(name: "previewLUT") {
+                computePipeline = try? device.makeComputePipelineState(function: function)
+            } else {
                 Log.session.error("metal_shader_load_failed")
-                return
             }
-            computePipeline = try? device.makeComputePipelineState(function: function)
         }
 
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
