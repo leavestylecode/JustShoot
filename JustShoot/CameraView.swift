@@ -226,7 +226,8 @@ struct CameraView: View {
                 }
             }
 
-            // 右上：Live Photo 开关（仅设备支持时显示）+ 闪光灯
+            // 右上：Live Photo 开关（仅设备支持时显示）+ 闪光灯。两者用 ToolbarSpacer 拉开成两个
+            // 独立的 Liquid Glass 胶囊，Live 图标视觉上独立、不再贴着闪光灯。
             if cameraManager.isLivePhotoSupported {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -241,6 +242,7 @@ struct CameraView: View {
                     .accessibilityLabel(livePhotoEnabled ? Text("Live Photo on") : Text("Live Photo off"))
                     .accessibilityHint("Toggle Live Photo")
                 }
+                ToolbarSpacer(.fixed, placement: .primaryAction)
             }
 
             ToolbarItem(placement: .primaryAction) {

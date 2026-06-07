@@ -118,8 +118,12 @@ class CameraManager: NSObject, ObservableObject {
     }
     private var inFlightCapture: CaptureRequest?
     @Published var flashMode: FlashMode = .off
-    /// photoOutput 是否支持 Live Photo（session 配置后回填）。UI 据此显示/隐藏 Live 开关。
-    @Published var isLivePhotoSupported: Bool = false
+    /// photoOutput 是否支持 Live Photo。UI 据此显示/隐藏顶栏 Live 开关。
+    /// **默认 true**：本 app 目标 iOS 26 设备普遍支持 Live Photo，乐观默认让按钮一开始就显示，
+    /// 避免「等 session 配置完才弹出来」的迟显。session 配置完成后由 configureAndStartSession 回填
+    /// 真实值（支持设备保持 true，无可见变化；极少数不支持的设备才会隐藏）。真正拍 Live 仍由
+    /// 拍摄时 photoOutput.isLivePhotoCaptureEnabled 把关，提前显示是安全的。
+    @Published var isLivePhotoSupported: Bool = true
 
     // 震动反馈（预创建复用，减少首次延迟）
     let hapticLight = UIImpactFeedbackGenerator(style: .light)
