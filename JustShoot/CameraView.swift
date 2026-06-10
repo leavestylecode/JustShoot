@@ -35,15 +35,16 @@ struct CameraView: View {
     /// 由 cameraManager 的 `onShutterReady` 回调放开——**不再等 live 配对视频的 ~1.5s 录制窗口**。
     /// 放开后用户即可按下一张；在途的多张拍照由 CameraManager 按 uniqueID 分桶、互不覆盖。
     @State private var isShutterBusy = false
-    /// 在途重活计数（曝光 + 后处理全程）：tap 时 +1 预留槽位，后台 LUT/转码/写库全部跑完才 -1。
-    /// spinner 与连按节流都看它。tap 时就 +1（而非等交付）是关键：live 的配对视频要 ~1.5s 才到，
-    /// 若等交付才计数，这 ~1.5s 内门是「开」的，用户连点会瞬间排起 N 条「48MP 编码 + 视频转码」
-    /// 流水线 → 内存峰值失控。tap 即预留，让 gate 始终反映真实在途量。
+    /// 在途重活计数（曝光 + 后处理全程）：tap 时 +1，后台 LUT/转码/写库全部跑完才 -1。
+    /// **只驱动 spinner 反馈，不再节流快门**——连拍受限的只有 AVF 自身 ~300ms 的 isShutterBusy
+    /// 节拍（与 iPhone 原相机一致），后处理多慢都不挡拍。
     @State private var pendingPostProcessing = 0
-    /// 在途重活并发上限。单张 48MP HEIF10 编码峰值内存 ~200-300MB。普通拍照 3 张并发可控；
-    /// Live Photo 每张还要叠一段视频逐帧 LUT 转码，内存峰值更高 → 限 2，避免多条重流水线同时跑
-    /// 触发 jetsam，又能让用户「连拍 2 张再缓一下」而不是每张都卡死等上一张走完。
-    private var maxInflightProcessing: Int { livePhotoEnabled ? 2 : 3 }
+    /// 后处理串行链：每张照片的「LUT + HEIF 编码 + live 视频转码 + 写库」按交付顺序排队执行，
+    /// 任意时刻只有一条重流水线在跑。这是把旧的「在途并发上限（live=2/普通=3，到顶直接忽略
+    /// 快门）」换成不限流的关键——内存峰值由串行天然有界（排队的只是每张 ~1.3MB 的 HEIF 字节
+    /// 与磁盘上的临时视频文件），用户连拍永不被后处理速度阻塞，照片按拍摄顺序陆续落库。
+    /// 不随视图销毁取消：已拍下的照片必须保存完。
+    @State private var postProcessChain: Task<Void, Never>?
     @State private var shutterPressed = false
     /// 拍照 pipeline 完成时立即 push 进来的 88pt 缩略图 hint（避免等 @Query 通知链 ~300-500ms）。
     /// RecentPhotosBadge 通过 @Binding 读写：source 切换时它会清空 hint 并从新 source 的 @Query
@@ -396,11 +397,9 @@ struct CameraView: View {
     fileprivate static let thumbnailMaxPixel = 88
 
     private func capturePhoto() {
-        // 两道闸门：
-        //  1) isShutterBusy — 仅守护 tap → 静态图就绪 + 闪光灯 AE/WB 还原这段小窗口（~300ms，
-        //     live/非 live 同）。由 onShutterReady 放开，**不再等 live 视频的 ~1.5s**。
-        //  2) pendingPostProcessing >= maxInflightProcessing — 在途重活并发上限（live=2 / 普通=3）。
-        //     达到上限时 tap 直接忽略。tap 时即 +1 预留（见属性注释），避免 live 的视频窗口期门「虚开」。
+        // 唯一节流闸门：isShutterBusy —— 仅守护 tap → 静态图就绪 + 闪光灯 AE/WB 还原这段
+        // 小窗口（~300ms，live/非 live 同），由 onShutterReady 放开，**不等 live 视频的 ~1.5s**，
+        // 也**不看后处理水位**（后处理走 postProcessChain 串行排队，永不阻塞快门）。
         // 相机根本不可用（权限未授予 / 启动配置未完成 / 已离开页面）时静默忽略快门——
         // 否则 issueCapturePhoto 会在无 active connection 时抛 NSException 崩溃。
         // 注意用 isCaptureAvailable 而非 isReadyToCapture：镜头切换中相机是「可用但未就绪」，
@@ -413,17 +412,12 @@ struct CameraView: View {
             Log.capture.debug("shutter_ignored reason=shutter_busy")
             return
         }
-        guard pendingPostProcessing < maxInflightProcessing else {
-            Log.capture.debug("shutter_ignored reason=post_processing_full pending=\(pendingPostProcessing)")
-            return
-        }
 
         let tapTime = Log.now()
         Log.capture.info("shutter_tap source=\(source.photoFilterName, privacy: .public) pending_post=\(pendingPostProcessing)")
 
         isShutterBusy = true
-        // tap 即预留一个在途重活槽位：覆盖「曝光 + 等 live 视频 + 后处理」全程，直到后台 task 跑完才 -1。
-        // 必须在这里 +1 而非等交付，否则 live 的 ~1.5s 视频窗口内门会虚开、连点排爆内存（见属性注释）。
+        // tap 即 +1：spinner 覆盖「曝光 + 等 live 视频 + 排队 + 后处理」全程，后台 task 跑完才 -1。
         pendingPostProcessing += 1
         shutterPressed = true
         cameraManager.hapticMedium.impactOccurred()
@@ -492,9 +486,14 @@ struct CameraView: View {
             let photoDisplayTime = result.photoDisplayTime
             Log.capture.info("photo_data_received bytes=\(data.count) live=\(liveMovieURL != nil) dt_from_tap=\(Log.ms(since: tapTime))ms")
 
-            Task.detached(priority: .userInitiated) {
-                // defer 兜底：即便 LUT/save 抛错，tap 时预留的 pendingPostProcessing 槽位也必须递减，
-                // 否则连按 maxInflight 次后按钮永久 disabled。
+            // 串到 postProcessChain 末尾：先等前面所有照片的重流水线跑完，再处理本张。
+            // 任意时刻只有一条「LUT + HEIF 编码 + 视频转码」在跑——内存/GPU 峰值有界，
+            // 连拍多少张都不影响快门（交付回调在 @MainActor，链头读写无竞争）。
+            let previousJob = postProcessChain
+            postProcessChain = Task.detached(priority: .userInitiated) {
+                await previousJob?.value
+                // defer 兜底：即便 LUT/save 抛错，tap 时 +1 的 pendingPostProcessing 也必须递减，
+                // 否则 spinner 永不消失。
                 defer {
                     Task { @MainActor in
                         pendingPostProcessing = max(0, pendingPostProcessing - 1)
