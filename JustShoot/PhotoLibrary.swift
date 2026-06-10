@@ -236,8 +236,16 @@ final class PhotoLibrarySync: NSObject, PHPhotoLibraryChangeObserver {
             try? await Task.sleep(for: .milliseconds(400))
             reconcilePending = false
             await PhotoSaver(modelContainer: container).pruneDeletedAssets()
+            // 通知存活中的快照视图（详情页 photos 数组）与底层数据重新对账——
+            // 否则外部删除后快照里残留已删 @Model，渲染读属性即崩。
+            NotificationCenter.default.post(name: .photoLibraryDidReconcile, object: nil)
         }
     }
+}
+
+extension Notification.Name {
+    /// PhotoLibrarySync 完成一轮 reconcile（剪枝已删资产的索引行）后发出。
+    static let photoLibraryDidReconcile = Notification.Name("photoLibraryDidReconcile")
 }
 
 // MARK: - 资产图片加载器（PHCachingImageManager 包装）

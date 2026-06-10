@@ -217,6 +217,12 @@ struct PhotoDetailView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             ImageLoader.shared.clearCache()
         }
+        // 视图存活期间的实时对账：reconcilePhotos 原本只在 onAppear 跑一次，详情页打开期间用户在
+        // 「照片」app 删掉当前资产 → PhotoLibrarySync 剪掉索引行 → 快照数组里留下已删 @Model，
+        // 渲染读其属性即崩。监听 reconcile 完成通知，把快照与底层数据重新对齐。
+        .onReceive(NotificationCenter.default.publisher(for: .photoLibraryDidReconcile)) { _ in
+            reconcilePhotos()
+        }
         .sheet(isPresented: $showingInfo) {
             if let photo = currentPhoto {
                 PhotoInfoPanel(photo: photo)
@@ -367,29 +373,26 @@ struct PhotoDetailView: View {
     private func deleteCurrentPhoto() {
         guard let photoToDelete = currentPhoto else { return }
         let deletedId = photoToDelete.id
-        let deletedIdx = currentIndex
         let assetID = photoToDelete.assetLocalIdentifier
         let container = modelContext.container
-
-        // 先选好"下一张" id：删除确认后 `scrollPosition(id:)` 的 binding 立刻指向仍存在的 photo.id，
-        // 避免 selection 瞬态。优先右邻（idx+1），最末位回退左邻（idx-1）。
-        let nextID: UUID? = {
-            if photos.count <= 1 { return nil }
-            if deletedIdx + 1 < photos.count { return photos[deletedIdx + 1].id }
-            if deletedIdx - 1 >= 0 { return photos[deletedIdx - 1].id }
-            return nil
-        }()
 
         // 真相源在系统相册：先 PHAsset 删除（系统弹原生确认）。用户确认 → 更新 UI + 删索引行；
         // 取消 → 抛错，照片原样保留（不做乐观移除，避免删失败后照片"复活"闪烁）。
         Task { @MainActor in
             do {
                 if let assetID { try await PhotoLibrary.delete(localIdentifiers: [assetID]) }
+                // "下一张"必须在删除事务完成、按当前数组重解——系统确认弹窗可挂起数秒，期间
+                // reconcile / 外部删除可能已改动 photos，await 前解出的邻位索引会指向错误照片。
+                // 优先右邻（移除后原 idx 位置即右邻），最末位回退左邻（即新末位）。
                 if let idx = photos.firstIndex(where: { $0.id == deletedId }) {
                     photos.remove(at: idx)
+                    let nextID = photos.indices.contains(idx) ? photos[idx].id : photos.last?.id
+                    if let nextID { currentPhotoID = nextID } else { dismiss() }
+                } else {
+                    // 行已被 reconcile 抢先剪掉：对账兜底选中/退出。
+                    reconcilePhotos()
                 }
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
-                if let nextID { currentPhotoID = nextID } else { dismiss() }
                 let saver = PhotoSaver(modelContainer: container)
                 try await saver.delete(ids: [deletedId])
                 ImageLoader.shared.removeDiskCache(for: deletedId)
@@ -448,7 +451,11 @@ private struct PagerImage: View {
 
     var body: some View {
         Group {
-            if photo.isLivePhoto {
+            if photo.isDeleted {
+                // 外部/跨视图删除与 reconcile 剪枝之间的窗口：对已删除 @Model 读持久化属性会
+                // "object has been deleted" trap，渲染层先于数组剪枝兜底成黑占位。
+                Color.black
+            } else if photo.isLivePhoto {
                 // Live Photo：当前页用可缩放的 PHLivePhotoView（长按播放含音轨）；displayImage 作为
                 // live 资源加载前的占位静图。
                 LivePhotoPage(
@@ -979,7 +986,8 @@ private struct ThumbnailStripCell: View {
         .scaleEffect(isSelected ? selectedScale : 1.0)
         .animation(.easeOut(duration: 0.2), value: isSelected)
         .task {
-            if thumb == nil {
+            // isDeleted 防护：外部删除后 reconcile 剪枝前，读已删模型的属性会 trap。
+            if thumb == nil, !photo.isDeleted {
                 thumb = await PhotoImage.thumbnail(for: photo, maxPixel: Self.loadMaxPixel)
             }
         }
