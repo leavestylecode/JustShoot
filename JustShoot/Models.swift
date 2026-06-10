@@ -412,6 +412,43 @@ actor PhotoSaver {
         for id in prunedRowIDs { ImageLoader.shared.removeDiskCache(for: id) }
         Log.save.info("photos_pruned_deleted count=\(prunedRowIDs.count)")
     }
+
+    /// 与系统相册的全量对账入口：剪掉已删资产的索引行 + 回填「资产在相簿里但索引缺行」的孤儿。
+    /// 两个触发点（GalleryView 冷同步 / PhotoLibrarySync 实时回调）统一走这里。
+    func reconcileWithLibrary() {
+        pruneDeletedAssets()
+        backfillOrphanAssets()
+    }
+
+    /// 正向同步（library → app）：JustShoot 相簿里存在、但索引没有对应行的资产，补建索引行。
+    /// 这是「资产已写入相册、PhotoSaver.save 写索引却失败」唯一的恢复路径——没有它照片会永远
+    /// 存在于相册却不出现在 app 画廊。也顺带覆盖 iCloud 把另一台设备 JustShoot 相簿同步过来的
+    /// 资产。胶片元数据已不可知，回填行 filmPresetName 为 nil（显示 "Default"）。
+    ///
+    /// 30s 宽限：拍摄管线是「先写相册、后写索引」，本方法又会被保存自身触发的相册变更回调唤起
+    /// ——不留宽限会在索引写入前抢先回填出重复行。creationDate 是拍摄时刻，30s 远大于整条
+    /// 后处理管线的最坏耗时。
+    private func backfillOrphanAssets() {
+        guard let albumAssets = PhotoLibrary.albumAssetInfo(), !albumAssets.isEmpty else { return }
+        let descriptor = FetchDescriptor<Photo>(predicate: #Predicate { $0.assetLocalIdentifier != nil })
+        guard let photos = try? modelContext.fetch(descriptor) else { return }
+        let indexed = Set(photos.compactMap(\.assetLocalIdentifier))
+        let cutoff = Date().addingTimeInterval(-30)
+
+        var added = 0
+        for asset in albumAssets {
+            guard !indexed.contains(asset.id) else { continue }
+            if let created = asset.creationDate, created > cutoff { continue }   // 在途拍摄宽限
+            let photo = Photo(assetLocalIdentifier: asset.id, imageData: nil)
+            if let created = asset.creationDate { photo.timestamp = created }
+            photo.isLivePhoto = asset.isLivePhoto
+            modelContext.insert(photo)
+            added += 1
+        }
+        guard added > 0 else { return }
+        try? modelContext.save()
+        Log.save.info("photos_backfilled_orphans count=\(added)")
+    }
 }
 
 // MARK: - 自定义 LUT 模型

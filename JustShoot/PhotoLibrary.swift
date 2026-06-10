@@ -251,6 +251,22 @@ enum PhotoLibrary {
         fetch.enumerateObjects { asset, _, _ in present.insert(asset.localIdentifier) }
         return present
     }
+
+    // MARK: - 正向同步辅助（孤儿资产回填用）
+    //
+    // JustShoot 相簿内全部资产的轻量信息（identifier / 创建时间 / 是否 Live）。与剪枝同一安全
+    // 前提：仅在完整 .authorized 时返回，.limited 下相簿 fetch 可能不完整、不可作为对账输入；
+    // 相簿不存在返回空数组。同步 fetch，可在后台 @ModelActor 上直接调。
+    static func albumAssetInfo() -> [(id: String, creationDate: Date?, isLivePhoto: Bool)]? {
+        guard PHPhotoLibrary.authorizationStatus(for: .readWrite) == .authorized else { return nil }
+        guard let album = findAlbum() else { return [] }
+        let fetch = PHAsset.fetchAssets(in: album, options: nil)
+        var result: [(id: String, creationDate: Date?, isLivePhoto: Bool)] = []
+        fetch.enumerateObjects { asset, _, _ in
+            result.append((asset.localIdentifier, asset.creationDate, asset.mediaSubtypes.contains(.photoLive)))
+        }
+        return result
+    }
 }
 
 // MARK: - 反向同步观察者（library → app）
@@ -290,7 +306,7 @@ final class PhotoLibrarySync: NSObject, PHPhotoLibraryChangeObserver {
             // 合并连续变更（一次批量删除可能触发多次回调）。
             try? await Task.sleep(for: .milliseconds(400))
             reconcilePending = false
-            await PhotoSaver(modelContainer: container).pruneDeletedAssets()
+            await PhotoSaver(modelContainer: container).reconcileWithLibrary()
             // 通知存活中的快照视图（详情页 photos 数组）与底层数据重新对账——
             // 否则外部删除后快照里残留已删 @Model，渲染读属性即崩。
             NotificationCenter.default.post(name: .photoLibraryDidReconcile, object: nil)
