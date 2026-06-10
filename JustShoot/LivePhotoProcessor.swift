@@ -48,6 +48,13 @@ private final class PipelineBox: @unchecked Sendable {
     }
 }
 
+/// prewarm 的 finishWriting 完成闭包是 @Sendable，无法直接捕获非 Sendable 的 AVAssetWriter
+/// 读回 status——与 PipelineBox 同一处理手法。
+private final class PrewarmWriterBox: @unchecked Sendable {
+    let writer: AVAssetWriter
+    init(_ writer: AVAssetWriter) { self.writer = writer }
+}
+
 enum LivePhotoProcessor {
 
     enum ProcessError: Error {
@@ -71,6 +78,88 @@ enum LivePhotoProcessor {
         }
         return CIContext(options: opts)
     }()
+
+    // MARK: - 预热
+    //
+    // 首张 Live Photo 后处理的冷启动成本（设备实测 9728ms，之后 450–1000ms）来自两处一次性初始化，
+    // 且都撞在「首拍 GPU 最忙」的时刻（Deep Fusion + 静态图 LUT/HEIF 编码 + 预览渲染同时进行）：
+    //   1. 本文件独立 CIContext 的首次 render——编译 CIColorCube 的 Metal 内核、建渲染管线；
+    //   2. 首个 AVAssetWriter HEVC 会话——拉起 VideoToolbox 编码器服务。
+    // 这里在启动后台把两者都预先走一遍：单帧 64×64 的 CIColorCube 渲染 + 一段 2 帧黑帧的迷你
+    // HEVC .mov（写到 tmp 后即删）。与 PreviewMetalResources.warm / prepareForFirstCapture 同一
+    // 思路：把一次性成本从「用户第一次按快门」挪到启动后台。幂等，已预热直接返回。
+    private static let prewarmed = OSAllocatedUnfairLock(initialState: false)
+
+    static func prewarm() async {
+        let alreadyWarmed = prewarmed.withLock { state -> Bool in
+            if state { return true }
+            state = true
+            return false
+        }
+        guard !alreadyWarmed else { return }
+        let timer = Log.perf("livephoto_prewarm", logger: Log.lut)
+
+        let width = 64, height = 64
+        let bufferAttrs = [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary
+        var srcBuffer: CVPixelBuffer?
+        CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, bufferAttrs, &srcBuffer)
+        guard let src = srcBuffer else { return }
+
+        // 1) CIContext 首渲染：与真实转码相同的 CIColorCubeWithColorSpace 路径（恒等 2³ 立方）。
+        var identity: [Float] = []
+        identity.reserveCapacity(2 * 2 * 2 * 4)
+        for b in 0..<2 { for g in 0..<2 { for r in 0..<2 {
+            identity.append(contentsOf: [Float(r), Float(g), Float(b), 1])
+        } } }
+        let lutData = identity.withUnsafeBufferPointer { Data(buffer: $0) }
+        if let filter = CIFilter(name: "CIColorCubeWithColorSpace") {
+            filter.setValue(CIImage(cvPixelBuffer: src), forKey: kCIInputImageKey)
+            filter.setValue(2, forKey: "inputCubeDimension")
+            filter.setValue(lutData, forKey: "inputCubeData")
+            filter.setValue(srgb, forKey: "inputColorSpace")
+            var dstBuffer: CVPixelBuffer?
+            CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, bufferAttrs, &dstBuffer)
+            if let out = filter.outputImage, let dst = dstBuffer {
+                ciContext.render(out, to: dst, bounds: out.extent, colorSpace: srgb)
+            }
+        }
+
+        // 2) 迷你 HEVC writer 会话：拉起 VideoToolbox 编码器（帧内容无所谓，直接写源 buffer）。
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("livephoto_prewarm_\(UUID().uuidString).mov")
+        defer { try? FileManager.default.removeItem(at: outputURL) }
+        guard let writer = try? AVAssetWriter(outputURL: outputURL, fileType: .mov) else { return }
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
+            AVVideoCodecKey: AVVideoCodecType.hevc,
+            AVVideoWidthKey: width,
+            AVVideoHeightKey: height
+        ])
+        input.expectsMediaDataInRealTime = false
+        guard writer.canAdd(input) else { return }
+        writer.add(input)
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(
+            assetWriterInput: input,
+            sourcePixelBufferAttributes: [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                kCVPixelBufferWidthKey as String: width,
+                kCVPixelBufferHeightKey as String: height
+            ]
+        )
+        guard writer.startWriting() else { return }
+        writer.startSession(atSourceTime: .zero)
+        for i: CMTimeValue in 0..<2 {
+            while !input.isReadyForMoreMediaData {
+                try? await Task.sleep(for: .milliseconds(5))
+            }
+            adaptor.append(src, withPresentationTime: CMTime(value: i, timescale: 30))
+        }
+        input.markAsFinished()
+        let box = PrewarmWriterBox(writer)
+        let status: AVAssetWriter.Status = await withCheckedContinuation { cont in
+            box.writer.finishWriting { cont.resume(returning: box.writer.status) }
+        }
+        timer.end("status=\(status.rawValue)")
+    }
 
     /// 把 sourceURL 的视频逐帧套 LUT，写出带配对元数据的 .mov 到 outputURL。
     /// - lutCacheKey: FilmProcessor 缓存键；取不到缓存 LUT 时视频按原始画面透传（不致丢失 Live Photo）。

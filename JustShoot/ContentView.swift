@@ -235,6 +235,11 @@ struct ContentView: View {
         // 转场期间于主线程同步实例化设备 / 编译 shader 导致掉帧。与 LUT 解析并行、互不阻塞。
         PreviewMetalResources.warm()
 
+        // 后台预热 Live Photo 转码管线（独立 CIContext 内核编译 + VideoToolbox HEVC 编码器）：
+        // 否则首张 Live Photo 的视频后处理付 ~9.7s 冷启动（设备实测），在途槽位被长期占住，
+        // 连拍立刻 shutter_ignored。fire-and-forget，不阻塞 splash。
+        Task.detached(priority: .utility) { await LivePhotoProcessor.prewarm() }
+
         // 在主 actor 上把 @Model 的 CustomLUT 投影为 Sendable 的 FilmSource，
         // 避免把非 Sendable 的 SwiftData 模型带入 Task.detached
         let customSources: [FilmSource] = customLUTs.map { FilmSource.from($0) }
