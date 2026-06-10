@@ -198,7 +198,7 @@ final class FilmProcessor: Sendable {
     ///   与配对视频关联的 content identifier。静态图被 LUT 重编码后 AVCapture 原写入的 MakerApple
     ///   可能不可靠存活，所以由调用方显式传入同一个 UUID，两端（这里 + LivePhotoProcessor 写视频）
     ///   各自显式写入，配对不依赖原始字节往返。
-    func applyLUTPreservingMetadata(imageData: Data, lutCacheKey: String, outputQuality: CGFloat = 1.0, location: CLLocation? = nil, focalLengthIn35mm: Int? = nil, contentIdentifier: String? = nil) -> Data? {
+    func applyLUTPreservingMetadata(imageData: Data, lutCacheKey: String, outputQuality: CGFloat = 1.0, location: CLLocation? = nil, captureDate: Date = Date(), focalLengthIn35mm: Int? = nil, contentIdentifier: String? = nil) -> Data? {
         // 读取原始 metadata（AVCapture 写入的完整 EXIF / TIFF / Maker / 色彩空间字典）。
         // 一次读取，后面 orientation 判断 + metadata 注入都复用，避免重复打开 CGImageSource。
         let sourceProps: [String: Any] = {
@@ -333,10 +333,10 @@ final class FilmProcessor: Sendable {
             // GPS 时间戳用"拍照时刻"而非 location fix 时刻：30s 缓存策略下连拍多张
             // 会复用同一个 CLLocation，loc.timestamp 是 fix 时刻而非拍摄时刻，
             // 写入 EXIF 后用户在相册里看到一组照片"GPS 时间相同"——与文件创建时间错位。
-            // 坐标变化慢可接受沿用 cached，但时间必须取真值。
-            let captureTime = Date()
-            gps[kCGImagePropertyGPSDateStamp as String] = Self.gpsDateFormatter.string(from: captureTime)
-            gps[kCGImagePropertyGPSTimeStamp as String] = Self.gpsTimeFormatter.string(from: captureTime)
+            // 坐标变化慢可接受沿用 cached，但时间必须取真值——由调用方在快门 tap 时刻快照传入
+            // （后处理串行排队后，本函数的执行时刻可能晚于拍摄数秒到数十秒，不能在这里取 Date()）。
+            gps[kCGImagePropertyGPSDateStamp as String] = Self.gpsDateFormatter.string(from: captureDate)
+            gps[kCGImagePropertyGPSTimeStamp as String] = Self.gpsTimeFormatter.string(from: captureDate)
 
             if loc.speed >= 0 {
                 gps[kCGImagePropertyGPSSpeed as String] = loc.speed * 3.6

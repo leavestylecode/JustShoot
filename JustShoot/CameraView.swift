@@ -414,6 +414,9 @@ struct CameraView: View {
         }
 
         let tapTime = Log.now()
+        // 拍摄时刻快照：相册 creationDate 必须反映按快门的瞬间。后处理已串行排队，若在队列任务
+        // 里才求值 Date()，连拍尾部照片的时间会晚数秒到数十秒（Photos 按 creationDate 排序展示）。
+        let captureDate = Date()
         Log.capture.info("shutter_tap source=\(source.photoFilterName, privacy: .public) pending_post=\(pendingPostProcessing)")
 
         isShutterBusy = true
@@ -491,6 +494,11 @@ struct CameraView: View {
             // 连拍多少张都不影响快门（交付回调在 @MainActor，链头读写无竞争）。
             let previousJob = postProcessChain
             postProcessChain = Task.detached(priority: .userInitiated) {
+                // GPS 在排队等待**之前**取（任务创建即开跑，此刻 = 交付时刻，距 tap ≤1.5s，30s 缓存
+                // 足以代表拍摄那一刻的位置）。若排到队尾才取，连拍尾部照片拿到的是处理时刻的位置。
+                let location = await manager.cachedOrFreshLocation()
+                Log.gps.info("gps_resolved present=\(location != nil) age=\(location.map { String(format: "%.1fs", Date().timeIntervalSince($0.timestamp)) } ?? "nil", privacy: .public)")
+
                 await previousJob?.value
                 // defer 兜底：即便 LUT/save 抛错，tap 时 +1 的 pendingPostProcessing 也必须递减，
                 // 否则 spinner 永不消失。
@@ -499,9 +507,6 @@ struct CameraView: View {
                         pendingPostProcessing = max(0, pendingPostProcessing - 1)
                     }
                 }
-
-                let location = await manager.cachedOrFreshLocation()
-                Log.gps.info("gps_resolved present=\(location != nil) age=\(location.map { String(format: "%.1fs", Date().timeIntervalSince($0.timestamp)) } ?? "nil", privacy: .public)")
 
                 // Live Photo 动态视频先处理：套同一胶片 LUT + 重写 still-image-time 配对元数据，产出
                 // 过滤后的 .mov，并**返回 AVCapture 写入的 content identifier**——它要原样写进下面静态图
@@ -532,6 +537,7 @@ struct CameraView: View {
                     lutCacheKey: currentSource.lutCacheKey,
                     outputQuality: outputQuality,
                     location: location,
+                    captureDate: captureDate,
                     focalLengthIn35mm: focalMm,
                     contentIdentifier: contentID   // 与上面视频同一 id 配对；非 live / 视频失败时为 nil
                 )
@@ -564,7 +570,7 @@ struct CameraView: View {
                             assetID = try await PhotoLibrary.saveLivePhoto(
                                 imageData: finalData,
                                 videoURL: movie,
-                                creationDate: Date(),
+                                creationDate: captureDate,
                                 latitude: location?.coordinate.latitude,
                                 longitude: location?.coordinate.longitude,
                                 altitude: location?.altitude,
@@ -573,7 +579,7 @@ struct CameraView: View {
                         } else {
                             assetID = try await PhotoLibrary.save(
                                 imageData: finalData,
-                                creationDate: Date(),
+                                creationDate: captureDate,
                                 latitude: location?.coordinate.latitude,
                                 longitude: location?.coordinate.longitude,
                                 altitude: location?.altitude,
