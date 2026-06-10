@@ -1611,7 +1611,18 @@ class CameraManager: NSObject, ObservableObject {
         let equivLive = self.focalInfo.equivalentMm(forZoom: liveZoom, activeConstituent: activeLens)
         let digiCrop = lensNativeMm > 0 ? Float(equivSet) / lensNativeMm : 0
         Log.capture.info("capture_focal equiv_set=\(equivSet)mm equiv_live=\(String(format: "%.1f", equivLive))mm lens=\(lensName, privacy: .public)/\(String(format: "%.0f", lensNativeMm))mm zoom=\(String(format: "%.2f", liveZoom))x digi_crop=\(String(format: "%.2f", digiCrop))x")
-        sessionQueue.asyncAfter(deadline: deadline) {
+        let captureID = settings.uniqueID
+        sessionQueue.asyncAfter(deadline: deadline) { [weak self] in
+            // 重查 connection：登记（1585）到这里之间隔着 flash 的 200ms 延迟窗口，期间 stopSession /
+            // pauseSessionForBackground 可能已把 session 停掉。对非活跃 connection 调 capturePhoto 会抛
+            // NSException，且 delegate 终结回调永不到达 → inFlightCaptures 条目、flashRestore（AE/WB
+            // 保持 .locked）、onShutterReady 全部永久泄漏。这里改为优雅终结：还原 AE/WB + 放开快门 +
+            // 以 nil 释放后处理槽位。
+            guard output.connection(with: .video)?.isActive == true else {
+                Log.capture.error("capture_skip reason=connection_inactive_at_invoke")
+                Task { @MainActor in self?.deliverCaptureIfReady(id: captureID, terminal: true) }
+                return
+            }
             if let angle = rotationAngle,
                let connection = output.connection(with: .video),
                connection.isVideoRotationAngleSupported(angle) {

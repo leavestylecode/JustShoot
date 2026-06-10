@@ -479,7 +479,10 @@ struct CameraView: View {
             guard let result else {
                 Log.capture.error("photo_data_nil dt_from_tap=\(Log.ms(since: tapTime))ms")
                 shutterPressed = false
-                // 失败：释放 tap 时预留的在途槽位（onShutterReady 已/会经 terminal 放开 isShutterBusy）。
+                // 失败：释放 tap 时预留的在途槽位。isShutterBusy 也在此兜底重置——正常 terminal 路径
+                // onShutterReady 会先放开它（此处幂等），但若某条失败路径未触发 onShutterReady，
+                // 没有这行快门会永久 disabled。
+                isShutterBusy = false
                 pendingPostProcessing = max(0, pendingPostProcessing - 1)
                 captureError = String(localized: "Capture failed: couldn't get image data, please try again")
                 return
