@@ -73,15 +73,18 @@ final class FilmProcessor: Sendable {
         var size = 0
         var values: [Float] = []
 
-        // 按任意空白 split——很多导出器（Resolve / 3D LUT Creator 等）用 tab 或多空格分隔，
+        // 按空格/tab split——很多导出器（Resolve / 3D LUT Creator 等）用 tab 或多空格分隔，
         // 只认单空格会把合法文件误判成 "dimensions mismatch" 拒掉。
+        // 注意分隔判定必须是 ASCII 字符直接比较：`\.isWhitespace` 每字符做 Unicode 属性查询，
+        // 在 8 × dim³ 行的解析量级下会把 lut_load 拖慢数倍（设备实测 0.6–1.8s/个）。
+        let isSeparator: (Character) -> Bool = { $0 == " " || $0 == "\t" }
         for line in lines {
             if line.uppercased().hasPrefix("LUT_3D_SIZE") {
-                if let last = line.split(whereSeparator: \.isWhitespace).last, let dim = Int(last) {
+                if let last = line.split(whereSeparator: isSeparator).last, let dim = Int(last) {
                     size = dim
                 }
             } else {
-                let comps = line.split(whereSeparator: \.isWhitespace).compactMap { Float($0) }
+                let comps = line.split(whereSeparator: isSeparator).compactMap { Float($0) }
                 if comps.count == 3 {
                     values.append(contentsOf: comps)
                 }
