@@ -61,8 +61,12 @@ enum PhotoLibrary {
         locationTimestamp: Date?
     ) async throws -> String {
         try await ensureAuthorized()
+        // 相簿创建已串行化（见 ensureAlbumIdentifier）。创建失败不阻塞照片保存——资产仍正常
+        // 入库（app 内画廊走 SwiftData 索引，不依赖相簿成员关系），只是不进 JustShoot 相簿。
+        let albumID = try? await ensureAlbumIdentifier()
 
         let idBox = Box<String?>(nil)
+        let albumMissingBox = Box(false)
         try await PHPhotoLibrary.shared().performChanges {
             let creation = PHAssetCreationRequest.forAsset()
             creation.creationDate = creationDate
@@ -89,15 +93,9 @@ enum PhotoLibrary {
             guard let placeholder = creation.placeholderForCreatedAsset else { return }
             idBox.value = placeholder.localIdentifier
 
-            // 找到或在同一事务内新建 JustShoot 相簿，并把新资产加入。
-            if let album = findAlbum(),
-               let albumChange = PHAssetCollectionChangeRequest(for: album) {
-                albumChange.addAssets([placeholder] as NSArray)
-            } else {
-                let albumCreation = PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: albumTitle)
-                albumCreation.addAssets([placeholder] as NSArray)
-            }
+            addToAlbum(placeholder: placeholder, albumID: albumID, albumMissing: albumMissingBox)
         }
+        if albumMissingBox.value { await invalidateAlbumCache() }
 
         guard let id = idBox.value else { throw PhotoLibraryError.saveFailed }
         return id
@@ -119,8 +117,10 @@ enum PhotoLibrary {
         locationTimestamp: Date?
     ) async throws -> String {
         try await ensureAuthorized()
+        let albumID = try? await ensureAlbumIdentifier()
 
         let idBox = Box<String?>(nil)
+        let albumMissingBox = Box(false)
         try await PHPhotoLibrary.shared().performChanges {
             let creation = PHAssetCreationRequest.forAsset()
             creation.creationDate = creationDate
@@ -149,24 +149,76 @@ enum PhotoLibrary {
             guard let placeholder = creation.placeholderForCreatedAsset else { return }
             idBox.value = placeholder.localIdentifier
 
-            if let album = findAlbum(),
-               let albumChange = PHAssetCollectionChangeRequest(for: album) {
-                albumChange.addAssets([placeholder] as NSArray)
-            } else {
-                let albumCreation = PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: albumTitle)
-                albumCreation.addAssets([placeholder] as NSArray)
-            }
+            addToAlbum(placeholder: placeholder, albumID: albumID, albumMissing: albumMissingBox)
         }
+        if albumMissingBox.value { await invalidateAlbumCache() }
 
         guard let id = idBox.value else { throw PhotoLibraryError.saveFailed }
         return id
     }
 
-    /// 同步查找已存在的 JustShoot 相簿（仅在 performChanges 闭包内调用，结果不跨 await）。
+    /// 在 performChanges 事务内把新资产加入 JustShoot 相簿。相簿按串行化缓存的 identifier 取，
+    /// 取不到（用户删了相簿）回退 findAlbum 再试；仍不在则置 albumMissing 让 caller 失效缓存——
+    /// 本张照片不进相簿（资产本身已保存，不因相簿缺失丢照片）。
+    private static func addToAlbum(placeholder: PHObjectPlaceholder, albumID: String?, albumMissing: Box<Bool>) {
+        let album: PHAssetCollection? = {
+            if let albumID,
+               let fetched = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [albumID], options: nil).firstObject {
+                return fetched
+            }
+            return findAlbum()
+        }()
+        if let album, let albumChange = PHAssetCollectionChangeRequest(for: album) {
+            albumChange.addAssets([placeholder] as NSArray)
+        } else {
+            albumMissing.value = true
+        }
+    }
+
+    /// 同步查找已存在的 JustShoot 相簿（PHAssetCollection fetch 线程安全，结果不跨 await）。
     private static func findAlbum() -> PHAssetCollection? {
         let opts = PHFetchOptions()
         opts.predicate = NSPredicate(format: "title = %@", albumTitle)
         return PHAssetCollection.fetchAssetCollections(with: .album, subtype: .albumRegular, options: opts).firstObject
+    }
+
+    // MARK: - 相簿创建串行化
+    //
+    // save/saveLivePhoto 原本各自在事务内 find-or-create：并发拍摄（在途上限 live 2 / normal 3）
+    // 首启连拍时两个事务都看到相簿不存在 → 各建一个同名 "JustShoot"，之后 findAlbum().firstObject
+    // 取哪个不确定，相册被永久分叉。收敛成 MainActor 上共享的一个 Task：创建只发生一次，后续调用
+    // 复用缓存的 localIdentifier；失败清空缓存允许重试。
+    @MainActor private static var albumIdentifierTask: Task<String, any Error>?
+
+    private static func ensureAlbumIdentifier() async throws -> String {
+        let task: Task<String, any Error> = await MainActor.run {
+            if let existing = albumIdentifierTask { return existing }
+            let t = Task<String, any Error> {
+                if let album = findAlbum() { return album.localIdentifier }
+                let idBox = Box<String?>(nil)
+                try await PHPhotoLibrary.shared().performChanges {
+                    let creation = PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: albumTitle)
+                    idBox.value = creation.placeholderForCreatedAssetCollection.localIdentifier
+                }
+                guard let id = idBox.value else { throw PhotoLibraryError.saveFailed }
+                Log.save.info("album_created id=\(id, privacy: .public)")
+                return id
+            }
+            albumIdentifierTask = t
+            return t
+        }
+        do {
+            return try await task.value
+        } catch {
+            // 失败不缓存——下次保存重试创建。
+            _ = await MainActor.run { albumIdentifierTask = nil }
+            throw error
+        }
+    }
+
+    /// 缓存的相簿 identifier 失效（用户在「照片」app 删掉了相簿）——清掉让下次保存重建。
+    @MainActor private static func invalidateAlbumCache() {
+        albumIdentifierTask = nil
     }
 
     // MARK: - 删除
