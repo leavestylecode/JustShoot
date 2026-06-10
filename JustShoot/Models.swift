@@ -111,7 +111,11 @@ struct ParsedExifInfo: Sendable {
             if exposureTime >= 1 {
                 return String(format: "%.1fs", exposureTime)
             } else {
-                return "1/\(Int(1 / exposureTime))s"
+                // 照片可能被第三方 app 编辑过，EXIF 不可信：病态极小曝光值会让 Int(Double)
+                // 越界 trap（运行时崩溃，不是 clamp）。越界时按未知处理。
+                let denom = 1 / exposureTime
+                guard denom.isFinite, denom < Double(Int.max) else { return unknownString }
+                return "1/\(Int(denom))s"
             }
         }()
 
