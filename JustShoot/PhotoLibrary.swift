@@ -238,10 +238,13 @@ enum PhotoLibrary {
     // MARK: - 反向同步辅助
     //
     // 给定一批 localIdentifier，返回其中在系统相册里仍存在的子集（批量一次 fetch，同步）。
-    // **未授权时返回 nil**——此时 fetch 必空，若当成「全部不存在」会误删整个索引；返回 nil 让
-    // caller 跳过剪枝。PHAsset fetch 线程安全，可在后台 @ModelActor 上直接调。
+    // **仅在完整 .authorized 时工作，否则返回 nil 让 caller 跳过剪枝**：
+    //   - 未授权：fetch 必空，当成「全部不存在」会误删整个索引；
+    //   - .limited：fetch 不到 ≠ 已删除——用户可能只是把某些资产移出了授权选集（或 iCloud
+    //     恢复尚未本地化），照片明明还在，据此剪枝会永久丢索引行。
+    // PHAsset fetch 线程安全，可在后台 @ModelActor 上直接调。
     static func existingAssetIdentifiers(from ids: [String]) -> Set<String>? {
-        guard isAuthorized else { return nil }
+        guard PHPhotoLibrary.authorizationStatus(for: .readWrite) == .authorized else { return nil }
         guard !ids.isEmpty else { return [] }
         let fetch = PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil)
         var present = Set<String>()

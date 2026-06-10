@@ -391,8 +391,9 @@ actor PhotoSaver {
     /// 反向同步（library → app）：把指向「系统相册里已不存在的资产」的索引行剔除。真相源在相册，
     /// 用户在系统「照片」里删掉某张后，这里据「资产是否还 fetch 得到」判定并删行（@Query 自动刷新）。
     ///
-    /// 安全前提：仅在已授权时执行——未授权时 fetch 会全空，会被误判成「全部删除」。
-    /// `existingAssetIdentifiers` 在未授权时返回 nil，这里直接跳过，**绝不误删**。
+    /// 安全前提：仅在完整 .authorized 时执行——未授权时 fetch 全空会被误判成「全部删除」；
+    /// .limited 下 fetch 不到 ≠ 已删除（资产可能只是被移出授权选集 / iCloud 恢复未本地化）。
+    /// `existingAssetIdentifiers` 在这两种情形都返回 nil，这里直接跳过，**绝不误删**。
     /// 只处理有 assetLocalIdentifier 的行；兜底内部照片（identifier == nil）永不在此剔除。
     func pruneDeletedAssets() {
         let descriptor = FetchDescriptor<Photo>(predicate: #Predicate { $0.assetLocalIdentifier != nil })
