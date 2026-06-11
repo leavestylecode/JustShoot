@@ -417,11 +417,101 @@ actor PhotoSaver {
         Log.save.info("photos_pruned_deleted count=\(prunedRowIDs.count)")
     }
 
-    /// 与系统相册的全量对账入口：剪掉已删资产的索引行 + 回填「资产在相簿里但索引缺行」的孤儿。
-    /// 两个触发点（GalleryView 冷同步 / PhotoLibrarySync 实时回调）统一走这里。
-    func reconcileWithLibrary() {
+    /// 与系统相册的全量对账入口：迁移待入库的内部照片 + 剪掉已删资产的索引行 + 回填「资产在
+    /// 相簿里但索引缺行」的孤儿。两个触发点（GalleryView 冷同步 / PhotoLibrarySync 实时回调）
+    /// 统一走这里。migrate 在最前：同一次对账内，backfill 看到的索引已包含刚迁移的行，不会
+    /// 把迁移产生的新资产误判成孤儿回填出重复行。
+    func reconcileWithLibrary() async {
+        await migrateInternalPhotos()
         pruneDeletedAssets()
         backfillOrphanAssets()
+    }
+
+    /// 内部照片迁入系统相册（架构注释承诺的 "PhotoMigrator"）：兜底暂存（拍摄时相册写入失败）
+    /// 与旧版本遗留的行 assetLocalIdentifier == nil、字节在 Photo.imageData——把字节写进相册
+    /// 拿回 identifier，行切到索引模式、blob 置 nil 释放 externalStorage，并清掉内部路径的磁盘
+    /// 缩略图缓存（迁移后取图走 PHImageManager，旧缓存永不再被读）。
+    ///
+    /// 安全序：先写相册、成功才改行，逐张提交——任一时刻崩溃都不丢照片，最坏是「资产已写、
+    /// 行未更新」，下次 backfill 回填 + 本行重迁出现一张重复（概率极小，可手删）。
+    /// 仅在已授权时工作（绝不从后台维护路径触发权限弹窗）；单张失败（磁盘满 / iCloud 异常）
+    /// 即中断，剩余的留待下次 reconcile 重试。
+    func migrateInternalPhotos() async {
+        guard PhotoLibrary.isAuthorized else { return }
+        let descriptor = FetchDescriptor<Photo>(predicate: #Predicate { $0.assetLocalIdentifier == nil })
+        guard let photos = try? modelContext.fetch(descriptor), !photos.isEmpty else { return }
+
+        var migratedIDs: [UUID] = []
+        for photo in photos {
+            guard let data = photo.imageData else { continue }
+            do {
+                let assetID = try await PhotoLibrary.save(
+                    imageData: data,
+                    creationDate: photo.timestamp,
+                    latitude: photo.latitude,
+                    longitude: photo.longitude,
+                    altitude: photo.altitude,
+                    locationTimestamp: photo.locationTimestamp
+                )
+                photo.assetLocalIdentifier = assetID
+                photo.imageData = nil
+                photo.isLivePhoto = false   // 兜底只暂存了静态图，配对视频已不可得
+                try modelContext.save()
+                migratedIDs.append(photo.id)
+            } catch {
+                Log.save.error("internal_photo_migrate_failed id=\(photo.id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+                break
+            }
+        }
+        guard !migratedIDs.isEmpty else { return }
+        for id in migratedIDs { ImageLoader.shared.removeDiskCache(for: id) }
+        Log.save.info("internal_photos_migrated count=\(migratedIDs.count)")
+    }
+
+    // MARK: - 启动维护（孤儿文件对账）
+
+    /// 启动时后台调一次（MainTabView.task）：清掉各类「正常路径清不到」的磁盘残留。
+    /// 1. tmp 残留（拍摄中途崩溃/强杀留下的 Live Photo 临时视频、上次会话的分享导出）
+    /// 2. 磁盘缩略图缓存孤儿（行已删但当时清理失败/崩溃的残留）——只删「无对应行」的文件，
+    ///    现存行的缓存一律保留，绝不误删
+    /// 3. CustomLUTs 目录孤儿 .cube（文件写入成功、行保存失败的残留）
+    /// fetch 失败时跳过对应步骤（宁可这次不清，绝不把有效文件当孤儿删掉）。
+    func performLaunchMaintenance() {
+        Self.sweepTemporaryFiles()
+
+        if let photos = try? modelContext.fetch(FetchDescriptor<Photo>()) {
+            ImageLoader.shared.pruneOrphanDiskCache(keepingIDs: Set(photos.map { $0.id.uuidString }))
+        }
+
+        if let luts = try? modelContext.fetch(FetchDescriptor<CustomLUT>()) {
+            let valid = Set(luts.map(\.fileName))
+            let dir = CustomLUT.storageDirectory
+            if let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) {
+                for file in files where !valid.contains(file) {
+                    try? FileManager.default.removeItem(at: dir.appendingPathComponent(file))
+                    Log.save.info("orphan_lut_file_removed name=\(file, privacy: .public)")
+                }
+            }
+        }
+    }
+
+    /// tmp 残留清扫。只挑本 app 已知前缀，且在启动早期调用（无在途拍摄/分享，列目录无竞争）：
+    /// - livephoto_src_/livephoto_lut_：拍摄中途崩溃/强杀留下的临时视频（每个 ~2-6MB）
+    /// - Share/：上次会话导出的分享 JPEG（正常路径要等到下一次分享前才清）
+    /// 不动 livephoto_prewarm_*：ContentView 的启动预热可能与本清扫并发，其文件自身 defer 即删。
+    nonisolated static func sweepTemporaryFiles() {
+        let fm = FileManager.default
+        let tmp = fm.temporaryDirectory
+        if let files = try? fm.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil) {
+            for url in files {
+                let name = url.lastPathComponent
+                if name.hasPrefix("livephoto_src_") || name.hasPrefix("livephoto_lut_") {
+                    try? fm.removeItem(at: url)
+                    Log.save.info("stale_tmp_movie_removed name=\(name, privacy: .public)")
+                }
+            }
+        }
+        try? fm.removeItem(at: tmp.appendingPathComponent("Share", isDirectory: true))
     }
 
     /// 正向同步（library → app）：JustShoot 相簿里存在、但索引没有对应行的资产，补建索引行。

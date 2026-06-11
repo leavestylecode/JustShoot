@@ -57,8 +57,11 @@ struct MainTabView: View {
         .tint(.white)
         .preferredColorScheme(.dark)
         // 启动时注册系统相册变化观察者：app 前台时在「照片」里删图会实时同步剪掉本地索引。
+        // 随后跑一次启动维护（@ModelActor 后台执行，不占主线程）：清 tmp 残留视频/分享导出、
+        // 磁盘缓存与 CustomLUTs 目录的孤儿文件对账。
         .task {
             PhotoLibrarySync.shared.start(container: modelContext.container)
+            await PhotoSaver(modelContainer: modelContext.container).performLaunchMaintenance()
         }
     }
 }

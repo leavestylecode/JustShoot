@@ -572,7 +572,7 @@ struct CameraView: View {
 
                 do {
                     // 真相源 = 系统相册：先写入 JustShoot 相簿拿回 localIdentifier。写入失败（权限拒绝
-                    // 等）则兜底把字节暂存内部，待授权后由 PhotoMigrator 迁移——绝不丢拍摄结果。
+                    // 等）则兜底把字节暂存内部，待授权后由 PhotoSaver.migrateInternalPhotos 迁移——绝不丢拍摄结果。
                     var assetID: String? = nil
                     var fallbackData: Data? = nil
                     do {
@@ -611,7 +611,9 @@ struct CameraView: View {
                         imageData: fallbackData,
                         filmPresetName: currentSource.photoFilterName,
                         filmDisplayLabel: displayLabel,
-                        isLivePhoto: filteredMovieURL != nil,
+                        // 仅当真正以 Live Photo 写入相册才标记——fallback 暂存时配对视频已删，
+                        // 行里只有静态图字节，标 live 会让画廊角标/详情页播放与实际不符。
+                        isLivePhoto: assetID != nil && filteredMovieURL != nil,
                         latitude: location?.coordinate.latitude,
                         longitude: location?.coordinate.longitude,
                         altitude: location?.altitude,

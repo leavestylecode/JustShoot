@@ -203,6 +203,9 @@ struct ContentView: View {
                 FilmProcessor.shared.preload(source: source)
             }
         } catch {
+            // 文件可能已写入而行保存失败——删掉孤儿 .cube，否则 Documents/CustomLUTs 里
+            // 累积无主文件（文件未写入时 removeItem 是无害 no-op）。
+            try? FileManager.default.removeItem(at: destURL)
             importError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
             showImportError = true
         }

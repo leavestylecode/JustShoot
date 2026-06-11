@@ -2134,6 +2134,8 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         if let error = error {
             Log.capture.error("delegate_live_movie_error error=\(error.localizedDescription, privacy: .public)")
             // 视频失败：标记到位但 URL 为 nil → 交付时降级为「只存静态图」，绝不卡死。
+            // AVF 失败时仍可能留下半截文件——就地删除（settings 里挂的路径只有这里知道）。
+            try? FileManager.default.removeItem(at: outputFileURL)
             Task { @MainActor in
                 self.mutateCapture(id) { $0.movieArrived = true }
                 self.deliverCaptureIfReady(id: id, terminal: false)
@@ -2142,6 +2144,13 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         }
         Log.capture.info("delegate_live_movie_ok dur=\(String(format: "%.2f", duration.seconds))s display=\(String(format: "%.2f", photoDisplayTime.seconds))s")
         Task { @MainActor in
+            // 本次拍摄已被终结交付（如静态图失败提前释放）——迟到的视频无人消费，删掉文件，
+            // 否则 livephoto_src_*.mov（~2-6MB）会留在 tmp 直到下次启动清扫。
+            guard self.inFlightCaptures[id] != nil else {
+                try? FileManager.default.removeItem(at: outputFileURL)
+                Log.capture.info("late_live_movie_discarded id=\(id)")
+                return
+            }
             self.mutateCapture(id) {
                 $0.movieURL = outputFileURL
                 $0.photoDisplayTime = photoDisplayTime
@@ -2218,6 +2227,11 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
                 photoDisplayTime: req.photoDisplayTime
             ))
         } else {
+            // 静态图缺失 = 整次拍摄作废，caller 拿到 nil 提前返回——已到达的 live 源视频
+            // 不会随 result 传出去，必须在此就地删除，否则永久滞留 tmp。
+            if let movie = req.movieURL {
+                try? FileManager.default.removeItem(at: movie)
+            }
             req.onData(nil)
         }
     }

@@ -11,7 +11,8 @@ import ImageIO
 // 卸载不丢、滚动缩略图走系统级 PHCachingImageManager。app 内画廊 = 基于这些 identifier 的策展层。
 //
 // 兼容/兜底：拍摄时若相册写入失败（权限拒绝），把字节暂存进 Photo.imageData，待授权后由
-// PhotoMigrator 迁入相册；旧版本遗留的内部照片同样由 PhotoMigrator 在首次授权后迁移。
+// PhotoSaver.migrateInternalPhotos（reconcileWithLibrary 的第一步）迁入相册；旧版本遗留的
+// 内部照片同样经它在首次授权后迁移，迁入后 blob 置 nil 释放 externalStorage。
 
 /// 把可变值塞进 @Sendable performChanges 闭包用的轻量盒子（PhotoKit 的 change block 在
 /// Swift 6 strict concurrency 下是 @Sendable，无法直接捕获并回写局部 var）。

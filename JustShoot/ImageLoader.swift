@@ -318,4 +318,24 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
             }
         }
     }
+
+    /// 孤儿对账（启动维护用）：删掉「不属于任何现存照片」的磁盘缓存文件——行删除与缓存清理
+    /// 之间崩溃留下的残留。keepingIDs 是现存全部 Photo.id（uuidString），文件名格式
+    /// `<UUID>_t_<px>.jpg` / `<UUID>_p_<px>.jpg`，按下划线前的 UUID 段比对。
+    /// 保守原则：只要 id 还有行就保留（即便该照片已迁入相册、缓存实际不再被读）——误删零风险，
+    /// 死文件由 removeDiskCache 在删行/迁移时点杀。
+    func pruneOrphanDiskCache(keepingIDs ids: Set<String>) {
+        var removed = 0
+        for dir in [thumbsDirectory(), previewDirectory()] {
+            guard let dir, let files = try? fileManager.contentsOfDirectory(atPath: dir.path) else { continue }
+            for file in files {
+                guard let uuid = file.split(separator: "_").first, !ids.contains(String(uuid)) else { continue }
+                try? fileManager.removeItem(at: dir.appendingPathComponent(file))
+                removed += 1
+            }
+        }
+        if removed > 0 {
+            Log.gallery.info("orphan_disk_cache_pruned count=\(removed)")
+        }
+    }
 }
