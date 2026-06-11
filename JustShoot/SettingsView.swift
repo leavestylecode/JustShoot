@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 // MARK: - 设置页
 //
@@ -14,6 +15,10 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     /// 照片输出画质档。与 CameraView 共享同一 @AppStorage key，拍照时读取生效（无需重启 app）。
     @AppStorage("photoOutputQuality") private var photoQuality: PhotoQuality = .default
+    /// Live Photo 是否录音。与 CameraView 共享同一 @AppStorage key，下次入相机即生效。默认开。
+    @AppStorage("livePhotoSoundEnabled") private var livePhotoSoundEnabled = true
+    /// 麦克风权限是否被拒——开了声音却没授权时提示用户去系统设置开启。入页 + 开关变化时刷新。
+    @State private var microphoneDenied = false
 
     // TODO: 上架后填入真实 App Store 数字 ID（apps.apple.com/app/id<这里>）。
     private let appStoreId = "0000000000"
@@ -26,6 +31,7 @@ struct SettingsView: View {
                 VStack(spacing: 16) {
                     appHeader
                     photoQualitySection
+                    livePhotoSection
                     feedbackSection
                     Spacer(minLength: 16)
                     versionFooter
@@ -36,8 +42,15 @@ struct SettingsView: View {
             .background(Color.black)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
+            .onAppear { refreshMicrophoneStatus() }
+            .onChange(of: livePhotoSoundEnabled) { _, _ in refreshMicrophoneStatus() }
         }
         .preferredColorScheme(.dark)
+    }
+
+    /// 读系统麦克风授权态。开了声音却被拒时，下方提示行显示「去设置开启」。
+    private func refreshMicrophoneStatus() {
+        microphoneDenied = AVCaptureDevice.authorizationStatus(for: .audio) == .denied
     }
 
     // MARK: - 关于（App 标识 + 版本）
@@ -105,6 +118,53 @@ struct SettingsView: View {
                     if quality != PhotoQuality.allCases.last {
                         Divider().overlay(Color.white.opacity(0.08))
                     }
+                }
+            }
+        }
+    }
+
+    // MARK: - Live Photo 声音（用户可配置，默认开）
+    //
+    // 开启时拍 Live Photo 会录入环境声（麦克风全程挂在相机会话上，配合混音音频会话——拍摄时
+    // 不打断你正在播放的音乐）。需要麦克风权限；被拒时下方提示去系统设置开启。
+    private var livePhotoSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Live Photo", systemImage: "livephoto")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 4)
+
+            sectionCard {
+                Toggle(isOn: $livePhotoSoundEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Sound")
+                            .foregroundStyle(.white)
+                        Text("Record sound with your Live Photos.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .tint(.green)
+
+                // 开了声音但麦克风被拒：提示并提供「去设置开启」入口（否则 Live Photo 会静音）。
+                if livePhotoSoundEnabled && microphoneDenied {
+                    Divider().overlay(Color.white.opacity(0.08))
+                    Button(action: openAppSettings) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.yellow)
+                            Text("Microphone access is off. Turn it on in Settings to record sound.")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                                .multilineTextAlignment(.leading)
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }

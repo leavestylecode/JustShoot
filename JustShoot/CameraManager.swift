@@ -137,6 +137,20 @@ class CameraManager: NSObject, ObservableObject {
     /// 拍摄时 photoOutput.isLivePhotoCaptureEnabled 把关，提前显示是安全的。
     @Published var isLivePhotoSupported: Bool = true
 
+    // MARK: Live Photo 录音（麦克风）
+    //
+    // 麦克风输入**只在「Live 开 ＆ 声音开 ＆ 已授权」时**挂到 session 上：普通拍照 / 关掉 Live /
+    // 关掉声音时都不挂，避免无谓亮起系统麦克风指示灯（橙点）。开关变化由 CameraView 经
+    // setLivePhotoAudio(live:sound:) 告知，内部在 sessionQueue 增删 audio input。
+    //
+    // 音频会话用 .playAndRecord + .mixWithOthers（用户选定「保持背景音乐播放」），所以把
+    // session.automaticallyConfiguresApplicationAudioSession 关掉、自管 AVAudioSession——
+    // 否则 AVCapture 会按独占式 .record 抢占、把用户音乐掐断。
+    /// CameraView 告知的期望录音状态（live && sound）。session 配置完成后据此 reconcile。
+    private var livePhotoAudioDesired: Bool = false
+    /// 麦克风权限被拒——设置页据此提示用户去开。声音开关仍可开，只是降级为静音。
+    @Published var microphonePermissionDenied: Bool = false
+
     // 震动反馈（预创建复用，减少首次延迟）
     let hapticLight = UIImpactFeedbackGenerator(style: .light)
     let hapticMedium = UIImpactFeedbackGenerator(style: .medium)
@@ -645,6 +659,109 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - 6b. Live Photo 录音（麦克风输入 + 混音音频会话）
+
+    /// CameraView 在入页 / 切换 Live 或声音开关时调用，告知期望的录音状态。
+    /// `live` = 顶栏 Live Photo 开关；`sound` = 设置页「Live Photo 声音」开关。
+    /// 两者皆开且麦克风已授权时才把麦克风挂上 session；据此 reconcile（幂等，状态未变即 no-op）。
+    func setLivePhotoAudio(live: Bool, sound: Bool) {
+        livePhotoAudioDesired = live && sound
+        reconcileAudioInput()
+    }
+
+    /// 把 session 的音频输入收敛到 `livePhotoAudioDesired`。session 未配置完成时 no-op
+    /// （configureAndStartSession 末尾会再调一次）。需要麦克风但未授权时按需申请权限。
+    private func reconcileAudioInput() {
+        guard sessionConfigured else { return }
+        guard livePhotoAudioDesired else {
+            applyAudioInput(enabled: false)
+            return
+        }
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            microphonePermissionDenied = false
+            applyAudioInput(enabled: true)
+        case .notDetermined:
+            Task { @MainActor [weak self] in
+                let granted = await AVCaptureDevice.requestAccess(for: .audio)
+                guard let self else { return }
+                self.microphonePermissionDenied = !granted
+                Log.session.info("permission_mic_result granted=\(granted)")
+                // 申请期间用户可能已关掉开关——再查一次 desired。
+                self.applyAudioInput(enabled: granted && self.livePhotoAudioDesired)
+            }
+        case .denied, .restricted:
+            // 权限被拒：降级为静音 Live Photo（不挂麦克风），设置页据 flag 提示去开。绝不阻断拍摄。
+            microphonePermissionDenied = true
+            Log.session.info("permission_mic_denied → silent_live_photo")
+        @unknown default:
+            break
+        }
+    }
+
+    /// 把麦克风输入增删收敛到 `enabled`，全程串行在 sessionQueue 上、以 session 当前 inputs 为**真值**
+    /// 判断（不依赖可能滞后的主线程 flag），所以快速连按开关也不会出现「该关没关 / 重复挂」的竞态。
+    private func applyAudioInput(enabled: Bool) {
+        let captureSession = session
+        // 设备解析放在主线程（与现有 video input 一致），再带进 sessionQueue。
+        let mic = enabled ? AVCaptureDevice.default(for: .audio) : nil
+        if enabled && mic == nil { Log.session.error("audio_input_no_device"); return }
+        sessionQueue.async {
+            let existing = Self.audioInput(in: captureSession)
+            if enabled {
+                guard let mic else { return }
+                // 已挂则只确保音频会话激活，不重复加。
+                guard existing == nil else { Self.configureMixAudioSession(active: true); return }
+                Self.configureMixAudioSession(active: true)
+                guard let input = try? AVCaptureDeviceInput(device: mic) else {
+                    Log.session.error("audio_input_create_failed")
+                    return
+                }
+                captureSession.beginConfiguration()
+                let added = captureSession.canAddInput(input)
+                if added { captureSession.addInput(input) }
+                captureSession.commitConfiguration()
+                Log.session.info("audio_input_added ok=\(added) inputs=\(captureSession.inputs.count)")
+            } else {
+                guard let existing else { return }
+                captureSession.beginConfiguration()
+                captureSession.removeInput(existing)
+                captureSession.commitConfiguration()
+                Self.configureMixAudioSession(active: false)
+                Log.session.info("audio_input_removed inputs=\(captureSession.inputs.count)")
+            }
+        }
+    }
+
+    /// 当前 session 里已挂的麦克风输入（无则 nil）。nonisolated：供 sessionQueue 闭包做真值判断。
+    nonisolated private static func audioInput(in session: AVCaptureSession) -> AVCaptureDeviceInput? {
+        session.inputs
+            .compactMap { $0 as? AVCaptureDeviceInput }
+            .first { $0.device.hasMediaType(.audio) }
+    }
+
+    /// 配置/停用 app 的 AVAudioSession。`.playAndRecord` + `.mixWithOthers` 让用户的背景音乐
+    /// 继续播放（用户选定行为）；`.defaultToSpeaker` 防止录音类目把音乐路由到听筒；`.allowBluetoothHFP`
+    /// 让蓝牙耳麦也能录。停用时 `.notifyOthersOnDeactivation` 让被压低音量的其它 app 恢复。
+    /// nonisolated static：只碰全局 AVAudioSession 单例，可在 sessionQueue 上安全调用。
+    nonisolated private static func configureMixAudioSession(active: Bool) {
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            if active {
+                try audioSession.setCategory(
+                    .playAndRecord,
+                    mode: .videoRecording,
+                    options: [.mixWithOthers, .defaultToSpeaker, .allowBluetoothHFP]
+                )
+                try audioSession.setActive(true)
+            } else {
+                try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
+            }
+        } catch {
+            Log.session.error("audio_session_config_failed active=\(active) error=\(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     // MARK: - 7. Session 配置
 
     /// 在专用串行队列上配置并启动 AVCaptureSession。虚拟设备模式（iOS 26 推荐）：
@@ -667,6 +784,9 @@ class CameraManager: NSObject, ObservableObject {
             sessionQueue.async {
                 captureSession.beginConfiguration()
                 captureSession.sessionPreset = .photo
+                // 自管 AVAudioSession（混音保活背景音乐）——不让 AVCapture 在加麦克风时独占式抢占音频。
+                // 无麦克风输入时本设置无副作用：我们压根不激活任何音频会话，背景音乐照常播放。
+                captureSession.automaticallyConfiguresApplicationAudioSession = false
 
                 do {
                     let videoInput = try AVCaptureDeviceInput(device: device)
@@ -853,6 +973,9 @@ class CameraManager: NSObject, ObservableObject {
         }
 
         sessionConfigured = true
+
+        // session 就绪——按 CameraView 入页时记下的期望状态，决定是否挂麦克风（Live+声音默认开）。
+        reconcileAudioInput()
 
         // ZSL / Deep Fusion / Smart HDR / Photonic Engine 第一次 capture 时会同步初始化 pipeline,
         // 让用户第一张照片 dt_from_tap 出现 1-3 秒延迟（实测 2988ms vs 第二张 186ms）。
@@ -1643,11 +1766,14 @@ class CameraManager: NSObject, ObservableObject {
     func pauseSessionForBackground() {
         guard sessionConfigured else { return }
         let captureSession = session
+        // 自管音频会话：进后台时停用，让被混音的其它 app 完全收回音频焦点（automaticallyConfigures
+        // 已关，AVF 不会替我们管）。回前台由 resumeSessionIfPossible 重新激活。
         sessionQueue.async {
             if captureSession.isRunning {
                 captureSession.stopRunning()
                 Log.session.info("session_paused_for_background")
             }
+            if Self.audioInput(in: captureSession) != nil { Self.configureMixAudioSession(active: false) }
         }
         // 清空 stale buffer：iOS 把 app 拉回前台后，MTKView 第一次重绘前会显示
         // 缓存里的最后一帧（可能是几分钟前的画面）。清空 + 由首帧到达自然触发重绘。
@@ -1662,7 +1788,9 @@ class CameraManager: NSObject, ObservableObject {
             return
         }
         let captureSession = session
+        // 自管音频会话：automaticallyConfigures 已关，回前台必须自己重新激活，否则 Live 视频静音。
         sessionQueue.async {
+            if Self.audioInput(in: captureSession) != nil { Self.configureMixAudioSession(active: true) }
             guard !captureSession.isRunning else { return }
             captureSession.startRunning()
             Log.session.info("session_resumed running=\(captureSession.isRunning)")
@@ -1691,6 +1819,9 @@ class CameraManager: NSObject, ObservableObject {
         constituentObservation?.invalidate()
         constituentObservation = nil
         currentVideoInput = nil
+        // 麦克风输入随 session 一并释放（最后的 sessionQueue 块停用音频会话）；下次入页由
+        // reconcileAudioInput 按当时开关重新挂。
+        livePhotoAudioDesired = false
         // 清空 buffer（避免 stopRunning 后 MTKView 还显示上次的 frame）
         pixelBufferLock.withLockUnchecked { $0.buffer = nil }
         // 取消 NotificationCenter observer（deinit 因 Swift 6 隔离规则无法访问这些属性）
@@ -1726,6 +1857,8 @@ class CameraManager: NSObject, ObservableObject {
                 captureSession.stopRunning()
                 Log.session.info("session_stopped")
             }
+            // 离页停用混音音频会话，归还音频焦点给其它 app。
+            if Self.audioInput(in: captureSession) != nil { Self.configureMixAudioSession(active: false) }
         }
     }
 

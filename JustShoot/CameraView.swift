@@ -23,6 +23,9 @@ struct CameraView: View {
     /// Live Photo 开关（顶栏切换，默认开，像 iPhone 原相机）。开启时每张拍照同时录一段动态视频，
     /// 静态图与视频都套当前胶片 LUT 后存为系统相册 Live Photo。仅在设备支持时顶栏才显示该按钮。
     @AppStorage("livePhotoEnabled") private var livePhotoEnabled = true
+    /// Live Photo 是否录音（设置页可配置，默认开）。开启时麦克风挂上 session、Live 视频带声音；
+    /// 关闭则静音。与顶栏 livePhotoEnabled 一起决定是否挂麦克风——见 CameraManager.setLivePhotoAudio。
+    @AppStorage("livePhotoSoundEnabled") private var livePhotoSoundEnabled = true
     /// Picker 候选列表里需要展示用户导入的自定义 LUT；CameraView 自己持有 @Query 直接喂给 strip。
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @Environment(\.dismiss) private var dismiss
@@ -357,8 +360,17 @@ struct CameraView: View {
         .onAppear {
             FilmProcessor.shared.preload(source: source)
             cameraManager.requestCameraPermission()
+            // 告知期望录音状态（live && sound）；session 配置完成后据此决定是否挂麦克风。
+            cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
             // 后台预热 picker 封面缩略图，消除「第一次展开 LUT 栏时 8 张封面同帧冷解码」的掉帧。
             FilmSourcePickerStrip.preloadCovers(displayScale: displayScale)
+        }
+        // 顶栏 Live 开关 / 设置页声音开关变化时，实时增删麦克风输入（在相机页内切换即时生效）。
+        .onChange(of: livePhotoEnabled) { _, _ in
+            cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
+        }
+        .onChange(of: livePhotoSoundEnabled) { _, _ in
+            cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
         }
         .onDisappear {
             cameraManager.stopSession()

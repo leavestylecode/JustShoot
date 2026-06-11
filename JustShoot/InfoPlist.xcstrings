@@ -75,6 +75,23 @@
           }
         }
       }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JustShoot records sound with your Live Photos."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JustShoot 在拍摄 Live Photo 时录入声音。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
