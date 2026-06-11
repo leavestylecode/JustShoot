@@ -72,6 +72,7 @@ struct PhotoDetailView: View {
     /// `walk(connectedScenes)`（量小但能省就省，且确保 PagerImage 在所有 body 评估里看到稳定值）。
     @State private var previewMaxPixel: Int
     @State private var showingInfo = false
+    @State private var isPreparingShare = false
     @State private var thumbWarmupTask: Task<Void, Never>?
     @State private var previewPreloadTask: Task<Void, Never>?
 
@@ -339,6 +340,20 @@ struct PhotoDetailView: View {
     @ToolbarContentBuilder
     private var bottomToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
+            // 一键分享当前照片到其他 app：导出全分辨率原图临时文件 → 系统分享面板。
+            // 导出期间（异步取原始字节）显示 spinner 并禁用，防连点。
+            Button {
+                shareCurrentPhoto()
+            } label: {
+                if isPreparingShare {
+                    ProgressView()
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+            .disabled(isPreparingShare || currentPhoto == nil)
+            .accessibilityLabel("Share this photo")
+
             Spacer()
 
             // 照片已在系统相册（JustShoot 相簿），无需「保存到相册」。删除走 PhotoKit，系统弹原生
@@ -367,6 +382,18 @@ struct PhotoDetailView: View {
             } else {
                 dismiss()
             }
+        }
+    }
+
+    /// 分享当前照片：异步导出全分辨率原图临时文件后，从最顶层 VC present 系统分享面板。
+    private func shareCurrentPhoto() {
+        guard !isPreparingShare, let photo = currentPhoto else { return }
+        isPreparingShare = true
+        Task { @MainActor in
+            defer { isPreparingShare = false }
+            guard let url = await PhotoShareExporter.export(photo) else { return }
+            SharePresenter.present([url])   // [URL]，包成图片 NSItemProvider 后呈现
+            Log.gallery.info("photo_shared id=\(photo.id.uuidString, privacy: .public)")
         }
     }
 

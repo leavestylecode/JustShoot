@@ -1,46 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Live Photo" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Live Photo"
-          }
-        }
-      }
-    },
-    "Sound" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "声音"
-          }
-        }
-      }
-    },
-    "Record sound with your Live Photos." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拍摄 Live Photo 时录入声音。"
-          }
-        }
-      }
-    },
-    "Microphone access is off. Turn it on in Settings to record sound." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "麦克风权限已关闭。前往“设置”开启后即可录音。"
-          }
-        }
-      }
-    },
     "" : {
 
     },
@@ -1261,6 +1221,16 @@
     "LIVE" : {
 
     },
+    "Live Photo" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Photo"
+          }
+        }
+      }
+    },
     "Live Photo off" : {
 
     },
@@ -1324,6 +1294,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最高"
+          }
+        }
+      }
+    },
+    "Microphone access is off. Turn it on in Settings to record sound." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "麦克风权限已关闭。前往“设置”开启后即可录音。"
           }
         }
       }
@@ -1633,6 +1613,16 @@
     "Rate on the App Store" : {
 
     },
+    "Record sound with your Live Photos." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄 Live Photo 时录入声音。"
+          }
+        }
+      }
+    },
     "Red" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1802,6 +1792,12 @@
     "Settings" : {
 
     },
+    "Share" : {
+
+    },
+    "Share this photo" : {
+
+    },
     "Show" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1852,6 +1848,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "小"
+          }
+        }
+      }
+    },
+    "Sound" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "声音"
           }
         }
       }

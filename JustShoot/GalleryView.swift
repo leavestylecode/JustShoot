@@ -19,6 +19,7 @@ struct GalleryView: View {
     @State private var selectedDetail: DetailPayload?
     @State private var isSelecting = false
     @State private var selectedPhotos: Set<UUID> = []
+    @State private var isPreparingShare = false
 
     // 网格布局（左上角菜单切换，持久化）
     @AppStorage("gallery.density") private var density: GalleryDensity = .standard
@@ -76,6 +77,20 @@ struct GalleryView: View {
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 if isSelecting {
+                    // 一键分享选中照片到其他 app：导出全分辨率原图临时文件 → 系统分享面板。
+                    // 导出期间显示 spinner 并禁用，防连点。
+                    Button(action: shareSelectedPhotos) {
+                        if isPreparingShare {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 18))
+                                .foregroundColor(selectedPhotos.isEmpty ? .gray : .white)
+                        }
+                    }
+                    .disabled(selectedPhotos.isEmpty || isPreparingShare)
+                    .accessibilityLabel("Share")
+
                     Spacer()
 
                     // 照片真相源已在系统相册（JustShoot 相簿），无需再「导出」。删除走 PhotoKit，
@@ -172,6 +187,23 @@ struct GalleryView: View {
             isSelecting = false
         }
         selectedPhotos.removeAll()
+    }
+
+    /// 分享选中照片到其他 app：按时间正序导出全分辨率原图临时文件，再 present 系统分享面板。
+    /// 导出可能涉及 iCloud 回源（异步），期间显示 spinner。导出后保留选择模式（用户可能想继续操作）。
+    private func shareSelectedPhotos() {
+        let ids = selectedPhotos
+        guard !ids.isEmpty, !isPreparingShare else { return }
+        // 按相册显示顺序（时间倒序）选出，再反成正序——分享出去的多图顺序符合直觉。
+        let toShare = photos.filter { ids.contains($0.id) }.reversed().map { $0 }
+        isPreparingShare = true
+        Task { @MainActor in
+            defer { isPreparingShare = false }
+            let urls = await PhotoShareExporter.export(toShare)
+            guard !urls.isEmpty else { return }
+            SharePresenter.present(urls)
+            Log.gallery.info("photos_shared count=\(urls.count)")
+        }
     }
 
     /// 删除选中照片。真相源在系统相册：先 PHAsset 删除（系统弹原生确认，支持「最近删除」恢复），
