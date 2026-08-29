@@ -572,6 +572,22 @@
         }
       }
     },
+    "Curve picker" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Curve picker"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲线选择"
+          }
+        }
+      }
+    },
     "Custom" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -779,6 +795,22 @@
         }
       }
     },
+    "Fade" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fade"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "褪色"
+          }
+        }
+      }
+    },
     "Failed to parse LUT or dimensions mismatch" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -832,6 +864,22 @@
     },
     "Film picker" : {
 
+    },
+    "Film Soft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Film Soft"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶片柔和"
+          }
+        }
+      }
     },
     "Films" : {
 
@@ -1288,6 +1336,22 @@
         }
       }
     },
+    "Matte" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matte"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哑光"
+          }
+        }
+      }
+    },
     "Maximum" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1355,6 +1419,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "名称"
+          }
+        }
+      }
+    },
+    "Neutral" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neutral"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中性"
           }
         }
       }
@@ -1457,6 +1537,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "查看大图"
+          }
+        }
+      }
+    },
+    "Open Shadows" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Shadows"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通透暗部"
           }
         }
       }
@@ -1606,6 +1702,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "紫"
+          }
+        }
+      }
+    },
+    "Punch" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Punch"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "强反差"
           }
         }
       }
@@ -2094,6 +2206,22 @@
         }
       }
     },
+    "Warm Print" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warm Print"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暖调印相"
+          }
+        }
+      }
+    },
     "White" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2107,6 +2235,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "白"
+          }
+        }
+      }
+    },
+    "X-Pro" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "X-Pro"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "交叉冲洗"
           }
         }
       }

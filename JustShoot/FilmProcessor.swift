@@ -24,7 +24,12 @@ final class FilmProcessor: Sendable {
     /// 锁内保护的可变状态（仅缓存 LUT 数据，不缓存 CIFilter）
     private struct LUTState {
         var lutCache: [String: CubeLUT] = [:]
+        /// 只跟踪曲线合成条目；原始内置/自定义 LUT 不参与驱逐。
+        var composedAccessOrder: [String] = []
     }
+
+    /// 64³ RGBA Float LUT 约 4 MiB。限制衍生组合，避免遍历多个自定义 LUT × 曲线后常驻数百 MB。
+    private static let maxComposedLUTs = 12
 
     /// GPS EXIF 时间戳格式化器——固定 UTC、格式恒定，每张照片都用到。DateFormatter 初始化开销大，
     /// 旧实现每次拍照新建两个；hoist 成 static 复用。iOS 26 SDK 起 DateFormatter 本身已是 Sendable，
@@ -171,24 +176,80 @@ final class FilmProcessor: Sendable {
     }
 
     /// 删除自定义 LUT 时调用——把对应缓存条目移除。否则用户导入后又删除的 .cube 会在整个进程
-    /// 生命周期内继续占用内存（一个 64³ cube ≈ 3MB），随导入/删除次数无上限增长。
+    /// 生命周期内继续占用内存（一个 64³ cube ≈ 4 MiB），随导入/删除次数无上限增长。
+    /// 同时清掉以它为基底的曲线合成条目（键 = "\(key)#curve-…"）。
     func removeCachedLUT(cacheKey: String) {
-        lock.withLock { $0.lutCache[cacheKey] = nil }
+        lock.withLock { state in
+            state.lutCache[cacheKey] = nil
+            let prefix = cacheKey + "#curve-"
+            state.lutCache.keys.filter { $0.hasPrefix(prefix) }.forEach { state.lutCache[$0] = nil }
+            state.composedAccessOrder.removeAll { $0.hasPrefix(prefix) }
+        }
     }
 
-    /// 获取已缓存的 LUT 数据（用于 Metal 预览创建 3D 纹理）
+    /// 曲线合成缓存键：`"\(lutKey)#curve-\(curve.rawValue)"`。`.none` 时返回原键——
+    /// 走零开销路径，不产生合成条目。预览 Metal 纹理与成片 CIColorCube 都用这个键取数。
+    func composedLUTCacheKey(_ lutKey: String, curve: CurvePreset) -> String {
+        lutKey + curve.cacheKeySuffix
+    }
+
+    /// 获取已缓存的 LUT 数据（用于 Metal 预览创建 3D 纹理 / 成片 CIColorCube）。
+    /// 键可以携带曲线段（"#curve-…"）：缓存未命中时同步从基底 LUT 合成一次并回填——
+    /// 基底必须已 preload（CameraView onAppear / 切换胶片时都会），否则返回 nil。
     func getCachedLUT(cacheKey: String) -> CubeLUT? {
-        lock.withLock { $0.lutCache[cacheKey] }
+        if let curve = CurvePreset.fromCacheKeySuffix(cacheKey) {
+            let baseKey = String(cacheKey.dropLast(curve.cacheKeySuffix.count))
+            return getOrComposeLUT(baseKey: baseKey, curve: curve)
+        }
+        return lock.withLock { $0.lutCache[cacheKey] }
     }
 
-    /// 预加载 FilmSource 对应的 LUT
-    func preload(source: FilmSource) {
+    /// 取基底 LUT 并应用曲线，结果以组合键缓存。曲线 `.none` 或基底缺失时返回 nil。
+    private func getOrComposeLUT(baseKey: String, curve: CurvePreset) -> CubeLUT? {
+        let composedKey = composedLUTCacheKey(baseKey, curve: curve)
+        if let cached = lock.withLock({ state -> CubeLUT? in
+            guard let cached = state.lutCache[composedKey] else { return nil }
+            Self.touchComposedKey(composedKey, state: &state)
+            return cached
+        }) {
+            return cached
+        }
+        guard let base = lock.withLock({ $0.lutCache[baseKey] }) else { return nil }
+        let timer = Log.perf("lut_curve_compose", logger: Log.lut)
+        let composed = curve.applied(to: base)
+        let evictedKey = lock.withLock { state -> String? in
+            state.lutCache[composedKey] = composed
+            Self.touchComposedKey(composedKey, state: &state)
+            guard state.composedAccessOrder.count > Self.maxComposedLUTs else { return nil }
+            let oldest = state.composedAccessOrder.removeFirst()
+            state.lutCache[oldest] = nil
+            return oldest
+        }
+        if let evictedKey {
+            Log.lut.debug("lut_curve_cache_evict key=\(evictedKey, privacy: .public)")
+        }
+        timer.end("base=\(baseKey) curve=\(curve.rawValue) dim=\(composed.dimension)")
+        return composed
+    }
+
+    private static func touchComposedKey(_ key: String, state: inout LUTState) {
+        state.composedAccessOrder.removeAll { $0 == key }
+        state.composedAccessOrder.append(key)
+    }
+
+    /// 预加载 FilmSource 对应的 LUT；curve 非 .none 时同步合成曲线条目，
+    /// 让预览纹理 / 成片后续 getCachedLUT 直接命中缓存。
+    func preload(source: FilmSource, curve: CurvePreset = .none) {
+        let baseKey = source.lutCacheKey
         switch source {
         case .preset(let p):
             preload(preset: p)
         case .custom(_, _, _, let fileName):
             let url = CustomLUT.storageDirectory.appendingPathComponent(fileName)
-            _ = try? loadCubeLUTFromFile(url: url, cacheKey: source.lutCacheKey)
+            _ = try? loadCubeLUTFromFile(url: url, cacheKey: baseKey)
+        }
+        if curve != .none {
+            _ = getOrComposeLUT(baseKey: baseKey, curve: curve)
         }
     }
 

@@ -132,7 +132,7 @@ struct RecentPhotosBadge: View {
 /// 右下角胶片封面点开后从底部弹出的横向胶片选择条。胶片顺序：
 ///   1. 内置预设（FilmPreset.allCases）
 ///   2. 用户导入的自定义 LUT（按 createdAt 倒序，与首页一致）
-/// 当前选中胶片用黄色描边 + 高亮名字标识；点击任一胶片 → onSelect → 父视图收起 picker。
+/// 当前选中胶片用黄色描边标识；点击后通过 onSelect 更新预览，面板保持展开以便连续比较。
 /// 展开瞬间 ScrollViewReader 自动滚到当前胶片，便于看到"我现在在哪一张"。
 struct FilmSourcePickerStrip: View {
     let current: FilmSource
@@ -188,7 +188,6 @@ struct FilmSourcePickerStrip: View {
                 .padding(.vertical, 8)
             }
             .frame(height: 68)
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .onAppear {
                 // 展开后下一帧滚到当前胶片，避免 ScrollView 还没布局完就 scrollTo 失效。
                 Task { @MainActor in
@@ -206,6 +205,246 @@ struct FilmSourcePickerStrip: View {
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(Text("Film picker"))
+        }
+    }
+}
+
+// MARK: - 曲线选择条
+/// 展开胶片 picker 时一并出现的横向曲线选择条。每张卡同时显示真实响应曲线、五档输出色阶
+/// 和本地化名称：曲线形状表达反差，色阶表达黑白点与 RGB 偏色，避免只看一团重叠细线。
+struct CurvePresetPickerStrip: View {
+    let current: CurvePreset
+    let contentRotation: Angle
+    let orientation: UIDeviceOrientation
+    let onSelect: (CurvePreset) -> Void
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(CurvePreset.allCases) { curve in
+                        CurvePresetPickerCell(
+                            curve: curve,
+                            isSelected: curve == current,
+                            contentRotation: contentRotation,
+                            orientation: orientation
+                        ) { onSelect(curve) }
+                        .id(curve.id)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+            }
+            .frame(height: 78)
+            .onAppear {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 30_000_000)
+                    proxy.scrollTo(current.id, anchor: .center)
+                }
+            }
+            .onChange(of: current.id) { _, newID in
+                withAnimation(.easeOut(duration: 0.22)) {
+                    proxy.scrollTo(newID, anchor: .center)
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(Text("Curve picker"))
+        }
+    }
+}
+
+// MARK: - 曲线预设卡
+struct CurvePresetPickerCell: View {
+    let curve: CurvePreset
+    let isSelected: Bool
+    let contentRotation: Angle
+    let orientation: UIDeviceOrientation
+    let onTap: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 3) {
+                Text(curve.displayName)
+                    .font(.system(size: 9, weight: isSelected ? .bold : .semibold, design: .rounded))
+                    .foregroundStyle(isSelected ? .yellow : .white.opacity(0.82))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                CurveGraphView(curve: curve, accent: accentColor)
+                    .frame(width: 54, height: 34)
+
+                CurveOutputStrip(curve: curve)
+                    .frame(width: 54, height: 5)
+            }
+            .padding(6)
+            .frame(width: 68, height: 68)
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                isSelected ? accentColor.opacity(0.22) : .white.opacity(0.10),
+                                .white.opacity(0.035)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(
+                        isSelected ? Color.yellow : .white.opacity(0.14),
+                        lineWidth: isSelected ? 2 : 0.5
+                    )
+            }
+            .shadow(
+                color: isSelected ? accentColor.opacity(0.35) : .clear,
+                radius: 7,
+                y: 2
+            )
+            .rotationEffect(contentRotation)
+            .animation(.spring(duration: 0.35, bounce: 0.15), value: orientation)
+            .scaleEffect(reduceMotion ? 1.0 : (isSelected ? 1.04 : 1.0))
+            .animation(reduceMotion ? nil : .spring(duration: 0.28, bounce: 0.22), value: isSelected)
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(curve.displayName))
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private var accentColor: Color {
+        switch curve {
+        case .none: return Color(white: 0.82)
+        case .filmSoft: return Color(red: 0.96, green: 0.70, blue: 0.32)
+        case .openShadows: return Color(red: 0.35, green: 0.72, blue: 0.96)
+        case .punch: return Color(red: 1.00, green: 0.38, blue: 0.30)
+        case .matte: return Color(red: 0.78, green: 0.66, blue: 0.52)
+        case .fade: return Color(red: 0.70, green: 0.55, blue: 0.92)
+        case .warmPrint: return Color(red: 1.00, green: 0.56, blue: 0.22)
+        case .crossProcess: return Color(red: 0.92, green: 0.34, blue: 0.72)
+        }
+    }
+}
+
+// MARK: - 曲线差异图
+/// 虚线是恒等响应；半透明面积直接显示预设相对恒等线提亮/压暗了多少。
+/// 只有真正逐通道分离的 Warm Print / X-Pro 才画 RGB 三线，其他预设保持单线清晰度。
+struct CurveGraphView: View {
+    let curve: CurvePreset
+    let accent: Color
+
+    private static let red = Color(red: 1.00, green: 0.30, blue: 0.28)
+    private static let green = Color(red: 0.22, green: 0.86, blue: 0.40)
+    private static let blue = Color(red: 0.26, green: 0.52, blue: 1.00)
+
+    var body: some View {
+        Canvas { context, size in
+            let data = curve.previewData
+            let identity = CurvePreset.none.previewData.master
+
+            var midtoneGuide = Path()
+            midtoneGuide.move(to: CGPoint(x: size.width / 2, y: 2))
+            midtoneGuide.addLine(to: CGPoint(x: size.width / 2, y: size.height - 2))
+            context.stroke(midtoneGuide, with: .color(.white.opacity(0.07)), lineWidth: 0.5)
+
+            let identityPath = Self.linePath(from: identity, in: size)
+            context.stroke(
+                identityPath,
+                with: .color(.white.opacity(0.24)),
+                style: StrokeStyle(lineWidth: 0.8, lineCap: .round, dash: [2, 2])
+            )
+
+            if curve != .none {
+                context.fill(
+                    Self.deltaPath(curve: data.master, identity: identity, in: size),
+                    with: .color(accent.opacity(0.20))
+                )
+            }
+
+            if curve.usesChannelCurves {
+                for (values, color) in [
+                    (data.red, Self.red),
+                    (data.green, Self.green),
+                    (data.blue, Self.blue)
+                ] {
+                    context.stroke(
+                        Self.linePath(from: values, in: size),
+                        with: .color(color),
+                        style: StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round)
+                    )
+                }
+            }
+
+            context.stroke(
+                Self.linePath(from: data.master, in: size),
+                with: .color(curve.usesChannelCurves ? .white.opacity(0.88) : accent),
+                style: StrokeStyle(lineWidth: 2.0, lineCap: .round, lineJoin: .round)
+            )
+        }
+    }
+
+    private static func linePath(from values: [Float], in size: CGSize) -> Path {
+        var path = Path()
+        let inset: CGFloat = 2
+        let width = size.width - inset * 2
+        let height = size.height - inset * 2
+        for (i, v) in values.enumerated() {
+            let x = inset + width * CGFloat(i) / CGFloat(values.count - 1)
+            let y = inset + height * CGFloat(1.0 - Double(v))
+            let point = CGPoint(x: x, y: y)
+            if i == 0 {
+                path.move(to: point)
+            } else {
+                path.addLine(to: point)
+            }
+        }
+        return path
+    }
+
+    private static func deltaPath(curve: [Float], identity: [Float], in size: CGSize) -> Path {
+        var path = linePath(from: curve, in: size)
+        let inset: CGFloat = 2
+        let width = size.width - inset * 2
+        let height = size.height - inset * 2
+        for index in identity.indices.reversed() {
+            let x = inset + width * CGFloat(index) / CGFloat(identity.count - 1)
+            let y = inset + height * CGFloat(1.0 - Double(identity[index]))
+            path.addLine(to: CGPoint(x: x, y: y))
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
+// MARK: - 五档输出色阶
+/// 比曲线图更直接地显示黑位、暗部、中间调、高光和白点；RGB 曲线的色偏也会真实显现。
+private struct CurveOutputStrip: View {
+    let curve: CurvePreset
+
+    private static let inputs: [Float] = [0.03, 0.18, 0.42, 0.70, 0.96]
+
+    var body: some View {
+        HStack(spacing: 1) {
+            ForEach(Self.inputs.indices, id: \.self) { index in
+                let sample = curve.sampleGray(Self.inputs[index])
+                Rectangle()
+                    .fill(
+                        Color(
+                            red: Double(sample.red),
+                            green: Double(sample.green),
+                            blue: Double(sample.blue)
+                        )
+                    )
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .stroke(.white.opacity(0.16), lineWidth: 0.5)
         }
     }
 }

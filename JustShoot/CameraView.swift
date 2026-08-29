@@ -26,6 +26,9 @@ struct CameraView: View {
     /// Live Photo 是否录音（设置页可配置，默认开）。开启时麦克风挂上 session、Live 视频带声音；
     /// 关闭则静音。与顶栏 livePhotoEnabled 一起决定是否挂麦克风——见 CameraManager.setLivePhotoAudio。
     @AppStorage("livePhotoSoundEnabled") private var livePhotoSoundEnabled = true
+    /// 曲线效果（与 LUT 可叠加）。曲线烘焙进 LUT 缓存条目——预览与成片共用同一合成键，
+    /// 双端观感一致。默认无曲线。
+    @AppStorage("curvePreset") private var curvePreset: CurvePreset = .none
     /// Picker 候选列表里需要展示用户导入的自定义 LUT；CameraView 自己持有 @Query 直接喂给 strip。
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @Environment(\.dismiss) private var dismiss
@@ -68,7 +71,7 @@ struct CameraView: View {
     /// 拍照失败提示。photo data nil / LUT 失败 / SwiftData save 失败时弹 alert，
     /// 不再静默——避免用户以为拍成功而相册没新照片。
     @State private var captureError: String?
-    /// 底部胶片选择条展开状态。点击右下封面切换；选中任一胶片后自动收起。
+    /// 底部胶片与曲线面板展开状态。只由右下封面开关，选择后保持展开以便连续比较。
     @State private var showFilmPicker = false
     /// 预览左右滑动切胶片：手势开始时的 allFilmSources 索引基线。每次 onChanged 累加 delta
     /// 后映射到目标 index，与 iPhone 原相机滤镜横滑切换同手感。nil = 当前没有 swipe 进行中。
@@ -93,7 +96,7 @@ struct CameraView: View {
                         // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade,
                         // 预览不黑屏），不再需要 bridgeImage 帧桥接。
                         // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
-                        RealtimePreviewView(manager: cameraManager, lutCacheKey: source.lutCacheKey)
+                        RealtimePreviewView(manager: cameraManager, lutCacheKey: FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: curvePreset))
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .contentShape(Rectangle())
                             .gesture(unifiedPreviewGesture(viewportSize: geometry.size))
@@ -135,9 +138,25 @@ struct CameraView: View {
                     cameraManager.setFocalLength(option)
                 }
 
-                // 胶片(LUT)选择条按需展开：与焦距条同处预览下方控制区、落在其下方——同一图层纵向排布,
-                // 不替换、不遮挡焦距条。右下封面 tap 切换；选中任一胶片后自动收起。
+                // 胶片(LUT)与曲线选择条按需展开：位于焦距条下方、同层纵向排布，不遮挡取景区。
+                // 右下封面负责开关；选择后保持展开，便于快速比较 LUT × 曲线组合。
                 if showFilmPicker {
+                    // 曲线选择条：与胶片条同层纵向排布，展开胶片 picker 时一并出现。
+                    // 曲线与 LUT 叠加（烘焙进合成键），选中即时反映到预览。
+                    CurvePresetPickerStrip(
+                        current: curvePreset,
+                        contentRotation: controlRotationAngle,
+                        orientation: cameraManager.currentDeviceOrientation
+                    ) { curve in
+                        if curve != curvePreset {
+                            cameraManager.hapticSoft.impactOccurred()
+                            curvePreset = curve
+                            FilmProcessor.shared.preload(source: source, curve: curve)
+                        }
+                    }
+                    .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+
                     FilmSourcePickerStrip(
                         current: source,
                         customLUTs: customLUTs,
@@ -148,12 +167,10 @@ struct CameraView: View {
                             cameraManager.hapticSoft.impactOccurred()
                             source = newSource
                             // 通常 ContentView 启动时已 preload；冷启动后从 picker 第一次切到某胶片
-                            // 也走一次保险——FilmProcessor cache 命中时零开销。
-                            FilmProcessor.shared.preload(source: newSource)
+                            // 也走一次保险——FilmProcessor cache 命中时零开销。曲线合成条目一并生成。
+                            FilmProcessor.shared.preload(source: newSource, curve: curvePreset)
                         }
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            showFilmPicker = false
-                        }
+                        // 不自动收起：列表保持展开便于连读对比，仅右下角封面 tap 关闭。
                     }
                     // 阴影让它读作浮层而非贴底的条带。
                     .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
@@ -358,7 +375,7 @@ struct CameraView: View {
             .padding(.bottom, 10)
         }
         .onAppear {
-            FilmProcessor.shared.preload(source: source)
+            FilmProcessor.shared.preload(source: source, curve: curvePreset)
             cameraManager.requestCameraPermission()
             // 告知期望录音状态（live && sound）；session 配置完成后据此决定是否挂麦克风。
             cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
@@ -446,6 +463,11 @@ struct CameraView: View {
         }
 
         let currentSource = source
+        // 快门时刻的曲线快照——拍照是异步链，用户可能在后处理途中改曲线；
+        // 这里固化合成键，预览所见（拍摄瞬间）与成片一致。
+        let composedLUTKey = FilmProcessor.shared.composedLUTCacheKey(
+            currentSource.lutCacheKey, curve: curvePreset
+        )
         let manager = cameraManager
         // ModelContainer 是 Sendable；ModelContext 不是。@ModelActor 在 actor 内部
         // 创建自己的 modelContext，与主 context 隔离，save 不阻塞主线程。
@@ -532,7 +554,7 @@ struct CameraView: View {
                     do {
                         contentID = try await LivePhotoProcessor.process(
                             sourceURL: srcMovie,
-                            lutCacheKey: currentSource.lutCacheKey,
+                            lutCacheKey: composedLUTKey,
                             photoDisplayTime: photoDisplayTime,
                             outputURL: out
                         )
@@ -546,7 +568,7 @@ struct CameraView: View {
 
                 let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(
                     imageData: data,
-                    lutCacheKey: currentSource.lutCacheKey,
+                    lutCacheKey: composedLUTKey,
                     outputQuality: outputQuality,
                     location: location,
                     captureDate: captureDate,
@@ -841,10 +863,6 @@ struct CameraView: View {
         let sources = allFilmSources
         guard sources.count > 1, let baseIndex = dragStartFilmIndex else { return }
 
-        let dx = value.translation.width
-        let dy = value.translation.height
-        let totalDistance = sqrt(dx * dx + dy * dy)
-
         // 注意：切胶片用**屏幕横轴**（value.translation.width），不走 perceivedTranslation 旋转重映射。
         // picker 选择条是一条横向排布、不随设备方向旋转的条带（只有 cell 内容旋转）；横握时它在
         // 屏幕上仍是左右排布，因此「沿条带方向左右滑」= 屏幕横滑，所有持机方向下保持一致。
@@ -856,14 +874,8 @@ struct CameraView: View {
         let effectiveDx = abs(actual) >= abs(predicted) ? actual : predicted
 
         if abs(effectiveDx) <= Self.filmSwipeThreshold {
-            // 未达切换阈值。整体位移 < 10pt 视为 tap → 收起 picker（iPhone Camera 风格的
-            // "tap 空白处退出当前模式"）。10-50pt 区间是"想滑但没滑够"，picker 保留。
-            if totalDistance < 10 {
-                cameraManager.hapticLight.impactOccurred(intensity: 0.5)
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    showFilmPicker = false
-                }
-            }
+            // 未达切换阈值。picker 保持展开——列表只由右下角封面 tap 开关，
+            // 预览区 tap / 短滑不再作为关闭手势（选定胶片后要连读对比）。
             return
         }
 
@@ -881,7 +893,7 @@ struct CameraView: View {
         cameraManager.hapticSoft.impactOccurred()
         source = newSource
         // ContentView 启动时已 preload；这里命中 cache 零开销，冷路径下也只是 LUT 解析一次。
-        FilmProcessor.shared.preload(source: newSource)
+        FilmProcessor.shared.preload(source: newSource, curve: curvePreset)
     }
 
     /// 把 SwiftUI translation（设备屏幕坐标）映射到**用户感知**的轴：
