@@ -7,7 +7,7 @@ import os
 
 // MARK: - Live Photo 视频处理器
 //
-// 把 AVCapture 产出的 Live Photo 配对视频（原始画面）逐帧套上当前胶片 LUT，并重写成一段带
+// 把 AVCapture 产出的 Live Photo 配对视频（原始画面）逐帧套上当前胶片 LUT 与颗粒，并重写成一段带
 // **content identifier** + **still-image-time** 元数据的新 .mov——这两项元数据是 Photos 把
 // 「静态图 + 视频」识别为一张 Live Photo 的关键：
 //   - content.identifier：与静态图 MakerApple["17"] 相同的 UUID，建立配对关系。
@@ -17,7 +17,7 @@ import os
 // 为什么自己 reader/writer 而不用 AVAssetExportSession：export session 能带 top-level metadata，
 // 但 still-image-time 是一条**定时元数据轨**，export 不保证透传；用 AVAssetWriter +
 // AVAssetWriterInputMetadataAdaptor 才能精确写这条轨。逐帧 LUT 复用 FilmProcessor 已缓存的
-// CubeLUT（CIColorCubeWithColorSpace，sRGB），与静态图同一套调色，长按播放与成片观感一致。
+// CubeLUT（CIColorCubeWithColorSpace，sRGB）和 FilmGrainRenderer，与静态图共用参数。
 //
 // 音频：v1 不加麦克风输入，源视频通常无音轨；若源带音轨则原样 passthrough 拷贝（前向兼容）。
 // 把驱动转码所需的非 Sendable AVF 对象一次性带过 @Sendable 闭包边界。每条轨只被自己那条串行
@@ -31,12 +31,14 @@ private final class PipelineBox: @unchecked Sendable {
     let audioOutput: AVAssetReaderTrackOutput?
     let audioInput: AVAssetWriterInput?
     let lut: CubeLUT?
+    let grain: FilmGrainParameters
+    let grainBaseSeed: UInt32
 
     init(reader: AVAssetReader, writer: AVAssetWriter,
          videoOutput: AVAssetReaderTrackOutput, videoInput: AVAssetWriterInput,
          pixelAdaptor: AVAssetWriterInputPixelBufferAdaptor,
          audioOutput: AVAssetReaderTrackOutput?, audioInput: AVAssetWriterInput?,
-         lut: CubeLUT?) {
+         lut: CubeLUT?, grain: FilmGrainParameters, grainBaseSeed: UInt32) {
         self.reader = reader
         self.writer = writer
         self.videoOutput = videoOutput
@@ -45,6 +47,8 @@ private final class PipelineBox: @unchecked Sendable {
         self.audioOutput = audioOutput
         self.audioInput = audioInput
         self.lut = lut
+        self.grain = grain
+        self.grainBaseSeed = grainBaseSeed
     }
 }
 
@@ -62,6 +66,12 @@ enum LivePhotoProcessor {
         case readerInitFailed
         case writerInitFailed
         case writeFailed(String)
+    }
+
+    struct ProcessResult: Sendable {
+        let contentIdentifier: String
+        /// 使用 still-image-time 派生的确定性 seed，供配对静态图复用。
+        let stillGrainSeed: UInt32
     }
 
     // 专用 CIContext：与 FilmProcessor 一致地锁 sRGB working/output 空间，走 Metal。视频帧量大，
@@ -86,7 +96,7 @@ enum LivePhotoProcessor {
     //   1. 本文件独立 CIContext 的首次 render——编译 CIColorCube 的 Metal 内核、建渲染管线；
     //   2. 首个 AVAssetWriter HEVC 会话——拉起 VideoToolbox 编码器服务。
     // 这里在启动后台把两者都预先走一遍：单帧 64×64 的 CIColorCube 渲染 + 一段 2 帧黑帧的迷你
-    // HEVC .mov（写到 tmp 后即删）。与 PreviewMetalResources.warm / prepareForFirstCapture 同一
+    // HEVC .mov（写到 tmp 后即删）。与 PreviewMetalResources.prepare / prepareForFirstCapture 同一
     // 思路：把一次性成本从「用户第一次按快门」挪到启动后台。幂等，已预热直接返回。
     private static let prewarmed = OSAllocatedUnfairLock(initialState: false)
 
@@ -120,7 +130,12 @@ enum LivePhotoProcessor {
             var dstBuffer: CVPixelBuffer?
             CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, bufferAttrs, &dstBuffer)
             if let out = filter.outputImage, let dst = dstBuffer {
-                ciContext.render(out, to: dst, bounds: out.extent, colorSpace: srgb)
+                let textured = FilmGrainRenderer.applying(
+                    to: out,
+                    parameters: FilmGrainParameters(amount: 0.04, size: 1, chroma: 0.08),
+                    seed: 1
+                )
+                ciContext.render(textured, to: dst, bounds: out.extent, colorSpace: srgb)
             }
         }
 
@@ -163,17 +178,19 @@ enum LivePhotoProcessor {
 
     /// 把 sourceURL 的视频逐帧套 LUT，写出带配对元数据的 .mov 到 outputURL。
     /// - lutCacheKey: FilmProcessor 缓存键；取不到缓存 LUT 时视频按原始画面透传（不致丢失 Live Photo）。
+    /// - grain/grainBaseSeed: 与静态照片共享的颗粒配置；每帧按时间戳派生确定性 seed。
     /// - photoDisplayTime: AVCapture 回调的「静态帧对应时刻」；无效时落到视频中点兜底。
-    /// - 返回：实际写进输出视频的 content identifier。**优先从源视频读 AVCapture 自动写入的 id**
-    ///   （配对真相源），读不到才兜底生成 UUID。调用方须把这个返回值写进静态图 MakerApple["17"]，
-    ///   两端 id 一致才被 Photos 识别为一张 Live Photo。
+    /// - 返回：实际写进输出视频的 content identifier + 静态时刻颗粒 seed。调用方须把 identifier
+    ///   写进静态图 MakerApple["17"]，并用 stillGrainSeed 渲染静态帧。
     @discardableResult
     static func process(
         sourceURL: URL,
         lutCacheKey: String,
+        grain: FilmGrainParameters,
+        grainBaseSeed: UInt32,
         photoDisplayTime: CMTime,
         outputURL: URL
-    ) async throws -> String {
+    ) async throws -> ProcessResult {
         let timer = Log.perf("livephoto_video", logger: Log.lut)
         let asset = AVURLAsset(url: sourceURL)
 
@@ -279,6 +296,10 @@ enum LivePhotoProcessor {
             }
             return CMTimeMultiplyByFloat64(duration, multiplier: 0.5)
         }()
+        let stillGrainSeed = FilmGrainRenderer.temporalSeed(
+            base: grainBaseSeed,
+            seconds: stillTime.seconds
+        )
         let fps = nominalFrameRate > 1 ? nominalFrameRate : 30
         let stillDuration = CMTime(value: 1, timescale: Int32(fps.rounded()))
         let stillGroup = AVTimedMetadataGroup(
@@ -305,7 +326,9 @@ enum LivePhotoProcessor {
             pixelAdaptor: pixelAdaptor,
             audioOutput: audioReaderOutput,
             audioInput: audioWriterInput,
-            lut: lut
+            lut: lut,
+            grain: grain,
+            grainBaseSeed: grainBaseSeed
         )
 
         // 逐帧驱动：video 与 audio 各用一条串行队列 requestMediaDataWhenReady，两者都结束后 finishWriting。
@@ -326,7 +349,17 @@ enum LivePhotoProcessor {
                     let pts = CMSampleBufferGetPresentationTimeStamp(sample)
                     guard let srcPixel = CMSampleBufferGetImageBuffer(sample) else { continue }
 
-                    let outPixel = renderLUT(srcPixel, lut: box.lut, pool: box.pixelAdaptor.pixelBufferPool)
+                    let frameSeed = FilmGrainRenderer.temporalSeed(
+                        base: box.grainBaseSeed,
+                        seconds: pts.seconds
+                    )
+                    let outPixel = renderFrame(
+                        srcPixel,
+                        lut: box.lut,
+                        grain: box.grain,
+                        grainSeed: frameSeed,
+                        pool: box.pixelAdaptor.pixelBufferPool
+                    )
                     if let outPixel {
                         if !box.pixelAdaptor.append(outPixel, withPresentationTime: pts) {
                             // append 失败（writer 出错）：结束本轨，由 finishWriting 暴露错误。
@@ -375,8 +408,11 @@ enum LivePhotoProcessor {
             }
         }
 
-        timer.end("dims=\(width)x\(height) codec=\(codec.rawValue) audio=\(audioReaderOutput != nil) still_t=\(String(format: "%.2f", stillTime.seconds))s cid=\(contentIdentifier)")
-        return contentIdentifier
+        timer.end("dims=\(width)x\(height) codec=\(codec.rawValue) audio=\(audioReaderOutput != nil) grain=\(String(format: "%.3f", grain.amount)) still_t=\(String(format: "%.2f", stillTime.seconds))s cid=\(contentIdentifier)")
+        return ProcessResult(
+            contentIdentifier: contentIdentifier,
+            stillGrainSeed: stillGrainSeed
+        )
     }
 
     /// 从源 Live Photo 视频读 AVCapture 写入的 QuickTime content.identifier。
@@ -389,23 +425,34 @@ enum LivePhotoProcessor {
         return nil
     }
 
-    // MARK: - 逐帧 LUT 渲染
+    // MARK: - 逐帧 LUT + 颗粒渲染
     //
-    // srcPixel(BGRA) → CIImage → CIColorCubeWithColorSpace → 渲染进 pool 取的新 pixel buffer。
+    // srcPixel(BGRA) → CIImage → CIColorCubeWithColorSpace → FilmGrain → 输出 pixel buffer。
     // 每帧新建一个 CIFilter（与 FilmProcessor 一致——避免跨帧/跨线程复用同一 filter 实例的竞争）。
-    private static func renderLUT(_ srcPixel: CVPixelBuffer, lut: CubeLUT?, pool: CVPixelBufferPool?) -> CVPixelBuffer? {
+    private static func renderFrame(
+        _ srcPixel: CVPixelBuffer,
+        lut: CubeLUT?,
+        grain: FilmGrainParameters,
+        grainSeed: UInt32,
+        pool: CVPixelBufferPool?
+    ) -> CVPixelBuffer? {
         let srcImage = CIImage(cvPixelBuffer: srcPixel)
 
-        let outImage: CIImage
+        let gradedImage: CIImage
         if let lut, let filter = CIFilter(name: "CIColorCubeWithColorSpace") {
             filter.setValue(srcImage, forKey: kCIInputImageKey)
             filter.setValue(lut.dimension, forKey: "inputCubeDimension")
             filter.setValue(lut.data, forKey: "inputCubeData")
             filter.setValue(srgb, forKey: "inputColorSpace")
-            outImage = filter.outputImage ?? srcImage
+            gradedImage = filter.outputImage ?? srcImage
         } else {
-            outImage = srcImage
+            gradedImage = srcImage
         }
+        let outImage = FilmGrainRenderer.applying(
+            to: gradedImage,
+            parameters: grain,
+            seed: grainSeed
+        )
 
         var outPixel: CVPixelBuffer?
         if let pool {

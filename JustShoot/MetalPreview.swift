@@ -35,12 +35,10 @@ final class PreviewMetalResources: @unchecked Sendable {
         self.computePipeline = pipeline
     }
 
-    /// 启动时在后台触发 shared 的实例化（device + PSO 编译），让首次进入拍摄页时已就绪。
+    /// 由调用方安排在后台阶段执行，避免本类型再私自派生并发任务、与其它冷启动工作争抢资源。
     /// 幂等：shared 是 lazy 单例，多次调用只会命中已构建实例。
-    static func warm() {
-        Task.detached(priority: .userInitiated) {
-            _ = PreviewMetalResources.shared
-        }
+    static func prepare() {
+        _ = PreviewMetalResources.shared
     }
 }
 
@@ -48,6 +46,7 @@ final class PreviewMetalResources: @unchecked Sendable {
 struct RealtimePreviewView: UIViewRepresentable {
     let manager: CameraManager
     let lutCacheKey: String
+    let grain: FilmGrainParameters
 
     func makeUIView(context: Context) -> MTKView {
         // 复用启动时预热好的共享 device，避免在转场期间于主线程实例化 GPU 设备。
@@ -78,6 +77,7 @@ struct RealtimePreviewView: UIViewRepresentable {
 
     func updateUIView(_ uiView: MTKView, context: Context) {
         context.coordinator.lutCacheKey = lutCacheKey
+        context.coordinator.grain = grain
         context.coordinator.manager = manager
         manager.previewMTKView = uiView
     }
@@ -92,6 +92,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, MTKViewDelegate {
         var lutCacheKey: String = ""
+        var grain: FilmGrainParameters = .disabled
         weak var manager: CameraManager?
 
         // Metal 核心对象
@@ -129,6 +130,10 @@ struct RealtimePreviewView: UIViewRepresentable {
             var inputHeight: UInt32
             var rotation: UInt32
             var lutDimension: UInt32
+            var grainAmount: Float
+            var grainSize: Float
+            var grainChroma: Float
+            var grainSeed: UInt32
         }
 
         func setup(view: MTKView) {
@@ -262,7 +267,14 @@ struct RealtimePreviewView: UIViewRepresentable {
                 inputWidth: UInt32(inW),
                 inputHeight: UInt32(inH),
                 rotation: rotation,
-                lutDimension: UInt32(lutDim)
+                lutDimension: UInt32(lutDim),
+                grainAmount: grain.amount,
+                grainSize: grain.pixelSize(forLongEdge: CGFloat(max(outW, outH))),
+                grainChroma: grain.chroma,
+                grainSeed: FilmGrainRenderer.mixedSeed(
+                    base: 0x4A53_4752,
+                    counter: UInt32(truncatingIfNeeded: frameId)
+                )
             )
 
             // 编码 compute 命令

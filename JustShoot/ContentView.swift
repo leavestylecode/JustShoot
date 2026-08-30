@@ -6,7 +6,6 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
-    @State private var isPreloading = true
     @State private var showFileImporter = false
     @State private var importedFileURL: URL?
     @State private var importedCube: CubeLUT?
@@ -90,21 +89,6 @@ struct ContentView: View {
             .navigationDestination(for: FilmSource.self) { source in
                 CameraView(source: source)
                     .navigationTransition(.zoom(sourceID: source.id, in: coverZoom))
-            }
-            .safeAreaInset(edge: .bottom) {
-                if isPreloading {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(0.8)
-                        Text("Preparing camera…")
-                            .font(.system(size: 13))
-                            .foregroundColor(.white.opacity(0.6))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color.black.opacity(0.9))
-                }
             }
             .fileImporter(
                 isPresented: $showFileImporter,
@@ -234,39 +218,38 @@ struct ContentView: View {
     // MARK: - Preload
 
     private func preloadResources() async {
-        // 后台预热 Metal 预览资源（device + LUT compute PSO），避免首次进入拍摄页时在 .zoom
-        // 转场期间于主线程同步实例化设备 / 编译 shader 导致掉帧。与 LUT 解析并行、互不阻塞。
-        PreviewMetalResources.warm()
-
-        // 后台预热 Live Photo 转码管线（独立 CIContext 内核编译 + VideoToolbox HEVC 编码器）：
-        // 否则首张 Live Photo 的视频后处理付 ~9.7s 冷启动（设备实测），在途槽位被长期占住，
-        // 连拍立刻 shutter_ignored。fire-and-forget，不阻塞 splash。
-        Task.detached(priority: .utility) { await LivePhotoProcessor.prewarm() }
-
         // 在主 actor 上把 @Model 的 CustomLUT 投影为 Sendable 的 FilmSource，
         // 避免把非 Sendable 的 SwiftData 模型带入 Task.detached
         let customSources: [FilmSource] = customLUTs.map { FilmSource.from($0) }
 
-        // LUT 解析彼此独立，并行加载减少冷启动耗时（FilmProcessor 内部有锁保护缓存）
-        await Task.detached(priority: .userInitiated) {
-            await withTaskGroup(of: Void.self) { group in
-                for preset in FilmPreset.allCases {
-                    group.addTask { FilmProcessor.shared.preload(preset: preset) }
-                }
-                for source in customSources {
-                    group.addTask { FilmProcessor.shared.preload(source: source) }
-                }
-            }
-        }.value
+        // 首屏只等待内置 LUT。它们已在构建期编译为约 250KB 的 .jslut，8 个合计约 10ms。
+        // 直接在当前启动任务串行读取，避免为极短工作创建 detached task 时触发 Swift 并发
+        // 执行器冷启动、线程调度及返回 MainActor 的额外等待（真机曾额外消耗约 1.6s）。
+        let builtInTimer = Log.perf("startup_builtin_luts", logger: Log.lut)
+        for preset in FilmPreset.allCases {
+            FilmProcessor.shared.preload(preset: preset)
+        }
+        builtInTimer.end("count=\(FilmPreset.allCases.count)")
 
-        // LUT 已完成 → 主页 tile 可点 → 立即消 loading。
-        // 相机权限请求（首次会弹系统 alert）放到 LUT 之后异步触发，不再阻塞 splash。
+        // 内置 LUT 已完成。首页始终直接展示，不再维护额外 loading UI。
+        // 相机权限请求（首次会弹系统 alert）放到 LUT 之后异步触发。
         // 进入 CameraView 时 requestCameraPermission 也会再走一次 .notDetermined 分支，
         // 这里预触发只是为了首次启动用户点 tile 前权限就准备好。
-        await MainActor.run {
-            withAnimation(.easeOut(duration: 0.3)) {
-                isPreloading = false
+        // 首屏稳定后再按顺序做剩余重活，杜绝旧实现的启动资源风暴：
+        //   1. 编译实时预览 PSO；
+        //   2. 创建静态照片 Metal CIContext；
+        //   3. 串行解析用户自定义 LUT（不再阻塞首屏）；
+        //   4. 稍作让步后拉起 Core Image + VideoToolbox 的 Live Photo 冷管线。
+        Task.detached(priority: .utility) {
+            let postwarmTimer = Log.perf("startup_postwarm", logger: Log.lut)
+            PreviewMetalResources.prepare()
+            FilmProcessor.shared.prepareRendering()
+            for source in customSources {
+                FilmProcessor.shared.preload(source: source)
             }
+            try? await Task.sleep(for: .milliseconds(400))
+            await LivePhotoProcessor.prewarm()
+            postwarmTimer.end("custom_luts=\(customSources.count)")
         }
 
         let cameraStatus = AVCaptureDevice.authorizationStatus(for: .video)

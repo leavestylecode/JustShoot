@@ -96,7 +96,14 @@ struct CameraView: View {
                         // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade,
                         // 预览不黑屏），不再需要 bridgeImage 帧桥接。
                         // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
-                        RealtimePreviewView(manager: cameraManager, lutCacheKey: FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: curvePreset))
+                        RealtimePreviewView(
+                            manager: cameraManager,
+                            lutCacheKey: FilmProcessor.shared.composedLUTCacheKey(
+                                source.lutCacheKey,
+                                curve: curvePreset
+                            ),
+                            grain: source.renderProfile.grain
+                        )
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .contentShape(Rectangle())
                             .gesture(unifiedPreviewGesture(viewportSize: geometry.size))
@@ -182,6 +189,34 @@ struct CameraView: View {
             // 整组垂直居中：富余空间在组上下平分（spacer / 预览 / 焦距 /(LUT) / spacer）。
             // 展开 LUT 栏时整组变高、自然向上下两侧扩展，预览与焦距条始终居中而非被推到一边。
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .disabled(cameraManager.readiness != .ready)
+            .allowsHitTesting(cameraManager.readiness == .ready)
+            .accessibilityHidden(cameraManager.readiness != .ready)
+
+            // 准备期间直接展示相机布局，不额外覆盖 loading UI；底层控件仍由 readiness 禁用，
+            // 避免 device 尚未绑定时产生 focus_set_skip / 无效控制操作。
+            if cameraManager.readiness == .failed && !cameraManager.cameraPermissionDenied {
+                ZStack {
+                    Color.black.opacity(0.88)
+                    VStack(spacing: 14) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 38))
+                            .foregroundStyle(.secondary)
+                        Text("Camera unavailable")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                        Button("Try Again") {
+                            cameraManager.requestCameraPermission()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.white)
+                        .foregroundStyle(.black)
+                    }
+                }
+                .ignoresSafeArea()
+                .transition(.opacity)
+                .zIndex(20)
+            }
 
             // 权限被拒绝时的引导
             if cameraManager.cameraPermissionDenied {
@@ -202,6 +237,7 @@ struct CameraView: View {
                     .foregroundColor(.black)
                 }
                 .padding(40)
+                .zIndex(21)
             }
 
             // 快门闪光效果——模拟柯达 / 富士即时相机的氙气闪光膜质感：
@@ -239,6 +275,7 @@ struct CameraView: View {
                 .allowsHitTesting(false)
             }
         }
+        .animation(.easeOut(duration: 0.22), value: cameraManager.readiness)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -286,6 +323,8 @@ struct CameraView: View {
                             .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
                     }
                     .tint(livePhotoEnabled ? .yellow : .white)
+                    .disabled(cameraManager.readiness != .ready)
+                    .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
                     .accessibilityLabel(livePhotoEnabled ? Text("Live Photo on") : Text("Live Photo off"))
                     .accessibilityHint("Toggle Live Photo")
                 }
@@ -301,6 +340,8 @@ struct CameraView: View {
                         .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
                 }
                 .tint(cameraManager.flashMode == .on ? .yellow : .white)
+                .disabled(cameraManager.readiness != .ready)
+                .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
                 .accessibilityLabel(cameraManager.flashMode == .on ? Text("Flash on") : Text("Flash off"))
                 .accessibilityHint("Toggle flash")
             }
@@ -371,6 +412,9 @@ struct CameraView: View {
                 }
                 // 与预览两侧边距对齐（16pt）：badge / 封面缩略图的外缘与预览左右边缘成一条线。
                 .padding(.horizontal, 16)
+                .disabled(cameraManager.readiness != .ready)
+                .opacity(cameraManager.readiness == .ready ? 1 : 0.42)
+                .animation(.easeOut(duration: 0.2), value: cameraManager.readiness)
             }
             .padding(.bottom, 10)
         }
@@ -433,6 +477,10 @@ struct CameraView: View {
         // 否则 issueCapturePhoto 会在无 active connection 时抛 NSException 崩溃。
         // 注意用 isCaptureAvailable 而非 isReadyToCapture：镜头切换中相机是「可用但未就绪」，
         // tap 不该被丢，而应由 capturePhoto 内部 await waitForReadyToCapture 等到位再出片。
+        guard cameraManager.readiness == .ready else {
+            Log.capture.debug("shutter_ignored reason=camera_preparing")
+            return
+        }
         guard cameraManager.isCaptureAvailable else {
             Log.capture.debug("shutter_ignored reason=not_available")
             return
@@ -468,6 +516,10 @@ struct CameraView: View {
         let composedLUTKey = FilmProcessor.shared.composedLUTCacheKey(
             currentSource.lutCacheKey, curve: curvePreset
         )
+        // 自动渲染配置与随机基种子也在快门时刻固化。后续切换胶片不会改变已排队照片；
+        // Live Photo 用同一基种子按时间戳派生逐帧 seed，静态帧与标记时刻保持连续。
+        let renderProfile = currentSource.renderProfile
+        let grainBaseSeed = UInt32.random(in: 1...UInt32.max)
         let manager = cameraManager
         // ModelContainer 是 Sendable；ModelContext 不是。@ModelActor 在 actor 内部
         // 创建自己的 modelContext，与主 context 隔离，save 不阻塞主线程。
@@ -548,16 +600,21 @@ struct CameraView: View {
                 // 视频处理失败则降级为只存静态图（绝不丢拍摄结果）。源视频用完即删。
                 var filteredMovieURL: URL? = nil
                 var contentID: String? = nil
+                var stillGrainSeed = grainBaseSeed
                 if let srcMovie = liveMovieURL {
                     let out = FileManager.default.temporaryDirectory
                         .appendingPathComponent("livephoto_lut_\(UUID().uuidString).mov")
                     do {
-                        contentID = try await LivePhotoProcessor.process(
+                        let liveResult = try await LivePhotoProcessor.process(
                             sourceURL: srcMovie,
                             lutCacheKey: composedLUTKey,
+                            grain: renderProfile.grain,
+                            grainBaseSeed: grainBaseSeed,
                             photoDisplayTime: photoDisplayTime,
                             outputURL: out
                         )
+                        contentID = liveResult.contentIdentifier
+                        stillGrainSeed = liveResult.stillGrainSeed
                         filteredMovieURL = out
                     } catch {
                         Log.save.error("livephoto_video_failed error=\(error.localizedDescription, privacy: .public)")
@@ -569,6 +626,8 @@ struct CameraView: View {
                 let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(
                     imageData: data,
                     lutCacheKey: composedLUTKey,
+                    grain: renderProfile.grain,
+                    grainSeed: stillGrainSeed,
                     outputQuality: outputQuality,
                     location: location,
                     captureDate: captureDate,

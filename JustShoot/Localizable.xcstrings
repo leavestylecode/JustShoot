@@ -369,6 +369,22 @@
         }
       }
     },
+    "Camera unavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相机暂不可用"
+          }
+        }
+      }
+    },
     "Camera access required" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1655,23 +1671,6 @@
         }
       }
     },
-    "Preparing camera…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preparing camera…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在准备相机…"
-          }
-        }
-      }
-    },
     "Process" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2114,6 +2113,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "切换选中状态"
+          }
+        }
+      }
+    },
+    "Try Again" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
           }
         }
       }

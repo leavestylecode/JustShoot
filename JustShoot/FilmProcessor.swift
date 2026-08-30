@@ -16,8 +16,9 @@ struct CubeLUT: Sendable {
 final class FilmProcessor: Sendable {
     static let shared = FilmProcessor()
 
-    private let ciContext: CIContext
     private let srgbColorSpace: CGColorSpace
+    /// CIContext 首次创建在真机约需 1 秒；与 LUT cache 分锁，避免纯 LUT 读取触发或等待 GPU 初始化。
+    private let renderContextLock = OSAllocatedUnfairLock<CIContext?>(initialState: nil)
     /// 保护 lutCache 的锁
     private let lock = OSAllocatedUnfairLock<LUTState>(initialState: LUTState())
 
@@ -30,6 +31,8 @@ final class FilmProcessor: Sendable {
 
     /// 64³ RGBA Float LUT 约 4 MiB。限制衍生组合，避免遍历多个自定义 LUT × 曲线后常驻数百 MB。
     private static let maxComposedLUTs = 12
+    private static let compiledLUTMagic = Array("JSLUT001".utf8)
+    private static let compiledLUTHeaderSize = 16
 
     /// GPS EXIF 时间戳格式化器——固定 UTC、格式恒定，每张照片都用到。DateFormatter 初始化开销大，
     /// 旧实现每次拍照新建两个；hoist 成 static 复用。iOS 26 SDK 起 DateFormatter 本身已是 Sendable，
@@ -50,24 +53,83 @@ final class FilmProcessor: Sendable {
     }()
 
     private init() {
-        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
-        self.srgbColorSpace = colorSpace
-        // 显式使用 Metal 设备，确保 LUT 处理走 GPU 加速路径。
-        // highQualityDownsample: 任何隐式缩放都走 Lanczos（保高频细节），不开默认走廉价 linear。
-        // cacheIntermediates: 48MP 路径中间步骤缓存可达数百 MB；关掉后按需重算，避免低内存设备 jetsam。
-        let baseOptions: [CIContextOption: Any] = [
-            CIContextOption.workingColorSpace: colorSpace,
-            CIContextOption.outputColorSpace: colorSpace,
-            CIContextOption.highQualityDownsample: true,
-            CIContextOption.cacheIntermediates: false
-        ]
-        if let mtlDevice = MTLCreateSystemDefaultDevice() {
-            self.ciContext = CIContext(mtlDevice: mtlDevice, options: baseOptions)
-        } else {
-            var opts = baseOptions
-            opts[CIContextOption.useSoftwareRenderer] = false
-            self.ciContext = CIContext(options: opts)
+        let timer = Log.perf("film_processor_init", logger: Log.lut)
+        self.srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        timer.end()
+    }
+
+    /// 唯一的静态照片 CIContext。创建过程在锁内执行：后台预热与极快首拍撞车时，后者等待同一实例，
+    /// 不会各自创建一份昂贵的 Metal context。
+    private func renderingContext() -> CIContext {
+        renderContextLock.withLock { context in
+            if let context { return context }
+
+            // 显式使用 Metal 设备，确保 LUT 处理走 GPU 加速路径。
+            // highQualityDownsample: 任何隐式缩放都走 Lanczos（保高频细节），不开默认走廉价 linear。
+            // cacheIntermediates: 48MP 路径中间步骤缓存可达数百 MB；关掉后按需重算，避免低内存设备 jetsam。
+            let baseOptions: [CIContextOption: Any] = [
+                CIContextOption.workingColorSpace: srgbColorSpace,
+                CIContextOption.outputColorSpace: srgbColorSpace,
+                CIContextOption.highQualityDownsample: true,
+                CIContextOption.cacheIntermediates: false
+            ]
+            let created: CIContext
+            if let mtlDevice = MTLCreateSystemDefaultDevice() {
+                created = CIContext(mtlDevice: mtlDevice, options: baseOptions)
+            } else {
+                var opts = baseOptions
+                opts[CIContextOption.useSoftwareRenderer] = false
+                created = CIContext(options: opts)
+            }
+            context = created
+            return created
         }
+    }
+
+    /// 首屏完成后由启动编排在后台调用。若已准备好则近似零开销。
+    func prepareRendering() {
+        let timer = Log.perf("film_render_prepare", logger: Log.lut)
+        _ = renderingContext()
+        timer.end()
+    }
+
+    /// 构建期生成的直接加载格式：magic(8) + dimension(UInt32 LE) + floatCount(UInt32 LE)
+    /// + RGBA Float32 LE。Apple 平台均为 little-endian，payload 可直接交给 CIColorCube / Metal。
+    private static func decodeCompiledLUT(_ data: Data) throws -> CubeLUT {
+        guard data.count >= compiledLUTHeaderSize,
+              Array(data.prefix(compiledLUTMagic.count)) == compiledLUTMagic else {
+            throw NSError(
+                domain: "FilmProcessor",
+                code: -10,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid compiled LUT header"]
+            )
+        }
+
+        func littleEndianUInt32(at offset: Int) -> Int {
+            Int(data[offset])
+                | (Int(data[offset + 1]) << 8)
+                | (Int(data[offset + 2]) << 16)
+                | (Int(data[offset + 3]) << 24)
+        }
+
+        let dimension = littleEndianUInt32(at: 8)
+        let floatCount = littleEndianUInt32(at: 12)
+        let expectedFloatCount = dimension * dimension * dimension * 4
+        let expectedByteCount = compiledLUTHeaderSize + floatCount * MemoryLayout<Float>.stride
+        guard dimension > 0,
+              floatCount == expectedFloatCount,
+              data.count == expectedByteCount else {
+            throw NSError(
+                domain: "FilmProcessor",
+                code: -11,
+                userInfo: [NSLocalizedDescriptionKey: "Compiled LUT dimensions mismatch"]
+            )
+        }
+
+        return CubeLUT(
+            data: data.subdata(in: compiledLUTHeaderSize..<data.count),
+            dimension: dimension
+        )
     }
 
     /// 从 .cube 文件文本解析 LUT 数据（纯函数，无锁无 I/O）
@@ -134,19 +196,38 @@ final class FilmProcessor: Sendable {
             return cached
         }
 
-        // 慢路径：解析 LUT 文件（锁外执行，避免长时间持锁）
+        let totalTimer = Log.perf("lut_load", logger: Log.lut)
+
+        // 内置资源优先走构建期编译的二进制格式。读取 + 16-byte header 校验后即可直接使用，
+        // 不再在冷启动时解析 15,625 行十进制文本。
+        if let compiledURL = Bundle.main.url(forResource: resourceName, withExtension: "jslut") {
+            do {
+                let data = try Data(contentsOf: compiledURL, options: .mappedIfSafe)
+                let cube = try Self.decodeCompiledLUT(data)
+                lock.withLock { $0.lutCache[resourceName] = cube }
+                totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=binary bytes=\(data.count)")
+                return cube
+            } catch {
+                Log.lut.error("lut_binary_load_failed name=\(resourceName, privacy: .public) error=\(error.localizedDescription, privacy: .public) fallback=text")
+            }
+        }
+
+        // 兼容回退：资源遗漏/损坏时仍可解析原始 .cube，不让拍摄功能失效。
         guard let url = Bundle.main.url(forResource: resourceName, withExtension: "cube") else {
             Log.lut.error("lut_resource_missing name=\(resourceName, privacy: .public)")
             throw NSError(domain: "FilmProcessor", code: -1,
                           userInfo: [NSLocalizedDescriptionKey: String(format: String(localized: "LUT resource not found: %@.cube"), resourceName)])
         }
 
-        let timer = Log.perf("lut_load", logger: Log.lut)
         do {
+            let readTimer = Log.perf("lut_text_read", logger: Log.lut)
             let text = try Self.readCubeText(from: url)
+            readTimer.end("name=\(resourceName) chars=\(text.count)")
+            let parseTimer = Log.perf("lut_text_parse", logger: Log.lut)
             let cube = try Self.parseCubeFile(text)
+            parseTimer.end("name=\(resourceName) dim=\(cube.dimension)")
             lock.withLock { $0.lutCache[resourceName] = cube }
-            timer.end("name=\(resourceName) dim=\(cube.dimension)")
+            totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=text")
             return cube
         } catch {
             Log.lut.error("lut_parse_failed name=\(resourceName, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
@@ -259,7 +340,17 @@ final class FilmProcessor: Sendable {
     ///   与配对视频关联的 content identifier。静态图被 LUT 重编码后 AVCapture 原写入的 MakerApple
     ///   可能不可靠存活，所以由调用方显式传入同一个 UUID，两端（这里 + LivePhotoProcessor 写视频）
     ///   各自显式写入，配对不依赖原始字节往返。
-    func applyLUTPreservingMetadata(imageData: Data, lutCacheKey: String, outputQuality: CGFloat = 1.0, location: CLLocation? = nil, captureDate: Date = Date(), focalLengthIn35mm: Int? = nil, contentIdentifier: String? = nil) -> Data? {
+    func applyLUTPreservingMetadata(
+        imageData: Data,
+        lutCacheKey: String,
+        grain: FilmGrainParameters = .disabled,
+        grainSeed: UInt32 = 0,
+        outputQuality: CGFloat = 1.0,
+        location: CLLocation? = nil,
+        captureDate: Date = Date(),
+        focalLengthIn35mm: Int? = nil,
+        contentIdentifier: String? = nil
+    ) -> Data? {
         // 读取原始 metadata（AVCapture 写入的完整 EXIF / TIFF / Maker / 色彩空间字典）。
         // 一次读取，后面 orientation 判断 + metadata 注入都复用，避免重复打开 CGImageSource。
         let sourceProps: [String: Any] = {
@@ -319,7 +410,12 @@ final class FilmProcessor: Sendable {
         colorCube.setValue(lut.data, forKey: "inputCubeData")
         colorCube.setValue(srgbColorSpace, forKey: "inputColorSpace")
 
-        guard let output = colorCube.outputImage else { return nil }
+        guard let gradedOutput = colorCube.outputImage else { return nil }
+        let output = FilmGrainRenderer.applying(
+            to: gradedOutput,
+            parameters: grain,
+            seed: grainSeed
+        )
 
         // 渲染为 10-bit HEIC（HEVC Main10），与 iPhone Camera 出片比特深度对齐。
         // CIColorCubeWithColorSpace 在浮点域插值 LUT cell，输出的中间色精度本身就 > 8-bit，
@@ -333,6 +429,7 @@ final class FilmProcessor: Sendable {
         let outExtent = output.extent
         let outMP = (outExtent.isInfinite || outExtent.isEmpty) ? 0 : (outExtent.width * outExtent.height) / 1_000_000
 
+        let ciContext = renderingContext()
         let rendered: Data
         let codec: String
         if let heif10 = try? ciContext.heif10Representation(
@@ -367,7 +464,7 @@ final class FilmProcessor: Sendable {
         // 🔑 一击定位行：编码刚完成、metadata 注入前。codec / 输出像素尺寸 / 百万像素 / 质量参数 /
         // 输入原始字节 / 编码后字节 全在一行。若 rendered_bytes 这里就只有几百 KB 而 out_dims 是完整
         // ~5500×4100，则问题在编码质量；若 out_dims 本身就小，则问题在采集/解码端。
-        Log.lut.info("lut_render_done codec=\(codec, privacy: .public) out_dims=\(Int(outExtent.width))x\(Int(outExtent.height)) mp=\(String(format: "%.1f", outMP)) quality=\(String(format: "%.2f", Double(outputQuality))) in_bytes=\(imageData.count) rendered_bytes=\(rendered.count)")
+        Log.lut.info("lut_render_done codec=\(codec, privacy: .public) out_dims=\(Int(outExtent.width))x\(Int(outExtent.height)) mp=\(String(format: "%.1f", outMP)) quality=\(String(format: "%.2f", Double(outputQuality))) grain=\(String(format: "%.3f", grain.amount)) in_bytes=\(imageData.count) rendered_bytes=\(rendered.count)")
 
         // 注入 metadata：把原始 source props 中的 EXIF/TIFF/GPS 等字典通过 CGImageDestination 写到
         // 已编码的图像上。**source 和 destination 是同一 imageType 时，AddImageFromSource 是 fast copy +

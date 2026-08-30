@@ -1,4 +1,5 @@
 #include <metal_stdlib>
+#include "FilmGrainMath.h"
 using namespace metal;
 
 // Parameters passed from CPU for preview rendering
@@ -10,9 +11,13 @@ struct PreviewParams {
     uint inputHeight; // original camera buffer height
     uint rotation;    // 0=none, 1=90CW, 2=180, 3=270CW
     uint lutDimension; // LUT grid size (e.g. 25)
+    float grainAmount;
+    float grainSize;   // actual grain diameter in output pixels
+    float grainChroma;
+    uint grainSeed;
 };
 
-// Single-pass compute kernel: rotation + aspect-fill crop + 3D LUT color grading
+// Single-pass compute kernel: rotation + aspect-fill crop + 3D LUT + procedural film grain
 // Replaces the CIImage pipeline (orient → CIColorCube → scale → CIContext.render)
 kernel void previewLUT(
     texture2d<half, access::sample> input  [[texture(0)]],
@@ -73,6 +78,14 @@ kernel void previewLUT(
 
     constexpr sampler lutSampler(filter::linear, address::clamp_to_edge);
     float4 graded = lut.sample(lutSampler, lutCoord);
+    float3 textured = justShootApplyFilmGrain(
+        graded.rgb,
+        float2(gid) + 0.5,
+        params.grainAmount,
+        params.grainSize,
+        params.grainChroma,
+        params.grainSeed
+    );
 
-    output.write(half4(half3(graded.rgb), 1.0h), gid);
+    output.write(half4(half3(textured), 1.0h), gid);
 }

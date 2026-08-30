@@ -42,6 +42,26 @@ struct CaptureResult: Sendable {
     let photoDisplayTime: CMTime
 }
 
+enum CameraReadiness: Equatable {
+    case idle
+    case requestingPermission
+    case configuring
+    case waitingForFirstFrame
+    case ready
+    case failed
+
+    var logValue: String {
+        switch self {
+        case .idle: return "idle"
+        case .requestingPermission: return "requesting_permission"
+        case .configuring: return "configuring"
+        case .waitingForFirstFrame: return "waiting_first_frame"
+        case .ready: return "ready"
+        case .failed: return "failed"
+        }
+    }
+}
+
 @MainActor
 class CameraManager: NSObject, ObservableObject {
 
@@ -211,10 +231,13 @@ class CameraManager: NSObject, ObservableObject {
     private var sessionRuntimeErrorObserver: (any NSObjectProtocol)?
     /// session 是否已完成首次配置；区分"冷启动需要 configureAndStartSession"与"前台返回只 startRunning"
     private var sessionConfigured: Bool = false
+    /// 当前 session 周期是否已收到首帧。与 sessionConfigured + lensTarget 共同决定 UI ready。
+    private var hasReceivedPreviewFrame = false
     /// 系统中断仍在进行中（来电/控制中心/录屏），interruptionEnded 后 resume
     private var sessionInterrupted: Bool = false
 
     // 权限状态
+    @Published private(set) var readiness: CameraReadiness = .idle
     @Published var cameraPermissionDenied: Bool = false
     /// 定位权限被拒绝或受限时，UI 显示「位置已关闭」提示
     @Published var locationPermissionDenied: Bool = false
@@ -326,10 +349,46 @@ class CameraManager: NSObject, ObservableObject {
         }
         if shouldLog {
             Log.session.info("preview_first_frame w=\(width) h=\(height)")
+            Task { @MainActor [weak self] in
+                self?.didReceiveFirstPreviewFrame()
+            }
         }
     }
 
     /// 仅在值真正变化时写入 @Published 属性，避免无意义的 objectWillChange 发布
+    private func setReadiness(_ value: CameraReadiness) {
+        if readiness != value {
+            readiness = value
+            Log.session.info("camera_readiness state=\(value.logValue, privacy: .public)")
+        }
+    }
+
+    /// 每次冷配置/恢复 session 都重新等一张新帧，杜绝旧 pixel buffer 让 UI 过早解锁。
+    private func beginCameraPreparation(_ state: CameraReadiness = .configuring) {
+        hasReceivedPreviewFrame = false
+        firstFrameFlag.withLock { $0 = false }
+        pixelBufferLock.withLockUnchecked { $0.buffer = nil }
+        setReadiness(state)
+    }
+
+    private func didReceiveFirstPreviewFrame() {
+        hasReceivedPreviewFrame = true
+        promoteReadinessIfPossible()
+    }
+
+    /// UI ready 的单一判定点：session 配置完成、当前周期首帧已到、初始焦段与 ZSL grace 已稳定。
+    private func promoteReadinessIfPossible() {
+        guard sessionConfigured,
+              hasReceivedPreviewFrame,
+              lensTarget == nil else {
+            if sessionConfigured && readiness != .failed {
+                setReadiness(.waitingForFirstFrame)
+            }
+            return
+        }
+        setReadiness(.ready)
+    }
+
     private func setCameraDenied(_ denied: Bool) {
         if cameraPermissionDenied != denied { cameraPermissionDenied = denied }
     }
@@ -639,6 +698,7 @@ class CameraManager: NSObject, ObservableObject {
                 if Task.isCancelled { return }
                 self.startLocationServices()
             case .notDetermined:
+                self.setReadiness(.requestingPermission)
                 let granted = await AVCaptureDevice.requestAccess(for: .video)
                 Log.session.info("permission_camera_result granted=\(granted)")
                 if Task.isCancelled { return }
@@ -649,11 +709,14 @@ class CameraManager: NSObject, ObservableObject {
                     self.startLocationServices()
                 } else {
                     self.setCameraDenied(true)
+                    self.setReadiness(.failed)
                 }
             case .denied, .restricted:
                 Log.session.error("permission_camera_denied")
                 self.setCameraDenied(true)
+                self.setReadiness(.failed)
             @unknown default:
+                self.setReadiness(.failed)
                 break
             }
         }
@@ -771,6 +834,7 @@ class CameraManager: NSObject, ObservableObject {
             Log.session.debug("session_config_skip running=\(self.session.isRunning) has_device=\(self.captureDevice != nil)")
             return
         }
+        beginCameraPreparation()
         let configTimer = Log.perf("session_configure", logger: Log.session)
         Log.session.info("session_config_begin device=\(device.localizedName, privacy: .public)")
 
@@ -848,6 +912,16 @@ class CameraManager: NSObject, ObservableObject {
             }
         }
 
+        guard !Task.isCancelled else {
+            setReadiness(.idle)
+            return
+        }
+        guard captureSession.isRunning else {
+            setReadiness(.failed)
+            return
+        }
+        setReadiness(.waitingForFirstFrame)
+
         // Back on MainActor — set up delegates and properties that need main thread
         currentVideoInput = captureSession.inputs.first as? AVCaptureDeviceInput
         rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
@@ -872,17 +946,21 @@ class CameraManager: NSObject, ObservableObject {
         applyVideoOrientationToOutputs()
         configTimer.end("zoom=\(String(format: "%.2f", currentZoomFactor))x")
 
-        // dumpLensSpecs 打 70+ 行 os_log + 遍历 device.formats，main actor 上同步执行
-        // 会延迟"主 actor 进入 idle"，让用户首次按下快门时的 Task @MainActor in 排队等待。
-        let args = LensDumpArgs(
-            device: device,
-            focalInfo: focalInfo,
-            photoOutput: photoOutput,
-            videoDataOutput: videoDataOutput
-        )
-        Task.detached(priority: .background) {
-            Self.dumpLensSpecsImpl(args: args)
+        #if DEBUG
+        // 默认 Debug 也不刷 70+ 行。需要设备诊断时在 Scheme 环境变量加入
+        // JUSTSHOOT_LENS_DUMP=1；Release 编译时整个分支不存在。
+        if ProcessInfo.processInfo.environment["JUSTSHOOT_LENS_DUMP"] == "1" {
+            let args = LensDumpArgs(
+                device: device,
+                focalInfo: focalInfo,
+                photoOutput: photoOutput,
+                videoDataOutput: videoDataOutput
+            )
+            Task.detached(priority: .background) {
+                Self.dumpLensSpecsImpl(args: args)
+            }
         }
+        #endif
 
         // Camera Control 硬件支持（iPhone 16+）：离散焦段选择器
         if currentVideoInput != nil {
@@ -940,6 +1018,7 @@ class CameraManager: NSObject, ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.sessionInterrupted = true
+                self.beginCameraPreparation()
                 Log.session.info("session_was_interrupted reason=\(reason)")
             }
         }
@@ -982,6 +1061,7 @@ class CameraManager: NSObject, ObservableObject {
         // setPreparedPhotoSettingsArray 是 Apple 官方解决方案：用与正式 capture 完全一致的 settings
         // 提前喂给 AVF，系统会预分配 ring buffer + Smart HDR 多帧融合所需缓冲，第一张瞬间走热路径。
         prepareForFirstCapture()
+        promoteReadinessIfPossible()
     }
 
     /// 用与 `capturePhoto` 完全一致的 codec / dims / quality settings 预热 photo pipeline。
@@ -1379,6 +1459,7 @@ class CameraManager: NSObject, ObservableObject {
         Log.session.info("lens_settled reason=\(reason, privacy: .public) active=\(active, privacy: .public) zoom=\(String(format: "%.2f", t.zoom))")
         lensTarget = nil
         lensOnTargetSince = nil
+        promoteReadinessIfPossible()
     }
 
     /// 开始一次镜头切换：登记目标 zoom + 启动稳定轮询。capture 就绪只看 zoom 到位（见 lensIsOnTarget）。
@@ -1765,6 +1846,7 @@ class CameraManager: NSObject, ObservableObject {
     /// 同时清空 stale pixel buffer，避免回前台瞬间 MTKView 显示老画面。
     func pauseSessionForBackground() {
         guard sessionConfigured else { return }
+        beginCameraPreparation()
         let captureSession = session
         // 自管音频会话：进后台时停用，让被混音的其它 app 完全收回音频焦点（automaticallyConfigures
         // 已关，AVF 不会替我们管）。回前台由 resumeSessionIfPossible 重新激活。
@@ -1787,13 +1869,21 @@ class CameraManager: NSObject, ObservableObject {
             Log.session.debug("session_resume_skip configured=\(self.sessionConfigured) interrupted=\(self.sessionInterrupted)")
             return
         }
+        beginCameraPreparation()
         let captureSession = session
         // 自管音频会话：automaticallyConfigures 已关，回前台必须自己重新激活，否则 Live 视频静音。
         sessionQueue.async {
             if Self.audioInput(in: captureSession) != nil { Self.configureMixAudioSession(active: true) }
-            guard !captureSession.isRunning else { return }
-            captureSession.startRunning()
-            Log.session.info("session_resumed running=\(captureSession.isRunning)")
+            if !captureSession.isRunning {
+                captureSession.startRunning()
+            }
+            let running = captureSession.isRunning
+            Log.session.info("session_resumed running=\(running)")
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.setReadiness(running ? .waitingForFirstFrame : .failed)
+                self.promoteReadinessIfPossible()
+            }
         }
     }
 
@@ -1843,6 +1933,9 @@ class CameraManager: NSObject, ObservableObject {
         }
         sessionConfigured = false
         sessionInterrupted = false
+        hasReceivedPreviewFrame = false
+        firstFrameFlag.withLock { $0 = false }
+        setReadiness(.idle)
         // 停止加速度计读取（与 setupOrientationMonitoring 配对）
         stopAccelerometerOrientationUpdates()
         previewMTKView = nil
