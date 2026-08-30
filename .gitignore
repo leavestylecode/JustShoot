@@ -36,4 +36,7 @@ fastlane/readme.md
 .vscode/
 *.log
 
+# Local tooling and generated previews
+.zcode/
+curve_preview.svg
 
