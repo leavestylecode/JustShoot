@@ -22,9 +22,16 @@ final class FilmProcessor: Sendable {
     /// 保护 lutCache 的锁
     private let lock = OSAllocatedUnfairLock<LUTState>(initialState: LUTState())
 
+    private struct CurveComposition: Sendable {
+        let baseKey: String
+        let curve: FilmCurve
+    }
+
     /// 锁内保护的可变状态（仅缓存 LUT 数据，不缓存 CIFilter）
     private struct LUTState {
         var lutCache: [String: CubeLUT] = [:]
+        /// 动态用户曲线无法从缓存键反解完整控制点，因此在生成键时登记轻量合成配方。
+        var curveCompositions: [String: CurveComposition] = [:]
         /// 只跟踪曲线合成条目；原始内置/自定义 LUT 不参与驱逐。
         var composedAccessOrder: [String] = []
     }
@@ -264,30 +271,44 @@ final class FilmProcessor: Sendable {
             state.lutCache[cacheKey] = nil
             let prefix = cacheKey + "#curve-"
             state.lutCache.keys.filter { $0.hasPrefix(prefix) }.forEach { state.lutCache[$0] = nil }
+            state.curveCompositions.keys.filter { $0.hasPrefix(prefix) }
+                .forEach { state.curveCompositions[$0] = nil }
             state.composedAccessOrder.removeAll { $0.hasPrefix(prefix) }
         }
     }
 
-    /// 曲线合成缓存键：`"\(lutKey)#curve-\(curve.rawValue)"`。`.none` 时返回原键——
-    /// 走零开销路径，不产生合成条目。预览 Metal 纹理与成片 CIColorCube 都用这个键取数。
-    func composedLUTCacheKey(_ lutKey: String, curve: CurvePreset) -> String {
-        lutKey + curve.cacheKeySuffix
+    /// 中性曲线返回原键；其余曲线登记合成配方。用户曲线键包含内容指纹，保存编辑后不会命中旧 LUT。
+    func composedLUTCacheKey(_ lutKey: String, curve: FilmCurve) -> String {
+        guard !curve.isNeutral else { return lutKey }
+        let composedKey = lutKey + curve.cacheKeySuffix
+        lock.withLock { state in
+            state.curveCompositions[composedKey] = CurveComposition(baseKey: lutKey, curve: curve)
+        }
+        return composedKey
     }
 
     /// 获取已缓存的 LUT 数据（用于 Metal 预览创建 3D 纹理 / 成片 CIColorCube）。
-    /// 键可以携带曲线段（"#curve-…"）：缓存未命中时同步从基底 LUT 合成一次并回填——
-    /// 基底必须已 preload（CameraView onAppear / 切换胶片时都会），否则返回 nil。
+    /// 动态曲线缓存未命中时根据已登记配方同步合成；基底必须已 preload。
     func getCachedLUT(cacheKey: String) -> CubeLUT? {
-        if let curve = CurvePreset.fromCacheKeySuffix(cacheKey) {
-            let baseKey = String(cacheKey.dropLast(curve.cacheKeySuffix.count))
-            return getOrComposeLUT(baseKey: baseKey, curve: curve)
+        if let cached = lock.withLock({ state -> CubeLUT? in
+            guard let cached = state.lutCache[cacheKey] else { return nil }
+            if state.curveCompositions[cacheKey] != nil {
+                Self.touchComposedKey(cacheKey, state: &state)
+            }
+            return cached
+        }) {
+            return cached
         }
-        return lock.withLock { $0.lutCache[cacheKey] }
+        guard let composition = lock.withLock({ $0.curveCompositions[cacheKey] }) else { return nil }
+        return getOrComposeLUT(
+            baseKey: composition.baseKey,
+            curve: composition.curve,
+            composedKey: cacheKey
+        )
     }
 
-    /// 取基底 LUT 并应用曲线，结果以组合键缓存。曲线 `.none` 或基底缺失时返回 nil。
-    private func getOrComposeLUT(baseKey: String, curve: CurvePreset) -> CubeLUT? {
-        let composedKey = composedLUTCacheKey(baseKey, curve: curve)
+    /// 取基底 LUT 并应用曲线，结果以带内容指纹的组合键缓存。
+    private func getOrComposeLUT(baseKey: String, curve: FilmCurve, composedKey: String) -> CubeLUT? {
         if let cached = lock.withLock({ state -> CubeLUT? in
             guard let cached = state.lutCache[composedKey] else { return nil }
             Self.touchComposedKey(composedKey, state: &state)
@@ -309,7 +330,7 @@ final class FilmProcessor: Sendable {
         if let evictedKey {
             Log.lut.debug("lut_curve_cache_evict key=\(evictedKey, privacy: .public)")
         }
-        timer.end("base=\(baseKey) curve=\(curve.rawValue) dim=\(composed.dimension)")
+        timer.end("base=\(baseKey) curve=\(curve.id) dim=\(composed.dimension)")
         return composed
     }
 
@@ -318,9 +339,9 @@ final class FilmProcessor: Sendable {
         state.composedAccessOrder.append(key)
     }
 
-    /// 预加载 FilmSource 对应的 LUT；curve 非 .none 时同步合成曲线条目，
+    /// 预加载 FilmSource 对应的 LUT；非中性曲线同步合成条目，
     /// 让预览纹理 / 成片后续 getCachedLUT 直接命中缓存。
-    func preload(source: FilmSource, curve: CurvePreset = .none) {
+    func preload(source: FilmSource, curve: FilmCurve = .builtIn(.none)) {
         let baseKey = source.lutCacheKey
         switch source {
         case .preset(let p):
@@ -329,8 +350,9 @@ final class FilmProcessor: Sendable {
             let url = CustomLUT.storageDirectory.appendingPathComponent(fileName)
             _ = try? loadCubeLUTFromFile(url: url, cacheKey: baseKey)
         }
-        if curve != .none {
-            _ = getOrComposeLUT(baseKey: baseKey, curve: curve)
+        if !curve.isNeutral {
+            let composedKey = composedLUTCacheKey(baseKey, curve: curve)
+            _ = getOrComposeLUT(baseKey: baseKey, curve: curve, composedKey: composedKey)
         }
     }
 

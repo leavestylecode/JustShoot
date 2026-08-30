@@ -210,20 +210,21 @@ struct FilmSourcePickerStrip: View {
 }
 
 // MARK: - 曲线选择条
-/// 展开胶片 picker 时一并出现的横向曲线选择条。每张卡同时显示真实响应曲线、五档输出色阶
-/// 和本地化名称：曲线形状表达反差，色阶表达黑白点与 RGB 偏色，避免只看一团重叠细线。
-struct CurvePresetPickerStrip: View {
-    let current: CurvePreset
+/// 只展示用户启用的内置/自定义曲线；末尾的管理入口可直接调整显隐或创建新效果。
+struct FilmCurvePickerStrip: View {
+    let curves: [FilmCurve]
+    let current: FilmCurve
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
-    let onSelect: (CurvePreset) -> Void
+    let onManage: () -> Void
+    let onSelect: (FilmCurve) -> Void
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(CurvePreset.allCases) { curve in
-                        CurvePresetPickerCell(
+                    ForEach(curves) { curve in
+                        FilmCurvePickerCell(
                             curve: curve,
                             isSelected: curve == current,
                             contentRotation: contentRotation,
@@ -231,6 +232,11 @@ struct CurvePresetPickerStrip: View {
                         ) { onSelect(curve) }
                         .id(curve.id)
                     }
+                    CurveManagerPickerCell(
+                        contentRotation: contentRotation,
+                        orientation: orientation,
+                        onTap: onManage
+                    )
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
@@ -253,9 +259,9 @@ struct CurvePresetPickerStrip: View {
     }
 }
 
-// MARK: - 曲线预设卡
-struct CurvePresetPickerCell: View {
-    let curve: CurvePreset
+// MARK: - 曲线效果卡
+struct FilmCurvePickerCell: View {
+    let curve: FilmCurve
     let isSelected: Bool
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
@@ -265,46 +271,7 @@ struct CurvePresetPickerCell: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 3) {
-                Text(curve.displayName)
-                    .font(.system(size: 9, weight: isSelected ? .bold : .semibold, design: .rounded))
-                    .foregroundStyle(isSelected ? .yellow : .white.opacity(0.82))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-
-                CurveGraphView(curve: curve, accent: accentColor)
-                    .frame(width: 54, height: 34)
-
-                CurveOutputStrip(curve: curve)
-                    .frame(width: 54, height: 5)
-            }
-            .padding(6)
-            .frame(width: 68, height: 68)
-            .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                isSelected ? accentColor.opacity(0.22) : .white.opacity(0.10),
-                                .white.opacity(0.035)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(
-                        isSelected ? Color.yellow : .white.opacity(0.14),
-                        lineWidth: isSelected ? 2 : 0.5
-                    )
-            }
-            .shadow(
-                color: isSelected ? accentColor.opacity(0.35) : .clear,
-                radius: 7,
-                y: 2
-            )
+            FilmCurvePreviewCard(curve: curve, isSelected: isSelected)
             .rotationEffect(contentRotation)
             .animation(.spring(duration: 0.35, bounce: 0.15), value: orientation)
             .scaleEffect(reduceMotion ? 1.0 : (isSelected ? 1.04 : 1.0))
@@ -315,18 +282,104 @@ struct CurvePresetPickerCell: View {
         .accessibilityLabel(Text(curve.displayName))
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
+}
+
+/// 拍摄条与曲线管理页共用的视觉组件，确保两处展示的是同一套名称、曲线差异和输出色阶。
+struct FilmCurvePreviewCard: View {
+    let curve: FilmCurve
+    let isSelected: Bool
+    var cardSize = CGSize(width: 68, height: 68)
+    var graphSize = CGSize(width: 54, height: 34)
+
+    var body: some View {
+        VStack(spacing: 3) {
+            Text(curve.displayName)
+                .font(.system(
+                    size: cardSize.width > 80 ? 11 : 9,
+                    weight: isSelected ? .bold : .semibold,
+                    design: .rounded
+                ))
+                .foregroundStyle(isSelected ? .yellow : .white.opacity(0.82))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            CurveGraphView(curve: curve, accent: accentColor)
+                .frame(width: graphSize.width, height: graphSize.height)
+
+            CurveOutputStrip(curve: curve)
+                .frame(width: graphSize.width, height: 5)
+        }
+        .padding(6)
+        .frame(width: cardSize.width, height: cardSize.height)
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            isSelected ? accentColor.opacity(0.22) : .white.opacity(0.10),
+                            .white.opacity(0.035)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(
+                    isSelected ? Color.yellow : .white.opacity(0.14),
+                    lineWidth: isSelected ? 2 : 0.5
+                )
+        }
+        .shadow(
+            color: isSelected ? accentColor.opacity(0.35) : .clear,
+            radius: 7,
+            y: 2
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
 
     private var accentColor: Color {
-        switch curve {
-        case .none: return Color(white: 0.82)
-        case .filmSoft: return Color(red: 0.96, green: 0.70, blue: 0.32)
-        case .openShadows: return Color(red: 0.35, green: 0.72, blue: 0.96)
-        case .punch: return Color(red: 1.00, green: 0.38, blue: 0.30)
-        case .matte: return Color(red: 0.78, green: 0.66, blue: 0.52)
-        case .fade: return Color(red: 0.70, green: 0.55, blue: 0.92)
-        case .warmPrint: return Color(red: 1.00, green: 0.56, blue: 0.22)
-        case .crossProcess: return Color(red: 0.92, green: 0.34, blue: 0.72)
+        switch curve.builtInPreset {
+        case .some(.none): return Color(white: 0.82)
+        case .some(.filmSoft): return Color(red: 0.96, green: 0.70, blue: 0.32)
+        case .some(.openShadows): return Color(red: 0.35, green: 0.72, blue: 0.96)
+        case .some(.punch): return Color(red: 1.00, green: 0.38, blue: 0.30)
+        case .some(.matte): return Color(red: 0.78, green: 0.66, blue: 0.52)
+        case .some(.fade): return Color(red: 0.70, green: 0.55, blue: 0.92)
+        case .some(.warmPrint): return Color(red: 1.00, green: 0.56, blue: 0.22)
+        case .some(.crossProcess): return Color(red: 0.92, green: 0.34, blue: 0.72)
+        case nil: return Color(red: 0.38, green: 0.82, blue: 0.72)
         }
+    }
+}
+
+private struct CurveManagerPickerCell: View {
+    let contentRotation: Angle
+    let orientation: UIDeviceOrientation
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 5) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 19, weight: .semibold))
+                Text("Manage")
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(.white.opacity(0.84))
+            .frame(width: 68, height: 68)
+            .background(Color.white.opacity(0.07), in: .rect(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(.white.opacity(0.14), lineWidth: 0.5)
+            }
+            .rotationEffect(contentRotation)
+            .animation(.spring(duration: 0.35, bounce: 0.15), value: orientation)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Manage film curves")
     }
 }
 
@@ -334,7 +387,7 @@ struct CurvePresetPickerCell: View {
 /// 虚线是恒等响应；半透明面积直接显示预设相对恒等线提亮/压暗了多少。
 /// 只有真正逐通道分离的 Warm Print / X-Pro 才画 RGB 三线，其他预设保持单线清晰度。
 struct CurveGraphView: View {
-    let curve: CurvePreset
+    let curve: FilmCurve
     let accent: Color
 
     private static let red = Color(red: 1.00, green: 0.30, blue: 0.28)
@@ -344,7 +397,7 @@ struct CurveGraphView: View {
     var body: some View {
         Canvas { context, size in
             let data = curve.previewData
-            let identity = CurvePreset.none.previewData.master
+            let identity = FilmCurve.builtIn(.none).previewData.master
 
             var midtoneGuide = Path()
             midtoneGuide.move(to: CGPoint(x: size.width / 2, y: 2))
@@ -358,7 +411,7 @@ struct CurveGraphView: View {
                 style: StrokeStyle(lineWidth: 0.8, lineCap: .round, dash: [2, 2])
             )
 
-            if curve != .none {
+            if !curve.isNeutral {
                 context.fill(
                     Self.deltaPath(curve: data.master, identity: identity, in: size),
                     with: .color(accent.opacity(0.20))
@@ -422,8 +475,8 @@ struct CurveGraphView: View {
 
 // MARK: - 五档输出色阶
 /// 比曲线图更直接地显示黑位、暗部、中间调、高光和白点；RGB 曲线的色偏也会真实显现。
-private struct CurveOutputStrip: View {
-    let curve: CurvePreset
+struct CurveOutputStrip: View {
+    let curve: FilmCurve
 
     private static let inputs: [Float] = [0.03, 0.18, 0.42, 0.70, 0.96]
 

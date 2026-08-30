@@ -6,13 +6,13 @@ import AVFoundation
 // 结构沿用 DeepMusic 的设置页：ScrollView + 分区卡片（sectionCard）+ 自定义 SettingRow，
 // 而不是原生 List/Form——这样后续加真实开关时风格统一、可控。
 //
-// 当前只放「关于 / 版本号」与「评分 / 反馈」，全是静态信息或外链，不需要持久化，所以
-// **暂不引入 AppSettings / UserDefaults 单例**——等有真实偏好开关（例如 GPS 位置标记）时再补，
-// 避免空脚手架 dead code。
+// 简单偏好继续由 @AppStorage 与相机页共享；曲线目录通过 EnvironmentObject 注入，集中管理
+// 默认曲线显隐、自定义曲线和当前选择，避免设置页与相机页各自维护一份状态。
 //
 // 卡片背景用低调实色（白 6% 圆角），而非 .glassEffect——与首页去玻璃后的风格保持一致。
 struct SettingsView: View {
     @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var curveLibrary: FilmCurveLibrary
     /// 照片输出画质档。与 CameraView 共享同一 @AppStorage key，拍照时读取生效（无需重启 app）。
     @AppStorage("photoOutputQuality") private var photoQuality: PhotoQuality = .default
     /// Live Photo 是否录音。与 CameraView 共享同一 @AppStorage key，下次入相机即生效。默认开。
@@ -30,6 +30,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     appHeader
+                    filmCurveSection
                     photoQualitySection
                     livePhotoSection
                     feedbackSection
@@ -46,6 +47,32 @@ struct SettingsView: View {
             .onChange(of: livePhotoSoundEnabled) { _, _ in refreshMicrophoneStatus() }
         }
         .preferredColorScheme(.dark)
+    }
+
+    // MARK: - 胶片曲线
+
+    private var filmCurveSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Film Curves", systemImage: "slider.horizontal.3")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 4)
+
+            sectionCard {
+                NavigationLink {
+                    FilmCurveLibraryView()
+                } label: {
+                    SettingRow(
+                        icon: "point.topleft.down.curvedto.point.bottomright.up",
+                        iconColor: .mint,
+                        title: "Manage Curves",
+                        value: "\(curveLibrary.visibleCurveCount)/\(curveLibrary.totalCurveCount)",
+                        showsChevron: true
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     /// 读系统麦克风授权态。开了声音却被拒时，下方提示行显示「去设置开启」。

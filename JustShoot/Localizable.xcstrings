@@ -4,12 +4,33 @@
     "" : {
 
     },
+    "“%@” will be permanently deleted." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”将被永久删除。"
+          }
+        }
+      }
+    },
     "%@ %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@ point %lld" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@节点 %2$lld"
           }
         }
       }
@@ -91,6 +112,17 @@
         }
       }
     },
+    "%lld percent" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "百分之%lld"
+          }
+        }
+      }
+    },
     "%lld selected" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -148,6 +180,26 @@
     "200" : {
 
     },
+    "Add Curve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加曲线"
+          }
+        }
+      }
+    },
+    "Add Point" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加节点"
+          }
+        }
+      }
+    },
     "Allow camera access for JustShoot in Settings" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -178,6 +230,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "海拔 %@m"
+          }
+        }
+      }
+    },
+    "Always available" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "始终可用"
           }
         }
       }
@@ -352,6 +415,27 @@
         }
       }
     },
+    "Built-in" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内置"
+          }
+        }
+      }
+    },
+    "Built-in Curves" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内置曲线"
+          }
+        }
+      }
+    },
     "Built-in lens" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -369,22 +453,6 @@
         }
       }
     },
-    "Camera unavailable" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Camera unavailable"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "相机暂不可用"
-          }
-        }
-      }
-    },
     "Camera access required" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -398,6 +466,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "需要相机权限"
+          }
+        }
+      }
+    },
+    "Camera unavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相机暂不可用"
           }
         }
       }
@@ -476,6 +560,27 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拍摄失败：未能获取图像数据，请重试"
+          }
+        }
+      }
+    },
+    "Channel" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通道"
+          }
+        }
+      }
+    },
+    "Choose which built-in curves appear in the camera. Neutral remains available so you can always remove a curve effect." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择要在相机中显示的内置曲线。中性曲线始终保留，方便随时移除曲线效果。"
           }
         }
       }
@@ -571,6 +676,17 @@
         }
       }
     },
+    "Create Your First Curve" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建第一条曲线"
+          }
+        }
+      }
+    },
     "Current film: %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -584,6 +700,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "当前胶片：%@"
+          }
+        }
+      }
+    },
+    "Curve Name" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲线名称"
           }
         }
       }
@@ -617,6 +743,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自定义"
+          }
+        }
+      }
+    },
+    "Custom curves can adjust overall contrast and individual red, green, and blue channels." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义曲线可调整整体对比度以及红、绿、蓝独立通道。"
           }
         }
       }
@@ -723,6 +860,16 @@
         }
       }
     },
+    "Delete Curve?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除曲线？"
+          }
+        }
+      }
+    },
     "Delete photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -736,6 +883,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "删除照片"
+          }
+        }
+      }
+    },
+    "Delete Point" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除节点"
           }
         }
       }
@@ -793,6 +950,27 @@
     },
     "Done selecting" : {
 
+    },
+    "Drag a point vertically. Points stay ordered automatically to keep the result photographic and free of tone reversals." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "垂直拖动节点。节点会自动保持顺序，令影调自然并避免色调反转。"
+          }
+        }
+      }
+    },
+    "Edit Curve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑曲线"
+          }
+        }
+      }
     },
     "Exposures" : {
       "extractionState" : "manual",
@@ -857,6 +1035,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "胶片卡片"
+          }
+        }
+      }
+    },
+    "Film Curves" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶片曲线"
           }
         }
       }
@@ -964,6 +1152,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "滤镜名称"
+          }
+        }
+      }
+    },
+    "Final Preview" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最终预览"
           }
         }
       }
@@ -1229,6 +1428,16 @@
         }
       }
     },
+    "Input" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入"
+          }
+        }
+      }
+    },
     "ISO" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1335,6 +1544,36 @@
         }
       }
     },
+    "Manage" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理"
+          }
+        }
+      }
+    },
+    "Manage Curves" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理曲线"
+          }
+        }
+      }
+    },
+    "Manage film curves" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理胶片曲线"
+          }
+        }
+      }
+    },
     "Manual exposure" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1348,6 +1587,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "手动曝光"
+          }
+        }
+      }
+    },
+    "Master" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主曲线"
           }
         }
       }
@@ -1388,6 +1638,16 @@
         }
       }
     },
+    "More Curve Actions" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多曲线操作"
+          }
+        }
+      }
+    },
     "Most recent photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1422,6 +1682,26 @@
         }
       }
     },
+    "My Curve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的曲线"
+          }
+        }
+      }
+    },
+    "My Curves" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的曲线"
+          }
+        }
+      }
+    },
     "Name" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1451,6 +1731,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "中性"
+          }
+        }
+      }
+    },
+    "Neutral is always available" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中性曲线始终可用"
+          }
+        }
+      }
+    },
+    "New Curve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建曲线"
           }
         }
       }
@@ -1557,22 +1857,6 @@
         }
       }
     },
-    "Open Shadows" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Shadows"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "通透暗部"
-          }
-        }
-      }
-    },
     "Open Settings" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1603,6 +1887,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "前往系统设置，允许定位以给照片添加地理位置"
+          }
+        }
+      }
+    },
+    "Open Shadows" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Shadows"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通透暗部"
           }
         }
       }
@@ -1641,6 +1941,16 @@
         }
       }
     },
+    "Output" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输出"
+          }
+        }
+      }
+    },
     "Photo Quality" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1671,6 +1981,17 @@
         }
       }
     },
+    "Pick a built-in look as a starting point, then make it your own." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择一个内置风格作为起点，再调整出自己的效果。"
+          }
+        }
+      }
+    },
     "Process" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1688,6 +2009,22 @@
         }
       }
     },
+    "Punch" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Punch"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "强反差"
+          }
+        }
+      }
+    },
     "Purple" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1701,22 +2038,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "紫"
-          }
-        }
-      }
-    },
-    "Punch" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Punch"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "强反差"
           }
         }
       }
@@ -1768,12 +2089,42 @@
         }
       }
     },
+    "Reset All Curves" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置全部曲线"
+          }
+        }
+      }
+    },
+    "Reset Channel" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置通道"
+          }
+        }
+      }
+    },
     "Rounded" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "圆角"
+          }
+        }
+      }
+    },
+    "Save" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存"
           }
         }
       }
@@ -1919,6 +2270,26 @@
         }
       }
     },
+    "Show %@ in camera" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在相机中显示 %@"
+          }
+        }
+      }
+    },
+    "Show or hide this curve in the camera" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在相机中显示或隐藏此曲线"
+          }
+        }
+      }
+    },
     "Shutter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2003,6 +2374,16 @@
         }
       }
     },
+    "Start From" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从此风格开始"
+          }
+        }
+      }
+    },
     "Start shooting with this film" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2074,6 +2455,16 @@
         }
       }
     },
+    "Tap to add a point. Drag points in any direction." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻点添加节点，向任意方向拖动调整。"
+          }
+        }
+      }
+    },
     "Tap to close film picker" : {
 
     },
@@ -2117,18 +2508,22 @@
         }
       }
     },
-    "Try Again" : {
+    "Tone Curve" : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try Again"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重试"
+            "value" : "影调曲线"
+          }
+        }
+      }
+    },
+    "Tone curve editor" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲线编辑器"
           }
         }
       }
@@ -2146,6 +2541,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "调整筛选条件试试"
+          }
+        }
+      }
+    },
+    "Try Again" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
           }
         }
       }
@@ -2266,6 +2677,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "交叉冲洗"
+          }
+        }
+      }
+    },
+    "Curve Options" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲线选项"
           }
         }
       }

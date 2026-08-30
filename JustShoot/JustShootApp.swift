@@ -46,6 +46,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct JustShootApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var curveLibrary = FilmCurveLibrary()
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema(versionedSchema: SchemaV1.self)
@@ -87,7 +88,8 @@ struct JustShootApp: App {
     var body: some Scene {
         WindowGroup {
             MainTabView()
+                .environmentObject(curveLibrary)
         }
         .modelContainer(sharedModelContainer)
     }
-} 
+}

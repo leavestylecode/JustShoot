@@ -26,9 +26,8 @@ struct CameraView: View {
     /// Live Photo 是否录音（设置页可配置，默认开）。开启时麦克风挂上 session、Live 视频带声音；
     /// 关闭则静音。与顶栏 livePhotoEnabled 一起决定是否挂麦克风——见 CameraManager.setLivePhotoAudio。
     @AppStorage("livePhotoSoundEnabled") private var livePhotoSoundEnabled = true
-    /// 曲线效果（与 LUT 可叠加）。曲线烘焙进 LUT 缓存条目——预览与成片共用同一合成键，
-    /// 双端观感一致。默认无曲线。
-    @AppStorage("curvePreset") private var curvePreset: CurvePreset = .none
+    /// 曲线目录同时提供当前选择、默认曲线显隐及用户自定义曲线。
+    @EnvironmentObject private var curveLibrary: FilmCurveLibrary
     /// Picker 候选列表里需要展示用户导入的自定义 LUT；CameraView 自己持有 @Query 直接喂给 strip。
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @Environment(\.dismiss) private var dismiss
@@ -73,6 +72,8 @@ struct CameraView: View {
     @State private var captureError: String?
     /// 底部胶片与曲线面板展开状态。只由右下封面开关，选择后保持展开以便连续比较。
     @State private var showFilmPicker = false
+    /// 从相机曲线条直接进入管理页；保存后曲线条和实时预览由 EnvironmentObject 自动刷新。
+    @State private var showCurveManager = false
     /// 预览左右滑动切胶片：手势开始时的 allFilmSources 索引基线。每次 onChanged 累加 delta
     /// 后映射到目标 index，与 iPhone 原相机滤镜横滑切换同手感。nil = 当前没有 swipe 进行中。
     @State private var dragStartFilmIndex: Int? = nil
@@ -100,7 +101,7 @@ struct CameraView: View {
                             manager: cameraManager,
                             lutCacheKey: FilmProcessor.shared.composedLUTCacheKey(
                                 source.lutCacheKey,
-                                curve: curvePreset
+                                curve: selectedCurve
                             ),
                             grain: source.renderProfile.grain
                         )
@@ -150,14 +151,16 @@ struct CameraView: View {
                 if showFilmPicker {
                     // 曲线选择条：与胶片条同层纵向排布，展开胶片 picker 时一并出现。
                     // 曲线与 LUT 叠加（烘焙进合成键），选中即时反映到预览。
-                    CurvePresetPickerStrip(
-                        current: curvePreset,
+                    FilmCurvePickerStrip(
+                        curves: curveLibrary.visibleCurves,
+                        current: selectedCurve,
                         contentRotation: controlRotationAngle,
-                        orientation: cameraManager.currentDeviceOrientation
+                        orientation: cameraManager.currentDeviceOrientation,
+                        onManage: { showCurveManager = true }
                     ) { curve in
-                        if curve != curvePreset {
+                        if curve.id != selectedCurve.id {
                             cameraManager.hapticSoft.impactOccurred()
-                            curvePreset = curve
+                            curveLibrary.select(curve)
                             FilmProcessor.shared.preload(source: source, curve: curve)
                         }
                     }
@@ -175,7 +178,7 @@ struct CameraView: View {
                             source = newSource
                             // 通常 ContentView 启动时已 preload；冷启动后从 picker 第一次切到某胶片
                             // 也走一次保险——FilmProcessor cache 命中时零开销。曲线合成条目一并生成。
-                            FilmProcessor.shared.preload(source: newSource, curve: curvePreset)
+                            FilmProcessor.shared.preload(source: newSource, curve: selectedCurve)
                         }
                         // 不自动收起：列表保持展开便于连读对比，仅右下角封面 tap 关闭。
                     }
@@ -419,7 +422,7 @@ struct CameraView: View {
             .padding(.bottom, 10)
         }
         .onAppear {
-            FilmProcessor.shared.preload(source: source, curve: curvePreset)
+            FilmProcessor.shared.preload(source: source, curve: selectedCurve)
             cameraManager.requestCameraPermission()
             // 告知期望录音状态（live && sound）；session 配置完成后据此决定是否挂麦克风。
             cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
@@ -432,6 +435,10 @@ struct CameraView: View {
         }
         .onChange(of: livePhotoSoundEnabled) { _, _ in
             cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
+        }
+        // 编辑当前用户曲线时 ID 不变、内容指纹会变化；监听完整后缀可确保新 LUT 立即预热。
+        .onChange(of: selectedCurve.cacheKeySuffix) { _, _ in
+            FilmProcessor.shared.preload(source: source, curve: selectedCurve)
         }
         .onDisappear {
             cameraManager.stopSession()
@@ -464,7 +471,15 @@ struct CameraView: View {
         } message: {
             Text(captureError ?? "")
         }
+        .sheet(isPresented: $showCurveManager) {
+            NavigationStack {
+                FilmCurveLibraryView(showsDoneButton: true)
+            }
+            .preferredColorScheme(.dark)
+        }
     }
+
+    private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }
 
     /// 与拍照后立即写入的 thumbnail size 对齐——同 key 命中 NSCache，零额外解码。
     fileprivate static let thumbnailMaxPixel = 88
@@ -514,7 +529,7 @@ struct CameraView: View {
         // 快门时刻的曲线快照——拍照是异步链，用户可能在后处理途中改曲线；
         // 这里固化合成键，预览所见（拍摄瞬间）与成片一致。
         let composedLUTKey = FilmProcessor.shared.composedLUTCacheKey(
-            currentSource.lutCacheKey, curve: curvePreset
+            currentSource.lutCacheKey, curve: selectedCurve
         )
         // 自动渲染配置与随机基种子也在快门时刻固化。后续切换胶片不会改变已排队照片；
         // Live Photo 用同一基种子按时间戳派生逐帧 seed，静态帧与标记时刻保持连续。
@@ -952,7 +967,7 @@ struct CameraView: View {
         cameraManager.hapticSoft.impactOccurred()
         source = newSource
         // ContentView 启动时已 preload；这里命中 cache 零开销，冷路径下也只是 LUT 解析一次。
-        FilmProcessor.shared.preload(source: newSource, curve: curvePreset)
+        FilmProcessor.shared.preload(source: newSource, curve: selectedCurve)
     }
 
     /// 把 SwiftUI translation（设备屏幕坐标）映射到**用户感知**的轴：
