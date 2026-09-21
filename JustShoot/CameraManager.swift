@@ -1872,7 +1872,9 @@ class CameraManager: NSObject, ObservableObject {
         beginCameraPreparation()
         let captureSession = session
         // 自管音频会话：automaticallyConfigures 已关，回前台必须自己重新激活，否则 Live 视频静音。
-        sessionQueue.async {
+        // [self] 显式强捕获：内层 Task 的 [weak self] 需要外层作用域提供 self，
+        // 隐式捕获会触发 Swift 6.2 的 #ImplicitStrongCapture 诊断。
+        sessionQueue.async { [self] in
             if Self.audioInput(in: captureSession) != nil { Self.configureMixAudioSession(active: true) }
             if !captureSession.isRunning {
                 captureSession.startRunning()
