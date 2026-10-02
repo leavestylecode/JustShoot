@@ -109,7 +109,9 @@ struct GalleryView: View {
         // 回填相簿里有资产但索引缺行的孤儿（索引写入失败 / 另一台设备 iCloud 同入的照片）。
         // app 前台时的实时同步由 PhotoLibrarySync 观察者负责（见 MainTabView）。
         .task {
-            await PhotoSaver(modelContainer: modelContext.container).reconcileWithLibrary()
+            PhotoLibrarySync.shared.start(container: modelContext.container)
+            await CapturePipeline.shared.retryPending()
+            await PhotoLibrarySync.shared.reconcile()
         }
         // 详情用 fullScreenCover 呈现：**真全屏**（边到边，无 sheet 顶部留白/圆角），照片占满整屏。
         // 下滑退出由 PhotoDetailView 内的交互式 drag-to-dismiss 实现（fit 比例下拉照片跟手缩小+背景

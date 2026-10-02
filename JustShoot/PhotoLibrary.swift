@@ -33,11 +33,13 @@ enum PhotoLibrary {
     //
     // 真相源在相册，所以需要 .readWrite（写入 + 回读自建资产）。.limited 也可用：app 始终能
     // 读取自己创建的资产。仅在 .notDetermined 时弹一次系统授权，已决定状态不重复打扰。
-    static func ensureAuthorized() async throws {
+    static func ensureAuthorized(trace: DiagnosticTrace? = nil) async throws {
+        let authorization = trace?.span("photos_authorization")
         let current = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         let status: PHAuthorizationStatus = current == .notDetermined
             ? await PHPhotoLibrary.requestAuthorization(for: .readWrite)
             : current
+        authorization?.end("resolved", "before=\(current.rawValue) after=\(status.rawValue)")
         guard status == .authorized || status == .limited else {
             throw PhotoLibraryError.notAuthorized
         }
@@ -46,6 +48,38 @@ enum PhotoLibrary {
     static var isAuthorized: Bool {
         let s = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         return s == .authorized || s == .limited
+    }
+
+    private static func captureFilename(_ id: UUID, imageData: Data) -> String {
+        let source = CGImageSourceCreateWithData(imageData as CFData, nil)
+        let type = source.flatMap { CGImageSourceGetType($0) } as String?
+        return "JustShoot_\(id.uuidString)." + (type == "public.jpeg" ? "jpg" : "heic")
+    }
+
+    private static func captureIdentifier(of asset: PHAsset) -> UUID? {
+        for resource in PHAssetResource.assetResources(for: asset) where resource.type == .photo {
+            let filename: String
+            if #available(iOS 27, *) { filename = resource.filename ?? "" }
+            else { filename = resource.originalFilename }
+            guard filename.hasPrefix("JustShoot_") else { continue }
+            let stem = (filename as NSString).deletingPathExtension
+            return UUID(uuidString: String(stem.dropFirst("JustShoot_".count)))
+        }
+        return nil
+    }
+
+    static func findCapture(id: UUID, creationDate: Date) -> String? {
+        guard isAuthorized else { return nil }
+        let options = PHFetchOptions()
+        options.predicate = NSPredicate(format: "creationDate >= %@ AND creationDate <= %@",
+                                        creationDate.addingTimeInterval(-1) as NSDate,
+                                        creationDate.addingTimeInterval(1) as NSDate)
+        let assets = PHAsset.fetchAssets(with: .image, options: options)
+        var identifier: String?
+        assets.enumerateObjects { asset, _, stop in
+            if captureIdentifier(of: asset) == id { identifier = asset.localIdentifier; stop.pointee = true }
+        }
+        return identifier
     }
 
     // MARK: - 保存
@@ -59,15 +93,23 @@ enum PhotoLibrary {
         latitude: Double?,
         longitude: Double?,
         altitude: Double?,
-        locationTimestamp: Date?
+        locationTimestamp: Date?,
+        captureID: UUID? = nil
     ) async throws -> String {
-        try await ensureAuthorized()
+        let trace = DiagnosticTrace(id: captureID?.uuidString ?? "legacy-photo-export")
+        try await ensureAuthorized(trace: trace)
+        if let captureID, let existing = findCapture(id: captureID, creationDate: creationDate) { return existing }
         // 相簿创建已串行化（见 ensureAlbumIdentifier）。创建失败不阻塞照片保存——资产仍正常
         // 入库（app 内画廊走 SwiftData 索引，不依赖相簿成员关系），只是不进 JustShoot 相簿。
+        let albumLookup = trace.span("photos_album_lookup")
         let albumID = try? await ensureAlbumIdentifier()
+        albumLookup.end(albumID == nil ? "no_album" : "ok")
 
         let idBox = Box<String?>(nil)
         let albumMissingBox = Box(false)
+        let transaction = trace.span("photos_transaction")
+        var transactionStatus = "error"
+        defer { transaction.end(transactionStatus) }
         try await PHPhotoLibrary.shared().performChanges {
             let creation = PHAssetCreationRequest.forAsset()
             creation.creationDate = creationDate
@@ -89,6 +131,7 @@ enum PhotoLibrary {
                let uti = CGImageSourceGetType(src) {
                 options.uniformTypeIdentifier = uti as String
             }
+            if let captureID { options.originalFilename = captureFilename(captureID, imageData: imageData) }
             creation.addResource(with: .photo, data: imageData, options: options)
 
             guard let placeholder = creation.placeholderForCreatedAsset else { return }
@@ -99,6 +142,7 @@ enum PhotoLibrary {
         if albumMissingBox.value { await invalidateAlbumCache() }
 
         guard let id = idBox.value else { throw PhotoLibraryError.saveFailed }
+        transactionStatus = "ok"
         return id
     }
 
@@ -115,13 +159,22 @@ enum PhotoLibrary {
         latitude: Double?,
         longitude: Double?,
         altitude: Double?,
-        locationTimestamp: Date?
+        locationTimestamp: Date?,
+        captureID: UUID? = nil,
+        moveVideo: Bool = true
     ) async throws -> String {
-        try await ensureAuthorized()
+        let trace = DiagnosticTrace(id: captureID?.uuidString ?? "legacy-photo-export")
+        try await ensureAuthorized(trace: trace)
+        if let captureID, let existing = findCapture(id: captureID, creationDate: creationDate) { return existing }
+        let albumLookup = trace.span("photos_album_lookup")
         let albumID = try? await ensureAlbumIdentifier()
+        albumLookup.end(albumID == nil ? "no_album" : "ok")
 
         let idBox = Box<String?>(nil)
         let albumMissingBox = Box(false)
+        let transaction = trace.span("photos_transaction")
+        var transactionStatus = "error"
+        defer { transaction.end(transactionStatus) }
         try await PHPhotoLibrary.shared().performChanges {
             let creation = PHAssetCreationRequest.forAsset()
             creation.creationDate = creationDate
@@ -141,10 +194,11 @@ enum PhotoLibrary {
                let uti = CGImageSourceGetType(src) {
                 photoOptions.uniformTypeIdentifier = uti as String
             }
+            if let captureID { photoOptions.originalFilename = captureFilename(captureID, imageData: imageData) }
             creation.addResource(with: .photo, data: imageData, options: photoOptions)
 
             let videoOptions = PHAssetResourceCreationOptions()
-            videoOptions.shouldMoveFile = true
+            videoOptions.shouldMoveFile = moveVideo
             creation.addResource(with: .pairedVideo, fileURL: videoURL, options: videoOptions)
 
             guard let placeholder = creation.placeholderForCreatedAsset else { return }
@@ -155,6 +209,7 @@ enum PhotoLibrary {
         if albumMissingBox.value { await invalidateAlbumCache() }
 
         guard let id = idBox.value else { throw PhotoLibraryError.saveFailed }
+        transactionStatus = "ok"
         return id
     }
 
@@ -258,13 +313,13 @@ enum PhotoLibrary {
     // JustShoot 相簿内全部资产的轻量信息（identifier / 创建时间 / 是否 Live）。与剪枝同一安全
     // 前提：仅在完整 .authorized 时返回，.limited 下相簿 fetch 可能不完整、不可作为对账输入；
     // 相簿不存在返回空数组。同步 fetch，可在后台 @ModelActor 上直接调。
-    static func albumAssetInfo() -> [(id: String, creationDate: Date?, isLivePhoto: Bool)]? {
+    static func albumAssetInfo() -> [(id: String, creationDate: Date?, isLivePhoto: Bool, captureID: UUID?)]? {
         guard PHPhotoLibrary.authorizationStatus(for: .readWrite) == .authorized else { return nil }
         guard let album = findAlbum() else { return [] }
         let fetch = PHAsset.fetchAssets(in: album, options: nil)
-        var result: [(id: String, creationDate: Date?, isLivePhoto: Bool)] = []
+        var result: [(id: String, creationDate: Date?, isLivePhoto: Bool, captureID: UUID?)] = []
         fetch.enumerateObjects { asset, _, _ in
-            result.append((asset.localIdentifier, asset.creationDate, asset.mediaSubtypes.contains(.photoLive)))
+            result.append((asset.localIdentifier, asset.creationDate, asset.mediaSubtypes.contains(.photoLive), captureIdentifier(of: asset)))
         }
         return result
     }
@@ -284,35 +339,53 @@ final class PhotoLibrarySync: NSObject, PHPhotoLibraryChangeObserver {
     static let shared = PhotoLibrarySync()
     private var container: ModelContainer?
     private var registered = false
-    private var reconcilePending = false
+    private var reconcileTask: Task<Void, Never>?
+    private var needsAnotherPass = false
+    private var didMaintain = false
 
-    /// app 启动时调一次。注册观察者本身不需要相册权限（剪枝逻辑内部再按授权状态 gate），
-    /// 所以无条件注册即可——授权后产生的变更会自然回调进来。
     func start(container: ModelContainer) {
         self.container = container
-        guard !registered else { return }
+        guard !registered, PhotoLibrary.isAuthorized else { return }
         PHPhotoLibrary.shared().register(self)
         registered = true
     }
 
-    // 回调在 PhotoKit 的后台串行队列——回主 actor 调度去重，再把 reconcile 派到后台 @ModelActor。
-    nonisolated func photoLibraryDidChange(_ changeInstance: PHChange) {
-        Task { @MainActor in self.scheduleReconcile() }
+    func bootstrap(container: ModelContainer) async {
+        start(container: container)
+        guard !didMaintain else { return }
+        didMaintain = true
+        let saver = await Task.detached { PhotoSaver(modelContainer: container) }.value
+        await saver.performLaunchMaintenance()
     }
 
-    private func scheduleReconcile() {
-        guard let container, !reconcilePending else { return }
-        reconcilePending = true
+    nonisolated func photoLibraryDidChange(_ changeInstance: PHChange) {
         Task { @MainActor in
-            // 合并连续变更（一次批量删除可能触发多次回调）。
-            try? await Task.sleep(for: .milliseconds(400))
-            reconcilePending = false
-            await PhotoSaver(modelContainer: container).reconcileWithLibrary()
-            // 通知存活中的快照视图（详情页 photos 数组）与底层数据重新对账——
-            // 否则外部删除后快照里残留已删 @Model，渲染读属性即崩。
-            NotificationCenter.default.post(name: .photoLibraryDidReconcile, object: nil)
+            self.needsAnotherPass = true
+            await self.reconcile()
         }
     }
+
+    func reconcile() async {
+        if let container { start(container: container) }
+        if let reconcileTask { await reconcileTask.value; return }
+        guard let container else { return }
+        let task = Task {
+            let reconciliation = DiagnosticTrace(id: "library-sync").span("library_reconcile")
+            defer { reconciliation.end() }
+            let saver = await Task.detached { PhotoSaver(modelContainer: container) }.value
+            repeat {
+                self.needsAnotherPass = false
+                try? await Task.sleep(for: .milliseconds(400))
+                await saver.reconcileWithLibrary()
+            } while self.needsAnotherPass
+            NotificationCenter.default.post(name: .photoLibraryDidReconcile, object: nil)
+        }
+        reconcileTask = task
+        await task.value
+        reconcileTask = nil
+        if needsAnotherPass { await reconcile() }
+    }
+
 }
 
 extension Notification.Name {

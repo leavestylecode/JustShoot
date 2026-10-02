@@ -8,12 +8,12 @@ import os
 //   let t = Log.perf("lut_apply", logger: Log.lut); ...; t.end("size=\(bytes)")
 //
 // 过滤（Xcode Console / Terminal）:
-//   log stream --predicate 'subsystem == "com.leavestylecode.JustShoot"'
-//   log stream --predicate 'subsystem == "com.leavestylecode.JustShoot" && category == "camera.capture"'
+//   log stream --level info --predicate 'subsystem == "leavestylecode.JustShoot"'
+//   log stream --level info --predicate 'subsystem == "leavestylecode.JustShoot" && category == "diagnostics"'
 //
 // 事件命名约定：snake_case，参数用 key=value，时间单位 ms。
 enum Log {
-    static let subsystem = "com.leavestylecode.JustShoot"
+    static let subsystem = Bundle.main.bundleIdentifier ?? "leavestylecode.JustShoot"
 
     static let session     = Logger(subsystem: subsystem, category: "camera.session")
     static let capture     = Logger(subsystem: subsystem, category: "camera.capture")
@@ -23,6 +23,7 @@ enum Log {
     static let save        = Logger(subsystem: subsystem, category: "photo.save")
     static let gallery     = Logger(subsystem: subsystem, category: "gallery")
     static let ui          = Logger(subsystem: subsystem, category: "ui")
+    static let diagnostics = Logger(subsystem: subsystem, category: "diagnostics")
 
     /// 测量代码段耗时
     struct PerfTimer {

@@ -1,7 +1,19 @@
 import SwiftUI
 import MetalKit
+import MetalPerformanceShaders
 @preconcurrency import CoreVideo
 import os
+
+/// Core Video owns the camera buffer's recycling lease. Retaining just MTLTexture is insufficient.
+private final class PreviewFrameLease: @unchecked Sendable {
+    let texture: CVMetalTexture
+    let buffer: CVPixelBuffer
+
+    init(texture: CVMetalTexture, buffer: CVPixelBuffer) {
+        self.texture = texture
+        self.buffer = buffer
+    }
+}
 
 // MARK: - 进程级共享 Metal 资源（启动预热，消除首次进入拍摄页的转场掉帧）
 //
@@ -17,22 +29,28 @@ final class PreviewMetalResources: @unchecked Sendable {
 
     let device: (any MTLDevice)?
     let computePipeline: (any MTLComputePipelineState)?
+    let finishPipeline: (any MTLComputePipelineState)?
 
     private init() {
         guard let device = MTLCreateSystemDefaultDevice() else {
             self.device = nil
             self.computePipeline = nil
+            self.finishPipeline = nil
             return
         }
         self.device = device
         guard let library = device.makeDefaultLibrary(),
               let function = library.makeFunction(name: "previewLUT"),
-              let pipeline = try? device.makeComputePipelineState(function: function) else {
+              let pipeline = try? device.makeComputePipelineState(function: function),
+              let finishFunction = library.makeFunction(name: "previewFinish"),
+              let finishPipeline = try? device.makeComputePipelineState(function: finishFunction) else {
             Log.session.error("metal_shader_load_failed")
             self.computePipeline = nil
+            self.finishPipeline = nil
             return
         }
         self.computePipeline = pipeline
+        self.finishPipeline = finishPipeline
     }
 
     /// 由调用方安排在后台阶段执行，避免本类型再私自派生并发任务、与其它冷启动工作争抢资源。
@@ -42,11 +60,21 @@ final class PreviewMetalResources: @unchecked Sendable {
     }
 }
 
+/// Bound drawable work independently of screen density and iPad window size.
+private final class CameraPreviewMetalView: MTKView {
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let size = CameraPerformancePolicy.drawableSize(bounds: bounds.size, scale: contentScaleFactor)
+        if size.width > 0, size.height > 0, drawableSize != size { drawableSize = size }
+    }
+}
+
 // MARK: - 实时预览视图（全 Metal 管线：CVPixelBuffer → compute shader → drawable）
 struct RealtimePreviewView: UIViewRepresentable {
     let manager: CameraManager
     let lutCacheKey: String
     let grain: FilmGrainParameters
+    let optics: FilmOpticsParameters
 
     func makeUIView(context: Context) -> MTKView {
         // 复用启动时预热好的共享 device，避免在转场期间于主线程实例化 GPU 设备。
@@ -55,7 +83,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             fallback.backgroundColor = .black
             return fallback
         }
-        let view = MTKView(frame: .zero, device: device)
+        let view = CameraPreviewMetalView(frame: .zero, device: device)
         // CADisplayLink 驱动渲染：MTKView 内部以屏幕 vsync 节拍调 draw(in:)。
         // draw() 内部按 lastRenderedFrameId 去重，没有新相机帧时立刻 return（~零成本）。
         //
@@ -70,7 +98,8 @@ struct RealtimePreviewView: UIViewRepresentable {
         // 预览降分辨率：2x 而非 3x，减少 55% 像素量
         view.contentScaleFactor = min(context.environment.displayScale, 2.0)
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
-        view.autoResizeDrawable = true
+        view.autoResizeDrawable = false
+        (view.layer as? CAMetalLayer)?.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
         context.coordinator.setup(view: view)
         return view
     }
@@ -78,6 +107,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     func updateUIView(_ uiView: MTKView, context: Context) {
         context.coordinator.lutCacheKey = lutCacheKey
         context.coordinator.grain = grain
+        context.coordinator.optics = optics
         context.coordinator.manager = manager
         manager.previewMTKView = uiView
     }
@@ -93,12 +123,45 @@ struct RealtimePreviewView: UIViewRepresentable {
     final class Coordinator: NSObject, MTKViewDelegate {
         var lutCacheKey: String = ""
         var grain: FilmGrainParameters = .disabled
+        var optics: FilmOpticsParameters = .disabled
         weak var manager: CameraManager?
 
         // Metal 核心对象
         private var metalDevice: (any MTLDevice)?
         private var commandQueue: (any MTLCommandQueue)?
         private var computePipeline: (any MTLComputePipelineState)?
+        private var finishPipeline: (any MTLComputePipelineState)?
+        private var availableTargets: [PreviewTargets] = []
+        private var halationBlur: MPSImageGaussianBlur?
+        private var bloomBlur: MPSImageGaussianBlur?
+        private var energyDownsampler: MPSImageBilinearScale?
+
+        private struct PreviewTargets: @unchecked Sendable {
+            let graded: any MTLTexture
+            let energy: any MTLTexture
+            let smallEnergy: any MTLTexture
+            let halation: any MTLTexture
+            let bloom: any MTLTexture
+        }
+
+        private func targets(width: Int, height: Int) -> PreviewTargets? {
+            availableTargets.removeAll { $0.graded.width != width || $0.graded.height != height }
+            if let cached = availableTargets.popLast() { return cached }
+            guard let metalDevice else { return nil }
+            func texture(_ format: MTLPixelFormat, width: Int, height: Int) -> (any MTLTexture)? {
+                let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width, height: height, mipmapped: false)
+                descriptor.storageMode = .private
+                descriptor.usage = [.shaderRead, .shaderWrite]
+                return metalDevice.makeTexture(descriptor: descriptor)
+            }
+            let small = CameraPerformancePolicy.diffusionSize(width: width, height: height)
+            guard let graded = texture(.rgba16Float, width: width, height: height),
+                  let energy = texture(.r16Float, width: width, height: height),
+                  let smallEnergy = texture(.r16Float, width: small.width, height: small.height),
+                  let halation = texture(.r16Float, width: small.width, height: small.height),
+                  let bloom = texture(.r16Float, width: small.width, height: small.height) else { return nil }
+            return PreviewTargets(graded: graded, energy: energy, smallEnergy: smallEnergy, halation: halation, bloom: bloom)
+        }
 
         // CVPixelBuffer → MTLTexture 零拷贝缓存
         private var textureCache: CVMetalTextureCache?
@@ -134,12 +197,21 @@ struct RealtimePreviewView: UIViewRepresentable {
             var grainSize: Float
             var grainChroma: Float
             var grainSeed: UInt32
+            var halationAmount: Float
+            var halationRadiusPx: Float
+            var halationHue: Float
+            var bloomAmount: Float
+            var bloomRadiusPx: Float
+            var highlightThreshold: Float
+            var headroomAmount: Float
+            var headroomShoulder: Float
         }
 
         func setup(view: MTKView) {
             guard let device = view.device else { return }
             metalDevice = device
             commandQueue = device.makeCommandQueue()
+            energyDownsampler = MPSImageBilinearScale(device: device)
             // 设置最大 in-flight command buffers
             commandQueue?.label = "com.justshoot.preview"
             view.delegate = self
@@ -155,9 +227,13 @@ struct RealtimePreviewView: UIViewRepresentable {
             if let shared = PreviewMetalResources.shared.computePipeline,
                PreviewMetalResources.shared.device === device {
                 computePipeline = shared
+                finishPipeline = PreviewMetalResources.shared.finishPipeline
             } else if let library = device.makeDefaultLibrary(),
                       let function = library.makeFunction(name: "previewLUT") {
                 computePipeline = try? device.makeComputePipelineState(function: function)
+                if let finish = library.makeFunction(name: "previewFinish") {
+                    finishPipeline = try? device.makeComputePipelineState(function: finish)
+                }
             } else {
                 Log.session.error("metal_shader_load_failed")
             }
@@ -170,6 +246,17 @@ struct RealtimePreviewView: UIViewRepresentable {
         // 一次性诊断用计数器
         private var skipFrameCount: Int = 0
         private var didLogFirstDraw: Bool = false
+        private var diagnosticCycle: UInt64?
+        private var firstPresentationRegistered = false
+        private var frameWindowStart: CFAbsoluteTime?
+        private var submittedFrames = 0
+        private var cpuFrameCount = 0
+        private var cpuTotalMS = 0.0
+        private var cpuMaxMS = 0.0
+        private var gpuFrameCount = 0
+        private var gpuTotalMS = 0.0
+        private var gpuMaxMS = 0.0
+        private var backpressureDrops = 0
 
         func draw(in view: MTKView) {
             // 帧去重：如果相机没有产生新帧，跳过渲染
@@ -178,14 +265,44 @@ struct RealtimePreviewView: UIViewRepresentable {
                 return
             }
 
+            let trace = manager?.diagnostics
+            let generation = manager?.diagnosticGeneration ?? 0
+            if diagnosticCycle != generation {
+                diagnosticCycle = generation
+                firstPresentationRegistered = false
+                didLogFirstDraw = false
+                frameWindowStart = nil; submittedFrames = 0
+                cpuFrameCount = 0; cpuTotalMS = 0; cpuMaxMS = 0
+                gpuFrameCount = 0; gpuTotalMS = 0; gpuMaxMS = 0; backpressureDrops = 0
+            }
+            let cpuStart = Log.now()
+            if frameWindowStart == nil { frameWindowStart = cpuStart }
+            defer {
+                let elapsed = (Log.now() - cpuStart) * 1_000
+                cpuFrameCount += 1
+                cpuTotalMS += elapsed
+                cpuMaxMS = max(cpuMaxMS, elapsed)
+                let windowSeconds = max(0.001, Log.now() - (frameWindowStart ?? cpuStart))
+                if cpuFrameCount >= 120 || windowSeconds >= 2 {
+                    let cpuAverage = cpuTotalMS / Double(cpuFrameCount)
+                    let gpuAverage = gpuTotalMS / Double(max(1, gpuFrameCount))
+                    trace?.event("preview_perf", "generation=\(generation) submitted_fps=\(String(format: "%.1f", Double(submittedFrames) / windowSeconds)) cpu_avg_ms=\(String(format: "%.2f", cpuAverage)) cpu_max_ms=\(String(format: "%.2f", cpuMaxMS)) gpu_avg_ms=\(String(format: "%.2f", gpuAverage)) gpu_max_ms=\(String(format: "%.2f", gpuMaxMS)) gpu_samples=\(gpuFrameCount) dropped=\(backpressureDrops) input=\(CVPixelBufferGetWidth(pixelBuffer))x\(CVPixelBufferGetHeight(pixelBuffer)) output=\(Int(view.drawableSize.width))x\(Int(view.drawableSize.height))")
+                    frameWindowStart = Log.now(); submittedFrames = 0
+                    cpuFrameCount = 0; cpuTotalMS = 0; cpuMaxMS = 0
+                    gpuFrameCount = 0; gpuTotalMS = 0; gpuMaxMS = 0; backpressureDrops = 0
+                }
+            }
+
             // Triple-buffer 背压控制：如果 GPU 有 3 帧在队列中，跳过当前帧
             guard inflightSemaphore.wait(timeout: .now()) == .success else {
+                backpressureDrops += 1
                 return
             }
 
             guard let drawable = view.currentDrawable,
                   let commandBuffer = commandQueue?.makeCommandBuffer(),
                   let pipeline = computePipeline,
+                  let finishPipeline,
                   let cache = textureCache else {
                 inflightSemaphore.signal()
                 skipFrameCount += 1
@@ -199,6 +316,7 @@ struct RealtimePreviewView: UIViewRepresentable {
 
             if !didLogFirstDraw {
                 didLogFirstDraw = true
+                trace?.event("preview_first_draw", "generation=\(generation)")
                 Log.session.info("preview_first_draw skipped=\(self.skipFrameCount) lut_key=\(self.lutCacheKey, privacy: .public)")
             }
 
@@ -274,18 +392,34 @@ struct RealtimePreviewView: UIViewRepresentable {
                 grainSeed: FilmGrainRenderer.mixedSeed(
                     base: 0x4A53_4752,
                     counter: UInt32(truncatingIfNeeded: frameId)
-                )
+                ),
+                halationAmount: optics.halationAmount,
+                // 光晕半径按源流（传感器 FOV）长边归一——预览流、48MP 成片、Live 帧各按
+                // 自身长边换算，光晕占画面比例一致，预览即所得。
+                halationRadiusPx: optics.radiusPixels(
+                    optics.halationRadius, forLongEdge: CGFloat(max(outW, outH))
+                ),
+                halationHue: optics.halationHue,
+                bloomAmount: optics.bloomAmount,
+                bloomRadiusPx: optics.radiusPixels(
+                    optics.bloomRadius, forLongEdge: CGFloat(max(outW, outH))
+                ),
+                highlightThreshold: FilmOpticsParameters.highlightThreshold,
+                headroomAmount: optics.headroomAmount,
+                headroomShoulder: optics.headroomShoulder
             )
 
             // 编码 compute 命令
-            guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
+            guard let targets = targets(width: outW, height: outH),
+                  let encoder = commandBuffer.makeComputeCommandEncoder() else {
                 inflightSemaphore.signal()
                 return
             }
             encoder.setComputePipelineState(pipeline)
             encoder.setTexture(inputTexture, index: 0)
             encoder.setTexture(lutTexture, index: 1)
-            encoder.setTexture(drawable.texture, index: 2)
+            encoder.setTexture(targets.graded, index: 2)
+            encoder.setTexture(targets.energy, index: 3)
             encoder.setBytes(&params, length: MemoryLayout<PreviewParams>.size, index: 0)
 
             let threadsPerGroup = MTLSize(width: 16, height: 16, depth: 1)
@@ -294,15 +428,79 @@ struct RealtimePreviewView: UIViewRepresentable {
 
             encoder.endEncoding()
 
-            // GPU 完成后释放信号量，允许下一帧排队
-            // 捕获 semaphore 本身（值语义 nonisolated），避免把 @MainActor self 带入 Sendable 闭包
+            if let device = metalDevice, optics.hasLightDiffusion {
+                energyDownsampler?.encode(commandBuffer: commandBuffer, sourceTexture: targets.energy, destinationTexture: targets.smallEnergy)
+                let diffusionScale = Float(max(targets.smallEnergy.width, targets.smallEnergy.height)) / Float(max(outW, outH))
+                if optics.halationAmount > 0.0001 {
+                    let sigma = params.halationRadiusPx * 0.55 * diffusionScale
+                    if halationBlur?.sigma != sigma {
+                        halationBlur = MPSImageGaussianBlur(device: device, sigma: sigma)
+                        halationBlur?.edgeMode = .zero
+                    }
+                    halationBlur?.encode(commandBuffer: commandBuffer, sourceTexture: targets.smallEnergy, destinationTexture: targets.halation)
+                }
+                if optics.bloomAmount > 0.0001 {
+                    let sigma = params.bloomRadiusPx * 0.45 * diffusionScale
+                    if bloomBlur?.sigma != sigma {
+                        bloomBlur = MPSImageGaussianBlur(device: device, sigma: sigma)
+                        bloomBlur?.edgeMode = .zero
+                    }
+                    bloomBlur?.encode(commandBuffer: commandBuffer, sourceTexture: targets.smallEnergy, destinationTexture: targets.bloom)
+                }
+            }
+            guard let composite = commandBuffer.makeComputeCommandEncoder() else {
+                availableTargets.append(targets)
+                inflightSemaphore.signal()
+                return
+            }
+            composite.setComputePipelineState(finishPipeline)
+            composite.setTexture(targets.graded, index: 0)
+            composite.setTexture(optics.halationAmount > 0.0001 ? targets.halation : targets.energy, index: 1)
+            composite.setTexture(optics.bloomAmount > 0.0001 ? targets.bloom : targets.energy, index: 2)
+            composite.setTexture(drawable.texture, index: 3)
+            composite.setBytes(&params, length: MemoryLayout<PreviewParams>.size, index: 0)
+            composite.dispatchThreads(gridSize, threadsPerThreadgroup: threadsPerGroup)
+            composite.endEncoding()
+
+            let firstSubmission = !firstPresentationRegistered
+            let submittedAt = ProcessInfo.processInfo.systemUptime
+            if firstSubmission {
+                firstPresentationRegistered = true
+                trace?.event("preview_first_submitted", "generation=\(generation) output=\(outW)x\(outH)")
+                #if !targetEnvironment(simulator)
+                drawable.addPresentedHandler { drawable in
+                    trace?.event(drawable.presentedTime > 0 ? "preview_first_presented" : "preview_presentation_unconfirmed",
+                        "generation=\(generation) submit_to_present_ms=\(Diagnostics.milliseconds(since: submittedAt))")
+                }
+                #else
+                trace?.event("preview_presentation_unavailable", "platform=simulator")
+                #endif
+            }
             let semaphore = self.inflightSemaphore
-            commandBuffer.addCompletedHandler { _ in
-                semaphore.signal()
+            let frameLease = PreviewFrameLease(texture: cvTex, buffer: pixelBuffer)
+            commandBuffer.addCompletedHandler { [weak self] buffer in
+                withExtendedLifetime(frameLease) {}
+                if firstSubmission { trace?.event("preview_first_gpu_completed", "generation=\(generation) after_submit_ms=\(Diagnostics.milliseconds(since: submittedAt))") }
+                if buffer.status == .error {
+                    let errorFields = buffer.error.map { Diagnostics.errorFields($0) } ?? "error_domain=unknown"
+                    trace?.event("preview_gpu_error", "generation=\(generation) \(errorFields)")
+                    Log.session.error("preview_gpu_failed error=\(buffer.error?.localizedDescription ?? "unknown", privacy: .public)")
+                }
+                let gpuMS = max(0, buffer.gpuEndTime - buffer.gpuStartTime) * 1_000
+                Task { @MainActor in
+                    if let self, self.diagnosticCycle == generation, gpuMS > 0 {
+                        self.gpuFrameCount += 1
+                        self.gpuTotalMS += gpuMS
+                        self.gpuMaxMS = max(self.gpuMaxMS, gpuMS)
+                    }
+                    self?.availableTargets.append(targets)
+                    semaphore.signal()
+                }
             }
 
             commandBuffer.present(drawable)
             commandBuffer.commit()
+            submittedFrames += 1
         }
 
         // MARK: - 3D LUT 纹理管理

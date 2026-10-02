@@ -4,10 +4,8 @@ import ImageIO
 
 // MARK: - 照片输出画质（用户可配置，存 @AppStorage("photoOutputQuality")）
 //
-// LUT 渲染（heif10Representation）+ metadata 注入（AddImageFromSource 重编码）两步都用这个
-// compressionQuality。HEVC 的 质量→体积 高度非线性：q1.0 近无损但 12MP 就 8–10MB，从 1.0 往下
-// 掉得极快。默认 .standard(0.8) 对齐 iPhone 原相机出片体积（约 2–3MB）与观感；想要近无损用
-// .maximum，想省空间用 .compact。sizeHint 的 MB 区间是 12MP HEIC/HEVC 的经验值（实测可微调）。
+// LUT、颗粒、光学效果和元数据合并后只编码一次。此档位控制最终编码质量。
+// 照片尺寸、内容、噪声与 Live Photo 设置都会影响实际文件大小。
 enum PhotoQuality: String, CaseIterable, Identifiable, Sendable {
     case maximum
     case high
@@ -359,6 +357,8 @@ extension Photo {
 actor PhotoSaver {
     /// 返回新 photo 的 id；失败抛错由 caller 报给 UI。
     func save(
+        id: UUID = UUID(),
+        captureDate: Date = Date(),
         assetLocalIdentifier: String?,
         imageData: Data?,
         filmPresetName: String,
@@ -369,15 +369,30 @@ actor PhotoSaver {
         altitude: Double?,
         locationTimestamp: Date?
     ) throws -> UUID {
-        let photo = Photo(assetLocalIdentifier: assetLocalIdentifier, imageData: imageData, filmPresetName: filmPresetName)
+        var descriptor: FetchDescriptor<Photo>
+        if let assetLocalIdentifier {
+            descriptor = FetchDescriptor(predicate: #Predicate<Photo> {
+                $0.id == id || $0.assetLocalIdentifier == assetLocalIdentifier
+            })
+        } else {
+            descriptor = FetchDescriptor(predicate: #Predicate<Photo> { $0.id == id })
+        }
+        descriptor.fetchLimit = 1
+        let existing = try modelContext.fetch(descriptor).first
+        let photo = existing ?? Photo(assetLocalIdentifier: assetLocalIdentifier, imageData: imageData, filmPresetName: filmPresetName)
+        if existing == nil { photo.id = id; modelContext.insert(photo) }
+        photo.timestamp = captureDate
+        photo.assetLocalIdentifier = assetLocalIdentifier
+        photo.imageData = imageData
+        photo.filmPresetName = filmPresetName
         if let label = filmDisplayLabel { photo.filmDisplayLabel = label }
         photo.isLivePhoto = isLivePhoto
         photo.latitude = latitude
         photo.longitude = longitude
         photo.altitude = altitude
         photo.locationTimestamp = locationTimestamp
-        modelContext.insert(photo)
-        try modelContext.save()
+        do { try modelContext.save() }
+        catch { modelContext.rollback(); throw error }
         return photo.id
     }
 
@@ -388,8 +403,16 @@ actor PhotoSaver {
         let idSet = Set(ids)
         let descriptor = FetchDescriptor<Photo>(predicate: #Predicate { idSet.contains($0.id) })
         let photos = try modelContext.fetch(descriptor)
+        let journal = CaptureJournal.application
+        let jobs = try journal.jobs()
+        let assets = Set(photos.compactMap(\.assetLocalIdentifier))
+        let discarded = jobs.filter { ids.contains($0.id) || ($0.assetIdentifier.map { assets.contains($0) } ?? false) }
+        for job in discarded { try journal.markDiscarded(job.id) }
         for photo in photos { modelContext.delete(photo) }
-        try modelContext.save()
+        do { try modelContext.save() }
+        catch { modelContext.rollback(); throw error }
+        for job in discarded { try? journal.finish(job.id) }
+
     }
 
     /// 反向同步（library → app）：把指向「系统相册里已不存在的资产」的索引行剔除。真相源在相册，
@@ -421,10 +444,17 @@ actor PhotoSaver {
     /// 相簿里但索引缺行」的孤儿。两个触发点（GalleryView 冷同步 / PhotoLibrarySync 实时回调）
     /// 统一走这里。migrate 在最前：同一次对账内，backfill 看到的索引已包含刚迁移的行，不会
     /// 把迁移产生的新资产误判成孤儿回填出重复行。
+    private var isReconciling = false
+
     func reconcileWithLibrary() async {
-        await migrateInternalPhotos()
+        guard !isReconciling,
+              let pendingJobs = try? CaptureJournal.application.jobs() else { return }
+        isReconciling = true
+        defer { isReconciling = false }
+        let pendingIDs = Set(pendingJobs.map(\.id))
+        await migrateInternalPhotos(excluding: pendingIDs)
         pruneDeletedAssets()
-        backfillOrphanAssets()
+        backfillOrphanAssets(excluding: pendingIDs)
     }
 
     /// 内部照片迁入系统相册（架构注释承诺的 "PhotoMigrator"）：兜底暂存（拍摄时相册写入失败）
@@ -436,14 +466,16 @@ actor PhotoSaver {
     /// 行未更新」，下次 backfill 回填 + 本行重迁出现一张重复（概率极小，可手删）。
     /// 仅在已授权时工作（绝不从后台维护路径触发权限弹窗）；单张失败（磁盘满 / iCloud 异常）
     /// 即中断，剩余的留待下次 reconcile 重试。
-    func migrateInternalPhotos() async {
+    private func migrateInternalPhotos(excluding pendingIDs: Set<UUID>) async {
         guard PhotoLibrary.isAuthorized else { return }
         let descriptor = FetchDescriptor<Photo>(predicate: #Predicate { $0.assetLocalIdentifier == nil })
         guard let photos = try? modelContext.fetch(descriptor), !photos.isEmpty else { return }
 
         var migratedIDs: [UUID] = []
         for photo in photos {
-            guard let data = photo.imageData else { continue }
+            guard !pendingIDs.contains(photo.id),
+                  !FileManager.default.fileExists(atPath: CaptureJournal.application.directory(for: photo.id).path),
+                  let data = photo.imageData else { continue }
             do {
                 let assetID = try await PhotoLibrary.save(
                     imageData: data,
@@ -451,7 +483,8 @@ actor PhotoSaver {
                     latitude: photo.latitude,
                     longitude: photo.longitude,
                     altitude: photo.altitude,
-                    locationTimestamp: photo.locationTimestamp
+                    locationTimestamp: photo.locationTimestamp,
+                    captureID: photo.id
                 )
                 photo.assetLocalIdentifier = assetID
                 photo.imageData = nil
@@ -488,22 +521,26 @@ actor PhotoSaver {
             let dir = CustomLUT.storageDirectory
             if let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) {
                 for file in files where !valid.contains(file) {
-                    try? FileManager.default.removeItem(at: dir.appendingPathComponent(file))
+                    let url = dir.appendingPathComponent(file)
+                    guard let modified = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate,
+                          modified < Date().addingTimeInterval(-86_400) else { continue }
+                    try? FileManager.default.removeItem(at: url)
                     Log.save.info("orphan_lut_file_removed name=\(file, privacy: .public)")
                 }
             }
         }
     }
 
-    /// tmp 残留清扫。只挑本 app 已知前缀，且在启动早期调用（无在途拍摄/分享，列目录无竞争）：
+    /// tmp 残留清扫。只挑本 app 已知前缀，仅清理超过一天的旧文件，允许其他窗口仍有拍摄任务：
     /// - livephoto_src_/livephoto_lut_：拍摄中途崩溃/强杀留下的临时视频（每个 ~2-6MB）
-    /// - Share/：上次会话导出的分享 JPEG（正常路径要等到下一次分享前才清）
     /// 不动 livephoto_prewarm_*：ContentView 的启动预热可能与本清扫并发，其文件自身 defer 即删。
     nonisolated static func sweepTemporaryFiles() {
         let fm = FileManager.default
         let tmp = fm.temporaryDirectory
-        if let files = try? fm.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil) {
+        if let files = try? fm.contentsOfDirectory(at: tmp, includingPropertiesForKeys: [.contentModificationDateKey]) {
             for url in files {
+                let modified = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+                guard let modified, modified < Date().addingTimeInterval(-86_400) else { continue }
                 let name = url.lastPathComponent
                 if name.hasPrefix("livephoto_src_") || name.hasPrefix("livephoto_lut_") {
                     try? fm.removeItem(at: url)
@@ -511,7 +548,7 @@ actor PhotoSaver {
                 }
             }
         }
-        try? fm.removeItem(at: tmp.appendingPathComponent("Share", isDirectory: true))
+        // Share exports are managed by their owner; another window may still be sharing.
     }
 
     /// 正向同步（library → app）：JustShoot 相簿里存在、但索引没有对应行的资产，补建索引行。
@@ -522,7 +559,9 @@ actor PhotoSaver {
     /// 30s 宽限：拍摄管线是「先写相册、后写索引」，本方法又会被保存自身触发的相册变更回调唤起
     /// ——不留宽限会在索引写入前抢先回填出重复行。creationDate 是拍摄时刻，30s 远大于整条
     /// 后处理管线的最坏耗时。
-    private func backfillOrphanAssets() {
+    private func backfillOrphanAssets(excluding pendingIDs: Set<UUID>) {
+        guard let currentJobs = try? CaptureJournal.application.jobs() else { return }
+        let protectedIDs = pendingIDs.union(currentJobs.map(\.id))
         guard let albumAssets = PhotoLibrary.albumAssetInfo(), !albumAssets.isEmpty else { return }
         let descriptor = FetchDescriptor<Photo>(predicate: #Predicate { $0.assetLocalIdentifier != nil })
         guard let photos = try? modelContext.fetch(descriptor) else { return }
@@ -531,6 +570,7 @@ actor PhotoSaver {
 
         var added = 0
         for asset in albumAssets {
+            if let captureID = asset.captureID, protectedIDs.contains(captureID) { continue }
             guard !indexed.contains(asset.id) else { continue }
             if let created = asset.creationDate, created > cutoff { continue }   // 在途拍摄宽限
             let photo = Photo(assetLocalIdentifier: asset.id, imageData: nil)

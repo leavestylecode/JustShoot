@@ -26,7 +26,7 @@ Use four-space indentation and standard Swift API naming: `UpperCamelCase` for t
 
 ## Testing Guidelines
 
-There is currently no test target or coverage threshold. New testable logic should add XCTest coverage under `JustShootTests/`, using names such as `FilmProcessorTests.swift` and `testMalformedCubeIsRejected()`. Prioritize LUT parsing, metadata preservation, migrations, and concurrency edge cases. Simulator builds cover compilation and ordinary UI flows; camera, microphone, GPS, accelerometer, Photos integration, and Live Photo behavior require a physical device. Record the tested device and iOS version in the PR.
+The shared `JustShoot` scheme includes the `JustShootTests` XCTest target; there is no coverage threshold. New testable logic should add XCTest coverage under `JustShootTests/`, using names such as `FilmProcessorTests.swift` and `testMalformedCubeIsRejected()`. Prioritize LUT parsing, metadata preservation, migrations, and concurrency edge cases. Simulator builds cover compilation and ordinary UI flows; camera, microphone, GPS, accelerometer, Photos integration, and Live Photo behavior require a physical device. Record the tested device and iOS version in the PR.
 
 ## Commit & Pull Request Guidelines
 

@@ -1,0 +1,52 @@
+import XCTest
+import AVFoundation
+@testable import JustShoot
+
+final class CameraPerformancePolicyTests: XCTestCase {
+    func testStopInvalidatesQueuedStart() {
+        var intent = CameraSessionIntent()
+        let start = intent.request(running: true)
+        XCTAssertTrue(intent.permitsStart(start))
+        _ = intent.request(running: false)
+        XCTAssertFalse(intent.wantsRunning)
+        XCTAssertFalse(intent.permitsStart(start))
+    }
+
+    func testRapidReentryCannotRevivePreviousStartup() {
+        var intent = CameraSessionIntent()
+        let oldStart = intent.request(running: true)
+        _ = intent.request(running: false)
+        let newStart = intent.request(running: true)
+        XCTAssertFalse(intent.permitsStart(oldStart))
+        XCTAssertTrue(intent.permitsStart(newStart))
+    }
+
+    func testPreviewExplicitlyRequestsProxyBuffers() {
+        let output = AVCaptureVideoDataOutput()
+        CameraPerformancePolicy.configurePreviewOutput(output)
+        XCTAssertFalse(output.automaticallyConfiguresOutputBufferDimensions)
+        XCTAssertTrue(output.deliversPreviewSizedOutputBuffers)
+        XCTAssertTrue(output.alwaysDiscardsLateVideoFrames)
+        XCTAssertEqual(output.videoSettings[kCVPixelBufferPixelFormatTypeKey as String] as? UInt32, kCVPixelFormatType_32BGRA)
+    }
+
+    func testLargeWindowCannotCreateUnboundedPreviewTextures() {
+        let size = CameraPerformancePolicy.drawableSize(bounds: CGSize(width: 1024, height: 1366), scale: 3)
+        XCTAssertLessThanOrEqual(max(size.width, size.height), 1280)
+        XCTAssertEqual(size.width / size.height, 1024.0 / 1366.0, accuracy: 0.001)
+        XCTAssertEqual(CameraPerformancePolicy.drawableSize(bounds: .zero, scale: 3), .zero)
+    }
+
+    func testDiffusionPreservesOddSizedEdgesWithQuarterPixelCount() {
+        let size = CameraPerformancePolicy.diffusionSize(width: 751, height: 1001)
+        XCTAssertEqual(size.width, 376)
+        XCTAssertEqual(size.height, 501)
+        XCTAssertLessThan(size.width * size.height, 751 * 1001 / 3)
+    }
+
+    func testFrameRateDoesNotSelectAnUnsupportedGap() {
+        XCTAssertEqual(CameraPerformancePolicy.frameRate(in: [30...30, 120...120]), 30)
+        XCTAssertEqual(CameraPerformancePolicy.frameRate(in: [24...60]), 60)
+        XCTAssertNil(CameraPerformancePolicy.frameRate(in: [30...60], ceiling: 24))
+    }
+}

@@ -6,7 +6,18 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		99D5C2628AF74E29A973F813 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EA953D302E43195100B6FA72 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EA953D372E43195100B6FA72;
+			remoteInfo = JustShoot;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		ABEE1FAA1938477B97048B47 /* JustShootTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = JustShootTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA953D382E43195100B6FA72 /* JustShoot.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JustShoot.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -21,6 +32,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		8692765B572A45F29425C69D /* JustShootTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = JustShootTests;
+			sourceTree = "<group>";
+		};
 		EA953D3A2E43195100B6FA72 /* JustShoot */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -32,6 +48,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		80DC12621B284395A70595C3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EA953D352E43195100B6FA72 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -46,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				EA953D3A2E43195100B6FA72 /* JustShoot */,
+				8692765B572A45F29425C69D /* JustShootTests */,
 				EA953D392E43195100B6FA72 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +78,7 @@
 			isa = PBXGroup;
 			children = (
 				EA953D382E43195100B6FA72 /* JustShoot.app */,
+				ABEE1FAA1938477B97048B47 /* JustShootTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,6 +86,27 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		A27DA0F89AB34ACABFD4FB86 /* JustShootTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7357D68E92904032A6366E48 /* Build configuration list for PBXNativeTarget "JustShootTests" */;
+			buildPhases = (
+				4E28C275544F4574A0E9A85F /* Sources */,
+				80DC12621B284395A70595C3 /* Frameworks */,
+				F902BE02EF0F44A6BF737253 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5165674B37414C2D84BA966E /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				8692765B572A45F29425C69D /* JustShootTests */,
+			);
+			name = JustShootTests;
+			productName = JustShootTests;
+			productReference = ABEE1FAA1938477B97048B47 /* JustShootTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		EA953D372E43195100B6FA72 /* JustShoot */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = EA953D462E43195200B6FA72 /* Build configuration list for PBXNativeTarget "JustShoot" */;
@@ -114,6 +160,7 @@
 			projectRoot = "";
 			targets = (
 				EA953D372E43195100B6FA72 /* JustShoot */,
+				A27DA0F89AB34ACABFD4FB86 /* JustShootTests */,
 			);
 		};
 /* End PBXProject section */
@@ -126,9 +173,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F902BE02EF0F44A6BF737253 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		4E28C275544F4574A0E9A85F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EA953D342E43195100B6FA72 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -138,7 +199,47 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		5165674B37414C2D84BA966E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EA953D372E43195100B6FA72 /* JustShoot */;
+			targetProxy = 99D5C2628AF74E29A973F813 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		96EA5ADC960E438180FA9066 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = leavestylecode.JustShootTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/JustShoot.app/JustShoot";
+			};
+			name = Release;
+		};
+		E834AB6F32D7440B94274C70 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = leavestylecode.JustShootTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/JustShoot.app/JustShoot";
+			};
+			name = Debug;
+		};
 		EA953D472E43195200B6FA72 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -149,6 +250,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = DJ8T649N47;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_DEBUG_DYLIB = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -179,7 +281,6 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				ENABLE_DEBUG_DYLIB = YES;
 			};
 			name = Debug;
 		};
@@ -358,6 +459,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		7357D68E92904032A6366E48 /* Build configuration list for PBXNativeTarget "JustShootTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E834AB6F32D7440B94274C70 /* Debug */,
+				96EA5ADC960E438180FA9066 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		EA953D332E43195100B6FA72 /* Build configuration list for PBXProject "JustShoot" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

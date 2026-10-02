@@ -8,7 +8,7 @@ import os
 // MARK: - 拍摄页（SwiftUI shell）
 //
 // 本文件只保留 CameraView 这一 SwiftUI 视图层。所有 capture 引擎实现已拆到：
-//   - CameraManager.swift 及其 +Orientation / +Session / +Lens / +Capture / +Location 扩展
+//   - CameraManager.swift：会话、方向、镜头、权限与拍摄状态机
 //   - DeviceFocalInfo.swift（焦段数据层）
 //   - CameraSubviews.swift（FocusIndicatorView / ExposureSunRail / FocalLengthStrip / FilmSourceCoverThumbnail / FlashMode / openAppSettings）
 //   - MetalPreview.swift（RealtimePreviewView + Metal Coordinator）
@@ -17,7 +17,7 @@ struct CameraView: View {
     /// 当前选中的胶片源。底部右侧封面打开 picker 后可切换——`@State` 让 toolbar title、
     /// 预览 LUT (RealtimePreviewView.lutCacheKey)、右下封面、左下最近照片 badge 都自动跟随。
     @State private var source: FilmSource
-    /// 用户在设置页选的输出画质档。拍照时读它的 compressionQuality 传给 LUT 编码 + metadata 注入。
+    /// 用户在设置页选的输出画质档。拍照时读它的 compressionQuality 传给包含元数据的单次图像编码。
     /// 默认 .standard（对齐 iPhone 原相机体积）。
     @AppStorage("photoOutputQuality") private var photoQuality: PhotoQuality = .default
     /// Live Photo 开关（顶栏切换，默认开，像 iPhone 原相机）。开启时每张拍照同时录一段动态视频，
@@ -40,16 +40,8 @@ struct CameraView: View {
     /// 由 cameraManager 的 `onShutterReady` 回调放开——**不再等 live 配对视频的 ~1.5s 录制窗口**。
     /// 放开后用户即可按下一张；在途的多张拍照由 CameraManager 按 uniqueID 分桶、互不覆盖。
     @State private var isShutterBusy = false
-    /// 在途重活计数（曝光 + 后处理全程）：tap 时 +1，后台 LUT/转码/写库全部跑完才 -1。
-    /// **只驱动 spinner 反馈，不再节流快门**——连拍受限的只有 AVF 自身 ~300ms 的 isShutterBusy
-    /// 节拍（与 iPhone 原相机一致），后处理多慢都不挡拍。
-    @State private var pendingPostProcessing = 0
-    /// 后处理串行链：每张照片的「LUT + HEIF 编码 + live 视频转码 + 写库」按交付顺序排队执行，
-    /// 任意时刻只有一条重流水线在跑。这是把旧的「在途并发上限（live=2/普通=3，到顶直接忽略
-    /// 快门）」换成不限流的关键——内存峰值由串行天然有界（排队的只是每张 ~1.3MB 的 HEIF 字节
-    /// 与磁盘上的临时视频文件），用户连拍永不被后处理速度阻塞，照片按拍摄顺序陆续落库。
-    /// 不随视图销毁取消：已拍下的照片必须保存完。
-    @State private var postProcessChain: Task<Void, Never>?
+    @ObservedObject private var capturePipeline = CapturePipeline.shared
+    @State private var preparedLUT: (key: String, lut: CubeLUT)?
     @State private var shutterPressed = false
     /// 拍照 pipeline 完成时立即 push 进来的 88pt 缩略图 hint（避免等 @Query 通知链 ~300-500ms）。
     /// RecentPhotosBadge 通过 @Binding 读写：source 切换时它会清空 hint 并从新 source 的 @Query
@@ -99,11 +91,9 @@ struct CameraView: View {
                         // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
                         RealtimePreviewView(
                             manager: cameraManager,
-                            lutCacheKey: FilmProcessor.shared.composedLUTCacheKey(
-                                source.lutCacheKey,
-                                curve: selectedCurve
-                            ),
-                            grain: source.renderProfile.grain
+                            lutCacheKey: previewLUTKey,
+                            grain: source.renderProfile.grain,
+                            optics: source.renderProfile.optics
                         )
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .contentShape(Rectangle())
@@ -161,7 +151,6 @@ struct CameraView: View {
                         if curve.id != selectedCurve.id {
                             cameraManager.hapticSoft.impactOccurred()
                             curveLibrary.select(curve)
-                            FilmProcessor.shared.preload(source: source, curve: curve)
                         }
                     }
                     .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
@@ -178,7 +167,6 @@ struct CameraView: View {
                             source = newSource
                             // 通常 ContentView 启动时已 preload；冷启动后从 picker 第一次切到某胶片
                             // 也走一次保险——FilmProcessor cache 命中时零开销。曲线合成条目一并生成。
-                            FilmProcessor.shared.preload(source: newSource, curve: selectedCurve)
                         }
                         // 不自动收起：列表保持展开便于连读对比，仅右下角封面 tap 关闭。
                     }
@@ -192,8 +180,8 @@ struct CameraView: View {
             // 整组垂直居中：富余空间在组上下平分（spacer / 预览 / 焦距 /(LUT) / spacer）。
             // 展开 LUT 栏时整组变高、自然向上下两侧扩展，预览与焦距条始终居中而非被推到一边。
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .disabled(cameraManager.readiness != .ready)
-            .allowsHitTesting(cameraManager.readiness == .ready)
+            .disabled(cameraManager.readiness != .ready || isShutterBusy)
+            .allowsHitTesting(cameraManager.readiness == .ready && !isShutterBusy)
             .accessibilityHidden(cameraManager.readiness != .ready)
 
             // 准备期间直接展示相机布局，不额外覆盖 loading UI；底层控件仍由 readiness 禁用，
@@ -326,7 +314,7 @@ struct CameraView: View {
                             .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
                     }
                     .tint(livePhotoEnabled ? .yellow : .white)
-                    .disabled(cameraManager.readiness != .ready)
+                    .disabled(cameraManager.readiness != .ready || isShutterBusy)
                     .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
                     .accessibilityLabel(livePhotoEnabled ? Text("Live Photo on") : Text("Live Photo off"))
                     .accessibilityHint("Toggle Live Photo")
@@ -343,7 +331,7 @@ struct CameraView: View {
                         .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
                 }
                 .tint(cameraManager.flashMode == .on ? .yellow : .white)
-                .disabled(cameraManager.readiness != .ready)
+                .disabled(cameraManager.readiness != .ready || isShutterBusy)
                 .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
                 .accessibilityLabel(cameraManager.flashMode == .on ? Text("Flash on") : Text("Flash off"))
                 .accessibilityHint("Toggle flash")
@@ -361,7 +349,7 @@ struct CameraView: View {
                         source: source,
                         lastThumbnailHint: $lastPhotoThumbnail,
                         isShutterBusy: isShutterBusy,
-                        isProcessing: pendingPostProcessing > 0,
+                        isProcessing: capturePipeline.pendingCount > 0,
                         controlRotationAngle: controlRotationAngle,
                         orientation: cameraManager.currentDeviceOrientation
                     )
@@ -369,7 +357,7 @@ struct CameraView: View {
                     Spacer()
 
                     // 中：快门按钮
-                    Button(action: capturePhoto) {
+                    Button { Task { await capturePhoto() } } label: {
                         ZStack {
                             Circle()
                                 .stroke(.white, lineWidth: 4)
@@ -384,6 +372,8 @@ struct CameraView: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Capture")
                     .accessibilityHint("Take a photo")
+                    .disabled(preparedLUT?.key != previewLUTKey)
+                    .opacity(preparedLUT?.key == previewLUTKey ? 1 : 0.45)
 
                     Spacer()
 
@@ -415,14 +405,17 @@ struct CameraView: View {
                 }
                 // 与预览两侧边距对齐（16pt）：badge / 封面缩略图的外缘与预览左右边缘成一条线。
                 .padding(.horizontal, 16)
-                .disabled(cameraManager.readiness != .ready)
+                .disabled(cameraManager.readiness != .ready || isShutterBusy)
                 .opacity(cameraManager.readiness == .ready ? 1 : 0.42)
                 .animation(.easeOut(duration: 0.2), value: cameraManager.readiness)
             }
             .padding(.bottom, 10)
         }
         .onAppear {
-            FilmProcessor.shared.preload(source: source, curve: selectedCurve)
+            Diagnostics.start()
+            let manager = cameraManager
+            DiagnosticWatchdog.shared.addCamera(id: manager.diagnostics.id) { [weak manager] in manager?.previewHealth() }
+            manager.diagnostics.event("camera_view_appear")
             cameraManager.requestCameraPermission()
             // 告知期望录音状态（live && sound）；session 配置完成后据此决定是否挂麦克风。
             cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
@@ -437,10 +430,27 @@ struct CameraView: View {
             cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
         }
         // 编辑当前用户曲线时 ID 不变、内容指纹会变化；监听完整后缀可确保新 LUT 立即预热。
-        .onChange(of: selectedCurve.cacheKeySuffix) { _, _ in
-            FilmProcessor.shared.preload(source: source, curve: selectedCurve)
+        .task(id: previewLUTKey) {
+            let key = previewLUTKey
+            let requestedSource = source
+            let curve = selectedCurve
+            let lutWait = cameraManager.diagnostics.span("camera_lut_prepare")
+            let lut = await Task.detached(priority: .userInitiated) {
+                FilmProcessor.shared.preload(source: requestedSource, curve: curve)
+                return FilmProcessor.shared.getCachedLUT(cacheKey: key)
+            }.value
+            lutWait.end(lut == nil ? "missing" : "ok", "cancelled=\(Task.isCancelled)")
+            guard !Task.isCancelled, key == previewLUTKey else { return }
+            preparedLUT = lut.map { (key, $0) }
+            if lut == nil { captureError = String(localized: "This LUT is invalid or unsupported.") }
+        }
+        .onReceive(capturePipeline.$lastCompletion) { completion in
+            guard let completion, completion.filterName == source.photoFilterName else { return }
+            lastPhotoThumbnail = completion.thumbnail
         }
         .onDisappear {
+            cameraManager.diagnostics.event("camera_view_disappear")
+            DiagnosticWatchdog.shared.removeCamera(id: cameraManager.diagnostics.id)
             cameraManager.stopSession()
         }
         // 后台/前台切换：按 Home 键 / 切到其他 app → pause；回前台 → resume。
@@ -449,8 +459,10 @@ struct CameraView: View {
         // 没有这条监听，回前台只看到黑屏（pixelBuffer 是 stale 的）+ session 不再产帧。
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
-            case .background, .inactive:
+            case .background:
                 cameraManager.pauseSessionForBackground()
+            case .inactive:
+                break
             case .active:
                 cameraManager.resumeSessionIfPossible()
             @unknown default:
@@ -460,7 +472,7 @@ struct CameraView: View {
         // Camera Control 硬件快门按钮（iPhone 16+）
         .onCameraCaptureEvent { event in
             if event.phase == .ended {
-                capturePhoto()
+                Task { await capturePhoto() }
             }
         }
         .alert("Capture failed", isPresented: Binding(
@@ -480,40 +492,70 @@ struct CameraView: View {
     }
 
     private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }
+    private var previewLUTKey: String {
+        FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: selectedCurve)
+    }
 
     /// 与拍照后立即写入的 thumbnail size 对齐——同 key 命中 NSCache，零额外解码。
     fileprivate static let thumbnailMaxPixel = 88
 
-    private func capturePhoto() {
-        // 唯一节流闸门：isShutterBusy —— 仅守护 tap → 静态图就绪 + 闪光灯 AE/WB 还原这段
-        // 小窗口（~300ms，live/非 live 同），由 onShutterReady 放开，**不等 live 视频的 ~1.5s**，
-        // 也**不看后处理水位**（后处理走 postProcessChain 串行排队，永不阻塞快门）。
-        // 相机根本不可用（权限未授予 / 启动配置未完成 / 已离开页面）时静默忽略快门——
-        // 否则 issueCapturePhoto 会在无 active connection 时抛 NSException 崩溃。
-        // 注意用 isCaptureAvailable 而非 isReadyToCapture：镜头切换中相机是「可用但未就绪」，
-        // tap 不该被丢，而应由 capturePhoto 内部 await waitForReadyToCapture 等到位再出片。
+    private func capturePhoto() async {
+        // Reserve bounded storage before exposure. AVFoundation releases the shutter independently
+        // of the application-wide durable processing queue.
         guard cameraManager.readiness == .ready else {
+            cameraManager.diagnostics.event("shutter_ignored", "reason=camera_preparing")
             Log.capture.debug("shutter_ignored reason=camera_preparing")
             return
         }
         guard cameraManager.isCaptureAvailable else {
+            cameraManager.diagnostics.event("shutter_ignored", "reason=not_available")
             Log.capture.debug("shutter_ignored reason=not_available")
             return
         }
         guard !isShutterBusy else {
+            cameraManager.diagnostics.event("shutter_ignored", "reason=shutter_busy")
             Log.capture.debug("shutter_ignored reason=shutter_busy")
             return
         }
 
+        guard let preparedLUT, preparedLUT.key == previewLUTKey else {
+            cameraManager.diagnostics.event("shutter_ignored", "reason=lut_not_ready")
+            return
+        }
+        let requestedID = UUID()
+        let captureTrace = DiagnosticTrace(id: requestedID.uuidString)
+        captureTrace.event("shutter_tap", "camera=\(cameraManager.diagnostics.id) pending=\(capturePipeline.pendingCount)")
         let tapTime = Log.now()
         // 拍摄时刻快照：相册 creationDate 必须反映按快门的瞬间。后处理已串行排队，若在队列任务
         // 里才求值 Date()，连拍尾部照片的时间会晚数秒到数十秒（Photos 按 creationDate 排序展示）。
         let captureDate = Date()
-        Log.capture.info("shutter_tap source=\(source.photoFilterName, privacy: .public) pending_post=\(pendingPostProcessing)")
+        Log.capture.info("shutter_tap source=\(source.photoFilterName, privacy: .public) pending_post=\(capturePipeline.pendingCount)")
 
+        let currentSource = source
+        // 快门时刻的曲线快照——拍照是异步链，用户可能在后处理途中改曲线；
+        // 这里固化合成键，预览所见（拍摄瞬间）与成片一致。
+        // 自动渲染配置与随机基种子也在快门时刻固化。后续切换胶片不会改变已排队照片；
+        // Live Photo 用同一基种子按时间戳派生逐帧 seed，静态帧与标记时刻保持连续。
+        let renderProfile = currentSource.renderProfile
+        let grainBaseSeed = UInt32.random(in: 1...UInt32.max)
+        let location = cameraManager.captureLocation(at: captureDate).map(CaptureLocation.init)
+
+        let capturedLUT = preparedLUT.lut
+        let focalMm = cameraManager.currentFocalLength.rawValue
+        // 在 MainActor 上读取用户选的画质档，捕获进后台 task（detached 里不能再读 @AppStorage）。
+        let outputQuality = photoQuality.compressionQuality
+        let wantsLive = livePhotoEnabled
         isShutterBusy = true
+        guard let captureID = await capturePipeline.reserve(lutBytes: capturedLUT.data.count, id: requestedID) else {
+            isShutterBusy = false
+            return
+        }
+        guard cameraManager.readiness == .ready, cameraManager.isCaptureAvailable else {
+            capturePipeline.cancelReservation(captureID)
+            isShutterBusy = false
+            return
+        }
         // tap 即 +1：spinner 覆盖「曝光 + 等 live 视频 + 排队 + 后处理」全程，后台 task 跑完才 -1。
-        pendingPostProcessing += 1
         shutterPressed = true
         cameraManager.hapticMedium.impactOccurred()
 
@@ -525,25 +567,7 @@ struct CameraView: View {
             shutterPressed = false
         }
 
-        let currentSource = source
-        // 快门时刻的曲线快照——拍照是异步链，用户可能在后处理途中改曲线；
-        // 这里固化合成键，预览所见（拍摄瞬间）与成片一致。
-        let composedLUTKey = FilmProcessor.shared.composedLUTCacheKey(
-            currentSource.lutCacheKey, curve: selectedCurve
-        )
-        // 自动渲染配置与随机基种子也在快门时刻固化。后续切换胶片不会改变已排队照片；
-        // Live Photo 用同一基种子按时间戳派生逐帧 seed，静态帧与标记时刻保持连续。
-        let renderProfile = currentSource.renderProfile
-        let grainBaseSeed = UInt32.random(in: 1...UInt32.max)
-        let manager = cameraManager
-        // ModelContainer 是 Sendable；ModelContext 不是。@ModelActor 在 actor 内部
-        // 创建自己的 modelContext，与主 context 隔离，save 不阻塞主线程。
-        let container = modelContext.container
-
-        let focalMm = cameraManager.currentFocalLength.rawValue
-        // 在 MainActor 上读取用户选的画质档，捕获进后台 task（detached 里不能再读 @AppStorage）。
-        let outputQuality = photoQuality.compressionQuality
-        cameraManager.capturePhoto(live: livePhotoEnabled, onWillCapture: {
+        cameraManager.capturePhoto(live: wantsLive, trace: captureTrace, onWillCapture: {
             // AVF 主曝光起始帧——开闪光灯时即氙气主脉冲发射的瞬间，关闪光灯时 ZSL/responsive
             // 让这一刻在 tap 后 50–150ms 内 fire。在这里驱动白屏，UI 与真实光线同帧。
             //
@@ -551,6 +575,7 @@ struct CameraView: View {
             //   - 起电瞬间（~40ms）快速上升到峰值——`.easeOut` "fast start, slow end"
             //   - 持峰约 150ms——氙气放电稳定段（覆盖典型 30-100ms 主曝光窗口）
             //   - 衰减 200ms 余辉——`.easeOut` 表达 exponential decay 的初快后慢
+            captureTrace.event("shutter_feedback")
             Log.capture.info("will_capture dt_from_tap=\(Log.ms(since: tapTime))ms")
             Task { @MainActor in
                 withAnimation(.easeOut(duration: 0.04)) {
@@ -563,11 +588,13 @@ struct CameraView: View {
             }
         }, onExposureComplete: {
             // 仅 log——曝光物理完成的延迟可观察 ZSL 冷启动 / pre-flash AE 收敛耗时。
+            captureTrace.event("exposure_complete_main")
             Log.capture.info("exposure_complete dt_from_tap=\(Log.ms(since: tapTime))ms")
         }, onShutterReady: {
             // 静态图已拍下 + 闪光灯 AE/WB 已还原 → 立即放开快门，让用户能按下一张。
             // live 配对视频（~1.5s 环形缓冲）与全部后处理仍在后台进行，不阻塞这一步。
             // 这是把「快门可再按」从「完整交付」解耦后的核心收益：live 模式快门响应从 ~1.5s 降到 ~300ms。
+            captureTrace.event("shutter_available")
             isShutterBusy = false
         }) { result in
             // 拍照交付（启动后处理的信号，**不是**放开快门的信号——快门早在 onShutterReady 放开了）。
@@ -575,171 +602,30 @@ struct CameraView: View {
             // 非 live：result 在静态图就绪时立即到达。live：等静态图 + 动态视频两个交付物齐了才到达
             // （视频是 shutter 前后 ~1.5s 环形缓冲，故 live 时此回调约在 tap 后 ~1.5s）。
             guard let result else {
+                captureTrace.event("capture_delivery_failed")
                 Log.capture.error("photo_data_nil dt_from_tap=\(Log.ms(since: tapTime))ms")
                 shutterPressed = false
                 // 失败：释放 tap 时预留的在途槽位。isShutterBusy 也在此兜底重置——正常 terminal 路径
                 // onShutterReady 会先放开它（此处幂等），但若某条失败路径未触发 onShutterReady，
                 // 没有这行快门会永久 disabled。
                 isShutterBusy = false
-                pendingPostProcessing = max(0, pendingPostProcessing - 1)
+                capturePipeline.cancelReservation(captureID)
                 captureError = String(localized: "Capture failed: couldn't get image data, please try again")
                 return
             }
-            let data = result.imageData
-            let liveMovieURL = result.livePhotoMovieURL
-            let photoDisplayTime = result.photoDisplayTime
-            Log.capture.info("photo_data_received bytes=\(data.count) live=\(liveMovieURL != nil) dt_from_tap=\(Log.ms(since: tapTime))ms")
-
-            // 串到 postProcessChain 末尾：先等前面所有照片的重流水线跑完，再处理本张。
-            // 任意时刻只有一条「LUT + HEIF 编码 + 视频转码」在跑——内存/GPU 峰值有界，
-            // 连拍多少张都不影响快门（交付回调在 @MainActor，链头读写无竞争）。
-            let previousJob = postProcessChain
-            postProcessChain = Task.detached(priority: .userInitiated) {
-                // GPS 在排队等待**之前**取（任务创建即开跑，此刻 = 交付时刻，距 tap ≤1.5s，30s 缓存
-                // 足以代表拍摄那一刻的位置）。若排到队尾才取，连拍尾部照片拿到的是处理时刻的位置。
-                let location = await manager.cachedOrFreshLocation()
-                Log.gps.info("gps_resolved present=\(location != nil) age=\(location.map { String(format: "%.1fs", Date().timeIntervalSince($0.timestamp)) } ?? "nil", privacy: .public)")
-
-                await previousJob?.value
-                // defer 兜底：即便 LUT/save 抛错，tap 时 +1 的 pendingPostProcessing 也必须递减，
-                // 否则 spinner 永不消失。
-                defer {
-                    Task { @MainActor in
-                        pendingPostProcessing = max(0, pendingPostProcessing - 1)
-                    }
-                }
-
-                // Live Photo 动态视频先处理：套同一胶片 LUT + 重写 still-image-time 配对元数据，产出
-                // 过滤后的 .mov，并**返回 AVCapture 写入的 content identifier**——它要原样写进下面静态图
-                // 的 MakerApple["17"]，两端 id 一致才被 Photos 识别为一张 Live Photo。
-                // 视频处理失败则降级为只存静态图（绝不丢拍摄结果）。源视频用完即删。
-                var filteredMovieURL: URL? = nil
-                var contentID: String? = nil
-                var stillGrainSeed = grainBaseSeed
-                if let srcMovie = liveMovieURL {
-                    let out = FileManager.default.temporaryDirectory
-                        .appendingPathComponent("livephoto_lut_\(UUID().uuidString).mov")
-                    do {
-                        let liveResult = try await LivePhotoProcessor.process(
-                            sourceURL: srcMovie,
-                            lutCacheKey: composedLUTKey,
-                            grain: renderProfile.grain,
-                            grainBaseSeed: grainBaseSeed,
-                            photoDisplayTime: photoDisplayTime,
-                            outputURL: out
-                        )
-                        contentID = liveResult.contentIdentifier
-                        stillGrainSeed = liveResult.stillGrainSeed
-                        filteredMovieURL = out
-                    } catch {
-                        Log.save.error("livephoto_video_failed error=\(error.localizedDescription, privacy: .public)")
-                        try? FileManager.default.removeItem(at: out)
-                    }
-                    try? FileManager.default.removeItem(at: srcMovie)
-                }
-
-                let processedData = FilmProcessor.shared.applyLUTPreservingMetadata(
-                    imageData: data,
-                    lutCacheKey: composedLUTKey,
-                    grain: renderProfile.grain,
-                    grainSeed: stillGrainSeed,
-                    outputQuality: outputQuality,
-                    location: location,
-                    captureDate: captureDate,
-                    focalLengthIn35mm: focalMm,
-                    contentIdentifier: contentID   // 与上面视频同一 id 配对；非 live / 视频失败时为 nil
-                )
-
-                let finalData = processedData ?? data
-                if processedData == nil {
-                    Log.capture.error("lut_fallback_raw bytes=\(finalData.count)")
-                }
-
-                // 🔑 拍摄链路尺寸总览（一行看全貌）：焦段 + 原始采集字节 + LUT 后最终字节 + LUT 是否成功。
-                // 配合 FilmProcessor 的 lut_render_done（含输出像素尺寸）即可定位"几百KB"出在哪一节：
-                //   raw_bytes 就小  → 采集端分辨率/质量没拿到
-                //   raw 大、final 小 → LUT 编码把它压小了
-                Log.capture.info("capture_size_summary focal=\(focalMm)mm quality=\(String(format: "%.2f", Double(outputQuality))) raw_bytes=\(data.count) final_bytes=\(finalData.count) lut_ok=\(processedData != nil)")
-
-                let displayLabel: String? = {
-                    if case .custom(_, let name, _, _) = currentSource { return name }
-                    return nil
-                }()
-
-                do {
-                    // 真相源 = 系统相册：先写入 JustShoot 相簿拿回 localIdentifier。写入失败（权限拒绝
-                    // 等）则兜底把字节暂存内部，待授权后由 PhotoSaver.migrateInternalPhotos 迁移——绝不丢拍摄结果。
-                    var assetID: String? = nil
-                    var fallbackData: Data? = nil
-                    do {
-                        if let movie = filteredMovieURL {
-                            // Live Photo：静态图 + 配对视频一并写入相册（saveLivePhoto 内部 shouldMoveFile，
-                            // 成功即把临时视频移入图库）。
-                            assetID = try await PhotoLibrary.saveLivePhoto(
-                                imageData: finalData,
-                                videoURL: movie,
-                                creationDate: captureDate,
-                                latitude: location?.coordinate.latitude,
-                                longitude: location?.coordinate.longitude,
-                                altitude: location?.altitude,
-                                locationTimestamp: location?.timestamp
-                            )
-                        } else {
-                            assetID = try await PhotoLibrary.save(
-                                imageData: finalData,
-                                creationDate: captureDate,
-                                latitude: location?.coordinate.latitude,
-                                longitude: location?.coordinate.longitude,
-                                altitude: location?.altitude,
-                                locationTimestamp: location?.timestamp
-                            )
-                        }
-                    } catch {
-                        Log.save.error("photos_write_failed_fallback_internal error=\(error.localizedDescription, privacy: .public)")
-                        fallbackData = finalData
-                        // 相册写入失败：过滤视频已不会进库，删掉临时文件（兜底只暂存静态图字节）。
-                        if let movie = filteredMovieURL { try? FileManager.default.removeItem(at: movie) }
-                    }
-
-                    let saver = PhotoSaver(modelContainer: container)
-                    let id = try await saver.save(
-                        assetLocalIdentifier: assetID,
-                        imageData: fallbackData,
-                        filmPresetName: currentSource.photoFilterName,
-                        filmDisplayLabel: displayLabel,
-                        // 仅当真正以 Live Photo 写入相册才标记——fallback 暂存时配对视频已删，
-                        // 行里只有静态图字节，标 live 会让画廊角标/详情页播放与实际不符。
-                        isLivePhoto: assetID != nil && filteredMovieURL != nil,
-                        latitude: location?.coordinate.latitude,
-                        longitude: location?.coordinate.longitude,
-                        altitude: location?.altitude,
-                        locationTimestamp: location?.timestamp
-                    )
-                    Log.save.info("photo_saved id=\(id.uuidString, privacy: .public) asset=\(assetID ?? "nil", privacy: .public) bytes=\(finalData.count) preset=\(currentSource.photoFilterName, privacy: .public) live=\(filteredMovieURL != nil) gps=\(location != nil)")
-
-                    // 拍照成功后**立即**生成 88pt 缩略图并写入 lastPhotoThumbnail（hint），
-                    // 不再等 SwiftData @Query 通知链（PhotoSaver actor save → 跨 context 通知 →
-                    // 子视图 @Query 重算 → onChange 自身的 load）。这条链路在日志里隐藏 ~300-500ms
-                    // 延迟，是用户感知"缩略图刷新慢"的根因。loadThumbnail 内部已做 in-flight dedup
-                    // 和 NSCache 写入，子视图后续 fallback 路径会直接命中。
-                    let thumb = await ImageLoader.shared.loadThumbnail(
-                        imageData: finalData,
-                        photoId: id,
-                        maxPixel: Self.thumbnailMaxPixel
-                    )
-                    if let thumb {
-                        await MainActor.run {
-                            lastPhotoThumbnail = thumb
-                        }
-                    }
-                } catch {
-                    Log.save.error("photo_save_failed error=\(error.localizedDescription, privacy: .public)")
-                    await MainActor.run {
-                        captureError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
-                    }
-                }
-                Log.capture.info("capture_pipeline_complete total_dt=\(Log.ms(since: tapTime))ms")
-            }
+            captureTrace.event("capture_received", "bytes=\(result.imageData.count) live=\(result.livePhotoMovieURL != nil)")
+            let displayLabel: String? = {
+                if case .custom(_, let name, _, _) = currentSource { return name }
+                return nil
+            }()
+            let displayTime = result.photoDisplayTime
+            let recipe = CaptureRecipe(
+                id: captureID, captureDate: captureDate, filterName: currentSource.photoFilterName,
+                displayLabel: displayLabel, focalLength: focalMm, outputQuality: Double(outputQuality),
+                profile: renderProfile, grainSeed: grainBaseSeed, location: location,
+                lutDimension: capturedLUT.dimension,
+                photoDisplayTime: displayTime.isValid && displayTime.isNumeric ? displayTime.seconds : nil)
+            capturePipeline.enqueue(result, recipe: recipe, lut: capturedLUT)
         }
     }
 
@@ -967,7 +853,6 @@ struct CameraView: View {
         cameraManager.hapticSoft.impactOccurred()
         source = newSource
         // ContentView 启动时已 preload；这里命中 cache 零开销，冷路径下也只是 LUT 解析一次。
-        FilmProcessor.shared.preload(source: newSource, curve: selectedCurve)
     }
 
     /// 把 SwiftUI translation（设备屏幕坐标）映射到**用户感知**的轴：

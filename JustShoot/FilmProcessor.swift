@@ -7,10 +7,7 @@ import Metal
 import os
 
 // MARK: - LUT 解析数据
-struct CubeLUT: Sendable {
-    let data: Data
-    let dimension: Int
-}
+
 
 // MARK: - 胶片处理器（线程安全）
 final class FilmProcessor: Sendable {
@@ -78,7 +75,8 @@ final class FilmProcessor: Sendable {
                 CIContextOption.workingColorSpace: srgbColorSpace,
                 CIContextOption.outputColorSpace: srgbColorSpace,
                 CIContextOption.highQualityDownsample: true,
-                CIContextOption.cacheIntermediates: false
+                CIContextOption.cacheIntermediates: false,
+                CIContextOption.priorityRequestLow: true
             ]
             let created: CIContext
             if let mtlDevice = MTLCreateSystemDefaultDevice() {
@@ -121,6 +119,7 @@ final class FilmProcessor: Sendable {
 
         let dimension = littleEndianUInt32(at: 8)
         let floatCount = littleEndianUInt32(at: 12)
+        guard (2...CubeLUT.maximumDimension).contains(dimension) else { throw CubeLUT.ParseError.malformed }
         let expectedFloatCount = dimension * dimension * dimension * 4
         let expectedByteCount = compiledLUTHeaderSize + floatCount * MemoryLayout<Float>.stride
         guard dimension > 0,
@@ -133,7 +132,7 @@ final class FilmProcessor: Sendable {
             )
         }
 
-        return CubeLUT(
+        return try CubeLUT.validated(
             data: data.subdata(in: compiledLUTHeaderSize..<data.count),
             dimension: dimension
         )
@@ -141,53 +140,14 @@ final class FilmProcessor: Sendable {
 
     /// 从 .cube 文件文本解析 LUT 数据（纯函数，无锁无 I/O）
     static func parseCubeFile(_ text: String) throws -> CubeLUT {
-        var lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
-        lines.removeAll { $0.hasPrefix("#") || $0.isEmpty }
-
-        var size = 0
-        var values: [Float] = []
-
-        // 按空格/tab split——很多导出器（Resolve / 3D LUT Creator 等）用 tab 或多空格分隔，
-        // 只认单空格会把合法文件误判成 "dimensions mismatch" 拒掉。
-        // 注意分隔判定必须是 ASCII 字符直接比较：`\.isWhitespace` 每字符做 Unicode 属性查询，
-        // 在 8 × dim³ 行的解析量级下会把 lut_load 拖慢数倍（设备实测 0.6–1.8s/个）。
-        let isSeparator: (Character) -> Bool = { $0 == " " || $0 == "\t" }
-        for line in lines {
-            if line.uppercased().hasPrefix("LUT_3D_SIZE") {
-                if let last = line.split(whereSeparator: isSeparator).last, let dim = Int(last) {
-                    size = dim
-                }
-            } else {
-                let comps = line.split(whereSeparator: isSeparator).compactMap { Float($0) }
-                if comps.count == 3 {
-                    values.append(contentsOf: comps)
-                }
-            }
-        }
-
-        guard size > 0, values.count == size * size * size * 3 else {
-            throw NSError(domain: "FilmProcessor", code: -2,
-                          userInfo: [NSLocalizedDescriptionKey: String(localized: "Failed to parse LUT or dimensions mismatch")])
-        }
-
-        var rgba: [Float] = []
-        rgba.reserveCapacity(size * size * size * 4)
-        for i in stride(from: 0, to: values.count, by: 3) {
-            rgba.append(values[i + 0])
-            rgba.append(values[i + 1])
-            rgba.append(values[i + 2])
-            rgba.append(1.0)
-        }
-
-        let data: Data = rgba.withUnsafeBufferPointer { buffer in
-            Data(buffer: buffer)
-        }
-        return CubeLUT(data: data, dimension: size)
+        try CubeLUT.parse(text)
     }
 
     /// 健壮读取 .cube 文本：部分 LUT 文件的 TITLE 含非 UTF-8 字节（如中文 GBK/Shift-JIS），
     /// 强制 UTF-8 会抛错。这里按常见编码回退，最后兜底丢弃非法字节。
     static func readCubeText(from url: URL) throws -> String {
+        let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+        guard size <= CubeLUT.maximumFileBytes else { throw CubeLUT.ParseError.malformed }
         let data = try Data(contentsOf: url)
         for encoding in [String.Encoding.utf8, .isoLatin1, .windowsCP1252, .macOSRoman] {
             if let s = String(data: data, encoding: encoding) { return s }
@@ -365,8 +325,10 @@ final class FilmProcessor: Sendable {
     func applyLUTPreservingMetadata(
         imageData: Data,
         lutCacheKey: String,
+        capturedLUT: CubeLUT? = nil,
         grain: FilmGrainParameters = .disabled,
         grainSeed: UInt32 = 0,
+        optics: FilmOpticsParameters = .disabled,
         outputQuality: CGFloat = 1.0,
         location: CLLocation? = nil,
         captureDate: Date = Date(),
@@ -422,7 +384,7 @@ final class FilmProcessor: Sendable {
         // 使用 CIColorCubeWithColorSpace 显式指定输入色彩空间为 sRGB，
         // 保证在 P3/HDR 源像素上应用 LUT 时的颜色一致性
         guard let colorCube = CIFilter(name: "CIColorCubeWithColorSpace"),
-              let lut = getCachedLUT(cacheKey: lutCacheKey) else {
+              let lut = capturedLUT ?? getCachedLUT(cacheKey: lutCacheKey) else {
             Log.lut.error("lut_apply_failed reason=lut_missing key=\(lutCacheKey, privacy: .public)")
             return nil
         }
@@ -433,8 +395,11 @@ final class FilmProcessor: Sendable {
         colorCube.setValue(srgbColorSpace, forKey: "inputColorSpace")
 
         guard let gradedOutput = colorCube.outputImage else { return nil }
+        // 光学链（headroom → halation/bloom）在 LUT 后、颗粒前——颗粒代表显影终态的结构，
+        // 应加在光晕已成形、去饱和已发生的"显影结果"上，与 Metal 预览同序。
+        let opticallyGraded = FilmOpticsRenderer.applying(to: gradedOutput, parameters: optics)
         let output = FilmGrainRenderer.applying(
-            to: gradedOutput,
+            to: opticallyGraded,
             parameters: grain,
             seed: grainSeed
         )
@@ -448,49 +413,6 @@ final class FilmProcessor: Sendable {
         // 渲染输出的真实像素尺寸 = LUT 输出 CIImage 的 extent（= 裁切后的输入 extent）。
         // 这是判断"文件为何小"的关键诊断量：几百 KB 若伴随完整 ~22MP 尺寸 → 编码质量问题；
         // 若尺寸本身就小 → 采集/解码端把分辨率丢了。
-        let outExtent = output.extent
-        let outMP = (outExtent.isInfinite || outExtent.isEmpty) ? 0 : (outExtent.width * outExtent.height) / 1_000_000
-
-        let ciContext = renderingContext()
-        let rendered: Data
-        let codec: String
-        if let heif10 = try? ciContext.heif10Representation(
-            of: output,
-            colorSpace: srgbColorSpace,
-            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
-        ) {
-            rendered = heif10
-            codec = "heif10"
-        } else if let heif8 = ciContext.heifRepresentation(
-            of: output,
-            format: .RGBA8,
-            colorSpace: srgbColorSpace,
-            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
-        ) {
-            Log.lut.info("lut_render_fallback codec=heif8 reason=heif10_unavailable")
-            rendered = heif8
-            codec = "heif8"
-        } else if let jpeg = ciContext.jpegRepresentation(
-            of: output,
-            colorSpace: srgbColorSpace,
-            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
-        ) {
-            Log.lut.info("lut_render_fallback codec=jpeg reason=heif_unavailable")
-            rendered = jpeg
-            codec = "jpeg"
-        } else {
-            Log.lut.error("lut_apply_failed reason=render_failed")
-            return nil
-        }
-
-        // 🔑 一击定位行：编码刚完成、metadata 注入前。codec / 输出像素尺寸 / 百万像素 / 质量参数 /
-        // 输入原始字节 / 编码后字节 全在一行。若 rendered_bytes 这里就只有几百 KB 而 out_dims 是完整
-        // ~5500×4100，则问题在编码质量；若 out_dims 本身就小，则问题在采集/解码端。
-        Log.lut.info("lut_render_done codec=\(codec, privacy: .public) out_dims=\(Int(outExtent.width))x\(Int(outExtent.height)) mp=\(String(format: "%.1f", outMP)) quality=\(String(format: "%.2f", Double(outputQuality))) grain=\(String(format: "%.3f", grain.amount)) in_bytes=\(imageData.count) rendered_bytes=\(rendered.count)")
-
-        // 注入 metadata：把原始 source props 中的 EXIF/TIFF/GPS 等字典通过 CGImageDestination 写到
-        // 已编码的图像上。**source 和 destination 是同一 imageType 时，AddImageFromSource 是 fast copy +
-        // metadata replace**（Apple docs 原话），不会重新压缩——画质零损失。
         var metadata = sourceProps
 
         // 方向：像素已通过 .oriented(forExifOrientation:) 物理旋转到正向，输出标记为 .up
@@ -557,34 +479,55 @@ final class FilmProcessor: Sendable {
             metadata[kCGImagePropertyMakerAppleDictionary as String] = maker
         }
 
-        // CGImageSourceGetType 自动识别 HEIC/JPEG，destination 用同一 type 写回。
-        // metadata 字典中的 PixelWidth/Height 等 size 字段会被 destination 用 LUT 渲染后的真实尺寸覆盖，
-        // 不会和实际图像 dim 冲突。
-        //
-        // ⚠️ 关键修复（2026-06-06，日志实测）：CGImageDestinationAddImageFromSource 对 HEIC **不是**
-        // 字节级 fast-copy——它会解码后按目标默认压缩质量**重新编码**，把 9.7MB 重压成 ~850KB
-        // （rendered_bytes=9724987 → final_bytes=848401）。这是"相册照片只有几百KB"的真正根因。
-        // 必须在 destination 创建选项 + 单图属性里都显式把 lossy 质量设回 outputQuality(1.0)，
-        // 让这一步的重编码走最高质量、文件大小与画质对齐 LUT 渲染产物。
-        let qualityOptions: [CFString: Any] = [kCGImageDestinationLossyCompressionQuality: outputQuality]
-        metadata[kCGImageDestinationLossyCompressionQuality as String] = outputQuality
-        guard let renderedSource = CGImageSourceCreateWithData(rendered as CFData, nil),
-              let mutableData = CFDataCreateMutable(nil, 0),
-              let imageType = CGImageSourceGetType(renderedSource),
-              let destination = CGImageDestinationCreateWithData(mutableData, imageType, 1, qualityOptions as CFDictionary) else {
+        metadata[kCGImagePropertyPixelWidth as String] = Int(output.extent.width)
+        metadata[kCGImagePropertyPixelHeight as String] = Int(output.extent.height)
+        metadata.removeValue(forKey: kCGImagePropertyDepth as String)
+        let outputWithMetadata = output.settingProperties(metadata)
+
+        let outExtent = output.extent
+        let outMP = (outExtent.isInfinite || outExtent.isEmpty) ? 0 : (outExtent.width * outExtent.height) / 1_000_000
+
+        let ciContext = renderingContext()
+        let rendered: Data
+        let codec: String
+        if let heif10 = try? ciContext.heif10Representation(
+            of: outputWithMetadata,
+            colorSpace: srgbColorSpace,
+            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
+        ) {
+            rendered = heif10
+            codec = "heif10"
+        } else if let heif8 = ciContext.heifRepresentation(
+            of: outputWithMetadata,
+            format: .RGBA8,
+            colorSpace: srgbColorSpace,
+            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
+        ) {
+            Log.lut.info("lut_render_fallback codec=heif8 reason=heif10_unavailable")
+            rendered = heif8
+            codec = "heif8"
+        } else if let jpeg = ciContext.jpegRepresentation(
+            of: outputWithMetadata,
+            colorSpace: srgbColorSpace,
+            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
+        ) {
+            Log.lut.info("lut_render_fallback codec=jpeg reason=heif_unavailable")
+            rendered = jpeg
+            codec = "jpeg"
+        } else {
+            Log.lut.error("lut_apply_failed reason=render_failed")
             return nil
         }
 
-        CGImageDestinationAddImageFromSource(destination, renderedSource, 0, metadata as CFDictionary)
+        // 🔑 一击定位行：像素与 metadata 一次编码完成后。codec / 输出像素尺寸 / 百万像素 / 质量参数 /
+        // 输入原始字节 / 编码后字节 全在一行。若 rendered_bytes 这里就只有几百 KB 而 out_dims 是完整
+        // ~5500×4100，则问题在编码质量；若 out_dims 本身就小，则问题在采集/解码端。
+        Log.lut.info("lut_render_done codec=\(codec, privacy: .public) out_dims=\(Int(outExtent.width))x\(Int(outExtent.height)) mp=\(String(format: "%.1f", outMP)) quality=\(String(format: "%.2f", Double(outputQuality))) grain=\(String(format: "%.3f", grain.amount)) optics=\(optics.isEnabled) halation=\(String(format: "%.2f", optics.halationAmount)) bloom=\(String(format: "%.2f", optics.bloomAmount)) headroom=\(String(format: "%.2f", optics.headroomAmount)) in_bytes=\(imageData.count) rendered_bytes=\(rendered.count)")
 
-        guard CGImageDestinationFinalize(destination) else {
-            Log.lut.error("lut_apply_failed reason=destination_finalize")
-            return nil
-        }
-        let finalData = mutableData as Data
-        // final_bytes 应≈rendered_bytes（已强制 q=outputQuality 重编码）。若 final ≪ rendered，说明质量参数没生效。
-        Log.lut.info("lut_final_done codec=\(codec, privacy: .public) rendered_bytes=\(rendered.count) final_bytes=\(finalData.count) out_dims=\(Int(outExtent.width))x\(Int(outExtent.height)) gps=\(location != nil)")
-        timer.end("in=\(imageData.count)B out=\(finalData.count)B gps=\(location != nil)")
-        return finalData
+        // 注入 metadata：把原始 source props 中的 EXIF/TIFF/GPS 等字典通过 CGImageDestination 写到
+        // 已编码的图像上。**source 和 destination 是同一 imageType 时，AddImageFromSource 是 fast copy +
+        // metadata replace**（Apple docs 原话），不会重新压缩——画质零损失。
+        timer.end("in=\(imageData.count)B out=\(rendered.count)B gps=\(location != nil)")
+        return rendered
     }
 }

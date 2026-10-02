@@ -11,6 +11,7 @@ import AVFoundation
 //
 // 卡片背景用低调实色（白 6% 圆角），而非 .glassEffect——与首页去玻璃后的风格保持一致。
 struct SettingsView: View {
+    @ObservedObject private var capturePipeline = CapturePipeline.shared
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var curveLibrary: FilmCurveLibrary
     /// 照片输出画质档。与 CameraView 共享同一 @AppStorage key，拍照时读取生效（无需重启 app）。
@@ -30,6 +31,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     appHeader
+                    if capturePipeline.pendingCount + capturePipeline.retainedCount > 0 { pendingPhotosSection }
                     filmCurveSection
                     photoQualitySection
                     livePhotoSection
@@ -47,6 +49,28 @@ struct SettingsView: View {
             .onChange(of: livePhotoSoundEnabled) { _, _ in refreshMicrophoneStatus() }
         }
         .preferredColorScheme(.dark)
+    }
+
+    private var pendingPhotosSection: some View {
+        sectionCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Photos waiting to save", systemImage: "photo.badge.arrow.down")
+                    .font(.headline)
+                Text("\(capturePipeline.pendingCount + capturePipeline.retainedCount) photos are waiting to save.")
+                Text("Your original photos and Live Photo videos are kept on this device.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Button("Retry Saving") {
+                        Task { await capturePipeline.retryPending() }
+                    }
+                    .disabled(capturePipeline.pendingCount > 0)
+                    Spacer()
+                    Button("Open Settings", action: openAppSettings)
+                }
+            }
+            .padding()
+        }
     }
 
     // MARK: - 胶片曲线

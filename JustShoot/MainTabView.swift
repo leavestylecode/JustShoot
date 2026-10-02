@@ -18,6 +18,8 @@ import SwiftData
 struct MainTabView: View {
     @SceneStorage("selectedTab") private var selectedTab = 0
     @Environment(\.modelContext) private var modelContext
+    @ObservedObject private var capturePipeline = CapturePipeline.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -59,9 +61,28 @@ struct MainTabView: View {
         // 启动时注册系统相册变化观察者：app 前台时在「照片」里删图会实时同步剪掉本地索引。
         // 随后跑一次启动维护（@ModelActor 后台执行，不占主线程）：清 tmp 残留视频/分享导出、
         // 磁盘缓存与 CustomLUTs 目录的孤儿文件对账。
+        .alert("Photo saving", isPresented: Binding(
+            get: { capturePipeline.lastError != nil },
+            set: { if !$0 { capturePipeline.lastError = nil } }
+        )) {
+            Button("OK") { capturePipeline.lastError = nil }
+        } message: {
+            Text(capturePipeline.lastError ?? "")
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                Task { await capturePipeline.enterBackground() }
+            } else if phase == .active {
+                Task {
+                    await CapturePipeline.shared.retryPending()
+                    await PhotoLibrarySync.shared.reconcile()
+                }
+            }
+        }
         .task {
             PhotoLibrarySync.shared.start(container: modelContext.container)
-            await PhotoSaver(modelContainer: modelContext.container).performLaunchMaintenance()
+            await CapturePipeline.shared.configure(container: modelContext.container)
+            await PhotoLibrarySync.shared.bootstrap(container: modelContext.container)
         }
     }
 }

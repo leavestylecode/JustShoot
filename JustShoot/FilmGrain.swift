@@ -38,10 +38,11 @@ private enum FilmGrainCharacter: Sendable {
     }
 }
 
-/// 所有“胶片自身”的技术参数统一从这里输出。后续 Bloom、Halation、微反差等会继续加入，
+/// 所有“胶片自身”的技术参数统一从这里输出。颗粒 + 光学（halation/bloom/headroom）；
 /// CameraView 只消费结果，不暴露一排用户开关。
-struct FilmRenderProfile: Sendable, Equatable {
+struct FilmRenderProfile: Sendable, Equatable, Codable {
     let grain: FilmGrainParameters
+    let optics: FilmOpticsParameters
 }
 
 private enum AutomaticFilmProfile {
@@ -59,7 +60,7 @@ private enum AutomaticFilmProfile {
     }
 }
 
-struct FilmGrainParameters: Sendable, Equatable {
+struct FilmGrainParameters: Sendable, Equatable, Codable {
     let amount: Float
     let size: Float
     let chroma: Float
@@ -90,7 +91,8 @@ extension FilmPreset {
 
     var renderProfile: FilmRenderProfile {
         FilmRenderProfile(
-            grain: AutomaticFilmProfile.grain(iso: iso, character: grainCharacter)
+            grain: AutomaticFilmProfile.grain(iso: iso, character: grainCharacter),
+            optics: filmOptics
         )
     }
 }
@@ -101,8 +103,10 @@ extension FilmSource {
         case .preset(let preset):
             return preset.renderProfile
         case .custom(_, _, let iso, _):
+            // 自定义 LUT = 用户导入什么就出什么：保留颗粒的 ISO 自动性，光学模块关闭。
             return FilmRenderProfile(
-                grain: AutomaticFilmProfile.grain(iso: iso, character: .balanced)
+                grain: AutomaticFilmProfile.grain(iso: iso, character: .balanced),
+                optics: .disabled
             )
         }
     }

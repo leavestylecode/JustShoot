@@ -123,6 +123,17 @@
         }
       }
     },
+    "%lld photos are waiting to save." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 张照片正在等待保存。"
+          }
+        }
+      }
+    },
     "%lld selected" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -179,6 +190,17 @@
     },
     "200" : {
 
+    },
+    "A saved photo could not be opened. Its original files have been kept." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开一张待保存照片，原始文件已保留。"
+          }
+        }
+      }
     },
     "Add Curve" : {
       "localizations" : {
@@ -710,6 +732,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "曲线名称"
+          }
+        }
+      }
+    },
+    "Curve Options" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲线选项"
           }
         }
       }
@@ -1639,6 +1672,7 @@
       }
     },
     "More Curve Actions" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1907,6 +1941,17 @@
         }
       }
     },
+    "Opening your library…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在打开图库…"
+          }
+        }
+      }
+    },
     "Orange" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1961,8 +2006,30 @@
         }
       }
     },
+    "Photo saving" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片保存"
+          }
+        }
+      }
+    },
     "Photos" : {
 
+    },
+    "Photos waiting to save" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "待保存照片"
+          }
+        }
+      }
     },
     "Pick a .cube file to use as a custom filter" : {
       "extractionState" : "manual",
@@ -1988,6 +2055,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "选择一个内置风格作为起点，再调整出自己的效果。"
+          }
+        }
+      }
+    },
+    "Please wait for your photos to finish saving, or free up storage." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请等待照片保存完成，或释放一些存储空间。"
+          }
+        }
+      }
+    },
+    "Please wait for your photos to finish saving." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请等待照片保存完成后再拍摄。"
           }
         }
       }
@@ -2090,6 +2179,7 @@
       }
     },
     "Reset All Curves" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -2100,11 +2190,23 @@
       }
     },
     "Reset Channel" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "重置通道"
+          }
+        }
+      }
+    },
+    "Retry Saving" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试保存"
           }
         }
       }
@@ -2471,6 +2573,28 @@
     "Tap to pick another film" : {
 
     },
+    "This LUT is invalid or unsupported." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 LUT 无效或不受支持。"
+          }
+        }
+      }
+    },
+    "This LUT uses an unsupported input range." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此 LUT 的输入范围暂不受支持。"
+          }
+        }
+      }
+    },
     "Toggle flash" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2681,16 +2805,6 @@
         }
       }
     },
-    "Curve Options" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "曲线选项"
-          }
-        }
-      }
-    },
     "Yellow" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2704,6 +2818,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "黄"
+          }
+        }
+      }
+    },
+    "Your library could not be opened" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开图库"
+          }
+        }
+      }
+    },
+    "Your original photos and Live Photo videos are kept on this device." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始照片和实况视频已保存在此设备上。"
+          }
+        }
+      }
+    },
+    "Your photo is kept on this device. Saving will be retried when you return to the app." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片已保存在此设备上，返回应用时会重试保存。"
+          }
+        }
+      }
+    },
+    "Your photos and filters have been kept. Please try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片和滤镜均已保留，请重试。"
           }
         }
       }

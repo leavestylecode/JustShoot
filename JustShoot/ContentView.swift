@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var importISO = "200"
     @State private var importError: String?
     @State private var showImportError = false
+    @State private var importTask: Task<Void, Never>?
     /// 命名空间用于把列表 tile 的封面与拍摄页通过 zoom 过渡关联。
     /// 每个 tile 用 source.id 作为匹配键；拍摄页 destination 同 id 应用 navigationTransition(.zoom)。
     @Namespace private var coverZoom
@@ -124,24 +125,25 @@ struct ContentView: View {
         switch result {
         case .success(let urls):
             guard let url = urls.first else { return }
-            guard url.startAccessingSecurityScopedResource() else {
-                importError = String(localized: "Couldn't access the file")
-                showImportError = true
-                return
-            }
-            defer { url.stopAccessingSecurityScopedResource() }
-
-            do {
-                let text = try String(contentsOf: url, encoding: .utf8)
-                let cube = try FilmProcessor.parseCubeFile(text)
-                importedFileURL = url
-                importedCube = cube
-                importName = url.deletingPathExtension().lastPathComponent
-                importISO = "200"
-                showImportSheet = true
-            } catch {
-                importError = String(format: String(localized: "Couldn't parse the .cube file: %@"), error.localizedDescription)
-                showImportError = true
+            importTask?.cancel()
+            importTask = Task {
+                do {
+                    let cube = try await Task.detached(priority: .userInitiated) {
+                        guard url.startAccessingSecurityScopedResource() else { throw CocoaError(.fileReadNoPermission) }
+                        defer { url.stopAccessingSecurityScopedResource() }
+                        return try FilmProcessor.parseCubeFile(FilmProcessor.readCubeText(from: url))
+                    }.value
+                    guard !Task.isCancelled else { return }
+                    importedFileURL = url
+                    importedCube = cube
+                    importName = url.deletingPathExtension().lastPathComponent
+                    importISO = "200"
+                    showImportSheet = true
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    importError = String(format: String(localized: "Couldn't parse the .cube file: %@"), error.localizedDescription)
+                    showImportError = true
+                }
             }
 
         case .failure(let error):
@@ -218,45 +220,15 @@ struct ContentView: View {
     // MARK: - Preload
 
     private func preloadResources() async {
-        // 在主 actor 上把 @Model 的 CustomLUT 投影为 Sendable 的 FilmSource，
-        // 避免把非 Sendable 的 SwiftData 模型带入 Task.detached
-        let customSources: [FilmSource] = customLUTs.map { FilmSource.from($0) }
-
-        // 首屏只等待内置 LUT。它们已在构建期编译为约 250KB 的 .jslut，8 个合计约 10ms。
-        // 直接在当前启动任务串行读取，避免为极短工作创建 detached task 时触发 Swift 并发
-        // 执行器冷启动、线程调度及返回 MainActor 的额外等待（真机曾额外消耗约 1.6s）。
-        let builtInTimer = Log.perf("startup_builtin_luts", logger: Log.lut)
-        for preset in FilmPreset.allCases {
-            FilmProcessor.shared.preload(preset: preset)
-        }
-        builtInTimer.end("count=\(FilmPreset.allCases.count)")
-
-        // 内置 LUT 已完成。首页始终直接展示，不再维护额外 loading UI。
-        // 相机权限请求（首次会弹系统 alert）放到 LUT 之后异步触发。
-        // 进入 CameraView 时 requestCameraPermission 也会再走一次 .notDetermined 分支，
-        // 这里预触发只是为了首次启动用户点 tile 前权限就准备好。
-        // 首屏稳定后再按顺序做剩余重活，杜绝旧实现的启动资源风暴：
-        //   1. 编译实时预览 PSO；
-        //   2. 创建静态照片 Metal CIContext；
-        //   3. 串行解析用户自定义 LUT（不再阻塞首屏）；
-        //   4. 稍作让步后拉起 Core Image + VideoToolbox 的 Live Photo 冷管线。
-        Task.detached(priority: .utility) {
-            let postwarmTimer = Log.perf("startup_postwarm", logger: Log.lut)
+        // Only prepare the small preview pipelines. LUTs load on selection; photo encoding and
+        // Live Photo transcoding initialize on the durable worker after a real capture.
+        await Task.detached(priority: .utility) {
+            let timer = Log.perf("startup_preview_prepare", logger: Log.lut)
             PreviewMetalResources.prepare()
-            FilmProcessor.shared.prepareRendering()
-            for source in customSources {
-                FilmProcessor.shared.preload(source: source)
-            }
-            try? await Task.sleep(for: .milliseconds(400))
-            await LivePhotoProcessor.prewarm()
-            postwarmTimer.end("custom_luts=\(customSources.count)")
-        }
-
-        let cameraStatus = AVCaptureDevice.authorizationStatus(for: .video)
-        if cameraStatus == .notDetermined {
-            _ = await AVCaptureDevice.requestAccess(for: .video)
-        }
+            timer.end()
+        }.value
     }
+
 }
 
 // MARK: - 导入确认 Sheet

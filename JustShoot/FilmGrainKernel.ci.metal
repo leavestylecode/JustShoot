@@ -11,9 +11,8 @@ using namespace metal;
     float seed,
     coreimage::destination destination
 ) {
-    // CIColorKernel 接收线性工作空间像素。用 gamma≈2 的快速编解码把颗粒放到接近显示域：
-    // 相比逐通道精确 sRGB pow，48MP 静态图与逐帧 Live Photo 的 GPU 成本低得多。
-    float3 encoded = sqrt(max(pixel.rgb, 0.0));
+    // All three render paths use an explicitly configured sRGB working space.
+    float3 encoded = pixel.rgb;
     float3 textured = justShootApplyFilmGrain(
         encoded,
         destination.coord(),
@@ -22,5 +21,5 @@ using namespace metal;
         chroma,
         uint(seed)
     );
-    return float4(textured * textured, pixel.a);
+    return float4(textured, pixel.a);
 }
