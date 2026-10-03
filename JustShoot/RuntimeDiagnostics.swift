@@ -13,8 +13,9 @@ struct DiagnosticTrace: Sendable {
         startedAt = Diagnostics.traceStart(id: id)
     }
 
-    func event(_ name: String, _ fields: String = "") {
-        Diagnostics.emit(name, id: id, fields: "elapsed_ms=\(Diagnostics.milliseconds(since: startedAt)) \(fields)")
+    func event(_ name: String, _ fields: @autoclosure () -> String = "") {
+        guard Diagnostics.enabled else { return }
+        Diagnostics.emit(name, id: id, fields: "elapsed_ms=\(Diagnostics.milliseconds(since: startedAt)) \(fields())")
     }
 
     func span(_ stage: String, _ fields: String = "") -> DiagnosticSpan {
@@ -65,10 +66,12 @@ enum Diagnostics {
         String(format: "%.1f", max(0, ProcessInfo.processInfo.systemUptime - time) * 1_000)
     }
 
-    static func emit(_ name: String, id: String = "app", fields: String = "") {
+    static func emit(_ name: String, id: String = "app", fields: @autoclosure () -> String = "") {
         guard enabled else { return }
         DiagnosticWatchdog.shared.noteStage(id: id, stage: name)
-        Log.diagnostics.info("diag event=\(name, privacy: .public) run=\(runID, privacy: .public) id=\(id, privacy: .public) run_ms=\(milliseconds(since: runStartedAt), privacy: .public) \(fields, privacy: .public)")
+        let line = "diag event=\(name) run=\(runID) id=\(id) run_ms=\(milliseconds(since: runStartedAt)) \(fields())"
+        Log.diagnostics.info("\(line, privacy: .public)")
+        DiagnosticLogStore.shared.append(line)
     }
 
     static func errorFields(_ error: any Error) -> String {
@@ -168,6 +171,7 @@ final class DiagnosticWatchdog: @unchecked Sendable {
 
     private struct Camera: Sendable {
         let health: @Sendable () -> PreviewHealth?
+        let flow: CameraFlowDiagnostics?
         var stage = "camera_view_appear"
     }
     private struct State {
@@ -196,12 +200,16 @@ final class DiagnosticWatchdog: @unchecked Sendable {
                        repeating: .milliseconds(250), leeway: .milliseconds(50))
     }
 
-    func addCamera(id: String, health: @escaping @Sendable () -> PreviewHealth?) {
+    func addCamera(id: String, flow: CameraFlowDiagnostics? = nil, health: @escaping @Sendable () -> PreviewHealth?) {
         guard Diagnostics.enabled else { return }
-        state.withLock { $0.cameras[id] = Camera(health: health) }
+        state.withLock { $0.cameras[id] = Camera(health: health, flow: flow) }
     }
 
     func removeCamera(id: String) { state.withLock { _ = $0.cameras.removeValue(forKey: id) } }
+    func flushCameras(reason: String) {
+        let flows = state.withLock { $0.cameras.values.compactMap(\.flow) }
+        for flow in flows { flow.flush(reason: reason, force: true) }
+    }
     func noteStage(id: String, stage: String) {
         // Frame metrics must not obscure the lifecycle/configuration stage in watchdog reports.
         guard !stage.hasPrefix("preview_"), stage != "camera_heartbeat" else { return }
@@ -220,6 +228,7 @@ final class DiagnosticWatchdog: @unchecked Sendable {
             return (result, state.cameras, heartbeat)
         }
         guard let (result, cameras, heartbeat) = snapshot else { return }
+        for camera in cameras.values { camera.flow?.flush() }
         let context = cameras.sorted { $0.key < $1.key }.map { "\($0.key):\($0.value.stage)" }.joined(separator: ",")
         if let gap = result.gap { Diagnostics.emit("watchdog_gap", fields: "gap_ms=\(Int(gap * 1_000)) reason=scheduler_suspend_or_debugger") }
         if let delay = result.stall {
@@ -274,7 +283,8 @@ private final class RuntimeDiagnosticLifecycle {
         let simulator = false
         #endif
         let app = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
-        Diagnostics.emit("run_begin", fields: "model=\(model) ios=\(version.majorVersion).\(version.minorVersion).\(version.patchVersion) configuration=\(configuration) simulator=\(simulator) app=\(app) stall_threshold_ms=250 \(Diagnostics.resourceFields())")
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+        Diagnostics.emit("run_begin", fields: "schema=2 utc=\(Date().ISO8601Format()) model=\(model) ios=\(version.majorVersion).\(version.minorVersion).\(version.patchVersion) configuration=\(configuration) simulator=\(simulator) app=\(app) build=\(build) stall_threshold_ms=250 preview_window_ms=2000 \(Diagnostics.resourceFields())")
         DiagnosticWatchdog.shared.setActive(UIApplication.shared.applicationState == .active)
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
@@ -282,6 +292,7 @@ private final class RuntimeDiagnosticLifecycle {
             Diagnostics.emit("app_active", fields: Diagnostics.resourceFields())
         })
         observers.append(center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { _ in
+            DiagnosticWatchdog.shared.flushCameras(reason: "app_inactive")
             DiagnosticWatchdog.shared.setActive(false)
             Diagnostics.emit("app_inactive")
         })

@@ -21,7 +21,7 @@ struct CameraView: View {
     /// 默认 .standard（对齐 iPhone 原相机体积）。
     @AppStorage("photoOutputQuality") private var photoQuality: PhotoQuality = .default
     /// Live Photo 开关（顶栏切换，默认开，像 iPhone 原相机）。开启时每张拍照同时录一段动态视频，
-    /// 静态图与视频都套当前胶片 LUT 后存为系统相册 Live Photo。仅在设备支持时顶栏才显示该按钮。
+    /// 静态图与视频都套当前胶片 LUT 后存为系统相册 Live Photo。开关始终保留在顶栏。
     @AppStorage("livePhotoEnabled") private var livePhotoEnabled = true
     /// Live Photo 是否录音（设置页可配置，默认开）。开启时麦克风挂上 session、Live 视频带声音；
     /// 关闭则静音。与顶栏 livePhotoEnabled 一起决定是否挂麦克风——见 CameraManager.setLivePhotoAudio。
@@ -301,26 +301,26 @@ struct CameraView: View {
                 }
             }
 
-            // 右上：Live Photo 开关（仅设备支持时显示）+ 闪光灯。两者用 ToolbarSpacer 拉开成两个
-            // 独立的 Liquid Glass 胶囊，Live 图标视觉上独立、不再贴着闪光灯。
-            if cameraManager.isLivePhotoSupported {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        cameraManager.hapticLight.impactOccurred()
-                        livePhotoEnabled.toggle()
-                    } label: {
-                        Image(systemName: livePhotoEnabled ? "livephoto" : "livephoto.slash")
-                            .rotationEffect(controlRotationAngle)
-                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
-                    }
-                    .tint(livePhotoEnabled ? .yellow : .white)
-                    .disabled(cameraManager.readiness != .ready || isShutterBusy)
-                    .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
-                    .accessibilityLabel(livePhotoEnabled ? Text("Live Photo on") : Text("Live Photo off"))
-                    .accessibilityHint("Toggle Live Photo")
+            // Keep the control visible while support/enablement is being negotiated.
+            // If availability is lost, an existing On preference can still be switched Off.
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    cameraManager.hapticLight.impactOccurred()
+                    livePhotoEnabled.toggle()
+                } label: {
+                    Image(systemName: livePhotoEnabled && cameraManager.livePhotoCaptureState.canCapture ? "livephoto" : "livephoto.slash")
+                        .rotationEffect(controlRotationAngle)
+                        .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
                 }
-                ToolbarSpacer(.fixed, placement: .primaryAction)
+                .tint(livePhotoEnabled && cameraManager.livePhotoCaptureState.canCapture ? .yellow : .white)
+                .disabled(cameraManager.readiness != .ready || isShutterBusy || (!cameraManager.livePhotoCaptureState.canCapture && !livePhotoEnabled))
+                .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
+                .accessibilityIdentifier("camera.live_photo")
+                .accessibilityLabel(!cameraManager.livePhotoCaptureState.canCapture ? Text("Live Photo unavailable") :
+                    livePhotoEnabled ? Text("Live Photo on") : Text("Live Photo off"))
+                .accessibilityHint("Toggle Live Photo")
             }
+            ToolbarSpacer(.fixed, placement: .primaryAction)
 
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -414,7 +414,7 @@ struct CameraView: View {
         .onAppear {
             Diagnostics.start()
             let manager = cameraManager
-            DiagnosticWatchdog.shared.addCamera(id: manager.diagnostics.id) { [weak manager] in manager?.previewHealth() }
+            DiagnosticWatchdog.shared.addCamera(id: manager.diagnostics.id, flow: manager.flowDiagnostics) { [weak manager] in manager?.previewHealth() }
             manager.diagnostics.event("camera_view_appear")
             cameraManager.requestCameraPermission()
             // 告知期望录音状态（live && sound）；session 配置完成后据此决定是否挂麦克风。
@@ -424,17 +424,27 @@ struct CameraView: View {
         }
         // 顶栏 Live 开关 / 设置页声音开关变化时，实时增删麦克风输入（在相机页内切换即时生效）。
         .onChange(of: livePhotoEnabled) { _, _ in
+            cameraManager.diagnostics.event("live_photo_preference_changed", "requested=\(livePhotoEnabled) supported=\(cameraManager.livePhotoCaptureState.supported) enabled=\(cameraManager.livePhotoCaptureState.enabled)")
             cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
         }
         .onChange(of: livePhotoSoundEnabled) { _, _ in
             cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
+        }
+        .onChange(of: cameraManager.flashMode) { _, mode in
+            cameraManager.diagnostics.event("flash_changed", "mode=\(mode.rawValue)")
+        }
+        .onChange(of: isShutterBusy) { _, busy in
+            cameraManager.diagnostics.event("camera_controls_changed", "shutter_busy=\(busy) readiness=\(cameraManager.readiness.logValue)")
+        }
+        .onChange(of: showFlash) { _, visible in
+            cameraManager.diagnostics.event("shutter_overlay_changed", "visible=\(visible)")
         }
         // 编辑当前用户曲线时 ID 不变、内容指纹会变化；监听完整后缀可确保新 LUT 立即预热。
         .task(id: previewLUTKey) {
             let key = previewLUTKey
             let requestedSource = source
             let curve = selectedCurve
-            let lutWait = cameraManager.diagnostics.span("camera_lut_prepare")
+            let lutWait = cameraManager.diagnostics.span("camera_lut_prepare", "grain=\(source.renderProfile.grain.amount) halation=\(source.renderProfile.optics.halationAmount) bloom=\(source.renderProfile.optics.bloomAmount)")
             let lut = await Task.detached(priority: .userInitiated) {
                 FilmProcessor.shared.preload(source: requestedSource, curve: curve)
                 return FilmProcessor.shared.getCachedLUT(cacheKey: key)
@@ -442,6 +452,7 @@ struct CameraView: View {
             lutWait.end(lut == nil ? "missing" : "ok", "cancelled=\(Task.isCancelled)")
             guard !Task.isCancelled, key == previewLUTKey else { return }
             preparedLUT = lut.map { (key, $0) }
+            cameraManager.diagnostics.event("camera_lut_ready", "dimension=\(lut?.dimension ?? 0)")
             if lut == nil { captureError = String(localized: "This LUT is invalid or unsupported.") }
         }
         .onReceive(capturePipeline.$lastCompletion) { completion in
@@ -524,7 +535,7 @@ struct CameraView: View {
         }
         let requestedID = UUID()
         let captureTrace = DiagnosticTrace(id: requestedID.uuidString)
-        captureTrace.event("shutter_tap", "camera=\(cameraManager.diagnostics.id) pending=\(capturePipeline.pendingCount)")
+        captureTrace.event("shutter_tap", "camera=\(cameraManager.diagnostics.id) pending=\(capturePipeline.pendingCount) requested_live=\(livePhotoEnabled)")
         let tapTime = Log.now()
         // 拍摄时刻快照：相册 creationDate 必须反映按快门的瞬间。后处理已串行排队，若在队列任务
         // 里才求值 Date()，连拍尾部照片的时间会晚数秒到数十秒（Photos 按 creationDate 排序展示）。
@@ -545,6 +556,11 @@ struct CameraView: View {
         // 在 MainActor 上读取用户选的画质档，捕获进后台 task（detached 里不能再读 @AppStorage）。
         let outputQuality = photoQuality.compressionQuality
         let wantsLive = livePhotoEnabled
+        guard !wantsLive || cameraManager.livePhotoCaptureState.canCapture else {
+            captureTrace.event("live_photo_request_unavailable", "stage=shutter supported=\(cameraManager.livePhotoCaptureState.supported) enabled=\(cameraManager.livePhotoCaptureState.enabled)")
+            captureError = String(localized: "Live Photo is unavailable. Turn off Live Photo or reopen the camera to try again.")
+            return
+        }
         isShutterBusy = true
         guard let captureID = await capturePipeline.reserve(lutBytes: capturedLUT.data.count, id: requestedID) else {
             isShutterBusy = false
@@ -610,7 +626,9 @@ struct CameraView: View {
                 // 没有这行快门会永久 disabled。
                 isShutterBusy = false
                 capturePipeline.cancelReservation(captureID)
-                captureError = String(localized: "Capture failed: couldn't get image data, please try again")
+                captureError = wantsLive && !cameraManager.livePhotoCaptureState.canCapture
+                    ? String(localized: "Live Photo is unavailable. Turn off Live Photo or reopen the camera to try again.")
+                    : String(localized: "Capture failed: couldn't get image data, please try again")
                 return
             }
             captureTrace.event("capture_received", "bytes=\(result.imageData.count) live=\(result.livePhotoMovieURL != nil)")
@@ -716,6 +734,7 @@ struct CameraView: View {
                 }
             }
             .onEnded { value in
+                cameraManager.diagnostics.event("preview_gesture_ended", "film_picker=\(showFilmPicker) adjusting_ev=\(isAdjustingExposure) ev=\(cameraManager.exposureBias)")
                 if showFilmPicker {
                     handleFilmSwipeEnded(value)
                 } else {

@@ -159,6 +159,18 @@ enum SharePresenter {
         top.present(vc, animated: true)
     }
 
+    /// Diagnostic text is shared as an ordinary file, without the photo-specific item source.
+    static func presentDiagnosticLog(_ url: URL) {
+        guard let top = topViewController() else { return }
+        let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let popover = controller.popoverPresentationController {
+            popover.sourceView = top.view
+            popover.sourceRect = CGRect(x: top.view.bounds.midX, y: top.view.bounds.maxY - 40, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
+        top.present(controller, animated: true)
+    }
+
     /// 当前前台 window 场景里最顶层的 VC（穿透所有已 present 的层，含 fullScreenCover / sheet）。
     private static func topViewController() -> UIViewController? {
         let scene = UIApplication.shared.connectedScenes

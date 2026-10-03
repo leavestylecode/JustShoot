@@ -223,9 +223,11 @@ struct ContentView: View {
         // Only prepare the small preview pipelines. LUTs load on selection; photo encoding and
         // Live Photo transcoding initialize on the durable worker after a real capture.
         await Task.detached(priority: .utility) {
+            let preparation = DiagnosticTrace(id: "startup").span("startup_preview_prepare")
             let timer = Log.perf("startup_preview_prepare", logger: Log.lut)
             PreviewMetalResources.prepare()
             timer.end()
+            preparation.end()
         }.value
     }
 

@@ -21,11 +21,10 @@ final class CameraPerformancePolicyTests: XCTestCase {
         XCTAssertTrue(intent.permitsStart(newStart))
     }
 
-    func testPreviewExplicitlyRequestsProxyBuffers() {
+    func testPreviewRestoresAutomaticBufferNegotiation() {
         let output = AVCaptureVideoDataOutput()
         CameraPerformancePolicy.configurePreviewOutput(output)
-        XCTAssertFalse(output.automaticallyConfiguresOutputBufferDimensions)
-        XCTAssertTrue(output.deliversPreviewSizedOutputBuffers)
+        XCTAssertTrue(output.automaticallyConfiguresOutputBufferDimensions)
         XCTAssertTrue(output.alwaysDiscardsLateVideoFrames)
         XCTAssertEqual(output.videoSettings[kCVPixelBufferPixelFormatTypeKey as String] as? UInt32, kCVPixelFormatType_32BGRA)
     }
@@ -48,5 +47,51 @@ final class CameraPerformancePolicyTests: XCTestCase {
         XCTAssertEqual(CameraPerformancePolicy.frameRate(in: [30...30, 120...120]), 30)
         XCTAssertEqual(CameraPerformancePolicy.frameRate(in: [24...60]), 60)
         XCTAssertNil(CameraPerformancePolicy.frameRate(in: [30...60], ceiling: 24))
+    }
+
+    func testReversingAnActiveRampAnchorsAtActualZoomInsteadOfTheNewTarget() throws {
+        let transition = try XCTUnwrap(CameraZoomTransition(currentZoom: 13.321, targetZoom: 4.1667,
+            isRamping: true, animated: true))
+        XCTAssertEqual(transition.anchorZoom, 13.321)
+        XCTAssertEqual(transition.targetZoom, 4.1667)
+        XCTAssertTrue(transition.usesRamp)
+        XCTAssertEqual(transition.rate, 16)
+    }
+
+    func testRetargetingUsesActualZoomForRateInsteadOfThePreviousUISelection() throws {
+        // Hardware is at 12x even though the previous button requested 8.05x.
+        let transition = try XCTUnwrap(CameraZoomTransition(currentZoom: 12, targetZoom: 16,
+            isRamping: true, animated: true))
+        XCTAssertEqual(transition.anchorZoom, 12)
+        XCTAssertEqual(transition.rate, 4)
+    }
+
+    func testSettledZoomDoesNotGetAnExtraImmediateAssignment() throws {
+        let transition = try XCTUnwrap(CameraZoomTransition(currentZoom: 8.05, targetZoom: 16,
+            isRamping: false, animated: true))
+        XCTAssertNil(transition.anchorZoom)
+        XCTAssertTrue(transition.usesRamp)
+        XCTAssertEqual(transition.rate, 8)
+    }
+
+    func testSelectingCurrentPositionStopsAnOldRampWithoutStartingAnother() throws {
+        let transition = try XCTUnwrap(CameraZoomTransition(currentZoom: 8.05, targetZoom: 8.05,
+            isRamping: true, animated: true))
+        XCTAssertEqual(transition.anchorZoom, 8.05)
+        XCTAssertFalse(transition.usesRamp)
+    }
+
+    func testNonAnimatedChangeHasOnlyTheRequestedDestination() throws {
+        let transition = try XCTUnwrap(CameraZoomTransition(currentZoom: 8.05, targetZoom: 16,
+            isRamping: true, animated: false))
+        XCTAssertNil(transition.anchorZoom)
+        XCTAssertFalse(transition.usesRamp)
+        XCTAssertEqual(transition.targetZoom, 16)
+    }
+
+    func testInvalidZoomDoesNotReachHardware() {
+        XCTAssertNil(CameraZoomTransition(currentZoom: .nan, targetZoom: 16, isRamping: true, animated: true))
+        XCTAssertNil(CameraZoomTransition(currentZoom: 8.05, targetZoom: .infinity, isRamping: true, animated: true))
+        XCTAssertNil(CameraZoomTransition(currentZoom: 0, targetZoom: 16, isRamping: true, animated: true))
     }
 }

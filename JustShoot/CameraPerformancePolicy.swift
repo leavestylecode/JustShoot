@@ -21,8 +21,10 @@ enum CameraPerformancePolicy {
     static func configurePreviewOutput(_ output: AVCaptureVideoDataOutput) {
         output.alwaysDiscardsLateVideoFrames = true
         output.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
-        output.automaticallyConfiguresOutputBufferDimensions = false
-        output.deliversPreviewSizedOutputBuffers = true
+        // Restore AVFoundation's default negotiation. Forcing the preview proxy was introduced
+        // with the performance refactor; device traces now show zoom advancing while the user
+        // reports an unchanged viewfinder. Keep drawable work bounded separately below.
+        output.automaticallyConfiguresOutputBufferDimensions = true
     }
 
     static func drawableSize(bounds: CGSize, scale: CGFloat) -> CGSize {
@@ -41,5 +43,25 @@ enum CameraPerformancePolicy {
             let value = min(ceiling, range.upperBound)
             return value >= range.lowerBound && value > 0 ? value : nil
         }.max()
+    }
+}
+
+/// AVFoundation smooths ramp-rate changes with an acceleration limit. Retargeting a ramp
+/// while it is moving can carry its old velocity past the new destination. Assigning the
+/// current zoom cancels that ramp without jumping to the requested destination, then the
+/// new ramp starts from the device's actual position. cancelVideoZoomRamp() only eases out.
+struct CameraZoomTransition: Sendable {
+    let anchorZoom: CGFloat?
+    let targetZoom: CGFloat
+    let rate: Float
+    let usesRamp: Bool
+
+    init?(currentZoom: CGFloat, targetZoom: CGFloat, isRamping: Bool, animated: Bool) {
+        guard currentZoom.isFinite, targetZoom.isFinite, currentZoom > 0, targetZoom > 0 else { return nil }
+        self.targetZoom = targetZoom
+        anchorZoom = animated && isRamping ? currentZoom : nil
+        let ratio = max(targetZoom / currentZoom, currentZoom / targetZoom)
+        rate = ratio < 1.5 ? 4 : ratio < 3 ? 8 : 16
+        usesRamp = animated && abs(targetZoom - currentZoom) > 0.0001
     }
 }

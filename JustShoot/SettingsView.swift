@@ -20,6 +20,8 @@ struct SettingsView: View {
     @AppStorage("livePhotoSoundEnabled") private var livePhotoSoundEnabled = true
     /// 麦克风权限是否被拒——开了声音却没授权时提示用户去系统设置开启。入页 + 开关变化时刷新。
     @State private var microphoneDenied = false
+    @State private var exportingDiagnostics = false
+    @State private var diagnosticExportFailed = false
 
     // TODO: 上架后填入真实 App Store 数字 ID（apps.apple.com/app/id<这里>）。
     private let appStoreId = "0000000000"
@@ -35,6 +37,7 @@ struct SettingsView: View {
                     filmCurveSection
                     photoQualitySection
                     livePhotoSection
+                    diagnosticsSection
                     feedbackSection
                     Spacer(minLength: 16)
                     versionFooter
@@ -49,6 +52,41 @@ struct SettingsView: View {
             .onChange(of: livePhotoSoundEnabled) { _, _ in refreshMicrophoneStatus() }
         }
         .preferredColorScheme(.dark)
+        .alert("Log export failed", isPresented: $diagnosticExportFailed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Please try exporting the diagnostic log again.")
+        }
+    }
+
+    private var diagnosticsSection: some View {
+        sectionCard {
+            Button {
+                exportingDiagnostics = true
+                Task {
+                    defer { exportingDiagnostics = false }
+                    DiagnosticWatchdog.shared.flushCameras(reason: "export")
+                    Diagnostics.emit("log_export_requested", fields: Diagnostics.resourceFields())
+                    do {
+                        let url = try await DiagnosticLogStore.shared.export()
+                        SharePresenter.presentDiagnosticLog(url)
+                    } catch {
+                        Diagnostics.emit("log_export_failed", fields: Diagnostics.errorFields(error))
+                        diagnosticExportFailed = true
+                    }
+                }
+            } label: {
+                HStack {
+                    SettingRow(icon: "doc.text", iconColor: .orange, title: "Export Diagnostic Log")
+                    if exportingDiagnostics { ProgressView() }
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(exportingDiagnostics)
+            Text("After reproducing a problem, export the recent diagnostic log. It contains no photos or precise location.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var pendingPhotosSection: some View {

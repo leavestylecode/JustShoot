@@ -101,6 +101,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         view.autoResizeDrawable = false
         (view.layer as? CAMetalLayer)?.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
         context.coordinator.setup(view: view)
+        manager.diagnostics.event("preview_renderer_setup", "target_fps=\(view.preferredFramesPerSecond) scale=\(view.contentScaleFactor) max_long_edge=\(CameraPerformancePolicy.maximumPreviewLongEdge) diffusion_scale=0.5")
         return view
     }
 
@@ -160,6 +161,7 @@ struct RealtimePreviewView: UIViewRepresentable {
                   let smallEnergy = texture(.r16Float, width: small.width, height: small.height),
                   let halation = texture(.r16Float, width: small.width, height: small.height),
                   let bloom = texture(.r16Float, width: small.width, height: small.height) else { return nil }
+            manager?.flowDiagnostics.allocatedTargets()
             return PreviewTargets(graded: graded, energy: energy, smallEnergy: smallEnergy, halation: halation, bloom: bloom)
         }
 
@@ -239,7 +241,9 @@ struct RealtimePreviewView: UIViewRepresentable {
             }
         }
 
-        func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
+        func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
+            manager?.diagnostics.event("preview_drawable_changed", "width=\(Int(size.width)) height=\(Int(size.height)) scale=\(view.contentScaleFactor)")
+        }
 
         // MARK: - 每帧渲染（全 Metal，无 CIImage/CIFilter）
 
@@ -259,11 +263,13 @@ struct RealtimePreviewView: UIViewRepresentable {
         private var backpressureDrops = 0
 
         func draw(in view: MTKView) {
+            let flow = manager?.flowDiagnostics
             // 帧去重：如果相机没有产生新帧，跳过渲染
-            guard let (pixelBuffer, frameId) = manager?.getLatestFrame(),
-                  frameId != lastRenderedFrameId else {
+            guard let (pixelBuffer, frameId, capturedAt) = manager?.getLatestFrame() else {
+                flow?.skipped(.noFrame)
                 return
             }
+            guard frameId != lastRenderedFrameId else { flow?.skipped(.duplicate); return }
 
             let trace = manager?.diagnostics
             let generation = manager?.diagnosticGeneration ?? 0
@@ -276,9 +282,11 @@ struct RealtimePreviewView: UIViewRepresentable {
                 gpuFrameCount = 0; gpuTotalMS = 0; gpuMaxMS = 0; backpressureDrops = 0
             }
             let cpuStart = Log.now()
+            var drawableWaitMS = 0.0
             if frameWindowStart == nil { frameWindowStart = cpuStart }
             defer {
                 let elapsed = (Log.now() - cpuStart) * 1_000
+                flow?.encoded(cpuMS: elapsed, drawableWaitMS: drawableWaitMS)
                 cpuFrameCount += 1
                 cpuTotalMS += elapsed
                 cpuMaxMS = max(cpuMaxMS, elapsed)
@@ -295,15 +303,24 @@ struct RealtimePreviewView: UIViewRepresentable {
 
             // Triple-buffer 背压控制：如果 GPU 有 3 帧在队列中，跳过当前帧
             guard inflightSemaphore.wait(timeout: .now()) == .success else {
+                flow?.skipped(.backpressure)
                 backpressureDrops += 1
                 return
             }
 
-            guard let drawable = view.currentDrawable,
-                  let commandBuffer = commandQueue?.makeCommandBuffer(),
+            let drawableStartedAt = ProcessInfo.processInfo.systemUptime
+            let currentDrawable = view.currentDrawable
+            drawableWaitMS = (ProcessInfo.processInfo.systemUptime - drawableStartedAt) * 1_000
+            guard let drawable = currentDrawable else {
+                flow?.skipped(.drawable)
+                inflightSemaphore.signal()
+                return
+            }
+            guard let commandBuffer = commandQueue?.makeCommandBuffer(),
                   let pipeline = computePipeline,
                   let finishPipeline,
                   let cache = textureCache else {
+                flow?.skipped(.pipeline)
                 inflightSemaphore.signal()
                 skipFrameCount += 1
                 if skipFrameCount % 60 == 1 {
@@ -338,12 +355,14 @@ struct RealtimePreviewView: UIViewRepresentable {
             guard status == kCVReturnSuccess,
                   let cvTex = cvTexture,
                   let inputTexture = CVMetalTextureGetTexture(cvTex) else {
+                flow?.skipped(.texture)
                 inflightSemaphore.signal()
                 return
             }
 
             // 获取或创建 3D LUT 纹理（纹理与维度一起返回，二者永不可能不同步）
             guard let (lutTexture, lutDim) = getOrCreateLUTTexture(cacheKey: lutCacheKey) else {
+                flow?.skipped(.lut)
                 inflightSemaphore.signal()
                 return
             }
@@ -412,6 +431,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             // 编码 compute 命令
             guard let targets = targets(width: outW, height: outH),
                   let encoder = commandBuffer.makeComputeCommandEncoder() else {
+                flow?.skipped(.encoder)
                 inflightSemaphore.signal()
                 return
             }
@@ -449,6 +469,7 @@ struct RealtimePreviewView: UIViewRepresentable {
                 }
             }
             guard let composite = commandBuffer.makeComputeCommandEncoder() else {
+                flow?.skipped(.encoder)
                 availableTargets.append(targets)
                 inflightSemaphore.signal()
                 return
@@ -464,21 +485,29 @@ struct RealtimePreviewView: UIViewRepresentable {
 
             let firstSubmission = !firstPresentationRegistered
             let submittedAt = ProcessInfo.processInfo.systemUptime
+            let flowStamp = flow?.submitted(at: submittedAt, capturedAt: capturedAt)
             if firstSubmission {
                 firstPresentationRegistered = true
                 trace?.event("preview_first_submitted", "generation=\(generation) output=\(outW)x\(outH)")
-                #if !targetEnvironment(simulator)
-                drawable.addPresentedHandler { drawable in
-                    trace?.event(drawable.presentedTime > 0 ? "preview_first_presented" : "preview_presentation_unconfirmed",
-                        "generation=\(generation) submit_to_present_ms=\(Diagnostics.milliseconds(since: submittedAt))")
-                }
-                #else
+                #if targetEnvironment(simulator)
                 trace?.event("preview_presentation_unavailable", "platform=simulator")
                 #endif
             }
+            #if !targetEnvironment(simulator)
+            if Diagnostics.enabled {
+                drawable.addPresentedHandler { drawable in
+                    if let flowStamp { flow?.presented(flowStamp, at: drawable.presentedTime, submittedAt: submittedAt) }
+                    if firstSubmission {
+                        trace?.event(drawable.presentedTime > 0 ? "preview_first_presented" : "preview_presentation_unconfirmed",
+                            "generation=\(generation) submit_to_present_ms=\(Diagnostics.milliseconds(since: submittedAt))")
+                    }
+                }
+            }
+            #endif
             let semaphore = self.inflightSemaphore
             let frameLease = PreviewFrameLease(texture: cvTex, buffer: pixelBuffer)
             commandBuffer.addCompletedHandler { [weak self] buffer in
+                let completedAt = ProcessInfo.processInfo.systemUptime
                 withExtendedLifetime(frameLease) {}
                 if firstSubmission { trace?.event("preview_first_gpu_completed", "generation=\(generation) after_submit_ms=\(Diagnostics.milliseconds(since: submittedAt))") }
                 if buffer.status == .error {
@@ -487,7 +516,11 @@ struct RealtimePreviewView: UIViewRepresentable {
                     Log.session.error("preview_gpu_failed error=\(buffer.error?.localizedDescription ?? "unknown", privacy: .public)")
                 }
                 let gpuMS = max(0, buffer.gpuEndTime - buffer.gpuStartTime) * 1_000
+                if let flowStamp {
+                    flow?.completed(flowStamp, gpuMS: gpuMS, elapsedMS: (completedAt - submittedAt) * 1_000, failed: buffer.status == .error)
+                }
                 Task { @MainActor in
+                    if let flowStamp { flow?.recycled(flowStamp, waitMS: (ProcessInfo.processInfo.systemUptime - completedAt) * 1_000) }
                     if let self, self.diagnosticCycle == generation, gpuMS > 0 {
                         self.gpuFrameCount += 1
                         self.gpuTotalMS += gpuMS
@@ -516,6 +549,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             // 从 FilmProcessor 缓存获取 LUT 数据
             guard let lut = FilmProcessor.shared.getCachedLUT(cacheKey: cacheKey) else { return nil }
             let dim = lut.dimension
+            let uploadStartedAt = ProcessInfo.processInfo.systemUptime
 
             // 创建 3D 纹理（硬件三线性插值采样）
             let desc = MTLTextureDescriptor()
@@ -547,6 +581,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             lutDimensions[cacheKey] = dim
             touchLUT(cacheKey)
             evictLUTsIfNeeded()
+            manager?.diagnostics.event("preview_lut_uploaded", "dimension=\(dim) bytes=\(lut.data.count) duration_ms=\(Diagnostics.milliseconds(since: uploadStartedAt))")
             return (texture, dim)
         }
 
