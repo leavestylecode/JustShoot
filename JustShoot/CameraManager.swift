@@ -167,6 +167,9 @@ class CameraManager: NSObject, ObservableObject {
     private var inFlightCaptures: [Int64: CaptureRequest] = [:]
     private let captureTraces = OSAllocatedUnfairLock<[Int64: DiagnosticTrace]>(initialState: [:])
     @Published var flashMode: FlashMode = .off
+    @Published private(set) var automaticWhiteBalanceReading: CameraWhiteBalanceReading?
+    private var whiteBalanceReadingObservation: NSKeyValueObservation?
+    private let whiteBalanceReadingGate = OSAllocatedUnfairLock(initialState: WhiteBalanceReadingGate())
     /// Keep support and actual session enablement separate. Neither changes the saved user preference.
     @Published private(set) var livePhotoCaptureState = LivePhotoCaptureState(supported: false, enabled: false)
     private var livePhotoSupportObservation: NSKeyValueObservation?
@@ -779,7 +782,7 @@ class CameraManager: NSObject, ObservableObject {
     /// 把 session 的音频输入收敛到 `livePhotoAudioDesired`。session 未配置完成时 no-op
     /// （configureAndStartSession 末尾会再调一次）。需要麦克风但未授权时按需申请权限。
     private func reconcileAudioInput() {
-        guard sessionConfigured else { return }
+        guard isCameraVisible, sessionConfigured, sessionIntent.withLock({ $0.wantsRunning }) else { return }
         guard inFlightCaptures.isEmpty else { audioReconciliationPending = true; return }
         audioReconciliationPending = false
         guard livePhotoAudioDesired else {
@@ -796,12 +799,14 @@ class CameraManager: NSObject, ObservableObject {
                 guard let self else { return }
                 self.microphonePermissionDenied = !granted
                 Log.session.info("permission_mic_result granted=\(granted)")
-                // 申请期间用户可能已关掉开关——再查一次 desired。
-                self.applyAudioInput(enabled: granted && self.livePhotoAudioDesired)
+                // Permission can finish after navigation/backgrounding or during a capture.
+                // Re-enter the same lifecycle/in-flight gate instead of changing the graph here.
+                self.reconcileAudioInput()
             }
         case .denied, .restricted:
             // 权限被拒：降级为静音 Live Photo（不挂麦克风），设置页据 flag 提示去开。绝不阻断拍摄。
             microphonePermissionDenied = true
+            applyAudioInput(enabled: false)
             Log.session.info("permission_mic_denied → silent_live_photo")
         @unknown default:
             break
@@ -811,6 +816,8 @@ class CameraManager: NSObject, ObservableObject {
     /// 把麦克风输入增删收敛到 `enabled`，全程串行在 sessionQueue 上、以 session 当前 inputs 为**真值**
     /// 判断（不依赖可能滞后的主线程 flag），所以快速连按开关也不会出现「该关没关 / 重复挂」的竞态。
     private func applyAudioInput(enabled: Bool) {
+        let generation = diagnosticGeneration
+        let intent = sessionIntent
         let captureSession = session
         let trace = diagnostics
         let queuedAt = ProcessInfo.processInfo.systemUptime
@@ -818,6 +825,7 @@ class CameraManager: NSObject, ObservableObject {
         let mic = enabled ? AVCaptureDevice.default(for: .audio) : nil
         if enabled && mic == nil { Log.session.error("audio_input_no_device"); return }
         sessionQueue.async {
+            guard intent.withLock({ $0.permitsStart(generation) }) else { return }
             let applying = trace.span("audio_input_apply", "enabled=\(enabled) queue_wait_ms=\(Diagnostics.milliseconds(since: queuedAt))")
             defer { applying.end("finished", "attached=\(Self.audioInput(in: captureSession) != nil)") }
             let existing = Self.audioInput(in: captureSession)
@@ -1420,6 +1428,10 @@ class CameraManager: NSObject, ObservableObject {
         focusObservation?.invalidate()
         pressureObservation?.invalidate()
         constituentObservation?.invalidate()
+        whiteBalanceReadingObservation?.invalidate()
+        whiteBalanceReadingObservation = device.observe(\.deviceWhiteBalanceGains, options: [.initial, .new]) { [weak self] device, _ in
+            self?.scheduleAutomaticWhiteBalanceRead(from: device)
+        }
 
         zoomObservation = device.observe(\.videoZoomFactor, options: [.new]) { [weak self] dev, change in
             guard let self, let newZoom = change.newValue else { return }
@@ -1507,6 +1519,35 @@ class CameraManager: NSObject, ObservableObject {
 
     // MARK: - 8. 镜头切换（.auto 跟随系统）+ 安全快门
 
+    /// Reads only. Never call the custom-gains or temperature/tint setters on a virtual camera.
+    nonisolated private func scheduleAutomaticWhiteBalanceRead(from device: AVCaptureDevice) {
+        let generation = diagnosticGeneration
+        guard sessionIntent.withLock({ $0.permitsStart(generation) }),
+              whiteBalanceReadingGate.withLock({ $0.begin(at: ProcessInfo.processInfo.systemUptime) }) else { return }
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            var awaitingPublication = false
+            defer { if !awaitingPublication { self.whiteBalanceReadingGate.withLock { $0.finish() } } }
+            guard self.sessionIntent.withLock({ $0.permitsStart(generation) }) else { return }
+            let gains = device.deviceWhiteBalanceGains
+            // Zero/invalid startup gains would raise an Objective-C exception in the converter.
+            guard CameraWhiteBalancePolicy.canReadGains(red: gains.redGain, green: gains.greenGain,
+                blue: gains.blueGain, maximum: device.maxWhiteBalanceGain) else { return }
+            let values = device.temperatureAndTintValues(for: gains)
+            guard let reading = CameraWhiteBalanceReading(temperature: values.temperature, tint: values.tint) else { return }
+            awaitingPublication = true
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                defer { self.whiteBalanceReadingGate.withLock { $0.finish() } }
+                guard self.isCameraVisible, !self.isExposing,
+                      self.sessionIntent.withLock({ $0.permitsStart(generation) }),
+                      self.automaticWhiteBalanceReading != reading else { return }
+                self.automaticWhiteBalanceReading = reading
+                self.diagnostics.event("auto_white_balance_reading", "kelvin=\(reading.temperature) tint=\(reading.tint) source=camera")
+            }
+        }
+    }
+
     nonisolated private static func prepareLivePhotoOutput(_ output: AVCapturePhotoOutput, trace: DiagnosticTrace, stage: String) {
         let before = LivePhotoCaptureState(output)
         let preparing = trace.span("live_photo_prepare", "stage=\(stage) supported_before=\(before.supported) enabled_before=\(before.enabled)")
@@ -1568,6 +1609,8 @@ class CameraManager: NSObject, ObservableObject {
     /// 完全就绪：根本可用 + 镜头到位 + ZSL grace 走完。capturePhoto 内部 await 它。
     var isReadyToCapture: Bool {
         guard isCaptureAvailable else { return false }
+        // Clearing a timed-out target must not permit capture while the device is still zooming.
+        guard videoCaptureDevice?.isRampingVideoZoom != true else { return false }
         guard lensTarget != nil else { return true }      // 无进行中的切换 = 已稳定
         return lensIsOnTarget() && lensGracePassed()
     }
@@ -1638,8 +1681,8 @@ class CameraManager: NSObject, ObservableObject {
 
     /// capturePhoto 在 issue 前 await 直到 isReadyToCapture 或超时。唯一闸门，取代旧的
     /// waitForLensSettled + waitForConstituentMatch 两段分散判定。timeoutMs 仅异常兜底——
-    /// 正常路径下镜头到位 + grace 走完即放行（实测几十 ms）。超时也放行（绝不永久卡快门），
-    /// 但打 error 便于排查；4000 是异常兜底，远大于一次 zoom ramp 实际所需（百 ms 级）。
+    /// 正常路径下镜头到位 + grace 走完即放行。超时返回 false，由调用方释放快门并提示重试；
+    /// 不能在 zoom 尚未停止时拍出错误焦段。4000 ms 只作异常兜底。
     func waitForReadyToCapture(timeoutMs: Int = 4000) async -> Bool {
         if isReadyToCapture { return !Task.isCancelled }
         let start = CFAbsoluteTimeGetCurrent()
@@ -2082,6 +2125,7 @@ class CameraManager: NSObject, ObservableObject {
         diagnostics.event("camera_pause_requested")
         sessionIntent.withLock { _ = $0.request(running: false) }
         startupTask?.cancel()
+        stopLocationServices()
         beginCameraPreparation()
         let captureSession = session
         let pause = diagnostics.span("session_pause")
@@ -2117,6 +2161,8 @@ class CameraManager: NSObject, ObservableObject {
                       intent.withLock({ $0.permitsStart(token) }) else { return }
                 self.setReadiness(running ? .waitingForFirstFrame : .failed)
                 self.promoteReadinessIfPossible()
+                self.reconcileAudioInput()
+                self.startLocationServices()
             }
         }
     }
@@ -2149,6 +2195,8 @@ class CameraManager: NSObject, ObservableObject {
         captureRotationObservation = nil
         constituentObservation?.invalidate()
         constituentObservation = nil
+        whiteBalanceReadingObservation?.invalidate()
+        whiteBalanceReadingObservation = nil
         livePhotoSupportObservation?.invalidate()
         livePhotoSupportObservation = nil
         livePhotoEnabledObservation?.invalidate()
@@ -2366,6 +2414,7 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     private func startLocationServices() {
+        guard isCameraVisible, sessionConfigured, sessionIntent.withLock({ $0.wantsRunning }) else { return }
         locationManager.delegate = self
         // 相片地标 ±100m 足够，`Best` 会触发系统更严格的隐私审查并增加功耗
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
@@ -2387,6 +2436,7 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     private func startLocationUpdates() {
+        guard isCameraVisible, sessionConfigured, sessionIntent.withLock({ $0.wantsRunning }) else { return }
         locationManager.startUpdatingLocation()
     }
 

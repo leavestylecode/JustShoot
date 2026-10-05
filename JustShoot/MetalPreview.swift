@@ -61,7 +61,65 @@ final class PreviewMetalResources: @unchecked Sendable {
 }
 
 /// Bound drawable work independently of screen density and iPad window size.
-private final class CameraPreviewMetalView: MTKView {
+final class CameraPreviewMetalView: MTKView {
+    var onRenderingAvailabilityChanged: ((Bool, String) -> Void)?
+    private var applicationActive = UIApplication.shared.applicationState == .active
+    private var sceneActive = false
+    private var dismantled = false
+
+    override init(frame frameRect: CGRect, device: (any MTLDevice)?) {
+        super.init(frame: frameRect, device: device)
+        isPaused = true
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(applicationWillResignActive), name: UIApplication.willResignActiveNotification, object: nil)
+        center.addObserver(self, selector: #selector(applicationDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
+        center.addObserver(self, selector: #selector(sceneWillDeactivate), name: UIScene.willDeactivateNotification, object: nil)
+        center.addObserver(self, selector: #selector(sceneDidActivate), name: UIScene.didActivateNotification, object: nil)
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        sceneActive = window?.windowScene.map { $0.activationState == .foregroundActive } ?? (window != nil)
+        updateRenderingAvailability(reason: window == nil ? "detached" : "attached")
+    }
+
+    @objc private func applicationWillResignActive() {
+        applicationActive = false
+        updateRenderingAvailability(reason: "app_inactive")
+    }
+
+    @objc private func applicationDidBecomeActive() {
+        applicationActive = true
+        updateRenderingAvailability(reason: "app_active")
+    }
+
+    @objc private func sceneWillDeactivate(_ notification: Notification) {
+        guard let scene = notification.object as? UIScene, scene === window?.windowScene else { return }
+        sceneActive = false
+        updateRenderingAvailability(reason: "scene_inactive")
+    }
+
+    @objc private func sceneDidActivate(_ notification: Notification) {
+        guard let scene = notification.object as? UIScene, scene === window?.windowScene else { return }
+        sceneActive = true
+        updateRenderingAvailability(reason: "scene_active")
+    }
+
+    private func updateRenderingAvailability(reason: String) {
+        let active = !dismantled && applicationActive && sceneActive && window != nil
+        guard isPaused == active else { return }
+        isPaused = !active
+        onRenderingAvailabilityChanged?(active, reason)
+    }
+
+    func stopRendering() {
+        dismantled = true
+        updateRenderingAvailability(reason: "dismantled")
+        NotificationCenter.default.removeObserver(self)
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         let size = CameraPerformancePolicy.drawableSize(bounds: bounds.size, scale: contentScaleFactor)
@@ -73,6 +131,7 @@ private final class CameraPreviewMetalView: MTKView {
 struct RealtimePreviewView: UIViewRepresentable {
     let manager: CameraManager
     let lutCacheKey: String
+    let preparedLUT: CubeLUT?
     let grain: FilmGrainParameters
     let optics: FilmOpticsParameters
 
@@ -89,9 +148,8 @@ struct RealtimePreviewView: UIViewRepresentable {
         //
         // 旧实现是 isPaused=true + enableSetNeedsDisplay=true，由 captureOutput 每帧
         // DispatchQueue.main.async { setNeedsDisplay() } 触发。问题：编码繁忙 / 相机切镜头时
-        // 主队列堆积，setNeedsDisplay 排队跟其它 UI 工作竞争，预览会丢帧。CADisplayLink 走
-        // CoreAnimation 内部线程，不经过应用主队列，跟主线程其它工作解耦。
-        view.isPaused = false
+        // 主队列堆积，setNeedsDisplay 排队跟其它 UI 工作竞争，预览会丢帧。
+        // MTKView 的 draw 仍在主线程执行；失去前台时同步暂停，避免 currentDrawable 阻塞 UI。
         view.enableSetNeedsDisplay = false
         view.preferredFramesPerSecond = 60
         view.framebufferOnly = false  // 允许 compute shader 写入 drawable
@@ -101,12 +159,16 @@ struct RealtimePreviewView: UIViewRepresentable {
         view.autoResizeDrawable = false
         (view.layer as? CAMetalLayer)?.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
         context.coordinator.setup(view: view)
+        view.onRenderingAvailabilityChanged = { [weak coordinator = context.coordinator] active, reason in
+            coordinator?.manager?.diagnostics.event("preview_rendering_changed", "active=\(active) reason=\(reason)")
+        }
         manager.diagnostics.event("preview_renderer_setup", "target_fps=\(view.preferredFramesPerSecond) scale=\(view.contentScaleFactor) max_long_edge=\(CameraPerformancePolicy.maximumPreviewLongEdge) diffusion_scale=0.5")
         return view
     }
 
     func updateUIView(_ uiView: MTKView, context: Context) {
         context.coordinator.lutCacheKey = lutCacheKey
+        context.coordinator.preparedLUT = preparedLUT
         context.coordinator.grain = grain
         context.coordinator.optics = optics
         context.coordinator.manager = manager
@@ -117,12 +179,19 @@ struct RealtimePreviewView: UIViewRepresentable {
         Coordinator()
     }
 
+    static func dismantleUIView(_ uiView: MTKView, coordinator: Coordinator) {
+        (uiView as? CameraPreviewMetalView)?.stopRendering()
+        uiView.isPaused = true
+        uiView.delegate = nil
+    }
+
     // MARK: - Metal Preview Coordinator
-    // @MainActor：MTKViewDelegate.draw 在主线程触发（enableSetNeedsDisplay=true），
+    // @MainActor：MTKViewDelegate.draw 在主线程触发，
     // 同时需要访问 @MainActor 的 CameraManager 属性（previewRotationAngle 等）
     @MainActor
     final class Coordinator: NSObject, MTKViewDelegate {
         var lutCacheKey: String = ""
+        var preparedLUT: CubeLUT?
         var grain: FilmGrainParameters = .disabled
         var optics: FilmOpticsParameters = .disabled
         weak var manager: CameraManager?
@@ -263,6 +332,10 @@ struct RealtimePreviewView: UIViewRepresentable {
         private var backpressureDrops = 0
 
         func draw(in view: MTKView) {
+            // A queued draw can arrive after pause/detachment. Do not acquire a drawable then:
+            // on device this blocked the main thread for 556 ms during app deactivation.
+            guard !view.isPaused, view.window != nil,
+                  UIApplication.shared.applicationState == .active else { return }
             let flow = manager?.flowDiagnostics
             // 帧去重：如果相机没有产生新帧，跳过渲染
             guard let (pixelBuffer, frameId, capturedAt) = manager?.getLatestFrame() else {
@@ -547,7 +620,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             guard let device = metalDevice else { return nil }
 
             // 从 FilmProcessor 缓存获取 LUT 数据
-            guard let lut = FilmProcessor.shared.getCachedLUT(cacheKey: cacheKey) else { return nil }
+            guard let lut = preparedLUT ?? FilmProcessor.shared.getCachedLUT(cacheKey: cacheKey) else { return nil }
             let dim = lut.dimension
             let uploadStartedAt = ProcessInfo.processInfo.systemUptime
 

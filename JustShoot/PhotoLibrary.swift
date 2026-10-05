@@ -3,6 +3,7 @@ import UIKit
 import SwiftData
 import CoreLocation
 import ImageIO
+import os
 
 // MARK: - 系统相册为真相源（Photos library is the source of truth）
 //
@@ -394,6 +395,67 @@ extension Notification.Name {
 }
 
 // MARK: - 资产图片加载器（PHCachingImageManager 包装）
+
+/// PhotoKit can call back before returning a request ID; cancellation can race either event.
+/// Resume once, outside the lock, and cancel a late request ID if the Swift task already ended.
+typealias PhotoImageRequestState = PhotoRequestState<UIImage>
+
+final class PhotoRequestState<Value: Sendable>: Sendable {
+    private struct State {
+        var continuation: CheckedContinuation<Value?, Never>?
+        var requestID = PHInvalidImageRequestID
+        var finished = false
+        var cancelled = false
+    }
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    var isFinished: Bool { state.withLock { $0.finished } }
+
+    func install(_ continuation: CheckedContinuation<Value?, Never>) -> Bool {
+        let installed = state.withLock {
+            guard !$0.finished else { return false }
+            $0.continuation = continuation
+            return true
+        }
+        if !installed { continuation.resume(returning: nil) }
+        return installed
+    }
+
+    /// Returns true when the caller must cancel this ID immediately.
+    func register(_ requestID: PHImageRequestID) -> Bool {
+        state.withLock {
+            guard !$0.finished else { return $0.cancelled }
+            $0.requestID = requestID
+            return false
+        }
+    }
+
+    @discardableResult
+    func finish(_ value: Value?) -> Bool {
+        let result = state.withLock { state -> (Bool, CheckedContinuation<Value?, Never>?) in
+            guard !state.finished else { return (false, nil) }
+            state.finished = true
+            let continuation = state.continuation
+            state.continuation = nil
+            return (true, continuation)
+        }
+        result.1?.resume(returning: value)
+        return result.0
+    }
+
+    func cancel() -> (didFinish: Bool, requestID: PHImageRequestID) {
+        let result = state.withLock { state -> (Bool, PHImageRequestID, CheckedContinuation<Value?, Never>?) in
+            guard !state.finished else { return (false, PHInvalidImageRequestID, nil) }
+            state.finished = true
+            state.cancelled = true
+            let continuation = state.continuation
+            state.continuation = nil
+            return (true, state.requestID, continuation)
+        }
+        result.2?.resume(returning: nil)
+        return (result.0, result.1)
+    }
+}
 //
 // 取代针对内部 blob 的自建解码/磁盘缓存：PHImageManager 自带按尺寸缓存 + iCloud 回源 +
 // opportunistic（先糊后清）渐进交付。这里加一层小 NSCache 仅为「同步首帧探测」（cell 复用时
@@ -449,67 +511,86 @@ final class AssetImageLoader: @unchecked Sendable {
     }
 
     /// async 单发缩略图（取最终高质量版本一次返回）。aspectFill 方形。
-    func thumbnail(id: String, maxPixel: Int) async -> UIImage? {
+    func thumbnail(id: String, maxPixel: Int, trace: DiagnosticTrace? = nil) async -> UIImage? {
+        if let cached = cachedThumbnail(id: id, maxPixel: maxPixel) { return cached }
         let img = await requestImage(id: id, targetSize: CGSize(width: maxPixel, height: maxPixel),
-                                     contentMode: .aspectFill, resize: .fast)
+                                     contentMode: .aspectFill, resize: .fast, trace: trace, kind: "thumbnail")
         if let img { cache.setObject(img, forKey: "\(id)_\(maxPixel)" as NSString, cost: cost(img)) }
         return img
     }
 
     /// async 单发大图预览。aspectFit + exact 精确缩放。
-    func preview(id: String, maxPixel: Int) async -> UIImage? {
+    func preview(id: String, maxPixel: Int, trace: DiagnosticTrace? = nil) async -> UIImage? {
         await requestImage(id: id, targetSize: CGSize(width: maxPixel, height: maxPixel),
-                           contentMode: .aspectFit, resize: .exact)
+                           contentMode: .aspectFit, resize: .exact, trace: trace, kind: "preview")
     }
 
-    private func requestImage(id: String, targetSize: CGSize, contentMode: PHImageContentMode, resize: PHImageRequestOptionsResizeMode) async -> UIImage? {
-        guard let asset = asset(id: id) else { return nil }
+    private func requestImage(id: String, targetSize: CGSize, contentMode: PHImageContentMode,
+                              resize: PHImageRequestOptionsResizeMode, trace: DiagnosticTrace?, kind: String) async -> UIImage? {
+        let request = trace?.span("photo_asset_request", "kind=\(kind) max_pixel=\(Int(max(targetSize.width, targetSize.height)))")
+        guard !Task.isCancelled else { request?.end("cancelled"); return nil }
+        guard let asset = asset(id: id) else {
+            request?.end("missing_asset", "authorization=\(PHPhotoLibrary.authorizationStatus(for: .readWrite).rawValue)")
+            return nil
+        }
         let opts = PHImageRequestOptions()
-        opts.deliveryMode = .highQualityFormat   // 单次回调，可安全 resume continuation 一次
+        opts.deliveryMode = .highQualityFormat
         opts.resizeMode = resize
         opts.isNetworkAccessAllowed = true
-        return await withCheckedContinuation { (cont: CheckedContinuation<UIImage?, Never>) in
-            let resumed = Box(false)
-            manager.requestImage(for: asset, targetSize: targetSize, contentMode: contentMode, options: opts) { image, _ in
-                if resumed.value { return }
-                resumed.value = true
-                cont.resume(returning: image)
+        return await performRequest(span: request) { handler in
+            manager.requestImage(for: asset, targetSize: targetSize, contentMode: contentMode, options: opts, resultHandler: handler)
+        }
+    }
+
+    private func performRequest<Value: Sendable>(span: DiagnosticSpan?,
+        start: (@escaping (Value?, [AnyHashable: Any]?) -> Void) -> PHImageRequestID) async -> Value? {
+        let state = PhotoRequestState<Value>()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard state.install(continuation) else { return }
+                let requestID = start { value, info in
+                    let cancelled = (info?[PHImageCancelledKey] as? Bool) == true
+                    let error = info?[PHImageErrorKey] as? NSError
+                    if !cancelled, error == nil, (info?[PHImageResultIsDegradedKey] as? Bool) == true { return }
+                    let result = cancelled || error != nil ? nil : value
+                    guard state.finish(result) else { return }
+                    span?.end(cancelled ? "cancelled" : error != nil ? "error" : value == nil ? "empty" : "ok",
+                        error.map { Diagnostics.errorFields($0) } ?? "")
+                }
+                if state.register(requestID) { manager.cancelImageRequest(requestID) }
             }
+        } onCancel: {
+            let cancellation = state.cancel()
+            if cancellation.requestID != PHInvalidImageRequestID { self.manager.cancelImageRequest(cancellation.requestID) }
+            if cancellation.didFinish { span?.end("cancelled") }
         }
     }
 
     /// 加载 PHLivePhoto（详情页长按播放用）。targetSize 给屏幕尺寸即可；PHImageManager 自带缓存 +
-    /// iCloud 回源。highQualityFormat 单次回调，可安全 resume 一次。
-    func livePhoto(id: String, targetSize: CGSize) async -> PHLivePhoto? {
-        guard let asset = asset(id: id) else { return nil }
+    /// iCloud 回源。静态占位不结束请求；等待完整动态资源，退出页面时可以取消。
+    func livePhoto(id: String, targetSize: CGSize, trace: DiagnosticTrace? = nil) async -> PHLivePhoto? {
+        let request = trace?.span("photo_asset_request", "kind=live")
+        guard !Task.isCancelled else { request?.end("cancelled"); return nil }
+        guard let asset = asset(id: id) else { request?.end("missing_asset"); return nil }
         let opts = PHLivePhotoRequestOptions()
         opts.deliveryMode = .highQualityFormat
         opts.isNetworkAccessAllowed = true
-        return await withCheckedContinuation { (cont: CheckedContinuation<PHLivePhoto?, Never>) in
-            let resumed = Box(false)
-            manager.requestLivePhoto(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: opts) { livePhoto, info in
-                // opportunistic 可能多次回调；highQualityFormat 理论一次，但仍以 Box 守护只 resume 一次。
-                let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
-                if degraded && livePhoto == nil { return }
-                if resumed.value { return }
-                resumed.value = true
-                cont.resume(returning: livePhoto)
-            }
+        return await performRequest(span: request) { handler in
+            manager.requestLivePhoto(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: opts, resultHandler: handler)
         }
     }
 
     /// 原始字节（用于 EXIF 解析）。
-    func imageData(id: String) async -> Data? {
-        guard let asset = asset(id: id) else { return nil }
+    func imageData(id: String, trace: DiagnosticTrace? = nil) async -> Data? {
+        let request = trace?.span("photo_asset_request", "kind=original")
+        guard !Task.isCancelled else { request?.end("cancelled"); return nil }
+        guard let asset = asset(id: id) else { request?.end("missing_asset"); return nil }
         let opts = PHImageRequestOptions()
         opts.deliveryMode = .highQualityFormat
         opts.isNetworkAccessAllowed = true
-        return await withCheckedContinuation { (cont: CheckedContinuation<Data?, Never>) in
-            let resumed = Box(false)
-            manager.requestImageDataAndOrientation(for: asset, options: opts) { data, _, _, _ in
-                if resumed.value { return }
-                resumed.value = true
-                cont.resume(returning: data)
+        return await performRequest(span: request) { handler in
+            manager.requestImageDataAndOrientation(for: asset, options: opts) { data, _, _, info in
+                handler(data, info)
             }
         }
     }
@@ -537,9 +618,10 @@ final class AssetImageLoader: @unchecked Sendable {
 // 才进入 PhotoKit 异步路径。
 enum PhotoImage {
     @MainActor
-    static func thumbnail(for photo: Photo, maxPixel: Int) async -> UIImage? {
+    static func thumbnail(for photo: Photo, maxPixel: Int, trace: DiagnosticTrace? = nil) async -> UIImage? {
+        guard !Task.isCancelled, !photo.isDeleted else { return nil }
         if let aid = photo.assetLocalIdentifier {
-            return await AssetImageLoader.shared.thumbnail(id: aid, maxPixel: maxPixel)
+            return await AssetImageLoader.shared.thumbnail(id: aid, maxPixel: maxPixel, trace: trace)
         }
         if let data = photo.imageData {
             return await ImageLoader.shared.loadThumbnail(imageData: data, photoId: photo.id, maxPixel: maxPixel)
@@ -548,9 +630,10 @@ enum PhotoImage {
     }
 
     @MainActor
-    static func preview(for photo: Photo, maxPixel: Int) async -> UIImage? {
+    static func preview(for photo: Photo, maxPixel: Int, trace: DiagnosticTrace? = nil) async -> UIImage? {
+        guard !Task.isCancelled, !photo.isDeleted else { return nil }
         if let aid = photo.assetLocalIdentifier {
-            return await AssetImageLoader.shared.preview(id: aid, maxPixel: maxPixel)
+            return await AssetImageLoader.shared.preview(id: aid, maxPixel: maxPixel, trace: trace)
         }
         if let data = photo.imageData {
             return await ImageLoader.shared.loadPreview(imageData: data, photoId: photo.id, maxPixel: maxPixel)
@@ -560,8 +643,10 @@ enum PhotoImage {
 
     @MainActor
     static func exifData(for photo: Photo) async -> Data? {
+        guard !Task.isCancelled, !photo.isDeleted else { return nil }
+        let trace = DiagnosticTrace(id: photo.id.uuidString)
         if let aid = photo.assetLocalIdentifier {
-            return await AssetImageLoader.shared.imageData(id: aid)
+            return await AssetImageLoader.shared.imageData(id: aid, trace: trace)
         }
         return photo.imageData
     }

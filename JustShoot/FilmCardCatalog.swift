@@ -57,7 +57,7 @@ final class FilmCardImageCache: @unchecked Sendable {
     }
 
     /// Async downsampled load. Returns the cached image on hit; otherwise
-    /// produces a CGImageSource thumbnail on a detached task.
+    /// produces a CGImageSource thumbnail on the bounded blocking-image queue.
     func loadImage(card: FilmCard, maxPixel: Int) async -> UIImage? {
         await loadImage(imageName: card.image, cacheKey: card.id, maxPixel: maxPixel)
     }
@@ -66,11 +66,12 @@ final class FilmCardImageCache: @unchecked Sendable {
     /// don't have a `FilmCard` (e.g., the home grid mapping each preset to
     /// a hand-picked card image).
     func loadImage(imageName: String, cacheKey: String, maxPixel: Int) async -> UIImage? {
-        let key = "\(cacheKey)_\(maxPixel)" as NSString
-        if let cached = cache.object(forKey: key) { return cached }
+        let key = "\(cacheKey)_\(maxPixel)"
+        if let cached = cache.object(forKey: key as NSString) { return cached }
 
-        return await Task.detached(priority: .userInitiated) { [weak self] in
+        return await BlockingImageWork.shared.run { [weak self] in
             guard let self else { return nil }
+            if let cached = self.cache.object(forKey: key as NSString) { return cached }
 
             let nameNoExt = (imageName as NSString).deletingPathExtension
             let ext = (imageName as NSString).pathExtension
@@ -97,9 +98,9 @@ final class FilmCardImageCache: @unchecked Sendable {
             ]
             guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, down as CFDictionary) else { return nil }
             let image = UIImage(cgImage: cg)
-            self.cache.setObject(image, forKey: key, cost: self.memoryCost(of: image))
+            self.cache.setObject(image, forKey: key as NSString, cost: self.memoryCost(of: image))
             return image
-        }.value
+        }
     }
 }
 

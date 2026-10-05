@@ -287,9 +287,9 @@ final class FilmCardCoverColorManager: Sendable {
             // FilmCardImageCache slot the grid populates.
             guard let image = await FilmCardImageCache.shared.loadImage(card: card, maxPixel: 320) else { return }
             guard !Task.isCancelled else { return }
-            let extracted = await Task.detached(priority: .utility) {
+            let extracted = await BlockingImageWork.shared.run {
                 FilmCardCoverColor.extract(from: image)
-            }.value
+            }
             guard let result = extracted else { return }
             let box = FilmCardCoverColorCache.Box(
                 red: result.red, green: result.green, blue: result.blue, luminance: result.luminance

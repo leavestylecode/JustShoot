@@ -2,33 +2,71 @@ import SwiftUI
 import SwiftData
 import UIKit
 
+struct RecentPhotoThumbnail {
+    let id: UUID
+    let filterName: String
+    let image: UIImage?
+}
+
+/// A presentation uses one committed snapshot, rather than reading a changing @Query in a sheet.
+struct RecentPhotoPresentation: Identifiable {
+    let id = UUID()
+    let startPhoto: Photo
+    let photos: [Photo]
+
+    @MainActor
+    static func load(in context: ModelContext, filterName: String) throws -> Self? {
+        let descriptor = FetchDescriptor<Photo>(
+            predicate: #Predicate { $0.filmPresetName == filterName },
+            sortBy: [SortDescriptor(\Photo.timestamp)])
+        let photos = try context.fetch(descriptor).filter { !$0.isDeleted }
+        guard let latest = photos.last else { return nil }
+        return Self(startPhoto: latest, photos: photos)
+    }
+
+    @MainActor
+    static func latest(in context: ModelContext, filterName: String) throws -> Photo? {
+        var descriptor = FetchDescriptor<Photo>(
+            predicate: #Predicate { $0.filmPresetName == filterName },
+            sortBy: [SortDescriptor(\Photo.timestamp, order: .reverse)])
+        descriptor.fetchLimit = 1
+        return try context.fetch(descriptor).first
+    }
+}
+
 // MARK: - 左下角最近照片 badge
 /// 拍摄页左下角"最近一张"缩略图。持有按当前 `source.photoFilterName` 过滤的 @Query——
 /// CameraView 切换 `source` 时此视图随 `init` 重建，predicate 自动更新到新胶片。
 ///
-/// **lastThumbnailHint 设计**：父视图 (CameraView) 在拍照 pipeline 完成时把 88pt 缩略图
-/// 直接写入 hint，绕开 SwiftData 跨 context 通知链（~300-500ms 延迟）。badge 这边：
-///   - source 切换：清空 hint（hint 是旧 source 的）→ 从新 source 的 @Query 重新 bootstrap
-///   - @Query 内容变化（新增/删除）：从 query 重新 load（同 key 命中 NSCache，零开销）
-///
-/// detail sheet 也下移到这里——sheet 内的 `PhotoDetailView(allPhotos:)` 需要按 source 过滤的
-/// 列表，正好和本视图的 @Query 是同一份数据。
+/// Hint carries the committed photo ID as well as its thumbnail. @Query drives refreshes;
+/// tapping fetches a committed snapshot so a just-finished capture opens before @Query catches up.
 struct RecentPhotosBadge: View {
     let source: FilmSource
-    @Binding var lastThumbnailHint: UIImage?
+    @Binding var lastThumbnailHint: RecentPhotoThumbnail?
     let isShutterBusy: Bool
     let isProcessing: Bool
     let controlRotationAngle: Angle
     let orientation: UIDeviceOrientation
 
     @Query private var photos: [Photo]
-    @State private var showDetail = false
+    @Environment(\.modelContext) private var modelContext
+    @State private var selectedDetail: RecentPhotoPresentation?
+    @State private var openError: String?
+
+    private struct ThumbnailRequest: Hashable {
+        let sourceID: String
+        let photoID: UUID?
+    }
+
+    private var currentHint: RecentPhotoThumbnail? {
+        lastThumbnailHint?.filterName == source.photoFilterName ? lastThumbnailHint : nil
+    }
 
     private static let thumbnailMaxPixel = 88
 
     init(
         source: FilmSource,
-        lastThumbnailHint: Binding<UIImage?>,
+        lastThumbnailHint: Binding<RecentPhotoThumbnail?>,
         isShutterBusy: Bool,
         isProcessing: Bool,
         controlRotationAngle: Angle,
@@ -50,9 +88,9 @@ struct RecentPhotosBadge: View {
     }
 
     var body: some View {
-        Button { if !photos.isEmpty { showDetail = true } } label: {
+        Button { openRecentPhotos() } label: {
             ZStack {
-                if let thumb = lastThumbnailHint {
+                if let thumb = currentHint?.image {
                     Image(uiImage: thumb)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -83,48 +121,73 @@ struct RecentPhotosBadge: View {
         .accessibilityLabel(photos.isEmpty ? Text("Most recent photo") : Text("Most recent photo — \(photos.count) total"))
         .accessibilityHint(photos.isEmpty ? Text("No photos yet") : Text("Open larger view"))
         // 仅在快门 race 窗口禁用，让详情页可以在后处理进行中正常打开历史照片。
-        .disabled(photos.isEmpty || isShutterBusy)
-        .task(id: source.id) {
-            // source 切换：丢弃旧 source 的 hint，从新过滤集 bootstrap thumbnail。
-            // 父视图的 hint 是 source-agnostic 的——这里负责"按 source 重置"的语义。
-            lastThumbnailHint = nil
+        .disabled((photos.isEmpty && currentHint == nil) || isShutterBusy)
+        .task(id: ThumbnailRequest(sourceID: source.id, photoID: photos.last?.id)) {
+            if lastThumbnailHint?.filterName != source.photoFilterName { lastThumbnailHint = nil }
             await loadFromQuery()
         }
-        // 按"最新一张的身份"刷新，而不是 count：删一张再拍一张时 count 不变，
-        // 但 photos.last 已换人——挂 count 会让角标停留在旧缩略图。
-        .onChange(of: photos.last?.id) { _, _ in
-            Task { await loadFromQuery() }
-        }
-        .sheet(isPresented: $showDetail) {
-            if let latest = photos.last {
-                NavigationStack {
-                    PhotoDetailView(photo: latest, allPhotos: photos)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button { showDetail = false } label: {
-                                    Image(systemName: "xmark")
-                                        .fontWeight(.semibold)
-                                }
-                                .tint(.white)
+        .sheet(item: $selectedDetail) { payload in
+            NavigationStack {
+                PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button { selectedDetail = nil } label: {
+                                Image(systemName: "xmark")
+                                    .fontWeight(.semibold)
                             }
+                            .tint(.white)
                         }
-                }
-                .presentationDetents([.large])
-                .presentationDragIndicator(.hidden)
-                .interactiveDismissDisabled(false)
-                .preferredColorScheme(.dark)
+                    }
             }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.hidden)
+            .interactiveDismissDisabled(false)
+            .preferredColorScheme(.dark)
+        }
+        .alert("Unable to open photos", isPresented: Binding(
+            get: { openError != nil }, set: { if !$0 { openError = nil } }
+        )) {
+            Button("OK", role: .cancel) { openError = nil }
+        } message: { Text(openError ?? "") }
+    }
+
+    @MainActor
+    private func openRecentPhotos() {
+        let trace = DiagnosticTrace(id: currentHint?.id.uuidString ?? "recent-photos")
+        trace.event("recent_photos_open_requested", "query_count=\(photos.count) has_hint=\(currentHint != nil)")
+        do {
+            // CaptureCompletion is emitted after the index commit, before @Query necessarily
+            // observes it. Fetch on tap so the newly displayed thumbnail opens the new photo.
+            guard let payload = try RecentPhotoPresentation.load(in: modelContext, filterName: source.photoFilterName) else {
+                lastThumbnailHint = nil
+                trace.event("recent_photos_open_failed", "reason=no_indexed_photos")
+                openError = String(localized: "No saved photos are available yet. Please try again.")
+                return
+            }
+            selectedDetail = payload
+            trace.event("recent_photos_open_ready", "count=\(payload.photos.count) selected=\(payload.startPhoto.id)")
+        } catch {
+            trace.event("recent_photos_open_failed", Diagnostics.errorFields(error))
+            openError = String(localized: "Photos could not be loaded. Please try again.")
         }
     }
 
     @MainActor
     private func loadFromQuery() async {
-        guard let p = photos.last else {
-            lastThumbnailHint = nil
-            return
+        let filterName = source.photoFilterName
+        let previousHintID = lastThumbnailHint?.id
+        do {
+            guard let photo = try RecentPhotoPresentation.latest(in: modelContext, filterName: filterName) else {
+                lastThumbnailHint = nil
+                return
+            }
+            if currentHint?.id == photo.id, currentHint?.image != nil { return }
+            let thumb = await PhotoImage.thumbnail(for: photo, maxPixel: Self.thumbnailMaxPixel)
+            guard !Task.isCancelled, lastThumbnailHint?.id == previousHintID else { return }
+            lastThumbnailHint = RecentPhotoThumbnail(id: photo.id, filterName: filterName, image: thumb)
+        } catch {
+            Diagnostics.emit("recent_thumbnail_failed", fields: Diagnostics.errorFields(error))
         }
-        let thumb = await PhotoImage.thumbnail(for: p, maxPixel: Self.thumbnailMaxPixel)
-        lastThumbnailHint = thumb
     }
 }
 

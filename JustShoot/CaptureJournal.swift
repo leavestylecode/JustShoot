@@ -174,6 +174,11 @@ struct CaptureJournal: Sendable {
 
     func markDiscarded(_ id: UUID) throws { try write(Data(), to: file("discarded", for: id)) }
 
+    func undoDiscard(_ id: UUID) throws {
+        let marker = file("discarded", for: id)
+        if FileManager.default.fileExists(atPath: marker.path) { try FileManager.default.removeItem(at: marker) }
+    }
+
     func finish(_ id: UUID) throws { try FileManager.default.removeItem(at: directory(for: id)) }
 
     func diskUsage() throws -> Int64 {

@@ -407,10 +407,22 @@ actor PhotoSaver {
         let jobs = try journal.jobs()
         let assets = Set(photos.compactMap(\.assetLocalIdentifier))
         let discarded = jobs.filter { ids.contains($0.id) || ($0.assetIdentifier.map { assets.contains($0) } ?? false) }
-        for job in discarded { try journal.markDiscarded(job.id) }
-        for photo in photos { modelContext.delete(photo) }
-        do { try modelContext.save() }
-        catch { modelContext.rollback(); throw error }
+        var marked: [UUID] = []
+        do {
+            for job in discarded {
+                try journal.markDiscarded(job.id)
+                marked.append(job.id)
+            }
+            for photo in photos { modelContext.delete(photo) }
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            for id in marked {
+                do { try journal.undoDiscard(id) }
+                catch { Diagnostics.emit("capture_discard_rollback_failed", id: id.uuidString, fields: Diagnostics.errorFields(error)) }
+            }
+            throw error
+        }
         for job in discarded { try? journal.finish(job.id) }
 
     }
@@ -611,6 +623,26 @@ final class CustomLUT: Identifiable {
 
     var fileURL: URL {
         Self.storageDirectory.appendingPathComponent(fileName)
+    }
+}
+
+/// Commit the index first; a failed save must not leave a live row pointing to a deleted LUT.
+@MainActor
+enum CustomLUTPersistence {
+    static func delete(_ lut: CustomLUT, in context: ModelContext,
+                       save: (ModelContext) throws -> Void = { try $0.save() }) throws {
+        let file = lut.fileURL
+        let key = FilmSource.from(lut).lutCacheKey
+        context.delete(lut)
+        do { try save(context) }
+        catch { context.rollback(); throw error }
+        FilmProcessor.shared.removeCachedLUT(cacheKey: key)
+        do {
+            if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
+        } catch {
+            // The index is already committed. Launch maintenance can safely remove this orphan.
+            Diagnostics.emit("lut_file_cleanup_deferred", fields: Diagnostics.errorFields(error))
+        }
     }
 }
 

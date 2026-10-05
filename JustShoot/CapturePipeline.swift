@@ -1,6 +1,25 @@
 import SwiftUI
 import SwiftData
 import AVFoundation
+import os
+
+/// MainActor admits a deletion only while its captures are idle. The worker reads this gate
+/// before processing recovered jobs, including while a system deletion confirmation is open.
+final class CaptureDeletionGate: Sendable {
+    private let deleting = OSAllocatedUnfairLock(initialState: Set<UUID>())
+
+    func begin(_ ids: Set<UUID>, active: Set<UUID>) -> Bool {
+        guard ids.isDisjoint(with: active) else { return false }
+        return deleting.withLock {
+            guard $0.isDisjoint(with: ids) else { return false }
+            $0.formUnion(ids)
+            return true
+        }
+    }
+
+    func end(_ ids: Set<UUID>) { deleting.withLock { $0.subtract(ids) } }
+    func contains(_ id: UUID) -> Bool { deleting.withLock { $0.contains(id) } }
+}
 
 struct CaptureCompletion: Identifiable, Sendable {
     let id: UUID
@@ -17,6 +36,7 @@ final class CapturePipeline: ObservableObject {
     @Published var lastError: String?
 
     private var worker: CaptureWorker?
+    private let deletionGate = CaptureDeletionGate()
     @Published private var isReady = false
     private var reservedBytes: [UUID: Int64] = [:]
     private var activeIDs: Set<UUID> = []
@@ -28,7 +48,7 @@ final class CapturePipeline: ObservableObject {
 
     func configure(container: ModelContainer) async {
         guard worker == nil else { return }
-        let worker = CaptureWorker(container: container)
+        let worker = CaptureWorker(container: container, deletionGate: deletionGate)
         self.worker = worker
         await worker.resume(allowProcessing: UIApplication.shared.applicationState != .background)
         isReady = true
@@ -81,6 +101,20 @@ final class CapturePipeline: ObservableObject {
         await worker?.resume()
     }
     func enterBackground() async { await worker?.pause() }
+
+    func beginDeletion(_ ids: [UUID]) -> Bool {
+        guard deletionGate.begin(Set(ids), active: activeIDs) else {
+            lastError = String(localized: "Please wait for these photos to finish saving before deleting them.")
+            return false
+        }
+        Diagnostics.emit("photo_delete_begin", fields: "count=\(ids.count)")
+        return true
+    }
+
+    func endDeletion(_ ids: [UUID]) {
+        deletionGate.end(Set(ids))
+        Diagnostics.emit("photo_delete_end", fields: "count=\(ids.count)")
+    }
 
     fileprivate func synchronizePending(_ ids: Set<UUID>) {
         activeIDs.subtract(pendingJobIDs.subtracting(ids))
@@ -140,6 +174,7 @@ private final class CaptureBackgroundActivity {
 /// while one heavy render runs off this actor; a single drain task bounds rendering concurrency.
 private actor CaptureWorker {
     private let container: ModelContainer
+    private let deletionGate: CaptureDeletionGate
     private let journal = CaptureJournal.application
     private var queue: [CaptureJob] = []
     private var scheduledIDs: Set<UUID> = []
@@ -147,7 +182,10 @@ private actor CaptureWorker {
     private var suspended = false
     private var enqueuedAt: [UUID: TimeInterval] = [:]
 
-    init(container: ModelContainer) { self.container = container }
+    init(container: ModelContainer, deletionGate: CaptureDeletionGate) {
+        self.container = container
+        self.deletionGate = deletionGate
+    }
 
     func hasRoom(for bytes: Int64) -> Bool {
         do { return try journal.hasRoom(for: bytes) }
@@ -184,9 +222,11 @@ private actor CaptureWorker {
             enqueuedAt[job.id] = ProcessInfo.processInfo.systemUptime
             DiagnosticTrace(id: job.id.uuidString).event("capture_queued", "queue_depth=\(queue.count + added.count) rendered_checkpoint=\(job.rendered)")
         }
+        // Publish admission before exposing jobs to the drain loop. Actor reentrancy must not
+        // let processing start while the UI still considers that capture idle/deletable.
+        await CapturePipeline.shared.accepted(Set(added.map(\.id)))
         queue.append(contentsOf: added)
         queue.sort { $0.recipe.captureDate < $1.recipe.captureDate }
-        await CapturePipeline.shared.accepted(Set(added.map(\.id)))
         guard !suspended, drainTask == nil, !queue.isEmpty else { return }
         drainTask = Task(priority: .utility) { await drain() }
     }
@@ -350,7 +390,8 @@ private actor CaptureWorker {
 
     private func checkPending(_ id: UUID) throws {
         try Task.checkCancellation()
-        guard FileManager.default.fileExists(atPath: journal.file("manifest.json", for: id).path),
+        guard !deletionGate.contains(id),
+              FileManager.default.fileExists(atPath: journal.file("manifest.json", for: id).path),
               !FileManager.default.fileExists(atPath: journal.file("discarded", for: id).path) else {
             throw CancellationError()
         }

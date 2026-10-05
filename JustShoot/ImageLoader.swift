@@ -3,6 +3,43 @@ import ImageIO
 import UIKit
 import os
 
+/// ImageIO/HEVC may synchronously wait for decoder work. Keep those waits off Swift's
+/// cooperative executor and bound parallel decodes across covers, thumbnails and exports.
+final class BlockingImageWork: @unchecked Sendable {
+    static let shared = BlockingImageWork()
+    private let queue: OperationQueue
+    private let active = OSAllocatedUnfairLock(initialState: 0)
+
+    var diagnosticFields: String {
+        let running = active.withLock { $0 }
+        return "image_work_active=\(running) image_work_queued=\(max(0, queue.operationCount - running))"
+    }
+
+    init(maximumConcurrentOperations: Int = 2) {
+        queue = OperationQueue()
+        queue.name = "com.justshoot.image-work"
+        queue.qualityOfService = .userInitiated
+        queue.maxConcurrentOperationCount = max(1, maximumConcurrentOperations)
+    }
+
+    func run<Value: Sendable>(_ work: @escaping @Sendable () -> Value?) async -> Value? {
+        let state = PhotoRequestState<Value>()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard state.install(continuation) else { return }
+                queue.addOperation {
+                    guard !state.isFinished else { return }
+                    self.active.withLock { $0 += 1 }
+                    defer { self.active.withLock { $0 -= 1 } }
+                    state.finish(autoreleasepool(invoking: work))
+                }
+            }
+        } onCancel: {
+            _ = state.cancel()
+        }
+    }
+}
+
 /// iOS 26 deprecated `UIScreen.main`. For non-view contexts we still need
 /// a screen handle for full-resolution preview sizing — fish it out of the
 /// active window scene.
@@ -153,18 +190,18 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         let key = "thumb_\(photoId.uuidString)_\(maxPixel)"
         if let cached = cache.object(forKey: key as NSString) { return cached }
         guard let url = thumbnailURL(for: photoId, maxPixel: maxPixel) else { return nil }
-        return await Task.detached(priority: .userInitiated) { [weak self] in
+        return await BlockingImageWork.shared.run { [weak self] in
             guard let self,
                   self.fileManager.fileExists(atPath: url.path),
                   let data = try? Data(contentsOf: url),
                   let img = UIImage(data: data) else { return nil }
             self.cacheImage(img, forKey: key as NSString)
             return img
-        }.value
+        }
     }
 
     /// 加载大图预览。imageData/photoId 必须在调用者所在的 actor 上预取，避免跨 actor 传递非 Sendable 的 `Photo`。
-    /// 同 key 并发请求会被 in-flight dedup 合并成一份 Task.detached——见 `inflight` 注释。
+    /// 同 key 并发请求会被 in-flight dedup 合并成一份异步解码任务——见 `inflight` 注释。
     func loadPreview(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
         // 钳到解码下限后再算 key/URL/解码尺寸：三者用同一有效值，避免 maxPixel=100 与 256
         // 解出同样像素却存成两份（重复 decode + 重复落盘）。cachedPreview 同步快路径同样钳值。
@@ -176,38 +213,40 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         // 临界区只做 dict 读写（< 1µs），符合 OSAllocatedUnfairLock 的"持锁极短"用例。
         let task: Task<UIImage?, Never> = inflight.withLock { state in
             if let existing = state.previews[key] { return existing }
-            let new = Task<UIImage?, Never>.detached(priority: .userInitiated) { [weak self] in
-                guard let self else { return nil }
-                // disk hit 也走 detached：避免 caller 在 main actor 上同步读 17MB JPEG。
-                if let url = self.previewURL(for: photoId, maxPixel: maxPixel),
-                   self.fileManager.fileExists(atPath: url.path),
-                   let data = try? Data(contentsOf: url),
-                   let img = UIImage(data: data) {
-                    self.cachePreview(img, forKey: key as NSString)
-                    Log.gallery.debug("preview_disk_hit id=\(photoId.uuidString, privacy: .public) max=\(maxPixel)")
-                    return img
+            let new = Task<UIImage?, Never>(priority: .userInitiated) { [weak self] in
+                await BlockingImageWork.shared.run { [weak self] in
+                    guard let self else { return nil }
+                    // disk hit 也走专用队列：避免 caller 在 main actor 上同步读 17MB JPEG。
+                    if let url = self.previewURL(for: photoId, maxPixel: maxPixel),
+                       self.fileManager.fileExists(atPath: url.path),
+                       let data = try? Data(contentsOf: url),
+                       let img = UIImage(data: data) {
+                        self.cachePreview(img, forKey: key as NSString)
+                        Log.gallery.debug("preview_disk_hit id=\(photoId.uuidString, privacy: .public) max=\(maxPixel)")
+                        return img
+                    }
+                    let timer = Log.perf("preview_decode", logger: Log.gallery)
+                    let options: [CFString: Any] = [
+                        kCGImageSourceShouldCache: false,
+                        kCGImageSourceShouldCacheImmediately: false
+                    ]
+                    guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
+                    let downOptions: [CFString: Any] = [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+                        kCGImageSourceCreateThumbnailWithTransform: true
+                    ]
+                    guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
+                    let opaque = ImageLoader.makeOpaque(cgThumb)
+                    let image = UIImage(cgImage: opaque)
+                    self.cachePreview(image, forKey: key as NSString)
+                    if let url = self.previewURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
+                        try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                        try? jpeg.write(to: url, options: .atomic)
+                    }
+                    timer.end("id=\(photoId.uuidString) max=\(maxPixel) px=\(cgThumb.width)x\(cgThumb.height)")
+                    return image
                 }
-                let timer = Log.perf("preview_decode", logger: Log.gallery)
-                let options: [CFString: Any] = [
-                    kCGImageSourceShouldCache: false,
-                    kCGImageSourceShouldCacheImmediately: false
-                ]
-                guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
-                let downOptions: [CFString: Any] = [
-                    kCGImageSourceCreateThumbnailFromImageAlways: true,
-                    kCGImageSourceThumbnailMaxPixelSize: maxPixel,
-                    kCGImageSourceCreateThumbnailWithTransform: true
-                ]
-                guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
-                let opaque = ImageLoader.makeOpaque(cgThumb)
-                let image = UIImage(cgImage: opaque)
-                self.cachePreview(image, forKey: key as NSString)
-                if let url = self.previewURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
-                    try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    try? jpeg.write(to: url, options: .atomic)
-                }
-                timer.end("id=\(photoId.uuidString) max=\(maxPixel) px=\(cgThumb.width)x\(cgThumb.height)")
-                return image
             }
             state.previews[key] = new
             return new
@@ -236,34 +275,36 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
 
         let task: Task<UIImage?, Never> = inflight.withLock { state in
             if let existing = state.thumbs[key] { return existing }
-            let new = Task<UIImage?, Never>.detached(priority: .userInitiated) { [weak self] in
-                guard let self else { return nil }
-                if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel),
-                   self.fileManager.fileExists(atPath: url.path),
-                   let data = try? Data(contentsOf: url),
-                   let img = UIImage(data: data) {
-                    self.cacheImage(img, forKey: key as NSString)
-                    return img
+            let new = Task<UIImage?, Never>(priority: .userInitiated) { [weak self] in
+                await BlockingImageWork.shared.run { [weak self] in
+                    guard let self else { return nil }
+                    if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel),
+                       self.fileManager.fileExists(atPath: url.path),
+                       let data = try? Data(contentsOf: url),
+                       let img = UIImage(data: data) {
+                        self.cacheImage(img, forKey: key as NSString)
+                        return img
+                    }
+                    let options: [CFString: Any] = [
+                        kCGImageSourceShouldCache: false,
+                        kCGImageSourceShouldCacheImmediately: false
+                    ]
+                    guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
+                    let thumbOptions: [CFString: Any] = [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+                        kCGImageSourceCreateThumbnailWithTransform: true
+                    ]
+                    guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
+                    let opaque = ImageLoader.makeOpaque(cgThumb)
+                    let image = UIImage(cgImage: opaque)
+                    self.cacheImage(image, forKey: key as NSString)
+                    if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.85) {
+                        try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                        try? jpeg.write(to: url, options: .atomic)
+                    }
+                    return image
                 }
-                let options: [CFString: Any] = [
-                    kCGImageSourceShouldCache: false,
-                    kCGImageSourceShouldCacheImmediately: false
-                ]
-                guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
-                let thumbOptions: [CFString: Any] = [
-                    kCGImageSourceCreateThumbnailFromImageAlways: true,
-                    kCGImageSourceThumbnailMaxPixelSize: maxPixel,
-                    kCGImageSourceCreateThumbnailWithTransform: true
-                ]
-                guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
-                let opaque = ImageLoader.makeOpaque(cgThumb)
-                let image = UIImage(cgImage: opaque)
-                self.cacheImage(image, forKey: key as NSString)
-                if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.85) {
-                    try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    try? jpeg.write(to: url, options: .atomic)
-                }
-                return image
             }
             state.thumbs[key] = new
             return new

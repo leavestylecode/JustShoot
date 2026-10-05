@@ -92,7 +92,7 @@ final class DiagnosticLogStore: Sendable {
             queue.async {
                 do {
                     try self.drain()
-                    var result = Data("JustShoot diagnostics schema=2 retained_files=3 max_file_bytes=\(self.maximumFileBytes) file_write_failures=\(self.writeFailures.withLock { $0 })\n".utf8)
+                    var result = Data("JustShoot diagnostics schema=\(Diagnostics.schemaVersion) retained_files=3 max_file_bytes=\(self.maximumFileBytes) file_write_failures=\(self.writeFailures.withLock { $0 })\n".utf8)
                     for index in stride(from: self.fileCount - 1, through: 0, by: -1) {
                         if FileManager.default.fileExists(atPath: self.file(index).path) {
                             result.append(try Data(contentsOf: self.file(index)))

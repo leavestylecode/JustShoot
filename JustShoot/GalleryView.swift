@@ -218,8 +218,11 @@ struct GalleryView: View {
         let assetIDs = toDelete.compactMap { $0.assetLocalIdentifier }
         let rowIDs = toDelete.map { $0.id }
         let container = modelContext.container
+        let pipeline = CapturePipeline.shared
+        guard pipeline.beginDeletion(rowIDs) else { return }
 
         Task { @MainActor in
+            defer { pipeline.endDeletion(rowIDs) }
             do {
                 if !assetIDs.isEmpty {
                     try await PhotoLibrary.delete(localIdentifiers: assetIDs)

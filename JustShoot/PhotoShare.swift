@@ -39,55 +39,78 @@ import os
 
 // MARK: - 导出临时文件
 
+struct ShareExportDirectory {
+    let root: URL
+    static var application: Self {
+        Self(root: FileManager.default.temporaryDirectory.appendingPathComponent("Share", isDirectory: true))
+    }
+
+    func create() throws -> URL {
+        let directory = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    func remove(files: [URL]) {
+        let directories = Set(files.map { $0.deletingLastPathComponent().standardizedFileURL })
+        for directory in directories where directory.deletingLastPathComponent() == root.standardizedFileURL
+            && UUID(uuidString: directory.lastPathComponent) != nil {
+            try? FileManager.default.removeItem(at: directory)
+        }
+    }
+}
+
 enum PhotoShareExporter {
     /// 导出一组照片为临时文件 URL（全分辨率原图字节）。失败的单张跳过，不阻断其余。
     @MainActor
     static func export(_ photos: [Photo]) async -> [URL] {
-        let dir = cleanShareDirectory()
+        guard let dir = try? ShareExportDirectory.application.create() else { return [] }
         var urls: [URL] = []
         for photo in photos where !photo.isDeleted {
+            if Task.isCancelled { break }
             if let url = await exportFile(photo, into: dir) { urls.append(url) }
         }
+        if urls.isEmpty { try? FileManager.default.removeItem(at: dir) }
         return urls
     }
 
     /// 导出单张照片为临时 JPEG 文件 URL（全分辨率，保留 EXIF/GPS/朝向）。失败返回 nil。
     @MainActor
     static func export(_ photo: Photo) async -> URL? {
-        await exportFile(photo, into: cleanShareDirectory())
-    }
-
-    /// Share 临时目录，每轮导出前整体清掉重建——上一轮分享面板早已关闭、文件已被接收方拷走，
-    /// 不清的话 48MP JPEG 会在 tmp 里无限累积。
-    private static func cleanShareDirectory() -> URL {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("Share", isDirectory: true)
-        try? FileManager.default.removeItem(at: dir)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
+        guard let dir = try? ShareExportDirectory.application.create() else { return nil }
+        let result = await exportFile(photo, into: dir)
+        if result == nil { try? FileManager.default.removeItem(at: dir) }
+        return result
     }
 
     @MainActor
     private static func exportFile(_ photo: Photo, into dir: URL) async -> URL? {
+        guard !photo.isDeleted, !Task.isCancelled else { return nil }
+        // The model may be deleted by reconciliation while PhotoKit or encoding is suspended.
+        let photoID = photo.id
+        let captureDate = photo.timestamp
         guard let data = await PhotoImage.exifData(for: photo) else {
-            Log.gallery.error("share_export_no_data id=\(photo.id.uuidString, privacy: .public)")
+            Log.gallery.error("share_export_no_data id=\(photoID.uuidString, privacy: .public)")
             return nil
         }
+        guard !Task.isCancelled else { return nil }
         // 转码到主线程外——48MP HEIC→JPEG 重编码有 CPU 成本，不阻塞 UI。
-        let transcoded = await Task.detached(priority: .userInitiated) {
+        let transcoded = await BlockingImageWork.shared.run {
             jpegData(from: data)
-        }.value
+        }
+        guard !Task.isCancelled else { return nil }
         guard let jpeg = transcoded else {
-            Log.gallery.error("share_export_transcode_failed id=\(photo.id.uuidString, privacy: .public)")
+            Log.gallery.error("share_export_transcode_failed id=\(photoID.uuidString, privacy: .public)")
             return nil
         }
         // 文件名带日期前缀，分享出去的图在对方设备上更可读（不是一串 UUID）。
-        let stamp = photo.timestamp.formatted(.iso8601.year().month().day().dateSeparator(.dash))
-        let url = dir.appendingPathComponent("JustShoot-\(stamp)-\(photo.id.uuidString.prefix(8)).jpg")
+        let stamp = captureDate.formatted(.iso8601.year().month().day().dateSeparator(.dash))
+        let url = dir.appendingPathComponent("JustShoot-\(stamp)-\(photoID.uuidString.prefix(8)).jpg")
         do {
-            try jpeg.write(to: url, options: .atomic)
+            try await Task.detached(priority: .userInitiated) { try jpeg.write(to: url, options: .atomic) }.value
             return url
         } catch {
-            Log.gallery.error("share_export_write_failed id=\(photo.id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+            Log.gallery.error("share_export_write_failed id=\(photoID.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
@@ -147,9 +170,16 @@ enum SharePresenter {
     /// 从最顶层已呈现的 VC present 系统分享面板。入参是 PhotoShareExporter 导出的图片临时文件 URL；
     /// 每个 URL 包成 SharePhotoItem（UIActivityItemSource），让接收方当**照片**而非文件处理。
     static func present(_ urls: [URL]) {
-        guard !urls.isEmpty, let top = topViewController() else { return }
+        guard !urls.isEmpty else { return }
+        guard let top = topViewController() else {
+            ShareExportDirectory.application.remove(files: urls)
+            return
+        }
         let items = urls.map { SharePhotoItem(fileURL: $0) }
         let vc = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        vc.completionWithItemsHandler = { _, _, _, _ in
+            ShareExportDirectory.application.remove(files: urls)
+        }
         // iPad / 弹出场景需要锚点（本 app 锁竖屏 iPhone，但 popover 控制器存在时不设会崩）。
         if let pop = vc.popoverPresentationController {
             pop.sourceView = top.view

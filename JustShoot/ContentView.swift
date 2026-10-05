@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var importISO = "200"
     @State private var importError: String?
     @State private var showImportError = false
+    @State private var operationErrorTitle: LocalizedStringKey = "Import failed"
     @State private var importTask: Task<Void, Never>?
     /// 命名空间用于把列表 tile 的封面与拍摄页通过 zoom 过渡关联。
     /// 每个 tile 用 source.id 作为匹配键；拍摄页 destination 同 id 应用 navigationTransition(.zoom)。
@@ -107,7 +108,7 @@ struct ContentView: View {
                 )
                 .presentationDetents([.height(280)])
             }
-            .alert("Import failed", isPresented: $showImportError) {
+            .alert(operationErrorTitle, isPresented: $showImportError) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(importError ?? String(localized: "Unknown error"))
@@ -122,6 +123,7 @@ struct ContentView: View {
     // MARK: - File Import
 
     private func handleFileImport(_ result: Result<[URL], any Error>) {
+        operationErrorTitle = "Import failed"
         switch result {
         case .success(let urls):
             guard let url = urls.first else { return }
@@ -153,6 +155,7 @@ struct ContentView: View {
     }
 
     private func confirmImport() {
+        operationErrorTitle = "Import failed"
         guard let sourceURL = importedFileURL, let cube = importedCube else { return }
 
         let iso = Float(importISO) ?? 200
@@ -189,6 +192,7 @@ struct ContentView: View {
                 FilmProcessor.shared.preload(source: source)
             }
         } catch {
+            modelContext.rollback()
             // 文件可能已写入而行保存失败——删掉孤儿 .cube，否则 Documents/CustomLUTs 里
             // 累积无主文件（文件未写入时 removeItem 是无害 no-op）。
             try? FileManager.default.removeItem(at: destURL)
@@ -208,13 +212,13 @@ struct ContentView: View {
     }
 
     private func deleteCustomLUT(_ lut: CustomLUT) {
-        // 删除文件
-        try? FileManager.default.removeItem(at: lut.fileURL)
-        // 同步清理 FilmProcessor 内存里这枚 LUT 的缓存——否则进程存活期间会一直占用
-        //（一个 64³ cube ≈ 3MB），随导入/删除次数无上限增长。趁 lut 仍有效先取 cacheKey。
-        FilmProcessor.shared.removeCachedLUT(cacheKey: FilmSource.from(lut).lutCacheKey)
-        modelContext.delete(lut)
-        try? modelContext.save()
+        do {
+            try CustomLUTPersistence.delete(lut, in: modelContext)
+        } catch {
+            operationErrorTitle = "Could not delete filter"
+            importError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
+            showImportError = true
+        }
     }
 
     // MARK: - Preload

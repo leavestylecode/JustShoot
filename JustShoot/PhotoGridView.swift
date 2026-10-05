@@ -37,6 +37,15 @@ enum GalleryShape: String, CaseIterable, Identifiable {
 //
 // 与 SwiftUI 外壳的分工：网格滚动/cell/预取/多选在这里（UIKit）；选择状态、工具栏、tab 栏
 // 隐藏、下载/删除、详情 push 仍在 GalleryView（SwiftUI），通过 @Binding 双向同步。
+struct PhotoGridItemRevision: Equatable {
+    let assetID: String?
+    let isLive: Bool
+
+    static func changedIDs(from previous: [UUID: Self], to current: [UUID: Self]) -> [UUID] {
+        current.keys.filter { previous[$0] != nil && previous[$0] != current[$0] }
+    }
+}
+
 struct PhotoGridView: UIViewRepresentable {
     let photos: [Photo]
     let columns: Int            // 网格列数（密度）——左上角菜单切换
@@ -98,6 +107,7 @@ struct PhotoGridView: UIViewRepresentable {
         private var dataSource: UICollectionViewDiffableDataSource<Int, UUID>!
         private var photoByID: [UUID: Photo] = [:]
         private var lastIDs: [UUID] = []
+        private var lastRevisions: [UUID: PhotoGridItemRevision] = [:]
 
         init(_ parent: PhotoGridView) { self.parent = parent }
 
@@ -113,14 +123,21 @@ struct PhotoGridView: UIViewRepresentable {
         }
 
         func apply(photos: [Photo], animating: Bool) {
-            let ids = photos.map { $0.id }
-            photoByID = Dictionary(photos.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            // 选择切换会高频触发 updateUIView——id 列表没变就跳过 snapshot apply，只有真正增删才刷新。
-            guard ids != lastIDs else { return }
+            let current = photos.filter { !$0.isDeleted }
+            let ids = current.map { $0.id }
+            photoByID = Dictionary(current.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            let revisions = photoByID.mapValues { PhotoGridItemRevision(assetID: $0.assetLocalIdentifier, isLive: $0.isLivePhoto) }
+            let changedIDs = PhotoGridItemRevision.changedIDs(from: lastRevisions, to: revisions)
+            // A retry/migration can change content without changing identity. Selection-only
+            // updates still avoid a snapshot, but a newly saved asset must refresh its cell.
+            guard ids != lastIDs || !changedIDs.isEmpty else { return }
             lastIDs = ids
+            lastRevisions = revisions
             var snapshot = NSDiffableDataSourceSnapshot<Int, UUID>()
             snapshot.appendSections([0])
             snapshot.appendItems(ids)
+            let existingIDs = Set(dataSource.snapshot().itemIdentifiers)
+            snapshot.reconfigureItems(changedIDs.filter { existingIDs.contains($0) })
             dataSource.apply(snapshot, animatingDifferences: animating)
         }
 
@@ -290,6 +307,9 @@ final class PhotoCell: UICollectionViewCell {
         ])
 
         liveBadge.contentMode = .center
+        liveBadge.accessibilityIdentifier = "photo.liveBadge"
+        liveBadge.isAccessibilityElement = true
+        liveBadge.accessibilityLabel = String(localized: "Live Photo")
         liveBadge.translatesAutoresizingMaskIntoConstraints = false
         liveBadge.isHidden = true
         liveBadge.image = UIImage(systemName: "livephoto",
@@ -330,6 +350,13 @@ final class PhotoCell: UICollectionViewCell {
 
     // MARK: 缩略图加载
     private func loadThumbnail(photo: Photo, maxPixel: Int) {
+        // reconfigureItems does not call prepareForReuse. Invalidate even on cache hits,
+        // otherwise a callback for the previous configuration can overwrite the new image.
+        let token = UUID()
+        loadToken = token
+        AssetImageLoader.shared.cancel(assetRequestID)
+        assetRequestID = PHInvalidImageRequestID
+        guard !photo.isDeleted else { imageView.image = nil; return }
         let id = photo.id
 
         // 资产路径（真相源在系统相册）：同步缓存命中即零延迟；否则 PHImageManager opportunistic
@@ -339,8 +366,6 @@ final class PhotoCell: UICollectionViewCell {
                 imageView.image = img
                 return
             }
-            let token = UUID()
-            loadToken = token
             assetRequestID = AssetImageLoader.shared.requestThumbnail(id: aid, maxPixel: maxPixel) { [weak self] img in
                 guard let self, self.loadToken == token, let img else { return }
                 self.imageView.image = img
@@ -355,8 +380,6 @@ final class PhotoCell: UICollectionViewCell {
             return
         }
         guard let data = photo.imageData else { return }
-        let token = UUID()
-        loadToken = token
         Task { @MainActor in
             if let img = await ImageLoader.shared.cachedOrDiskThumbnail(photoId: id, maxPixel: maxPixel) {
                 if self.loadToken == token { self.imageView.image = img }

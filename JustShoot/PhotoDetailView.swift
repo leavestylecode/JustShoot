@@ -204,16 +204,24 @@ struct PhotoDetailView: View {
         .toolbar { navigationToolbar }
         .toolbar { bottomToolbar }
         .onAppear {
+            Diagnostics.emit("photo_detail_open", id: currentPhotoID?.uuidString ?? "photo-detail", fields: "count=\(photos.count)")
             dismisser.onDismiss = { dismiss() }
             reconcilePhotos()
             schedulePreheat()
         }
         .onChange(of: currentPhotoID) { _, _ in
+            Diagnostics.emit("photo_detail_selection", id: currentPhotoID?.uuidString ?? "photo-detail")
             // 翻页/scrubber tap/删除都走这里。统一 debounce ~70ms：快速连翻时只在用户停下后才真正
             // 启动 thumb warmup + ±2 preview 预解，中间所有 cancel 掉的 Task 在 sleep 里就退出，
             // 不会重建 TaskGroup / 不会触发并行 decode。
             // zoom 重置由 ZoomablePhotoView 根据 isCurrent 处理；图片缓存由 NSCache 自然淘汰。
             schedulePreheat()
+        }
+        .onDisappear {
+            thumbWarmupTask?.cancel()
+            previewPreloadTask?.cancel()
+            thumbWarmupTask = nil
+            previewPreloadTask = nil
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             ImageLoader.shared.clearCache()
@@ -252,7 +260,7 @@ struct PhotoDetailView: View {
             // 资产路径：批量 PHCachingImageManager 预取（idle 后台预解码）；遗留路径：节流解码。
             var assetIDs: [String] = []
             var legacy: [(UUID, Data)] = []
-            for photo in ordered {
+            for photo in ordered where !photo.isDeleted {
                 if let aid = photo.assetLocalIdentifier { assetIDs.append(aid) }
                 else if let data = photo.imageData { legacy.append((photo.id, data)) }
             }
@@ -402,26 +410,29 @@ struct PhotoDetailView: View {
         let deletedId = photoToDelete.id
         let assetID = photoToDelete.assetLocalIdentifier
         let container = modelContext.container
+        let pipeline = CapturePipeline.shared
+        guard pipeline.beginDeletion([deletedId]) else { return }
+        let orderedIDs = photos.filter { !$0.isDeleted }.map(\.id)
 
         // 真相源在系统相册：先 PHAsset 删除（系统弹原生确认）。用户确认 → 更新 UI + 删索引行；
         // 取消 → 抛错，照片原样保留（不做乐观移除，避免删失败后照片"复活"闪烁）。
         Task { @MainActor in
+            defer { pipeline.endDeletion([deletedId]) }
             do {
                 if let assetID { try await PhotoLibrary.delete(localIdentifiers: [assetID]) }
+                let saver = PhotoSaver(modelContainer: container)
+                try await saver.delete(ids: [deletedId])
                 // "下一张"必须在删除事务完成、按当前数组重解——系统确认弹窗可挂起数秒，期间
                 // reconcile / 外部删除可能已改动 photos，await 前解出的邻位索引会指向错误照片。
                 // 优先右邻（移除后原 idx 位置即右邻），最末位回退左邻（即新末位）。
-                if let idx = photos.firstIndex(where: { $0.id == deletedId }) {
-                    photos.remove(at: idx)
-                    let nextID = photos.indices.contains(idx) ? photos[idx].id : photos.last?.id
-                    if let nextID { currentPhotoID = nextID } else { dismiss() }
-                } else {
-                    // 行已被 reconcile 抢先剪掉：对账兜底选中/退出。
-                    reconcilePhotos()
+                photos.removeAll { $0.isDeleted || $0.id == deletedId }
+                if currentPhotoID == deletedId, let index = orderedIDs.firstIndex(of: deletedId) {
+                    let remaining = Set(photos.map(\.id))
+                    let candidates = Array(orderedIDs.dropFirst(index + 1)) + Array(orderedIDs.prefix(index).reversed())
+                    currentPhotoID = candidates.first { remaining.contains($0) }
                 }
+                reconcilePhotos()
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
-                let saver = PhotoSaver(modelContainer: container)
-                try await saver.delete(ids: [deletedId])
                 ImageLoader.shared.removeDiskCache(for: deletedId)
                 Log.save.info("photo_deleted id=\(deletedId.uuidString, privacy: .public)")
             } catch {
@@ -450,6 +461,14 @@ private struct PagerImage: View {
 
     @State private var preview: UIImage?
     @State private var asyncThumb: UIImage?
+    @State private var loadFailed = false
+    @State private var loadAttempt = 0
+
+    private struct LoadRequest: Hashable {
+        let photoID: UUID
+        let assetID: String?
+        let attempt: Int
+    }
 
     /// 取图优先级（按分辨率从高到低）：
     ///   State.preview > NSCache preview > State.asyncThumb > NSCache thumb (any size)
@@ -497,20 +516,38 @@ private struct PagerImage: View {
             } else {
                 ZStack {
                     Color.black
-                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    VStack(spacing: 12) {
+                        if loadFailed {
+                            Text("Unable to load photo").foregroundStyle(.secondary)
+                        } else {
+                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        }
+                        Button("Retry") { loadAttempt += 1 }
+                            .tint(.white)
+                    }
                 }
             }
         }
-        .task(id: photo.id) {
+        .task(id: LoadRequest(photoID: photo.id, assetID: photo.isDeleted ? nil : photo.assetLocalIdentifier, attempt: loadAttempt)) {
+            guard !photo.isDeleted else { return }
+            let trace = DiagnosticTrace(id: photo.id.uuidString)
+            let load = trace.span("photo_page_load", "attempt=\(loadAttempt) asset_backed=\(photo.assetLocalIdentifier != nil)")
+            loadFailed = false
             // 已经有任何可显示的图（State 或 NSCache）就不再付低分缩略图的解码——
             // 避免高分 preview 已在 cache 里时还白白解一张 thumb，body 重渲染顺序不当时
             // 还会触发主图降级闪烁。
             if displayImage == nil {
-                asyncThumb = await PhotoImage.thumbnail(for: photo, maxPixel: PhotoDetailView.placeholderMaxPixel)
+                let thumbnail = await PhotoImage.thumbnail(for: photo, maxPixel: PhotoDetailView.placeholderMaxPixel, trace: trace)
+                guard !Task.isCancelled else { load.end("cancelled"); return }
+                asyncThumb = thumbnail
             }
             if preview == nil {
-                preview = await PhotoImage.preview(for: photo, maxPixel: previewMaxPixel)
+                let image = await PhotoImage.preview(for: photo, maxPixel: previewMaxPixel, trace: trace)
+                guard !Task.isCancelled else { load.end("cancelled"); return }
+                preview = image
             }
+            loadFailed = displayImage == nil
+            load.end(preview != nil ? "ok" : loadFailed ? "missing" : "thumbnail_only")
         }
     }
 }
@@ -808,9 +845,12 @@ private struct LivePhotoPage: View {
         // 在安全区内（导航栏下方）统一绘制，见 body 的 .overlay。
         // photo.id + isCurrent 任一变化都重评估：翻到该页（isCurrent 变 true）即异步加载 live 资源。
         .task(id: "\(photo.id.uuidString)-\(isCurrent)") {
-            guard isCurrent, livePhoto == nil, let aid = photo.assetLocalIdentifier else { return }
+            guard !photo.isDeleted, isCurrent, livePhoto == nil, let aid = photo.assetLocalIdentifier else { return }
             let side = CGFloat(targetMaxPixel)
-            livePhoto = await AssetImageLoader.shared.livePhoto(id: aid, targetSize: CGSize(width: side, height: side))
+            let result = await AssetImageLoader.shared.livePhoto(id: aid, targetSize: CGSize(width: side, height: side),
+                trace: DiagnosticTrace(id: photo.id.uuidString))
+            guard !Task.isCancelled else { return }
+            livePhoto = result
         }
     }
 }
@@ -1102,9 +1142,12 @@ private struct PhotoInfoPanel: View {
         .task(id: photo.id) {
             // 资产照片从系统相册异步取原始字节再解析；遗留照片直接读内部 blob。
             guard let data = await PhotoImage.exifData(for: photo) else { return }
-            exif = await Task.detached(priority: .userInitiated) {
+            guard !Task.isCancelled else { return }
+            let result = await Task.detached(priority: .userInitiated) {
                 ParsedExifInfo.parse(from: data)
             }.value
+            guard !Task.isCancelled else { return }
+            exif = result
         }
     }
 }

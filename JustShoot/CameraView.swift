@@ -41,12 +41,15 @@ struct CameraView: View {
     /// 放开后用户即可按下一张；在途的多张拍照由 CameraManager 按 uniqueID 分桶、互不覆盖。
     @State private var isShutterBusy = false
     @ObservedObject private var capturePipeline = CapturePipeline.shared
-    @State private var preparedLUT: (key: String, lut: CubeLUT)?
+    @State private var preparedLUT: (key: String, lut: CubeLUT, profile: FilmRenderProfile)?
+    @State private var lutPreparationCadence = CameraLUTPreparationCadence()
+    @State private var whiteBalanceSelection: CameraWhiteBalanceSelection = .automatic
+    @State private var tintSelection: CameraTintSelection = .automatic
     @State private var shutterPressed = false
     /// 拍照 pipeline 完成时立即 push 进来的 88pt 缩略图 hint（避免等 @Query 通知链 ~300-500ms）。
     /// RecentPhotosBadge 通过 @Binding 读写：source 切换时它会清空 hint 并从新 source 的 @Query
     /// 重新 bootstrap。
-    @State private var lastPhotoThumbnail: UIImage?
+    @State private var lastPhotoThumbnail: RecentPhotoThumbnail?
     @State private var focusPoint: CGPoint? = nil
     @State private var showFocusIndicator = false
     /// tap+drag 手势状态：值为 nil 表示当前没有进行中的手势——onEnded 时清空。
@@ -69,6 +72,10 @@ struct CameraView: View {
     /// 预览左右滑动切胶片：手势开始时的 allFilmSources 索引基线。每次 onChanged 累加 delta
     /// 后映射到目标 index，与 iPhone 原相机滤镜横滑切换同手感。nil = 当前没有 swipe 进行中。
     @State private var dragStartFilmIndex: Int? = nil
+    @State private var previewGestureRouting = PreviewGestureRouting()
+    @State private var gestureAllowsFilmSwipe = false
+    @State private var gestureOrientation: UIDeviceOrientation = .portrait
+    @GestureState private var previewGestureActive = false
 
     init(source: FilmSource) {
         _source = State(initialValue: source)
@@ -91,9 +98,10 @@ struct CameraView: View {
                         // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
                         RealtimePreviewView(
                             manager: cameraManager,
-                            lutCacheKey: previewLUTKey,
-                            grain: source.renderProfile.grain,
-                            optics: source.renderProfile.optics
+                            lutCacheKey: preparedLUT?.key ?? previewLUTKey,
+                            preparedLUT: preparedLUT?.lut,
+                            grain: preparedLUT?.profile.grain ?? source.renderProfile.grain,
+                            optics: preparedLUT?.profile.optics ?? source.renderProfile.optics
                         )
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .contentShape(Rectangle())
@@ -102,6 +110,7 @@ struct CameraView: View {
                         if showFocusIndicator, let point = focusPoint {
                             FocusIndicatorView()
                                 .position(point)
+                                .allowsHitTesting(false)
 
                             // 曝光补偿 sun rail（iPhone Camera 风格）：靠近预览右边缘时翻到对焦框左侧,
                             // 永远保持在可视区域内。allowsHitTesting(false) 让手势穿透到下层预览,
@@ -117,6 +126,26 @@ struct CameraView: View {
                             .position(sunRailPosition(focus: point, viewport: geometry.size))
                             .allowsHitTesting(false)
                         }
+
+                        WhiteBalanceControl(
+                            selection: whiteBalanceSelection,
+                            tint: tintSelection,
+                            automaticReading: cameraManager.automaticWhiteBalanceReading,
+                            onTemperature: { value in
+                                if let kelvin = CameraWhiteBalancePolicy.temperature(value) {
+                                    whiteBalanceSelection = .temperature(kelvin)
+                                }
+                            },
+                            onTint: { value in
+                                if let tint = CameraWhiteBalancePolicy.tint(value) { tintSelection = .value(tint) }
+                            },
+                            onAutomaticTemperature: { whiteBalanceSelection = .automatic },
+                            onAutomaticTint: { tintSelection = .automatic },
+                            onEditingEnded: {
+                                cameraManager.diagnostics.event("color_adjustment_selected", colorAdjustmentDiagnosticFields)
+                            }
+                        )
+                        .padding(10)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -369,11 +398,10 @@ struct CameraView: View {
                                 .animation(.easeInOut(duration: 0.1), value: shutterPressed)
                         }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(CaptureShutterButtonStyle())
                     .accessibilityLabel("Capture")
                     .accessibilityHint("Take a photo")
                     .disabled(preparedLUT?.key != previewLUTKey)
-                    .opacity(preparedLUT?.key == previewLUTKey ? 1 : 0.45)
 
                     Spacer()
 
@@ -439,25 +467,55 @@ struct CameraView: View {
         .onChange(of: showFlash) { _, visible in
             cameraManager.diagnostics.event("shutter_overlay_changed", "visible=\(visible)")
         }
+        .onChange(of: previewGestureActive) { _, active in
+            if !active { resetPreviewGesture() }
+        }
         // 编辑当前用户曲线时 ID 不变、内容指纹会变化；监听完整后缀可确保新 LUT 立即预热。
         .task(id: previewLUTKey) {
             let key = previewLUTKey
+            guard preparedLUT?.key != key else { return }
             let requestedSource = source
             let curve = selectedCurve
-            let lutWait = cameraManager.diagnostics.span("camera_lut_prepare", "grain=\(source.renderProfile.grain.amount) halation=\(source.renderProfile.optics.halationAmount) bloom=\(source.renderProfile.optics.bloomAmount)")
-            let lut = await Task.detached(priority: .userInitiated) {
-                FilmProcessor.shared.preload(source: requestedSource, curve: curve)
-                return FilmProcessor.shared.getCachedLUT(cacheKey: key)
-            }.value
-            lutWait.end(lut == nil ? "missing" : "ok", "cancelled=\(Task.isCancelled)")
-            guard !Task.isCancelled, key == previewLUTKey else { return }
-            preparedLUT = lut.map { (key, $0) }
-            cameraManager.diagnostics.event("camera_lut_ready", "dimension=\(lut?.dimension ?? 0)")
-            if lut == nil { captureError = String(localized: "This LUT is invalid or unsupported.") }
+            let selection = whiteBalanceSelection
+            let tint = tintSelection
+            let reference = cameraManager.automaticWhiteBalanceReading
+            guard ResolvedCameraColorAdjustment.resolve(temperature: selection, tint: tint, reading: reference) != nil else {
+                cameraManager.diagnostics.event("color_adjustment_waiting", "reason=automatic_reading_unavailable")
+                return
+            }
+            let requestedAt = ProcessInfo.processInfo.systemUptime
+            let delay = lutPreparationCadence.delay(at: requestedAt)
+            do {
+                if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
+                try Task.checkCancellation()
+            } catch { return }
+            guard key == previewLUTKey else { return }
+            lutPreparationCadence.started(at: ProcessInfo.processInfo.systemUptime)
+            let lutWait = cameraManager.diagnostics.span("camera_lut_prepare",
+                "\(colorAdjustmentDiagnosticFields) cadence_wait_ms=\(Diagnostics.milliseconds(since: requestedAt))")
+            do {
+                let lut = try await ColorTemperatureLUT.shared.prepare(source: requestedSource, curve: curve, selection: selection, tint: tint, reference: reference)
+                lutWait.end("ok", "cancelled=\(Task.isCancelled)")
+                guard !Task.isCancelled, key == previewLUTKey else { return }
+                preparedLUT = (key, lut, requestedSource.renderProfile)
+                cameraManager.diagnostics.event("camera_lut_ready", "dimension=\(lut.dimension) \(colorAdjustmentDiagnosticFields)")
+            } catch is CancellationError {
+                lutWait.end("cancelled")
+            } catch {
+                lutWait.end("error", Diagnostics.errorFields(error))
+                guard !Task.isCancelled, key == previewLUTKey else { return }
+                if !selection.isAutomatic || !tint.isAutomatic {
+                    whiteBalanceSelection = .automatic
+                    tintSelection = .automatic
+                    captureError = String(localized: "Color adjustments could not be applied. Auto has been restored.")
+                } else {
+                    captureError = String(localized: "This LUT is invalid or unsupported.")
+                }
+            }
         }
         .onReceive(capturePipeline.$lastCompletion) { completion in
             guard let completion, completion.filterName == source.photoFilterName else { return }
-            lastPhotoThumbnail = completion.thumbnail
+            lastPhotoThumbnail = RecentPhotoThumbnail(id: completion.id, filterName: completion.filterName, image: completion.thumbnail)
         }
         .onDisappear {
             cameraManager.diagnostics.event("camera_view_disappear")
@@ -504,7 +562,17 @@ struct CameraView: View {
 
     private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }
     private var previewLUTKey: String {
-        FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: selectedCurve)
+        let baseKey = FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: selectedCurve)
+        return ColorTemperatureLUT.cacheKey(baseKey: baseKey, selection: whiteBalanceSelection,
+            tint: tintSelection, reference: cameraManager.automaticWhiteBalanceReading)
+    }
+
+    private var colorAdjustmentDiagnosticFields: String {
+        let reading = cameraManager.automaticWhiteBalanceReading
+        let resolved = reading.flatMap { ResolvedCameraColorAdjustment.resolve(temperature: whiteBalanceSelection, tint: tintSelection, reading: $0) }
+        return "temperature_backend=lut temperature_auto=\(whiteBalanceSelection.isAutomatic) tint_auto=\(tintSelection.isAutomatic) " +
+            "kelvin=\(resolved.map { String($0.temperature) } ?? "unavailable") tint=\(resolved.map { String($0.tint) } ?? "unavailable") " +
+            "reference_kelvin=\(reading.map { String($0.temperature) } ?? "unavailable") reference_tint=\(reading.map { String($0.tint) } ?? "unavailable")"
     }
 
     /// 与拍照后立即写入的 thumbnail size 对齐——同 key 命中 NSCache，零额外解码。
@@ -535,7 +603,7 @@ struct CameraView: View {
         }
         let requestedID = UUID()
         let captureTrace = DiagnosticTrace(id: requestedID.uuidString)
-        captureTrace.event("shutter_tap", "camera=\(cameraManager.diagnostics.id) pending=\(capturePipeline.pendingCount) requested_live=\(livePhotoEnabled)")
+        captureTrace.event("shutter_tap", "camera=\(cameraManager.diagnostics.id) pending=\(capturePipeline.pendingCount) requested_live=\(livePhotoEnabled) \(colorAdjustmentDiagnosticFields)")
         let tapTime = Log.now()
         // 拍摄时刻快照：相册 creationDate 必须反映按快门的瞬间。后处理已串行排队，若在队列任务
         // 里才求值 Date()，连拍尾部照片的时间会晚数秒到数十秒（Photos 按 creationDate 排序展示）。
@@ -721,26 +789,53 @@ struct CameraView: View {
     /// **进 EV 双条件**：|dy| > 14pt **且** |dy| > |dx| × 1.5。挡住手抖与斜向滑动。
     /// **EV 灵敏度**：100pt = 1 EV；配合 ±1 EV 上限，满程 ±100pt 即触底。
     ///
-    /// **picker 展开时的分流**：`showFilmPicker == true` 时整条手势改为"左右滑动切胶片"，
-    /// 原对焦/EV 路径完全跳过。两套手势挂在同一个 DragGesture 上而不是条件切换 .gesture
-    /// modifier——避免 SwiftUI 重建 RealtimePreviewView 导致 MTKView 闪一下。
+    /// Picker 展开时仍保留点按对焦和垂直 EV；水平主导手势才切胶片。
+    /// 一次手势锁定一个用途，两个方向都按手势开始时的持机方向解释。
     private func unifiedPreviewGesture(viewportSize: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 0)
+            .updating($previewGestureActive) { _, active, _ in active = true }
             .onChanged { value in
-                if showFilmPicker {
+                guard !isShutterBusy else { return }
+                if dragStartLocation == nil {
+                    gestureAllowsFilmSwipe = showFilmPicker
+                    gestureOrientation = cameraManager.currentDeviceOrientation
+                    handleFocusEvChanged(value: value, viewportSize: viewportSize)
                     handleFilmSwipeChanged(value)
-                } else {
+                }
+                let movement = perceivedTranslation(value.translation)
+                switch previewGestureRouting.update(horizontal: movement.horizontal, vertical: movement.vertical,
+                    allowsFilmSwipe: gestureAllowsFilmSwipe) {
+                case .film:
+                    if didShowReticleThisGesture { cancelFocusReticle(); didShowReticleThisGesture = false }
+                case .exposure, .undecided:
                     handleFocusEvChanged(value: value, viewportSize: viewportSize)
                 }
             }
             .onEnded { value in
-                cameraManager.diagnostics.event("preview_gesture_ended", "film_picker=\(showFilmPicker) adjusting_ev=\(isAdjustingExposure) ev=\(cameraManager.exposureBias)")
-                if showFilmPicker {
+                defer { resetPreviewGesture() }
+                guard !isShutterBusy else { return }
+                let movement = perceivedTranslation(value.translation)
+                let intent = previewGestureRouting.update(horizontal: movement.horizontal, vertical: movement.vertical,
+                    allowsFilmSwipe: gestureAllowsFilmSwipe)
+                if intent == .film {
+                    if didShowReticleThisGesture { cancelFocusReticle() }
                     handleFilmSwipeEnded(value)
                 } else {
+                    if intent == .exposure { handleFocusEvChanged(value: value, viewportSize: viewportSize) }
                     handleFocusEvEnded(value: value, viewportSize: viewportSize)
                 }
+                cameraManager.diagnostics.event("preview_gesture_ended", "film_picker=\(gestureAllowsFilmSwipe) intent=\(intent) ev=\(cameraManager.exposureBias)")
             }
+    }
+
+    private func resetPreviewGesture() {
+        if dragStartLocation != nil, didShowReticleThisGesture, !cameraManager.isFocusLocked { cancelFocusReticle() }
+        previewGestureRouting = PreviewGestureRouting()
+        dragStartLocation = nil
+        dragStartFilmIndex = nil
+        isAdjustingExposure = false
+        didShowReticleThisGesture = false
+        gestureAllowsFilmSwipe = false
     }
 
     private func handleFocusEvChanged(value: DragGesture.Value, viewportSize: CGSize) {
@@ -842,12 +937,9 @@ struct CameraView: View {
         let sources = allFilmSources
         guard sources.count > 1, let baseIndex = dragStartFilmIndex else { return }
 
-        // 注意：切胶片用**屏幕横轴**（value.translation.width），不走 perceivedTranslation 旋转重映射。
-        // picker 选择条是一条横向排布、不随设备方向旋转的条带（只有 cell 内容旋转）；横握时它在
-        // 屏幕上仍是左右排布，因此「沿条带方向左右滑」= 屏幕横滑，所有持机方向下保持一致。
-        // 对焦/EV 那套需要按用户感知轴重映射（上滑变亮），但本手势的参照物是屏幕上的条带，不该重映射。
-        let actual = value.translation.width
-        let predicted = value.predictedEndTranslation.width
+        // Use orthogonal perceived axes for film and exposure, including landscape holding.
+        let actual = perceivedTranslation(value.translation).horizontal
+        let predicted = perceivedTranslation(value.predictedEndTranslation).horizontal
         // 取绝对值更大者作为"有效位移"：慢拖需要够 50pt；快 flick 即便实际只走 20pt，
         // 预测落点也可能 > 50pt，照样切换。这是 UIKit UIScrollView paging 同款手感。
         let effectiveDx = abs(actual) >= abs(predicted) ? actual : predicted
@@ -882,16 +974,7 @@ struct CameraView: View {
     /// "上滑变亮"承诺扩展到所有持机方向的关键映射。
     @MainActor
     private func perceivedTranslation(_ t: CGSize) -> (vertical: CGFloat, horizontal: CGFloat) {
-        switch cameraManager.currentDeviceOrientation {
-        case .portraitUpsideDown:
-            return (t.height, -t.width)
-        case .landscapeLeft:   // home 在右
-            return (t.width, t.height)
-        case .landscapeRight:  // home 在左
-            return (-t.width, -t.height)
-        default:               // .portrait + faceUp/Down/unknown 兜底
-            return (-t.height, t.width)
-        }
+        PreviewGestureRouting.axes(for: t, orientation: gestureOrientation)
     }
 
     /// Sun rail 在预览中的位置：以对焦框为锚点，沿"用户感知右侧"偏移 60pt；
@@ -918,5 +1001,13 @@ struct CameraView: View {
             let x = pref + edgePad > viewport.width ? focus.x - offset : pref
             return CGPoint(x: x, y: focus.y)
         }
+    }
+}
+
+/// LUT preparation may temporarily gate capture without changing the shutter's appearance.
+/// Keep the existing press animation in the label; omit disabled-state dimming here.
+private struct CaptureShutterButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
     }
 }
