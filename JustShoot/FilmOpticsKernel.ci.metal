@@ -5,7 +5,7 @@ using namespace metal;
 
 // The CIContext working space is explicitly sRGB, matching the Metal preview.
 
-/// 肩部去饱和：LUT 之后逐像素应用。
+/// 肩部保护（去饱和 + 软压余量）：LUT 之后逐像素应用。
 [[stitchable]] float4 justShootHeadroom(
     coreimage::sample_t pixel,
     float amount,

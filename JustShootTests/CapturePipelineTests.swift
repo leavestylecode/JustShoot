@@ -318,8 +318,67 @@ final class CapturePipelineTests: XCTestCase {
         let luminance: Float = input[0] * 0.2126 + input[1] * 0.7152 + input[2] * 0.0722
         let t = min(1, max(0, (luminance - 0.5) / 0.5))
         let weight = t * t * (3 - 2 * t) * 0.8
-        let expected = input[0] + (luminance - input[0]) * weight
+        // headroom = 去饱和（向同亮度暖白）→ 亮度软压腾余量（shoulder 以上向 0.90 渐近），按 weight 渐入。
+        // 与 FilmOpticsMath.h 的 justShootApplyHeadroom 逐项对应；任一侧混入 linearization 都会超出容差。
+        let warmWhiteR = luminance * 1.000
+        let desaturatedR = input[0] + (warmWhiteR - input[0]) * weight
+        let ceiling: Float = 0.90
+        let range = ceiling - parameters.headroomShoulder
+        let compressed = parameters.headroomShoulder
+            + range * (1 - exp(-(luminance - parameters.headroomShoulder) / range))
+        let withHeadroomR = desaturatedR * (compressed / luminance)
+        let expected = desaturatedR + (withHeadroomR - desaturatedR) * weight
         XCTAssertEqual(pixels[0], expected, accuracy: 0.003)
+    }
+
+    /// 光晕合成不得硬截断：大面积亮面（64×64 均匀 0.95，模糊后中心能量≈1）加晕后仍收在
+    /// 1 以内、且高于底色，而不是被 clamp 成 1.0（回归旧 `clamp(base + halation + bloom, 0, 1)`
+    /// 把不同亮度压成同一片白、事后无法恢复层次的问题）。
+    func testOpticsCompositePreservesHighlightGradient() throws {
+        let srgb = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        let width = 64, height = 64
+        var bitmap = [Float](repeating: 0, count: width * height * 4)
+        for pixel in bitmap.indices where pixel % 4 != 3 { bitmap[pixel] = 0.95 }
+        let data = bitmap.withUnsafeBufferPointer { Data(buffer: $0) }
+        let image = CIImage(
+            bitmapData: data, bytesPerRow: width * 16,
+            size: CGSize(width: width, height: height), format: .RGBAf, colorSpace: srgb
+        )
+        var parameters = FilmOpticsParameters.disabled
+        parameters.halationAmount = 0.42
+        parameters.halationRadius = 4
+        parameters.halationHue = 0.35
+        parameters.bloomAmount = 0.30
+        parameters.bloomRadius = 8
+        let output = FilmOpticsRenderer.applyingLightDiffusion(to: image, parameters: parameters)
+        let context = CIContext(options: [.workingColorSpace: srgb, .outputColorSpace: srgb])
+        var pixels = [Float](repeating: 0, count: width * height * 4)
+        context.render(output, toBitmap: &pixels, rowBytes: width * 16, bounds: image.extent, format: .RGBAf, colorSpace: srgb)
+        // 取画面中心的像素（远离边界效应）。
+        let center = ((height / 2) * width + width / 2) * 4
+        // 能量≈1 → 饱和响应 0.632；0.95 + 光晕后 ≈1.18 被软肩收到 ≈0.979。
+        XCTAssertLessThan(pixels[center], 0.999, "光晕合成把超限亮度硬截断成 1.0")
+        XCTAssertGreaterThan(pixels[center], 0.95, "光晕加亮后应比底色更亮")
+        XCTAssertLessThan(pixels[center + 2], pixels[center], "halation 应把红通道抬得比蓝通道高")
+    }
+
+    /// 内置 LUT 加载时应用趾部抬升：黑端（输入 0.05 的中性灰）从 ≈0.003 抬到 ≥0.03 的可见区，
+    /// 而 0.16 以上的输出（如输入 0.30 ≈ 0.271）保持原样——影调风格不被改动。
+    func testBundledLUTAppliesShadowToe() throws {
+        let lut = try FilmProcessor.shared.loadCubeLUT(resourceName: "FujiProvia100F")
+        let dim = lut.dimension
+        func neutralLuma(_ x: Float) -> Float {
+            let index = Int(round(x * Float(dim - 1)))
+            return lut.data.withUnsafeBytes { raw -> Float in
+                let base = (index * dim * dim + index * dim + index) * 4
+                let r = raw.load(fromByteOffset: base * 4, as: Float.self)
+                let g = raw.load(fromByteOffset: (base + 1) * 4, as: Float.self)
+                let b = raw.load(fromByteOffset: (base + 2) * 4, as: Float.self)
+                return 0.2126 * r + 0.7152 * g + 0.0722 * b
+            }
+        }
+        XCTAssertGreaterThan(neutralLuma(0.05), 0.03, "暗部仍被压进 sRGB 底部不可见区")
+        XCTAssertEqual(neutralLuma(0.30), 0.2706, accuracy: 0.01, "趾部保护不应改动 0.16 以上的输出")
     }
 
     private func recipe(lut: CubeLUT) -> CaptureRecipe {

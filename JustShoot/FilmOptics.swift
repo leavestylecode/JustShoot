@@ -7,7 +7,9 @@ import CoreImage
 //   - halation：强光穿透乳剂层、经片基反射后**选择性再曝光红层**——高光周围的橙红光晕
 //     （CineStill 800T / Harman Phoenix 的招牌特征）。hue 控制红→橙的能量色偏。
 //   - bloom：光源的宽域辉光（镜头内散射 + 乳剂前向散射），近中性微暖。
-//   - headroom：肩部去饱和——负片高光向暖白褪色而非硬白剪切（Portra / Pro 400H 的奶油高光）。
+//   - headroom：肩部保护——高光先去饱和向暖白褪色（Portra / Pro 400H 的奶油高光），
+//     再把亮度软压到 0.90 以内腾出余量，让光晕加亮后仍走单调软肩收尾，高光层次不被
+//     硬截断成同一片白（详见 FilmOpticsMath.h 的高光保护总原则）。
 //
 // 三条渲染路径（Metal 预览 / 静态图 / Live Photo 视频）共享同一参数集与 4000px 基准的
 // 半径归一，保证预览所见与成片一致（半径 = 各自图像长边的同一比例 → FOV 一致）。
@@ -24,9 +26,9 @@ struct FilmOpticsParameters: Sendable, Equatable, Codable {
     /// bloom 半径，基准同 halationRadius。
     var bloomRadius: Float
 
-    /// 肩部去饱和深度（0 关闭）。
+    /// 肩部保护深度（去饱和 + 亮度软压，0 关闭）。
     var headroomAmount: Float
-    /// 去饱和起始的显示域 luma。
+    /// 肩部起始的显示域 luma（去饱和与软压共用同一渐入区间）。
     var headroomShoulder: Float
 
     static let disabled = FilmOpticsParameters(
@@ -134,7 +136,7 @@ enum FilmOpticsRenderer {
     private static let highlightKernel = kernel("justShootHighlightEnergy")
     private static let compositeKernel = kernel("justShootHaloComposite")
 
-    /// 肩部去饱和：逐像素，可与 LUT 输出直接串接。
+    /// 肩部保护（去饱和 + 软压余量）：逐像素，可与 LUT 输出直接串接。
     static func applyingHeadroom(to image: CIImage, parameters: FilmOpticsParameters) -> CIImage {
         guard parameters.headroomAmount > 0.0001,
               !image.extent.isEmpty,
@@ -148,7 +150,8 @@ enum FilmOpticsRenderer {
         ) ?? image
     }
 
-    /// halation + bloom：高光能量 → 双半径高斯扩散 → 加色染色合成。
+    /// halation + bloom：高光能量 → 双半径高斯扩散 → 饱和响应 + 加色染色合成。
+    /// 合成内核保留浮点并用软肩收尾（见 FilmOpticsMath.h），此处无需再夹值。
     static func applyingLightDiffusion(to image: CIImage, parameters: FilmOpticsParameters) -> CIImage {
         guard parameters.hasLightDiffusion,
               !image.extent.isEmpty,

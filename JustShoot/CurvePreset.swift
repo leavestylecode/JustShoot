@@ -184,8 +184,11 @@ enum CurvePreset: String, CaseIterable, Identifiable, Codable, Sendable {
             ])
             return (points, points, points)
         case .punch:
+            // 暗部校准：曲线作用在 LUT 输出上，若底部保持 0.12→0.045 的陡降，会与胶片本身的
+            // 反差叠加把可见纹理挤到黑端。抬高暗部两个控制点（0.12→0.07、0.28→0.20），
+            // 中高调斜率基本不变——"punch" 的观感来自中间调反差，不靠压碎阴影。
             let points = CurveMath.points([
-                (0, 0), (0.12, 0.045), (0.28, 0.17), (0.50, 0.50),
+                (0, 0), (0.12, 0.07), (0.28, 0.20), (0.50, 0.50),
                 (0.72, 0.84), (0.88, 0.955), (1, 1)
             ])
             return (points, points, points)

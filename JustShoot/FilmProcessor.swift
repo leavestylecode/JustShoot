@@ -98,6 +98,85 @@ final class FilmProcessor: Sendable {
         timer.end()
     }
 
+    // MARK: - 逐阶段诊断对照图
+    //
+    // 设置页开启「保留处理阶段对照图」（默认关）后，每次静态成片在
+    // Documents/ProcessingDiagnostics/<拍摄ID>/ 下额外写出四张图：
+    //   1_original（采集原片字节）/ 2_after_lut（LUT+曲线）/ 3_after_optics（肩部+光晕）/ 4_after_grain（最终渲染）
+    // 用于回答"细节在哪一步消失"：同一拍摄的原片与各阶段输出放进同一个查看器对比。
+    // 每张 48MP 10-bit HEIC 约 2–4 MB，只保留最近 6 次拍摄，其余自动清理；
+    // 失败只记日志、绝不影响出片。
+
+    /// 与 SettingsView 的 @AppStorage("processingStageDiagnostics") 共享；默认关。
+    static var stageDiagnosticsEnabled: Bool {
+        UserDefaults.standard.object(forKey: "processingStageDiagnostics") as? Bool ?? false
+    }
+
+    private static let stageDiagnosticsRetention = 6
+    private static var stageDiagnosticsRoot: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ProcessingDiagnostics", isDirectory: true)
+    }
+
+    private func writeStageDiagnostics(
+        id: UUID,
+        original: Data,
+        stages: [(name: String, image: CIImage)],
+        context: CIContext
+    ) {
+        let directory = Self.stageDiagnosticsRoot.appendingPathComponent(id.uuidString, isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+            // 原片按真实编码字节保留（AVCapture 交付 HEIC；极旧设备回退 JPEG 时按魔数定扩展名）。
+            let originalExtension = original.starts(with: [0xFF, 0xD8]) ? "jpg" : "heic"
+            try original.write(to: directory.appendingPathComponent("1_original.\(originalExtension)"), options: .atomic)
+
+            for stage in stages {
+                var encoded: Data?
+                var ext = "heic"
+                if let heif10 = try? context.heif10Representation(
+                    of: stage.image,
+                    colorSpace: srgbColorSpace,
+                    options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.9]
+                ) {
+                    encoded = heif10
+                } else if let jpeg = context.jpegRepresentation(
+                    of: stage.image,
+                    colorSpace: srgbColorSpace,
+                    options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.92]
+                ) {
+                    encoded = jpeg
+                    ext = "jpg"
+                }
+                if let encoded {
+                    try encoded.write(to: directory.appendingPathComponent("\(stage.name).\(ext)"), options: .atomic)
+                }
+            }
+            Self.pruneStageDiagnostics(keeping: Self.stageDiagnosticsRetention)
+            Log.lut.info("stage_diagnostics_written id=\(id.uuidString, privacy: .public) stages=\(stages.count + 1)")
+        } catch {
+            Log.lut.error("stage_diagnostics_write_failed id=\(id.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// 只保留最近 N 次拍摄的对照图目录；清理失败静默（下次写入再试）。
+    private static func pruneStageDiagnostics(keeping limit: Int) {
+        let fileManager = FileManager.default
+        guard let contents = try? fileManager.contentsOfDirectory(
+            at: stageDiagnosticsRoot,
+            includingPropertiesForKeys: [.creationDateKey]
+        ) else { return }
+        let dated = contents.compactMap { url -> (Date, URL)? in
+            let created = try? url.resourceValues(forKeys: [.creationDateKey]).creationDate
+            return (created ?? .distantPast, url)
+        }
+        guard dated.count > limit else { return }
+        for (_, url) in dated.sorted(by: { $0.0 > $1.0 }).dropFirst(limit) {
+            try? fileManager.removeItem(at: url)
+        }
+    }
+
     /// 构建期生成的直接加载格式：magic(8) + dimension(UInt32 LE) + floatCount(UInt32 LE)
     /// + RGBA Float32 LE。Apple 平台均为 little-endian，payload 可直接交给 CIColorCube / Metal。
     private static func decodeCompiledLUT(_ data: Data) throws -> CubeLUT {
@@ -170,9 +249,9 @@ final class FilmProcessor: Sendable {
         if let compiledURL = Bundle.main.url(forResource: resourceName, withExtension: "jslut") {
             do {
                 let data = try Data(contentsOf: compiledURL, options: .mappedIfSafe)
-                let cube = try Self.decodeCompiledLUT(data)
+                let cube = Self.applyingShadowToe(to: try Self.decodeCompiledLUT(data))
                 lock.withLock { $0.lutCache[resourceName] = cube }
-                totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=binary bytes=\(data.count)")
+                totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=binary bytes=\(data.count) shadow_toe=on")
                 return cube
             } catch {
                 Log.lut.error("lut_binary_load_failed name=\(resourceName, privacy: .public) error=\(error.localizedDescription, privacy: .public) fallback=text")
@@ -191,8 +270,8 @@ final class FilmProcessor: Sendable {
             let text = try Self.readCubeText(from: url)
             readTimer.end("name=\(resourceName) chars=\(text.count)")
             let parseTimer = Log.perf("lut_text_parse", logger: Log.lut)
-            let cube = try Self.parseCubeFile(text)
-            parseTimer.end("name=\(resourceName) dim=\(cube.dimension)")
+            let cube = Self.applyingShadowToe(to: try Self.parseCubeFile(text))
+            parseTimer.end("name=\(resourceName) dim=\(cube.dimension) shadow_toe=on")
             lock.withLock { $0.lutCache[resourceName] = cube }
             totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=text")
             return cube
@@ -204,6 +283,37 @@ final class FilmProcessor: Sendable {
 
     func preload(preset: FilmPreset) {
         _ = try? loadCubeLUT(resourceName: preset.lutResourceName)
+    }
+
+    // MARK: - 内置 LUT 暗部趾部保护
+    //
+    // 实测内置 .cube 的中性轴：部分胶片（尤其 Provia 100F）把输入 0.05 的中性灰压到加权
+    // luma ≈ 0.003——可见纹理被挤进 sRGB 底部约 1/255 的不可见区。这里在加载时对 LUT 的
+    // **输出值** 做逐通道趾部抬升（印相纸 base fog 的思路）：
+    //   y' = y + s · ((t − y)/t)² · t   （y < t；y ≥ t 恒等）
+    // t=0.16 以上完全不触碰，保留各卷影调风格；黑端最多抬 s·t ≈ 0.035，实测 Provia 0.05
+    // 输入从 0.003 → 0.037（≈9/255，可见）。烘焙进缓存数据后，预览 / 静态图 / Live Photo
+    // 与曲线合成共用同一份数据，三路数学自动一致。自定义 LUT 不做处理（用户导入什么就出什么）。
+    private static let shadowToeThreshold: Float = 0.16
+    private static let shadowToeStrength: Float = 0.22
+
+    private static func applyingShadowToe(to lut: CubeLUT) -> CubeLUT {
+        let t = shadowToeThreshold
+        let s = shadowToeStrength
+        var data = lut.data
+        data.withUnsafeMutableBytes { rawBuffer in
+            let floats = rawBuffer.bindMemory(to: Float.self)
+            for index in stride(from: 0, to: floats.count - 3, by: 4) {
+                for channel in 0..<3 {
+                    let y = floats[index + channel]
+                    if y < t {
+                        let distance = (t - y) / t
+                        floats[index + channel] = y + s * distance * distance * t
+                    }
+                }
+            }
+        }
+        return CubeLUT(data: data, dimension: lut.dimension)
     }
 
     /// 从文件 URL 加载自定义 LUT（用于用户导入的 .cube 文件）
@@ -322,6 +432,8 @@ final class FilmProcessor: Sendable {
     ///   与配对视频关联的 content identifier。静态图被 LUT 重编码后 AVCapture 原写入的 MakerApple
     ///   可能不可靠存活，所以由调用方显式传入同一个 UUID，两端（这里 + LivePhotoProcessor 写视频）
     ///   各自显式写入，配对不依赖原始字节往返。
+    /// - diagnosticCaptureID: 开启「保留处理阶段对照图」设置时（见 stageDiagnosticsEnabled），
+    ///   逐阶段写出原片 / LUT 后 / 光学后 / 成片四张对照图，用于定位细节在哪一步丢失。
     func applyLUTPreservingMetadata(
         imageData: Data,
         lutCacheKey: String,
@@ -333,7 +445,8 @@ final class FilmProcessor: Sendable {
         location: CLLocation? = nil,
         captureDate: Date = Date(),
         focalLengthIn35mm: Int? = nil,
-        contentIdentifier: String? = nil
+        contentIdentifier: String? = nil,
+        diagnosticCaptureID: UUID? = nil
     ) -> Data? {
         // 读取原始 metadata（AVCapture 写入的完整 EXIF / TIFF / Maker / 色彩空间字典）。
         // 一次读取，后面 orientation 判断 + metadata 注入都复用，避免重复打开 CGImageSource。
@@ -397,12 +510,24 @@ final class FilmProcessor: Sendable {
         guard let gradedOutput = colorCube.outputImage else { return nil }
         // 光学链（headroom → halation/bloom）在 LUT 后、颗粒前——颗粒代表显影终态的结构，
         // 应加在光晕已成形、去饱和已发生的"显影结果"上，与 Metal 预览同序。
+        // 诊断模式下各阶段各留一张对照图，与原片放同一查看器里即可定位细节丢失的环节。
+        let wantsStageDiagnostics = diagnosticCaptureID != nil && Self.stageDiagnosticsEnabled
+        var stageSamples: [(name: String, image: CIImage)] = []
+        if wantsStageDiagnostics {
+            stageSamples.append(("2_after_lut", gradedOutput))
+        }
         let opticallyGraded = FilmOpticsRenderer.applying(to: gradedOutput, parameters: optics)
+        if wantsStageDiagnostics {
+            stageSamples.append(("3_after_optics", opticallyGraded))
+        }
         let output = FilmGrainRenderer.applying(
             to: opticallyGraded,
             parameters: grain,
             seed: grainSeed
         )
+        if wantsStageDiagnostics {
+            stageSamples.append(("4_after_grain", output))
+        }
 
         // 渲染为 10-bit HEIC（HEVC Main10），与 iPhone Camera 出片比特深度对齐。
         // CIColorCubeWithColorSpace 在浮点域插值 LUT cell，输出的中间色精度本身就 > 8-bit，
@@ -523,6 +648,15 @@ final class FilmProcessor: Sendable {
         // 输入原始字节 / 编码后字节 全在一行。若 rendered_bytes 这里就只有几百 KB 而 out_dims 是完整
         // ~5500×4100，则问题在编码质量；若 out_dims 本身就小，则问题在采集/解码端。
         Log.lut.info("lut_render_done codec=\(codec, privacy: .public) out_dims=\(Int(outExtent.width))x\(Int(outExtent.height)) mp=\(String(format: "%.1f", outMP)) quality=\(String(format: "%.2f", Double(outputQuality))) grain=\(String(format: "%.3f", grain.amount)) optics=\(optics.isEnabled) halation=\(String(format: "%.2f", optics.halationAmount)) bloom=\(String(format: "%.2f", optics.bloomAmount)) headroom=\(String(format: "%.2f", optics.headroomAmount)) in_bytes=\(imageData.count) rendered_bytes=\(rendered.count)")
+
+        if wantsStageDiagnostics, let diagnosticCaptureID {
+            writeStageDiagnostics(
+                id: diagnosticCaptureID,
+                original: imageData,
+                stages: stageSamples,
+                context: ciContext
+            )
+        }
 
         // 注入 metadata：把原始 source props 中的 EXIF/TIFF/GPS 等字典通过 CGImageDestination 写到
         // 已编码的图像上。**source 和 destination 是同一 imageType 时，AddImageFromSource 是 fast copy +
