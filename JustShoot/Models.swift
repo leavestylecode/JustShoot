@@ -4,7 +4,9 @@ import ImageIO
 
 // MARK: - 照片输出画质（用户可配置，存 @AppStorage("photoOutputQuality")）
 //
-// LUT、颗粒、光学效果和元数据合并后只编码一次。此档位控制最终编码质量。
+// LUT、颗粒、光学效果和元数据合并后只编码一次。此档位控制最终编码质量；
+// 选「最高画质」时还会把采集策略联动到 .quality（系统的最高照片质量档，
+// 见 CameraManager.captureQualityPrioritization）。
 // 照片尺寸、内容、噪声与 Live Photo 设置都会影响实际文件大小。
 enum PhotoQuality: String, CaseIterable, Identifiable, Sendable {
     case maximum

@@ -18,6 +18,12 @@ struct SettingsView: View {
     @AppStorage("photoOutputQuality") private var photoQuality: PhotoQuality = .default
     /// Live Photo 是否录音。与 CameraView 共享同一 @AppStorage key，下次入相机即生效。默认开。
     @AppStorage("livePhotoSoundEnabled") private var livePhotoSoundEnabled = true
+    /// 安全快门限制（默认开）。与 CameraManager 共享同一 key：开 = AE 上限按 1/等效焦距收紧；
+    /// 关 = 交还系统默认上限，暗光可用更慢快门（阴影信噪比更好，运动模糊风险更高）。
+    @AppStorage("safeShutterLimitEnabled") private var safeShutterLimitEnabled = true
+    /// 逐阶段处理对照图（默认关）。与 FilmProcessor 共享同一 key：开 = 每次拍摄额外保留
+    /// 原片与 LUT/光学/颗粒各阶段输出，用于定位细节在哪一步丢失。
+    @AppStorage("processingStageDiagnostics") private var processingStageDiagnostics = false
     /// 麦克风权限是否被拒——开了声音却没授权时提示用户去系统设置开启。入页 + 开关变化时刷新。
     @State private var microphoneDenied = false
     @State private var exportingDiagnostics = false
@@ -36,6 +42,7 @@ struct SettingsView: View {
                     if capturePipeline.pendingCount + capturePipeline.retainedCount > 0 { pendingPhotosSection }
                     filmCurveSection
                     photoQualitySection
+                    captureSection
                     livePhotoSection
                     diagnosticsSection
                     feedbackSection
@@ -83,6 +90,22 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             .disabled(exportingDiagnostics)
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            // 逐阶段对照图：原片 + LUT 后 + 光学后 + 成片，同一拍摄的四张图放进同一个
+            // 查看器对比，即可直接定位"细节在哪一步消失"（对照本 app 的画质排查）。
+            Toggle(isOn: $processingStageDiagnostics) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Keep Processing Stages")
+                        .foregroundStyle(.white)
+                    Text("Save the original plus each processing stage (LUT, optics, grain) for every shot. Find them in Files → On My iPhone → JustShoot → ProcessingDiagnostics. Only the last 6 shots are kept.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .tint(.green)
+
             Text("After reproducing a problem, export the recent diagnostic log. It contains no photos or precise location.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -208,6 +231,35 @@ struct SettingsView: View {
                         Divider().overlay(Color.white.opacity(0.08))
                     }
                 }
+                Text("Maximum also switches capture to the system's highest-quality pipeline; shots take slightly longer to finish.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    // MARK: - 拍摄（采集行为）
+    //
+    // 默认开：1/等效焦距 的 AE 快门上限，手持防糊优先（宁可抬 ISO）。关闭后交还系统默认上限，
+    // 暗光下系统可用更慢快门——阴影信噪比更好，代价是运动模糊风险。两种取舍留给用户。
+    private var captureSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Capture", systemImage: "camera")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 4)
+
+            sectionCard {
+                Toggle(isOn: $safeShutterLimitEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Safe Shutter Limit")
+                            .foregroundStyle(.white)
+                        Text("Caps shutter speed at 1/focal length to keep handheld shots sharp. Turn it off to allow slower shutters in low light — better shadow detail, but more motion blur.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .tint(.green)
             }
         }
     }

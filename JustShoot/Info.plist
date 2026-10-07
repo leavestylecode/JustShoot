@@ -4,5 +4,11 @@
 <dict>
 	<key>CADisableMinimumFrameDuration</key>
 	<true/>
+	<!-- Documents 目录对「文件」App 可见：设置页导出的逐阶段处理对照图
+	     (ProcessingDiagnostics/) 与自定义 LUT (CustomLUTs/) 需要经此取出查看。 -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>

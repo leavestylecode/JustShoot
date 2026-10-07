@@ -1,241 +1,20 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Please wait for these photos to finish saving before deleting them.": {
-      "extractionState": "manual",
-      "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "请等待这些照片保存完成后再删除。" } } }
-    },
-    "Could not delete filter": {
-      "extractionState": "manual",
-      "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法删除滤镜" } } }
-    },
-    "Retry": {
-      "extractionState": "manual",
-      "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "重试" } } }
-    },
-    "Unable to load photo": {
-      "extractionState": "manual",
-      "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法加载照片" } } }
-    },
-    "Unable to open photos": {
-      "extractionState": "manual",
-      "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法打开相册" } } }
-    },
-    "No saved photos are available yet. Please try again.": {
-      "extractionState": "manual",
-      "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "暂时没有可查看的已保存照片，请重试。" } } }
-    },
-    "Photos could not be loaded. Please try again.": {
-      "extractionState": "manual",
-      "localizations": { "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法加载相册，请重试。" } } }
-    },
-    "Automatic value unavailable": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "尚未获得自动读数"
-          }
-        }
-      }
-    },
-    "Auto tint": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "自动色调"
-          }
-        }
-      }
-    },
-    "Color adjustments could not be applied. Auto has been restored.": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无法应用色彩调整，已恢复自动。"
-          }
-        }
-      }
-    },
-    "Auto color adjustments": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "自动色彩调整"
-          }
-        }
-      }
-    },
-    "Adjust green and magenta tint": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "调整绿色与洋红色色调"
-          }
-        }
-      }
-    },
-    "Tint": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "色调"
-          }
-        }
-      }
-    },
-    "Color temperature could not be applied. Auto has been restored.": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无法应用色温调整，已恢复自动。"
-          }
-        }
-      }
-    },
-    "Temp.": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "色温"
-          }
-        }
-      }
-    },
-    "Adjust color temperature": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "调整画面色温"
-          }
-        }
-      }
-    },
-    "Auto color temperature": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "自动色温"
-          }
-        }
-      }
-    },
-    "Auto": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "自动"
-          }
-        }
-      }
-    },
-    "Color temperature": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "色温"
-          }
-        }
-      }
-    },
-    "Live Photo is unavailable. Turn off Live Photo or reopen the camera to try again.": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Live Photo 暂不可用。请关闭 Live Photo，或重新进入相机后再试。"
-          }
-        }
-      }
-    },
-    "Live Photo unavailable": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Live Photo 暂不可用"
-          }
-        }
-      }
-    },
-    "Please try exporting the diagnostic log again.": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请重新尝试导出诊断日志。"
-          }
-        }
-      }
-    },
-    "Log export failed": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "日志导出失败"
-          }
-        }
-      }
-    },
-    "After reproducing a problem, export the recent diagnostic log. It contains no photos or precise location.": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "复现问题后，可导出最近的诊断日志。日志不含照片或精确位置。"
-          }
-        }
-      }
-    },
-    "Export Diagnostic Log": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导出诊断日志"
-          }
-        }
-      }
-    },
-    "" : {
-
-    },
-    "“%@” will be permanently deleted." : {
+    "" : {},
+    "%1$@ %2$@ built-in lens" : {
+      "extractionState" : "manual",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@ built-in lens"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“%@”将被永久删除。"
+            "value" : "%1$@ %2$@ 内置镜头"
           }
         }
       }
@@ -301,23 +80,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@，ISO %2$lld，已拍 %3$lld 张"
-          }
-        }
-      }
-    },
-    "%1$@ %2$@ built-in lens" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ %2$@ built-in lens"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ %2$@ 内置镜头"
           }
         }
       }
@@ -411,12 +173,7 @@
         }
       }
     },
-    "© 2026 Leavestylecode" : {
-
-    },
-    "200" : {
-
-    },
+    "200" : {},
     "A saved photo could not be opened. Its original files have been kept." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -444,6 +201,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "添加节点"
+          }
+        }
+      }
+    },
+    "Adjust color temperature" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "调整画面色温"
+          }
+        }
+      }
+    },
+    "Adjust green and magenta tint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "调整绿色与洋红色色调"
+          }
+        }
+      }
+    },
+    "After reproducing a problem, export the recent diagnostic log. It contains no photos or precise location." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复现问题后，可导出最近的诊断日志。日志不含照片或精确位置。"
           }
         }
       }
@@ -510,6 +300,17 @@
         }
       }
     },
+    "Auto" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动"
+          }
+        }
+      }
+    },
     "Auto bracket exposure" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -527,6 +328,28 @@
         }
       }
     },
+    "Auto color adjustments" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动色彩调整"
+          }
+        }
+      }
+    },
+    "Auto color temperature" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动色温"
+          }
+        }
+      }
+    },
     "Auto exposure" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -540,6 +363,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自动曝光"
+          }
+        }
+      }
+    },
+    "Auto tint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动色调"
+          }
+        }
+      }
+    },
+    "Automatic value unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未获得自动读数"
           }
         }
       }
@@ -751,6 +596,23 @@
         }
       }
     },
+    "Caps shutter speed at 1/focal length to keep handheld shots sharp. Turn it off to allow slower shutters in low light — better shadow detail, but more motion blur." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Caps shutter speed at 1/focal length to keep handheld shots sharp. Turn it off to allow slower shutters in low light — better shadow detail, but more motion blur."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按 1/等效焦距 限制快门速度，手持拍摄优先保清晰。关闭后暗光可用更慢快门——暗部细节更好，但运动模糊风险更高。"
+          }
+        }
+      }
+    },
     "Caption" : {
       "localizations" : {
         "zh-Hans" : {
@@ -860,6 +722,39 @@
         }
       }
     },
+    "Color adjustments could not be applied. Auto has been restored." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法应用色彩调整，已恢复自动。"
+          }
+        }
+      }
+    },
+    "Color temperature" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "色温"
+          }
+        }
+      }
+    },
+    "Color temperature could not be applied. Auto has been restored." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法应用色温调整，已恢复自动。"
+          }
+        }
+      }
+    },
     "Confirm delete" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -877,8 +772,17 @@
         }
       }
     },
-    "Corners" : {
-
+    "Corners" : {},
+    "Could not delete filter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法删除滤镜"
+          }
+        }
+      }
     },
     "Couldn't access the file" : {
       "extractionState" : "manual",
@@ -1129,6 +1033,16 @@
         }
       }
     },
+    "Delete Point" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除节点"
+          }
+        }
+      }
+    },
     "Delete photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1142,16 +1056,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "删除照片"
-          }
-        }
-      }
-    },
-    "Delete Point" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "删除节点"
           }
         }
       }
@@ -1207,9 +1111,7 @@
         }
       }
     },
-    "Done selecting" : {
-
-    },
+    "Done selecting" : {},
     "Drag a point vertically. Points stay ordered automatically to keep the result photographic and free of tone reversals." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1227,6 +1129,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "编辑曲线"
+          }
+        }
+      }
+    },
+    "Export Diagnostic Log" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出诊断日志"
           }
         }
       }
@@ -1325,9 +1238,6 @@
         }
       }
     },
-    "Film picker" : {
-
-    },
     "Film Soft" : {
       "localizations" : {
         "en" : {
@@ -1344,9 +1254,8 @@
         }
       }
     },
-    "Films" : {
-
-    },
+    "Film picker" : {},
+    "Films" : {},
     "Filter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1360,23 +1269,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "筛选"
-          }
-        }
-      }
-    },
-    "Filter · %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Filter · %lld"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "筛选 · %lld"
           }
         }
       }
@@ -1411,6 +1303,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "滤镜名称"
+          }
+        }
+      }
+    },
+    "Filter · %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter · %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筛选 · %lld"
           }
         }
       }
@@ -1636,6 +1545,24 @@
         }
       }
     },
+    "ISO" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ISO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ISO"
+          }
+        }
+      }
+    },
+    "ISO %lld" : {},
     "Import" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1649,23 +1576,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "导入"
-          }
-        }
-      }
-    },
-    "Import failed" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Import failed"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "导入失败"
           }
         }
       }
@@ -1687,6 +1597,23 @@
         }
       }
     },
+    "Import failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import failed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入失败"
+          }
+        }
+      }
+    },
     "Input" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1696,26 +1623,6 @@
           }
         }
       }
-    },
-    "ISO" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ISO"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ISO"
-          }
-        }
-      }
-    },
-    "ISO %lld" : {
-
     },
     "JustShoot" : {
       "extractionState" : "manual",
@@ -1734,8 +1641,41 @@
         }
       }
     },
-    "JustShoot %@" : {
-
+    "JustShoot %@" : {},
+    "Keep Processing Stages" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Processing Stages"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留处理阶段对照图"
+          }
+        }
+      }
+    },
+    "LIVE" : {},
+    "LUT resource not found: %@.cube" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUT resource not found: %@.cube"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到 LUT 资源：%@.cube"
+          }
+        }
+      }
     },
     "Large" : {
       "localizations" : {
@@ -1747,12 +1687,7 @@
         }
       }
     },
-    "Library" : {
-
-    },
-    "LIVE" : {
-
-    },
+    "Library" : {},
     "Live Photo" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1763,11 +1698,29 @@
         }
       }
     },
-    "Live Photo off" : {
-
+    "Live Photo is unavailable. Turn off Live Photo or reopen the camera to try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Photo 暂不可用。请关闭 Live Photo，或重新进入相机后再试。"
+          }
+        }
+      }
     },
-    "Live Photo on" : {
-
+    "Live Photo off" : {},
+    "Live Photo on" : {},
+    "Live Photo unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Photo 暂不可用"
+          }
+        }
+      }
     },
     "Location off" : {
       "extractionState" : "manual",
@@ -1786,19 +1739,13 @@
         }
       }
     },
-    "LUT resource not found: %@.cube" : {
+    "Log export failed" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "LUT resource not found: %@.cube"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "找不到 LUT 资源：%@.cube"
+            "value" : "日志导出失败"
           }
         }
       }
@@ -1883,6 +1830,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最高"
+          }
+        }
+      }
+    },
+    "Maximum also switches capture to the system's highest-quality pipeline; shots take slightly longer to finish." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximum also switches capture to the system's highest-quality pipeline; shots take slightly longer to finish."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「最高」档同时会把采集切换到系统最高画质管线，成片处理会稍慢。"
           }
         }
       }
@@ -2066,6 +2030,17 @@
         }
       }
     },
+    "No saved photos are available yet. Please try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时没有可查看的已保存照片，请重试。"
+          }
+        }
+      }
+    },
     "Notes" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2096,23 +2071,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "好"
-          }
-        }
-      }
-    },
-    "Open larger view" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open larger view"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "查看大图"
           }
         }
       }
@@ -2163,6 +2121,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "通透暗部"
+          }
+        }
+      }
+    },
+    "Open larger view" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open larger view"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看大图"
           }
         }
       }
@@ -2243,8 +2218,17 @@
         }
       }
     },
-    "Photos" : {
-
+    "Photos" : {},
+    "Photos could not be loaded. Please try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载相册，请重试。"
+          }
+        }
+      }
     },
     "Photos waiting to save" : {
       "extractionState" : "manual",
@@ -2281,6 +2265,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "选择一个内置风格作为起点，再调整出自己的效果。"
+          }
+        }
+      }
+    },
+    "Please try exporting the diagnostic log again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请重新尝试导出诊断日志。"
+          }
+        }
+      }
+    },
+    "Please wait for these photos to finish saving before deleting them." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请等待这些照片保存完成后再删除。"
           }
         }
       }
@@ -2357,9 +2363,7 @@
         }
       }
     },
-    "Rate on the App Store" : {
-
-    },
+    "Rate on the App Store" : {},
     "Record sound with your Live Photos." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2426,6 +2430,17 @@
         }
       }
     },
+    "Retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
+          }
+        }
+      }
+    },
     "Retry Saving" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2443,6 +2458,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "圆角"
+          }
+        }
+      }
+    },
+    "Safe Shutter Limit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Safe Shutter Limit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全快门限制"
           }
         }
       }
@@ -2487,6 +2519,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "保存失败：%@"
+          }
+        }
+      }
+    },
+    "Save the original plus each processing stage (LUT, optics, grain) for every shot. Find them in Files → On My iPhone → JustShoot → ProcessingDiagnostics. Only the last 6 shots are kept." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save the original plus each processing stage (LUT, optics, grain) for every shot. Find them in Files → On My iPhone → JustShoot → ProcessingDiagnostics. Only the last 6 shots are kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每次拍摄额外保留原片与各处理阶段（LUT、光学、颗粒）的对照图。位置：文件 App → 我的 iPhone → JustShoot → ProcessingDiagnostics。仅保留最近 6 次拍摄。"
           }
         }
       }
@@ -2576,18 +2625,10 @@
         }
       }
     },
-    "Send Feedback" : {
-
-    },
-    "Settings" : {
-
-    },
-    "Share" : {
-
-    },
-    "Share this photo" : {
-
-    },
+    "Send Feedback" : {},
+    "Settings" : {},
+    "Share" : {},
+    "Share this photo" : {},
     "Show" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2763,9 +2804,7 @@
         }
       }
     },
-    "Switch film" : {
-
-    },
+    "Switch film" : {},
     "Take a photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2793,11 +2832,18 @@
         }
       }
     },
-    "Tap to close film picker" : {
-
-    },
-    "Tap to pick another film" : {
-
+    "Tap to close film picker" : {},
+    "Tap to pick another film" : {},
+    "Temp." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "色温"
+          }
+        }
+      }
     },
     "This LUT is invalid or unsupported." : {
       "extractionState" : "manual",
@@ -2821,6 +2867,18 @@
         }
       }
     },
+    "Tint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "色调"
+          }
+        }
+      }
+    },
+    "Toggle Live Photo" : {},
     "Toggle flash" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2837,9 +2895,6 @@
           }
         }
       }
-    },
-    "Toggle Live Photo" : {
-
     },
     "Toggle selection" : {
       "extractionState" : "manual",
@@ -2878,6 +2933,22 @@
         }
       }
     },
+    "Try Again" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
+          }
+        }
+      }
+    },
     "Try adjusting the filters" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2895,18 +2966,24 @@
         }
       }
     },
-    "Try Again" : {
+    "Unable to load photo" : {
+      "extractionState" : "manual",
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try Again"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重试"
+            "value" : "无法加载照片"
+          }
+        }
+      }
+    },
+    "Unable to open photos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法打开相册"
           }
         }
       }
@@ -2962,9 +3039,7 @@
         }
       }
     },
-    "Version %@" : {
-
-    },
+    "Version %@" : {},
     "View photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3088,6 +3163,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "照片和滤镜均已保留，请重试。"
+          }
+        }
+      }
+    },
+    "© 2026 Leavestylecode" : {},
+    "“%@” will be permanently deleted." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”将被永久删除。"
           }
         }
       }
