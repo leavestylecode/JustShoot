@@ -84,7 +84,10 @@ final class CapturePipeline: ObservableObject {
 
     func enqueue(_ result: CaptureResult, recipe: CaptureRecipe, lut: CubeLUT) {
         guard let worker else { cancelReservation(recipe.id); return }
-        Task {
+        // .utility：照片后处理（journal 落盘 → live 转码 → 48MP LUT 渲染 → Photos 保存）
+        // 不得抢占预览渲染的调度优先级。裸 Task 会继承 MainActor 的 userInitiated，
+        // 连拍时把预览帧流饿出 watchdog 级停顿（真机日志实锤）。
+        Task(priority: .utility) {
             let activity = CaptureBackgroundActivity()
             do {
                 try await worker.enqueue(result, recipe: recipe, lut: lut)
@@ -379,7 +382,8 @@ private actor CaptureWorker {
                     grain: recipe.profile.grain, grainSeed: seed, optics: recipe.profile.optics,
                     outputQuality: recipe.outputQuality, location: recipe.location?.location,
                     captureDate: recipe.captureDate, focalLengthIn35mm: recipe.focalLength,
-                    contentIdentifier: contentID)
+                    contentIdentifier: contentID,
+                    diagnosticCaptureID: job.id)
             } }
         }.value
         rendering.end(image == nil ? "failed" : "ok", "output_bytes=\(image?.count ?? 0)")

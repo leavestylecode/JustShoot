@@ -61,7 +61,9 @@ struct CameraZoomTransition: Sendable {
         self.targetZoom = targetZoom
         anchorZoom = animated && isRamping ? currentZoom : nil
         let ratio = max(targetZoom / currentZoom, currentZoom / targetZoom)
-        rate = ratio < 1.5 ? 4 : ratio < 3 ? 8 : 16
+        // 真机实测 AVFoundation 对 ramp 施加加速度上限，短跳（≤2 档）的有效速度 ~2-3 stops/s
+        // 与指令速率关系不大，但低速率档（旧值 4）确实更慢；整体上调让长跳（200→35mm）明显收紧。
+        rate = ratio < 1.5 ? 8 : ratio < 3 ? 16 : 24
         usesRamp = animated && abs(targetZoom - currentZoom) > 0.0001
     }
 }

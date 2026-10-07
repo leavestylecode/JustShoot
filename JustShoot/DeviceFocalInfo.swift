@@ -83,6 +83,16 @@ struct DeviceFocalInfo {
         return CGFloat(option.mm) * c.virtualZoomRange.lowerBound / CGFloat(c.nativeMm)
     }
 
+    /// 从 fromZoom 到 toZoom 的路径是否跨越任一 switchover 阈值——即会触发系统切换
+    /// primary constituent（伴随 crossfade / 可能的停帧）。区间用严格不等式：目标恰落在
+    /// 阈值上（如 100mm 的 8.05 相对阈值 8.0）不算跨越。
+    func crossesConstituentBoundary(fromZoom: CGFloat, toZoom: CGFloat) -> Bool {
+        constituents.dropFirst().contains {
+            let threshold = $0.virtualZoomRange.lowerBound
+            return min(fromZoom, toZoom) < threshold && max(fromZoom, toZoom) > threshold
+        }
+    }
+
     /// zoom → 等效焦距（反向，与 virtualZoomFactor 共用同一模型）。
     /// 按当前活跃 constituent 的原生焦距 + 数字裁切倍率反推：equiv = c.nativeMm × (zoom / c.lowerBound)。
     /// 比「primaryNativeMm × zoom」准——后者把最广镜头的（已取整）标称外推到长焦端会累积误差
