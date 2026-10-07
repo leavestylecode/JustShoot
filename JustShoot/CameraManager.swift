@@ -616,6 +616,7 @@ class CameraManager: NSObject, ObservableObject {
             if device.isExposurePointOfInterestSupported { device.exposurePointOfInterest = normalizedPoint }
             if device.isFocusModeSupported(.autoFocus) { device.focusMode = .autoFocus }
             if device.isExposureModeSupported(.autoExpose) { device.exposureMode = .autoExpose }
+            // 点新的对焦点重测曝光并清 EV（iPhone 相机同款：EV 只在保持/累加路径存活）
             device.setExposureTargetBias(0) { _ in }
         }
         exposureBias = 0
@@ -678,6 +679,9 @@ class CameraManager: NSObject, ObservableObject {
         startFocusHoldTimer()
     }
 
+    /// 对焦保持计时器到期/场景变化时恢复连续对焦与自动曝光。**不碰曝光补偿**——与
+    /// iPhone 相机一致：EV 调整后持续生效（滑杆 UI 淡出但值保留），直到用户点新的
+    /// 对焦点（setFocusAndExposure）或重开相机（session 初始配置）才重置。
     func restoreContinuousFocus() {
         guard !isExposing else { startFocusHoldTimer(); return }
         focusHoldTimer?.invalidate()
@@ -685,9 +689,7 @@ class CameraManager: NSObject, ObservableObject {
         configureDevice { device in
             if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
             if device.isExposureModeSupported(.continuousAutoExposure) { device.exposureMode = .continuousAutoExposure }
-            device.setExposureTargetBias(0) { _ in }
         }
-        exposureBias = 0
     }
 
     // MARK: - 5. 闪光灯曝光补偿 + 锁/还原
@@ -1205,6 +1207,8 @@ class CameraManager: NSObject, ObservableObject {
         // 上一轮 session 的对齐状态（旧 PTS/上限）不跨周期复用
         cropCeilingSync.withLock { $0.reset() }
         updateActiveConstituentZoomCeiling()
+        // 与 setInitialFocalLength 内的设备侧归零对应：冷启动 UI 状态也回 0
+        exposureBias = 0
         sessionConfigured = true
         trace.event("camera_configuration_complete", "generation=\(token)")
 
@@ -1456,6 +1460,9 @@ class CameraManager: NSObject, ObservableObject {
             // 启动时默认就是 .auto，所以 .auto + zoom 写在同一 lock 块内安全（无「转出 .locked」的夹取坑）。
             device.setPrimaryConstituentDeviceSwitchingBehavior(.auto, restrictedSwitchingBehaviorConditions: [])
             device.videoZoomFactor = targetZoom
+            // 重开相机的 EV 重置（iPhone 相机同款语义）：bias 是设备级状态，会跨
+            // stopRunning 存活——新会话一律归零。
+            device.setExposureTargetBias(0) { _ in }
             // 安全快门也在此处一并下，避免 startRunning 后第一帧 AE 跑到 1s 上限
             let safeShutter = self.computeSafeShutterDuration(focalMm: resolved.rawValue, format: device.activeFormat)
             device.activeMaxExposureDuration = safeShutter
