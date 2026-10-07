@@ -93,13 +93,6 @@ struct CameraView: View {
                 // 预览区
                 GeometryReader { geometry in
                     ZStack(alignment: .bottom) {
-                        // 变焦过渡底衬：系统合成预览层（镜头切换时拿到系统 crossfade 而非停帧）。
-                        // 常态完全被上层 Metal 预览盖住（opacity 0）；主帧流停顿的窗口内由
-                        // LensTransitionCompositor 把上层淡出、露出这层实时画面。见 MetalPreview.swift。
-                        CameraPreviewUnderlayView(manager: cameraManager)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .allowsHitTesting(false)
-
                         // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade,
                         // 预览不黑屏），不再需要 bridgeImage 帧桥接。
                         // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
@@ -108,8 +101,7 @@ struct CameraView: View {
                             lutCacheKey: preparedLUT?.key ?? previewLUTKey,
                             preparedLUT: preparedLUT?.lut,
                             grain: preparedLUT?.profile.grain ?? source.renderProfile.grain,
-                            optics: preparedLUT?.profile.optics ?? source.renderProfile.optics,
-                            captureBusy: isCaptureProcessingBusy
+                            optics: preparedLUT?.profile.optics ?? source.renderProfile.optics
                         )
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .contentShape(Rectangle())
@@ -472,10 +464,6 @@ struct CameraView: View {
         .onChange(of: isShutterBusy) { _, busy in
             cameraManager.diagnostics.event("camera_controls_changed", "shutter_busy=\(busy) readiness=\(cameraManager.readiness.logValue)")
         }
-        // 采集负载状态沿：驱动预览降级（跳过扩散）与底衬忙碌档（66ms 停顿阈值）。
-        .onChange(of: isCaptureProcessingBusy) { _, busy in
-            cameraManager.setCaptureProcessingBusy(busy)
-        }
         .onChange(of: showFlash) { _, visible in
             cameraManager.diagnostics.event("shutter_overlay_changed", "visible=\(visible)")
         }
@@ -501,20 +489,6 @@ struct CameraView: View {
                 if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
                 try Task.checkCancellation()
             } catch { return }
-            // 连拍/后处理忙碌时，**自动白平衡漂移**触发的 LUT 重算推迟到空闲——重算
-            /// CPU 要为预览帧流让路。仅限全自动档（selection/tint 都是 automatic）：
-            /// 用户主动换膜/调色不算漂移，不阻塞。
-            if selection.isAutomatic && tint.isAutomatic {
-                var deferred: UInt = 0
-                while capturePipeline.pendingCount + capturePipeline.retainedCount > 0, deferred < 50 {
-                    do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
-                    guard key == previewLUTKey else { return }
-                    deferred += 1
-                }
-                if deferred > 0 {
-                    cameraManager.diagnostics.event("camera_lut_deferred", "cycles=\(deferred) busy=true")
-                }
-            }
             guard key == previewLUTKey else { return }
             lutPreparationCadence.started(at: ProcessInfo.processInfo.systemUptime)
             let lutWait = cameraManager.diagnostics.span("camera_lut_prepare",
@@ -587,12 +561,6 @@ struct CameraView: View {
     }
 
     private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }
-    /// 采集后处理忙碌（有排队/处理中的照片任务）。驱动三处让路：预览渲染降级
-    /// （跳过 halation/bloom 扩散）、底衬忙碌档（66ms 停顿阈值更快接管）、
-    /// 自动白平衡 LUT 重算推迟。计数变化已让 body 重算，此派生值零额外开销。
-    private var isCaptureProcessingBusy: Bool {
-        capturePipeline.pendingCount > 0 || capturePipeline.retainedCount > 0
-    }
     private var previewLUTKey: String {
         let baseKey = FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: selectedCurve)
         return ColorTemperatureLUT.cacheKey(baseKey: baseKey, selection: whiteBalanceSelection,

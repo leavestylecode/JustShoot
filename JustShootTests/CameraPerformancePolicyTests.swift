@@ -55,7 +55,7 @@ final class CameraPerformancePolicyTests: XCTestCase {
         XCTAssertEqual(transition.anchorZoom, 13.321)
         XCTAssertEqual(transition.targetZoom, 4.1667)
         XCTAssertTrue(transition.usesRamp)
-        XCTAssertEqual(transition.rate, 24)
+        XCTAssertEqual(transition.rate, 16)
     }
 
     func testRetargetingUsesActualZoomForRateInsteadOfThePreviousUISelection() throws {
@@ -63,7 +63,7 @@ final class CameraPerformancePolicyTests: XCTestCase {
         let transition = try XCTUnwrap(CameraZoomTransition(currentZoom: 12, targetZoom: 16,
             isRamping: true, animated: true))
         XCTAssertEqual(transition.anchorZoom, 12)
-        XCTAssertEqual(transition.rate, 8)
+        XCTAssertEqual(transition.rate, 4)
     }
 
     func testSettledZoomDoesNotGetAnExtraImmediateAssignment() throws {
@@ -71,7 +71,7 @@ final class CameraPerformancePolicyTests: XCTestCase {
             isRamping: false, animated: true))
         XCTAssertNil(transition.anchorZoom)
         XCTAssertTrue(transition.usesRamp)
-        XCTAssertEqual(transition.rate, 16)
+        XCTAssertEqual(transition.rate, 8)
     }
 
     func testSelectingCurrentPositionStopsAnOldRampWithoutStartingAnother() throws {

@@ -1,7 +1,6 @@
 import SwiftUI
 import MetalKit
 import MetalPerformanceShaders
-@preconcurrency import AVFoundation
 @preconcurrency import CoreVideo
 import os
 
@@ -128,37 +127,6 @@ final class CameraPreviewMetalView: MTKView {
     }
 }
 
-// MARK: - 系统预览底衬（变焦过渡的第二显示源）
-//
-// AVCaptureVideoPreviewLayer 由 AVFoundation 自行合成：虚拟设备切镜头时它拿到系统的
-// crossfade 合成流而非停帧（Apple 相机同款显示路径）。把它垫在 Metal 预览之下，
-// 主帧流停顿的窗口由 LensTransitionCompositor 把主源淡出、露出这层实时画面，
-// 过渡结束后淡回胶片分级渲染。不参与会话连接结构、不改 sessionPreset、零采集链路影响。
-
-/// 宿主 UIView：layerClass 直接就是 AVCaptureVideoPreviewLayer。
-struct CameraPreviewUnderlayView: UIViewRepresentable {
-    let manager: CameraManager
-
-    func makeUIView(context: Context) -> PreviewUnderlayUIView {
-        let view = PreviewUnderlayUIView(frame: .zero)
-        view.backgroundColor = .black
-        view.isUserInteractionEnabled = false
-        manager.attachPreviewUnderlay(view.previewLayer)
-        return view
-    }
-
-    func updateUIView(_ uiView: PreviewUnderlayUIView, context: Context) {}
-
-    static func dismantleUIView(_ uiView: PreviewUnderlayUIView, coordinator: ()) {
-        uiView.previewLayer.session = nil
-    }
-}
-
-final class PreviewUnderlayUIView: UIView {
-    override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
-    var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
-}
-
 // MARK: - 实时预览视图（全 Metal 管线：CVPixelBuffer → compute shader → drawable）
 struct RealtimePreviewView: UIViewRepresentable {
     let manager: CameraManager
@@ -166,10 +134,6 @@ struct RealtimePreviewView: UIViewRepresentable {
     let preparedLUT: CubeLUT?
     let grain: FilmGrainParameters
     let optics: FilmOpticsParameters
-    /// 采集后处理忙碌（有排队/处理中的照片任务）：预览临时降级——跳过 halation/bloom
-    /// 扩散（GPU 最大开销，两次 MPS 高斯模糊 + 双 pass 合成），保 LUT+颗粒+肩部。
-    /// 连拍窗口视觉差异极小，帧流保住了（见 LensTransitionCompositor.swift 的负载记录）。
-    let captureBusy: Bool
 
     func makeUIView(context: Context) -> MTKView {
         // 复用启动时预热好的共享 device，避免在转场期间于主线程实例化 GPU 设备。
@@ -189,10 +153,6 @@ struct RealtimePreviewView: UIViewRepresentable {
         view.enableSetNeedsDisplay = false
         view.preferredFramesPerSecond = 60
         view.framebufferOnly = false  // 允许 compute shader 写入 drawable
-        // 非不透明：变焦过渡中本视图按合成器计划淡出（view.alpha < 1），露出下层系统预览底衬
-        //（CameraPreviewUnderlayView）。渲染内容本身始终全幅覆盖 drawable（aspect-fill），alpha
-        // 只做视图级合成，不影响 Metal 路径。
-        view.isOpaque = false
         // 预览降分辨率：2x 而非 3x，减少 55% 像素量
         view.contentScaleFactor = min(context.environment.displayScale, 2.0)
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
@@ -211,7 +171,6 @@ struct RealtimePreviewView: UIViewRepresentable {
         context.coordinator.preparedLUT = preparedLUT
         context.coordinator.grain = grain
         context.coordinator.optics = optics
-        context.coordinator.captureBusy = captureBusy
         context.coordinator.manager = manager
         manager.previewMTKView = uiView
     }
@@ -235,8 +194,6 @@ struct RealtimePreviewView: UIViewRepresentable {
         var preparedLUT: CubeLUT?
         var grain: FilmGrainParameters = .disabled
         var optics: FilmOpticsParameters = .disabled
-        var captureBusy = false
-        private var diffusionDegraded = false
         weak var manager: CameraManager?
 
         // Metal 核心对象
@@ -380,13 +337,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             guard !view.isPaused, view.window != nil,
                   UIApplication.shared.applicationState == .active else { return }
             let flow = manager?.flowDiagnostics
-            // 过渡计划（每 vsync 拉一次）：crop = 扩展数字变焦倍率（预览代理流在光学阈值
-            // 处停止放大——100/200mm 预览相同的真机实锤——超过部分由渲染器居中裁切补足，
-            // 分母是会话常量故无回摆风险）；metalOpacity = 停顿窗口内淡出本视图、露出
-            // 系统预览底衬，恢复后淡回（见 LensTransitionCompositor.swift 设计记录）。
-            let transitionPlan = manager?.previewTransitionPlan() ?? (crop: 1, metalOpacity: 1)
-            view.alpha = CGFloat(transitionPlan.metalOpacity)
-            // 帧去重：如果相机没有产生新帧，跳过渲染（crop 在稳态是常量，重复帧无需重绘）。
+            // 帧去重：如果相机没有产生新帧，跳过渲染
             guard let (pixelBuffer, frameId, capturedAt) = manager?.getLatestFrame() else {
                 flow?.skipped(.noFrame)
                 return
@@ -515,28 +466,10 @@ struct RealtimePreviewView: UIViewRepresentable {
 
             let scaleX = Float(outW) / rotatedW
             let scaleY = Float(outH) / rotatedH
-            var scale = max(scaleX, scaleY)
-            var offsetX = (Float(outW) - rotatedW * scale) / 2.0
-            var offsetY = (Float(outH) - rotatedH * scale) / 2.0
-            if transitionPlan.crop > 1.0005 {
-                // 扩展数字变焦：居中裁切（采样区中心不动，scale 乘倍率后按中心约束反解
-                // offset）。裁切区是原采样区的居中子集，不越界；shader 采样路径零改动。
-                let cx = (Float(outW) / 2 - offsetX) / scale
-                let cy = (Float(outH) / 2 - offsetY) / scale
-                scale *= Float(transitionPlan.crop)
-                offsetX = Float(outW) / 2 - cx * scale
-                offsetY = Float(outH) / 2 - cy * scale
-            }
+            let scale = max(scaleX, scaleY)
+            let offsetX = (Float(outW) - rotatedW * scale) / 2.0
+            let offsetY = (Float(outH) - rotatedH * scale) / 2.0
 
-            // 连拍降级：忙碌时跳过 halation/bloom（MPS 双模糊 + 合成 pass 是预览 GPU 最大开销），
-            // 保 LUT+颗粒+肩部——帧流优先于光学风格，空闲后自动恢复。
-            let halationActive = optics.halationAmount > 0.0001 && !captureBusy
-            let bloomActive = optics.bloomAmount > 0.0001 && !captureBusy
-            let degraded = captureBusy && optics.hasLightDiffusion
-            if degraded != diffusionDegraded {
-                diffusionDegraded = degraded
-                manager?.diagnostics.event("preview_diffusion", "state=\(degraded ? "degraded" : "restored") reason=capture_busy")
-            }
             var params = PreviewParams(
                 scale: scale,
                 offsetX: offsetX,
@@ -552,14 +485,14 @@ struct RealtimePreviewView: UIViewRepresentable {
                     base: 0x4A53_4752,
                     counter: UInt32(truncatingIfNeeded: frameId)
                 ),
-                halationAmount: halationActive ? optics.halationAmount : 0,
+                halationAmount: optics.halationAmount,
                 // 光晕半径按源流（传感器 FOV）长边归一——预览流、48MP 成片、Live 帧各按
                 // 自身长边换算，光晕占画面比例一致，预览即所得。
                 halationRadiusPx: optics.radiusPixels(
                     optics.halationRadius, forLongEdge: CGFloat(max(outW, outH))
                 ),
                 halationHue: optics.halationHue,
-                bloomAmount: bloomActive ? optics.bloomAmount : 0,
+                bloomAmount: optics.bloomAmount,
                 bloomRadiusPx: optics.radiusPixels(
                     optics.bloomRadius, forLongEdge: CGFloat(max(outW, outH))
                 ),
@@ -588,10 +521,10 @@ struct RealtimePreviewView: UIViewRepresentable {
 
             encoder.endEncoding()
 
-            if let device = metalDevice, optics.hasLightDiffusion, !degraded {
+            if let device = metalDevice, optics.hasLightDiffusion {
                 energyDownsampler?.encode(commandBuffer: commandBuffer, sourceTexture: targets.energy, destinationTexture: targets.smallEnergy)
                 let diffusionScale = Float(max(targets.smallEnergy.width, targets.smallEnergy.height)) / Float(max(outW, outH))
-                if halationActive {
+                if optics.halationAmount > 0.0001 {
                     let sigma = params.halationRadiusPx * 0.55 * diffusionScale
                     if halationBlur?.sigma != sigma {
                         halationBlur = MPSImageGaussianBlur(device: device, sigma: sigma)
@@ -599,7 +532,7 @@ struct RealtimePreviewView: UIViewRepresentable {
                     }
                     halationBlur?.encode(commandBuffer: commandBuffer, sourceTexture: targets.smallEnergy, destinationTexture: targets.halation)
                 }
-                if bloomActive {
+                if optics.bloomAmount > 0.0001 {
                     let sigma = params.bloomRadiusPx * 0.45 * diffusionScale
                     if bloomBlur?.sigma != sigma {
                         bloomBlur = MPSImageGaussianBlur(device: device, sigma: sigma)
@@ -616,8 +549,8 @@ struct RealtimePreviewView: UIViewRepresentable {
             }
             composite.setComputePipelineState(finishPipeline)
             composite.setTexture(targets.graded, index: 0)
-            composite.setTexture(halationActive ? targets.halation : targets.energy, index: 1)
-            composite.setTexture(bloomActive ? targets.bloom : targets.energy, index: 2)
+            composite.setTexture(optics.halationAmount > 0.0001 ? targets.halation : targets.energy, index: 1)
+            composite.setTexture(optics.bloomAmount > 0.0001 ? targets.bloom : targets.energy, index: 2)
             composite.setTexture(drawable.texture, index: 3)
             composite.setBytes(&params, length: MemoryLayout<PreviewParams>.size, index: 0)
             composite.dispatchThreads(gridSize, threadsPerThreadgroup: threadsPerGroup)
