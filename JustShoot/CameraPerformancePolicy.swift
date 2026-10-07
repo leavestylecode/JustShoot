@@ -65,3 +65,23 @@ struct CameraZoomTransition: Sendable {
         usesRamp = animated && abs(targetZoom - currentZoom) > 0.0001
     }
 }
+
+/// 超过**当前活跃镜头归属区间上限**后的扩展数字变焦（渲染器侧居中裁切）。
+///
+/// 真机实锤（2026-10-07，iPhone 17 Pro Max / iOS 27，两轮取证）：成片管线对
+/// videoZoomFactor 完整缩放（100/200mm 照片正确），而 VideoDataOutput 预览代理流
+/// **只按活跃 constituent 的 virtualZoomRange 区间执行裁切**——低光下系统拒绝切
+/// 长焦、主摄（区间 [2.0, 8.0]）被钉在 zoom 16 时，交付帧的取景钳在区间上限 8.0
+/// （= 100mm），于是 200mm 预览与 100mm 相同。format 级
+/// `videoZoomFactorUpscaleThreshold` 在该设备返回无效值（≤1），不是钳制点。
+/// 白天长焦启用时（长焦区间直达 maxZoom）预览原生缩放正常，无需补偿。
+///
+/// 修法：k = zoom / 活跃镜头区间上限（由 activePrimaryConstituent KVO 跟踪，
+/// focalInfo 提供各 constituent 的区间）。分母是**随镜头切换离散变化的准常量**，
+/// ramp 期间不变——k 只随 zoom 单调、随镜头切换阶跃，无回摆。
+enum ExtendedPreviewZoom {
+    static func cropFactor(zoom: CGFloat, streamCeiling: CGFloat) -> CGFloat {
+        guard streamCeiling > 1, streamCeiling.isFinite else { return 1 }
+        return max(1, max(1, zoom) / streamCeiling)
+    }
+}

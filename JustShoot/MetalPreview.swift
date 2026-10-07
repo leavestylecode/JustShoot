@@ -466,9 +466,21 @@ struct RealtimePreviewView: UIViewRepresentable {
 
             let scaleX = Float(outW) / rotatedW
             let scaleY = Float(outH) / rotatedH
-            let scale = max(scaleX, scaleY)
-            let offsetX = (Float(outW) - rotatedW * scale) / 2.0
-            let offsetY = (Float(outH) - rotatedH * scale) / 2.0
+            var scale = max(scaleX, scaleY)
+            var offsetX = (Float(outW) - rotatedW * scale) / 2.0
+            var offsetY = (Float(outH) - rotatedH * scale) / 2.0
+
+            // 扩展数字变焦：预览代理流的取景钳在活跃镜头区间上限（低光长焦 200mm 预览
+            // 与 100mm 相同的真机实锤），超过上限的部分在此居中裁切补足，与成片取景一致。
+            // 分母是随镜头切换离散变化的准常量，倍率只随 zoom 单调，无回摆。
+            let crop = manager?.previewZoomCrop() ?? 1
+            if crop > 1.0005 {
+                let cx = (Float(outW) / 2 - offsetX) / scale
+                let cy = (Float(outH) / 2 - offsetY) / scale
+                scale *= Float(crop)
+                offsetX = Float(outW) / 2 - cx * scale
+                offsetY = Float(outH) / 2 - cy * scale
+            }
 
             var params = PreviewParams(
                 scale: scale,

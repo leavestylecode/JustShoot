@@ -220,6 +220,12 @@ class CameraManager: NSObject, ObservableObject {
     private var lensOnTargetSince: CFAbsoluteTime?
     private var zoomObservation: NSKeyValueObservation?
     private var constituentObservation: NSKeyValueObservation?
+    /// 活跃 constituent 的区间上限（预览代理流取景钳制点，ExtendedPreviewZoom 的分母）。
+    /// 未知（.greatestFiniteMagnitude）时禁用扩展裁切，行为与原始流一致。
+    private var activeConstituentZoomCeiling: CGFloat = .greatestFiniteMagnitude
+    /// 设备真值 zoom（KVO 每次写入）——扩展裁切的分子。不复用 currentZoomFactor：
+    /// UI 可能乐观写目标值，ramp 跨越钳制点的瞬间会把裁切瞬间拉满。
+    private var lastObservedDeviceZoom: CGFloat = 1.0
     private var focalLengthPicker: AVCaptureIndexPicker?
     /// 系统级 EV 滑块（iOS 18+）。虚拟设备架构下 device 实例不变，整生命周期内只装一次。
     private var exposureBiasSlider: AVCaptureSystemExposureBiasSlider?
@@ -918,6 +924,8 @@ class CameraManager: NSObject, ObservableObject {
         let videoOutput = videoDataOutput
         // 把 MainActor 上的 currentFocalLength 抓到 closure 里——sessionQueue 上不能跨回主 actor 读
         let initialFocal = currentFocalLength
+        // 建图期挂麦克风的期望状态同样在 MainActor 上快照；快照后的变化由 reconcile 收敛。
+        let audioDesired = livePhotoAudioDesired
         let intent = sessionIntent
         let queuedAt = Log.now()
         let hardwareCompletedAt = OSAllocatedUnfairLock<TimeInterval?>(initialState: nil)
@@ -945,6 +953,22 @@ class CameraManager: NSObject, ObservableObject {
                     let videoInput = try trace.measure("session_input_create") { try AVCaptureDeviceInput(device: device) }
                     if captureSession.canAddInput(videoInput) {
                         trace.measure("session_input_add") { captureSession.addInput(videoInput) }
+                    }
+
+                    // 麦克风在**初始建图期**一并挂上（Live+声音开且已授权）：此刻 session 尚未
+                    // startRunning，addInput 只是建图的一部分、不触发「运行中重配」断流——
+                    // 代价是启动到出画稍慢，但那时画面还没出来、无可感知窗口。首启权限
+                    // notDetermined 不在此等待：权限回调后由 session 就绪处的 reconcile 补挂。
+                    if audioDesired, AVCaptureDevice.authorizationStatus(for: .audio) == .authorized {
+                        if let microphone = AVCaptureDevice.default(for: .audio),
+                           let audioInput = try? AVCaptureDeviceInput(device: microphone),
+                           captureSession.canAddInput(audioInput) {
+                            trace.measure("session_audio_input_add") { captureSession.addInput(audioInput) }
+                            Self.configureMixAudioSession(active: true)
+                            trace.event("audio_input_builtin", "inputs=\(captureSession.inputs.count)")
+                        } else {
+                            trace.event("audio_input_builtin_failed", "reason=create_or_add")
+                        }
                     }
 
                     trace.measure("session_format") { self.applyBestFormatAndModes(on: device) }
@@ -1162,10 +1186,13 @@ class CameraManager: NSObject, ObservableObject {
         }
 
         observersSetup.end()
+        updateActiveConstituentZoomCeiling()
         sessionConfigured = true
         trace.event("camera_configuration_complete", "generation=\(token)")
 
         // session 就绪——按 CameraView 入页时记下的期望状态，决定是否挂麦克风（Live+声音默认开）。
+        // 麦克风已在初始建图期随视频输入一并挂上（正常路径），此处 reconcile 幂等：
+        // 已挂则只确认音频会话激活，不做 beginConfiguration 重配。
         reconcileAudioInput()
 
         // ZSL / Deep Fusion / Smart HDR / Photonic Engine 第一次 capture 时会同步初始化 pipeline,
@@ -1173,6 +1200,24 @@ class CameraManager: NSObject, ObservableObject {
         // setPreparedPhotoSettingsArray 是 Apple 官方解决方案：用与正式 capture 完全一致的 settings
         // 提前喂给 AVF，系统会预分配 ring buffer + Smart HDR 多帧融合所需缓冲，第一张瞬间走热路径。
         prepareForFirstCapture()
+        // 流式期**首次** device.lockForConfiguration 会阻塞调用线程数百 ms（系统等采集
+        // 管线到安全配置点）——用户第一次切焦距/压力调帧率时「点了没反应、随后才动」的
+        // 冷启动成本就来自这里。会话刚起跑、用户尚未交互，在 sessionQueue 上做一次同值
+        // 写入把这笔成本提前付掉。
+        if let device = videoCaptureDevice {
+            let warmTrace = diagnostics
+            sessionQueue.async {
+                let warming = warmTrace.span("device_config_warmup", "")
+                do {
+                    try device.lockForConfiguration()
+                    device.videoZoomFactor = device.videoZoomFactor
+                    device.unlockForConfiguration()
+                    warming.end("ok", "zoom=\(device.videoZoomFactor)")
+                } catch {
+                    warming.end("failed", Diagnostics.errorFields(error))
+                }
+            }
+        }
         promoteReadinessIfPossible()
     }
 
@@ -1439,6 +1484,7 @@ class CameraManager: NSObject, ObservableObject {
             self.flowDiagnostics.zoom(Double(newZoom), ramping: isRamping)
             Task { @MainActor in
                 self.currentZoomFactor = newZoom
+                self.lastObservedDeviceZoom = CGFloat(newZoom)
                 // ramp 推进/停止都戳一下镜头稳定评估（基于设备真值，含 isRampingVideoZoom + zoom 命中）
                 self.evaluateLensSettle()
                 if isRamping { return }
@@ -1484,9 +1530,33 @@ class CameraManager: NSObject, ObservableObject {
                     self.activeConstituentName = logName
                     Log.session.info("constituent_active_changed name=\(logName, privacy: .public)")
                 }
+                self.updateActiveConstituentZoomCeiling()
                 self.evaluateLensSettle()
             }
         }
+    }
+
+    /// 解析当前活跃 constituent 的区间上限（预览流取景钳制点）。活跃镜头不属于任何
+    /// 已知 constituent（物理设备等边缘情况）时设为无界——禁用扩展裁切，行为与原始流一致。
+    private func updateActiveConstituentZoomCeiling() {
+        let previous = activeConstituentZoomCeiling
+        if let active = videoCaptureDevice?.activePrimaryConstituent,
+           let range = focalInfo.constituents.first(where: { $0.device === active })?.virtualZoomRange {
+            activeConstituentZoomCeiling = range.upperBound
+        } else {
+            activeConstituentZoomCeiling = .greatestFiniteMagnitude
+        }
+        if activeConstituentZoomCeiling != previous {
+            diagnostics.event("preview_stream_ceiling",
+                "ceiling=\(activeConstituentZoomCeiling.isFinite ? String(format: "%.2f", activeConstituentZoomCeiling) : "unbounded") lens=\(activeConstituentName)")
+        }
+    }
+
+    /// 预览渲染器每帧调用的扩展裁切倍率（≥1）：预览代理流的取景钳在活跃镜头区间上限，
+    /// 超过上限的部分由渲染器居中裁切补足（ExtendedPreviewZoom），使 200mm 低光预览
+    /// 与成片取景一致。分母随镜头切换离散变化、ramp 期间恒定，倍率只随 zoom 单调。
+    func previewZoomCrop() -> CGFloat {
+        ExtendedPreviewZoom.cropFactor(zoom: lastObservedDeviceZoom, streamCeiling: activeConstituentZoomCeiling)
     }
 
     /// 根据系统压力等级动态调整预览帧率，防止过热降频
