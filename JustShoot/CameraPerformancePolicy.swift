@@ -56,12 +56,18 @@ struct CameraZoomTransition: Sendable {
     let rate: Float
     let usesRamp: Bool
 
-    init?(currentZoom: CGFloat, targetZoom: CGFloat, isRamping: Bool, animated: Bool) {
+    /// `fastRamp`：同 constituent 内的短跳（≤1 档光变）用高速率——立即设置曾用来消除
+    /// ramp 死启动的迟滞感，但真机观感反馈为「跳变生硬」；高速短 ramp（24↔35↔50 这类
+    /// ~0.5 档的跳变 200-300ms 内完成）保留连续运动，名义速率不成为瓶颈。跨 switchover
+    /// 维持速率阶梯——系统需要时间从容做 constituent crossfade，过快反而触发更重的重配。
+    init?(currentZoom: CGFloat, targetZoom: CGFloat, isRamping: Bool, animated: Bool, fastRamp: Bool = false) {
         guard currentZoom.isFinite, targetZoom.isFinite, currentZoom > 0, targetZoom > 0 else { return nil }
         self.targetZoom = targetZoom
         anchorZoom = animated && isRamping ? currentZoom : nil
         let ratio = max(targetZoom / currentZoom, currentZoom / targetZoom)
-        rate = ratio < 1.5 ? 4 : ratio < 3 ? 8 : 16
+        // 真机实测 AVFoundation 对 ramp 施加加速度上限，短跳（≤2 档）的有效速度 ~2-3 stops/s
+        // 与指令速率关系不大，但低速率档（旧值 4）确实更慢；整体上调让长跳（200→35mm）明显收紧。
+        rate = fastRamp ? 32 : (ratio < 1.5 ? 8 : ratio < 3 ? 16 : 24)
         usesRamp = animated && abs(targetZoom - currentZoom) > 0.0001
     }
 }

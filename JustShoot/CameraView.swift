@@ -93,27 +93,35 @@ struct CameraView: View {
                 // 预览区
                 GeometryReader { geometry in
                     ZStack(alignment: .bottom) {
-                        // 镜头切换过渡底衬：系统合成预览层（Apple 官方推荐的预览显示路径），
-                        // 切镜头时拿到系统 crossfade 而非停帧。常态完全被上层 Metal 预览盖住
-                        //（opacity 0）；主帧流停顿的窗口内由 PreviewUnderlayBlender 把上层淡出、
-                        // 露出这层实时画面。见 MetalPreview.swift 与 LensTransitionCompositor.swift。
-                        CameraPreviewUnderlayView(manager: cameraManager)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .allowsHitTesting(false)
+                        // 入场门控：帧流稳定（首帧后驻留 300ms，CameraManager.previewRevealReady）
+                        // 且当前胶片的 LUT 已就绪才淡入预览——开头的热身抖动帧/未分级帧不
+                        // 展示给用户（用户可感的「进相机开头卡顿」主诉）。底衬与主源同门控，
+                        // 避免未分级系统画面从门控缝隙漏出。
+                        Group {
+                            // 镜头切换过渡底衬：系统合成预览层（Apple 官方推荐的预览显示路径），
+                            // 切镜头时拿到系统 crossfade 而非停帧。常态完全被上层 Metal 预览盖住
+                            //（opacity 0）；主帧流停顿的窗口内由 PreviewUnderlayBlender 把上层淡出、
+                            // 露出这层实时画面。见 MetalPreview.swift 与 LensTransitionCompositor.swift。
+                            CameraPreviewUnderlayView(manager: cameraManager)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .allowsHitTesting(false)
 
-                        // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade,
-                        // 预览不黑屏），不再需要 bridgeImage 帧桥接。
-                        // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
-                        RealtimePreviewView(
-                            manager: cameraManager,
-                            lutCacheKey: preparedLUT?.key ?? previewLUTKey,
-                            preparedLUT: preparedLUT?.lut,
-                            grain: preparedLUT?.profile.grain ?? source.renderProfile.grain,
-                            optics: preparedLUT?.profile.optics ?? source.renderProfile.optics
-                        )
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .contentShape(Rectangle())
-                            .gesture(unifiedPreviewGesture(viewportSize: geometry.size))
+                            // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade,
+                            // 预览不黑屏），不再需要 bridgeImage 帧桥接。
+                            // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
+                            RealtimePreviewView(
+                                manager: cameraManager,
+                                lutCacheKey: preparedLUT?.key ?? previewLUTKey,
+                                preparedLUT: preparedLUT?.lut,
+                                grain: preparedLUT?.profile.grain ?? source.renderProfile.grain,
+                                optics: preparedLUT?.profile.optics ?? source.renderProfile.optics
+                            )
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .contentShape(Rectangle())
+                                .gesture(unifiedPreviewGesture(viewportSize: geometry.size))
+                        }
+                        .opacity(isPreviewRevealed ? 1 : 0)
+                        .animation(.easeOut(duration: 0.35), value: isPreviewRevealed)
 
                         if showFocusIndicator, let point = focusPoint {
                             FocusIndicatorView()
@@ -569,6 +577,10 @@ struct CameraView: View {
     }
 
     private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }
+    /// 入场门控：帧流稳定（首帧驻留 300ms）且当前胶片 LUT 已就绪才显示预览（淡入见预览区）。
+    private var isPreviewRevealed: Bool {
+        cameraManager.previewRevealReady && preparedLUT != nil
+    }
     private var previewLUTKey: String {
         let baseKey = FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: selectedCurve)
         return ColorTemperatureLUT.cacheKey(baseKey: baseKey, selection: whiteBalanceSelection,

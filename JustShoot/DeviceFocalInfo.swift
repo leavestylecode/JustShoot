@@ -83,6 +83,17 @@ struct DeviceFocalInfo {
         return CGFloat(option.mm) * c.virtualZoomRange.lowerBound / CGFloat(c.nativeMm)
     }
 
+    /// 本次 zoom 变更是否跨越 constituent 边界（任一 switchover 阈值严格落在起止 zoom 之间）。
+    /// 同镜头短跳与跨镜头切换的体验策略不同：前者用高速短 ramp（迟滞感是主诉），
+    /// 后者维持速率阶梯（系统需要时间从容做 constituent crossfade，过快反而触发
+    /// 更重的管线重配），且 settle 等待窗口要覆盖实测的跨镜头停帧时长。
+    func crossesConstituentBoundary(fromZoom: CGFloat, toZoom: CGFloat) -> Bool {
+        constituents.dropFirst().contains {
+            let threshold = $0.virtualZoomRange.lowerBound
+            return min(fromZoom, toZoom) < threshold && max(fromZoom, toZoom) > threshold
+        }
+    }
+
     /// zoom → 等效焦距（反向，与 virtualZoomFactor 共用同一模型）。
     /// 按当前活跃 constituent 的原生焦距 + 数字裁切倍率反推：equiv = c.nativeMm × (zoom / c.lowerBound)。
     /// 比「primaryNativeMm × zoom」准——后者把最广镜头的（已取整）标称外推到长焦端会累积误差

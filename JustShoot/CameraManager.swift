@@ -271,6 +271,10 @@ class CameraManager: NSObject, ObservableObject {
     private var sessionConfigured: Bool = false
     /// 当前 session 周期是否已收到首帧。与 sessionConfigured + lensTarget 共同决定 UI ready。
     private var hasReceivedPreviewFrame = false
+    /// 预览「入场淡入」门控：首帧到达并驻留一个短窗口（渲染管线热身、AE 开始收敛）后置位。
+    /// CameraView 叠加 LUT 就绪条件后淡入预览，避免把开头的热身抖动帧/风格切换帧展示给用户。
+    @Published private(set) var previewRevealReady = false
+    private var previewRevealTask: Task<Void, Never>?
     /// 系统中断仍在进行中（来电/控制中心/录屏），interruptionEnded 后 resume
     private var sessionInterrupted: Bool = false
 
@@ -426,6 +430,9 @@ class CameraManager: NSObject, ObservableObject {
     private func beginCameraPreparation(_ state: CameraReadiness = .configuring) {
         flowDiagnostics.reset(generation: diagnosticGeneration)
         hasReceivedPreviewFrame = false
+        previewRevealTask?.cancel()
+        previewRevealTask = nil
+        previewRevealReady = false
         firstFrameFlag.withLock { $0 = false }
         pixelBufferLock.withLockUnchecked { $0.buffer = nil }
         setReadiness(state)
@@ -434,6 +441,24 @@ class CameraManager: NSObject, ObservableObject {
     private func didReceiveFirstPreviewFrame() {
         hasReceivedPreviewFrame = true
         promoteReadinessIfPossible()
+        schedulePreviewReveal()
+    }
+
+    /// 首帧后驻留 300ms 再放行入场淡入：跳过渲染管线热身的头几个抖动帧与 AE 从初值
+    /// 收敛的第一拍。不等 AE 完全收敛——那要数百 ms 且系统相机同样边显示边收敛；
+    /// 300ms 只覆盖「明显不健康」的开头窗口。
+    private func schedulePreviewReveal() {
+        guard previewRevealTask == nil else { return }
+        let generation = diagnosticGeneration
+        previewRevealTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard let self, !Task.isCancelled,
+                  self.diagnosticGeneration == generation,
+                  self.sessionIntent.withLock({ $0.permitsStart(generation) }),
+                  self.sessionConfigured, self.hasReceivedPreviewFrame else { return }
+            self.previewRevealReady = true
+            self.diagnostics.event("preview_reveal_ready", "generation=\(generation)")
+        }
     }
 
     /// UI ready 的单一判定点：session 配置完成、当前周期首帧已到、初始焦段与 ZSL grace 已稳定。
@@ -1973,7 +1998,18 @@ class CameraManager: NSObject, ObservableObject {
         self.currentZoomFactor = finalZoom
         // capture 就绪只等 zoom ramp 停（取景到位）+ 一点 ZSL grace 给系统的 constituent crossfade 收尾；
         // 不再等特定 constituent（系统说了算）——所以系统拒绝长焦时快门不假死。maxWait 仅异常兜底。
-        beginLensSwitch(zoom: finalZoom, zslGraceMs: 150, maxWaitMs: 1200)
+        // 跨 switchover 的切换实测会停帧 2s+（真机日志：35→13mm 全程 2.1-2.5s），maxWait 放宽到
+        // 2.8s 让 settle 判定覆盖真实切换窗口，避免「max_wait 超时但设备仍在 ramp」的假 settle。
+        let hardwareNow = max(1, videoCaptureDevice.map { CGFloat($0.videoZoomFactor) } ?? currentZoomFactor)
+        let crossesConstituent = focalInfo.crossesConstituentBoundary(fromZoom: hardwareNow, toZoom: finalZoom)
+        beginLensSwitch(zoom: finalZoom, zslGraceMs: 150, maxWaitMs: crossesConstituent ? 2800 : 1200)
+        // 同 constituent 内的短跳用**高速短 ramp**：立即设置（上一版）消除了 ramp 死启动的
+        // 迟滞感，但真机观感反馈「跳变生硬」——离散跳切对连续取景的视觉冲击大于 ~200-300ms
+        // 的连续运动（同镜头跳变 ≤1 档光变，高速率 32 下实际时长与此相当）。跨 switchover
+        // 仍走速率阶梯 ramp——渐进逼近让系统从容做 constituent crossfade，避免立即越过阈值
+        // 触发更重的管线重配。
+        let usesRamp = animated
+        let usesFastRamp = !crossesConstituent
 
         // 设备 I/O（lockForConfiguration + ramp + 安全快门）移到 sessionQueue 执行。streaming 中
         // **首次** lockForConfiguration 会阻塞调用线程数百 ms（系统等采集管线到安全配置点）；放在
@@ -1984,7 +2020,8 @@ class CameraManager: NSObject, ObservableObject {
             self?.diagnostics.event("focal_dequeued", "focal_seq=\(focalSequence) wait_ms=\(Diagnostics.milliseconds(since: focalQueuedAt))")
             self?.configureFocalOnSessionQueue(
                 device: device, finalZoom: finalZoom,
-                animated: animated, focalMm: option.rawValue, focalSequence: focalSequence, generation: focalGeneration
+                animated: usesRamp, fastRamp: usesFastRamp,
+                focalMm: option.rawValue, focalSequence: focalSequence, generation: focalGeneration
             )
         }
     }
@@ -1992,7 +2029,7 @@ class CameraManager: NSObject, ObservableObject {
     /// applyFocalLength 的设备配置段，在 sessionQueue 上执行（nonisolated，不触碰 @MainActor 状态）。
     /// 把 lockForConfiguration/ramp 从主线程移走，避免首次配置阻塞主线程导致预览掉帧。
     nonisolated private func configureFocalOnSessionQueue(
-        device: AVCaptureDevice, finalZoom: CGFloat, animated: Bool, focalMm: Int, focalSequence: UInt64, generation: UInt64
+        device: AVCaptureDevice, finalZoom: CGFloat, animated: Bool, fastRamp: Bool, focalMm: Int, focalSequence: UInt64, generation: UInt64
     ) {
         let configuring = diagnostics.span("focal_hardware_apply", "focal_seq=\(focalSequence) focal_mm=\(focalMm)")
         var configurationStatus = "error"
@@ -2013,7 +2050,7 @@ class CameraManager: NSObject, ObservableObject {
             }
             device.setPrimaryConstituentDeviceSwitchingBehavior(.auto, restrictedSwitchingBehaviorConditions: [])
             guard let transition = CameraZoomTransition(currentZoom: device.videoZoomFactor, targetZoom: finalZoom,
-                isRamping: device.isRampingVideoZoom, animated: animated) else {
+                isRamping: device.isRampingVideoZoom, animated: animated, fastRamp: fastRamp) else {
                 device.unlockForConfiguration()
                 configurationStatus = "invalid_zoom"
                 return

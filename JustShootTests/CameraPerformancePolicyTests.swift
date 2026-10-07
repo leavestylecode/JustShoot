@@ -55,7 +55,7 @@ final class CameraPerformancePolicyTests: XCTestCase {
         XCTAssertEqual(transition.anchorZoom, 13.321)
         XCTAssertEqual(transition.targetZoom, 4.1667)
         XCTAssertTrue(transition.usesRamp)
-        XCTAssertEqual(transition.rate, 16)
+        XCTAssertEqual(transition.rate, 24)
     }
 
     func testRetargetingUsesActualZoomForRateInsteadOfThePreviousUISelection() throws {
@@ -63,7 +63,7 @@ final class CameraPerformancePolicyTests: XCTestCase {
         let transition = try XCTUnwrap(CameraZoomTransition(currentZoom: 12, targetZoom: 16,
             isRamping: true, animated: true))
         XCTAssertEqual(transition.anchorZoom, 12)
-        XCTAssertEqual(transition.rate, 4)
+        XCTAssertEqual(transition.rate, 8)
     }
 
     func testSettledZoomDoesNotGetAnExtraImmediateAssignment() throws {
@@ -71,7 +71,7 @@ final class CameraPerformancePolicyTests: XCTestCase {
             isRamping: false, animated: true))
         XCTAssertNil(transition.anchorZoom)
         XCTAssertTrue(transition.usesRamp)
-        XCTAssertEqual(transition.rate, 8)
+        XCTAssertEqual(transition.rate, 16)
     }
 
     func testSelectingCurrentPositionStopsAnOldRampWithoutStartingAnother() throws {
@@ -93,6 +93,29 @@ final class CameraPerformancePolicyTests: XCTestCase {
         XCTAssertNil(CameraZoomTransition(currentZoom: .nan, targetZoom: 16, isRamping: true, animated: true))
         XCTAssertNil(CameraZoomTransition(currentZoom: 8.05, targetZoom: .infinity, isRamping: true, animated: true))
         XCTAssertNil(CameraZoomTransition(currentZoom: 0, targetZoom: 16, isRamping: true, animated: true))
+    }
+
+    /// 同 constituent 短跳（如 24↔35mm）走高速短 ramp：连续运动消除立即设置的「跳变
+    /// 生硬」，高速率让名义速率不成为瓶颈（实际时长由 AVF 加速度上限决定，~200-300ms）。
+    func testSameConstituentHopUsesFastRamp() throws {
+        let transition = try XCTUnwrap(CameraZoomTransition(currentZoom: 2.05, targetZoom: 2.917,
+            isRamping: false, animated: true, fastRamp: true))
+        XCTAssertTrue(transition.usesRamp)
+        XCTAssertEqual(transition.rate, 32)
+        XCTAssertNil(transition.anchorZoom)
+        // fastRamp 不改变 anchor/去重语义：ramp 中的重定向仍锚定实际 zoom
+        let retarget = try XCTUnwrap(CameraZoomTransition(currentZoom: 2.4, targetZoom: 2.917,
+            isRamping: true, animated: true, fastRamp: true))
+        XCTAssertEqual(retarget.anchorZoom, 2.4)
+        XCTAssertEqual(retarget.rate, 32)
+    }
+
+    /// 跨 switchover 维持速率阶梯：系统需要时间从容做 constituent crossfade，不吃高速档。
+    func testCrossConstituentKeepsRateLadder() throws {
+        let transition = try XCTUnwrap(CameraZoomTransition(currentZoom: 4.167, targetZoom: 8.10,
+            isRamping: false, animated: true, fastRamp: false))
+        XCTAssertTrue(transition.usesRamp)
+        XCTAssertEqual(transition.rate, 16)
     }
 
     // MARK: - ExtendedPreviewZoom（活跃镜头区间上限之上的扩展裁切）
