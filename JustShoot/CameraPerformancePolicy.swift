@@ -85,3 +85,59 @@ enum ExtendedPreviewZoom {
         return max(1, max(1, zoom) / streamCeiling)
     }
 }
+
+/// 把区间上限的离散变化**对齐到帧流的真实切换点**（`previewZoomCrop` 闪烁的修法）。
+///
+/// constituent KVO 在系统*提交*镜头切换的瞬间触发，而 VideoDataOutput 交付的帧内容
+/// 要到切换完成后才换成新镜头（实测跨镜头停帧 ≥500ms，→超广 2.1–2.5s）。若 KVO 一到
+/// 就换上限，窗口内仍在渲染的旧镜头帧会拿到按新上限算的裁切——取景瞬间跳宽/跳近再
+/// 跳回（低光 200mm 上限 8.0↔16.0 时是整整 2 倍），即用户可见的预览闪烁。
+///
+/// 对齐信号：跨镜头切换必然在帧流上留下 PTS 断裂。KVO 只登记待生效上限
+/// （`kvCeilingDidChange`），`frameArrived` 在每帧到达时裁决——出现 ≥200ms 断裂
+/// （第一帧视为断裂）即认为内容已切到新镜头，此刻换上限恰好在第一帧新内容上生效；
+/// 停顿窗口内被冻结重绘的保持帧继续用旧上限，取景全程连续。帧流持续无断裂
+/// （无缝切换的假想情形）时按 600ms 年龄兜底接受，保证上限不会永久滞留旧值。
+struct PreviewCropCeilingSynchronizer: Sendable {
+    /// 帧间断裂判定阈值：正常 30fps 节距 33ms、重负载 15fps 节距 66ms 都在下方，
+    /// 真实跨镜头切换停帧 ≥500ms。
+    static let frameGapThresholdSeconds: Double = 0.2
+    /// KVO 上限变化后仍无断裂时，最多延迟这么久无条件接受。
+    static let acceptTimeoutSeconds: Double = 0.6
+
+    /// 渲染侧当前应使用的上限（`previewZoomCrop` 的分母）。
+    private(set) var renderCeiling: CGFloat = .greatestFiniteMagnitude
+    private var kvCeiling: CGFloat = .greatestFiniteMagnitude
+    private var kvCeilingChangedAt: Double = 0
+    private var lastFramePTS: Double?
+
+    /// 上限换轨完成的回执（`frameArrived` 恰好在此帧生效），供日志取证。
+    struct Latch: Equatable {
+        let ceiling: CGFloat
+        /// 触发方式：帧流断裂的时长（首帧为 nil）或超时等待的年龄。
+        let gapSeconds: Double?
+        let ageSeconds: Double
+    }
+
+    /// constituent KVO 报告新的活跃区间上限（`now` 用 host uptime，与超时判定同钟）。
+    mutating func kvCeilingDidChange(to ceiling: CGFloat, at now: Double) {
+        kvCeiling = ceiling
+        kvCeilingChangedAt = now
+    }
+
+    mutating func reset() {
+        self = Self()
+    }
+
+    /// 每个预览帧到达时调用；返回该帧起渲染应使用的上限，恰在换轨帧返回回执。
+    mutating func frameArrived(pts: Double, at now: Double) -> Latch? {
+        defer { lastFramePTS = pts }
+        guard kvCeiling != renderCeiling else { return nil }
+        let gap = lastFramePTS.map { pts - $0 }
+        let discontinuity = gap.map { $0 >= Self.frameGapThresholdSeconds } ?? true
+        let timedOut = now - kvCeilingChangedAt >= Self.acceptTimeoutSeconds
+        guard discontinuity || timedOut else { return nil }
+        renderCeiling = kvCeiling
+        return Latch(ceiling: renderCeiling, gapSeconds: gap, ageSeconds: now - kvCeilingChangedAt)
+    }
+}

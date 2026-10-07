@@ -93,6 +93,14 @@ struct CameraView: View {
                 // 预览区
                 GeometryReader { geometry in
                     ZStack(alignment: .bottom) {
+                        // 镜头切换过渡底衬：系统合成预览层（Apple 官方推荐的预览显示路径），
+                        // 切镜头时拿到系统 crossfade 而非停帧。常态完全被上层 Metal 预览盖住
+                        //（opacity 0）；主帧流停顿的窗口内由 PreviewUnderlayBlender 把上层淡出、
+                        // 露出这层实时画面。见 MetalPreview.swift 与 LensTransitionCompositor.swift。
+                        CameraPreviewUnderlayView(manager: cameraManager)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .allowsHitTesting(false)
+
                         // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade,
                         // 预览不黑屏），不再需要 bridgeImage 帧桥接。
                         // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。

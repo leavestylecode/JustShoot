@@ -1,6 +1,7 @@
 import SwiftUI
 import MetalKit
 import MetalPerformanceShaders
+@preconcurrency import AVFoundation
 @preconcurrency import CoreVideo
 import os
 
@@ -127,6 +128,38 @@ final class CameraPreviewMetalView: MTKView {
     }
 }
 
+// MARK: - 系统预览底衬（Apple 官方推荐的预览显示路径，作为镜头切换过渡的第二显示源）
+//
+// AVCaptureVideoPreviewLayer 是 AVFoundation 官方文档推荐的标准预览显示层，由系统在
+// 服务进程自行合成：虚拟设备切镜头时它拿到系统的 crossfade 合成流而非停帧（系统相机
+// 同款显示路径）。把它垫在 Metal 预览之下，主帧流停顿的窗口由 PreviewUnderlayBlender
+// 把主源淡出、露出这层实时画面，过渡结束后淡回胶片分级渲染。不参与会话连接结构、
+// 不改 sessionPreset、零采集链路影响（设计记录见 LensTransitionCompositor.swift）。
+
+/// 宿主 UIView：layerClass 直接就是 AVCaptureVideoPreviewLayer。
+struct CameraPreviewUnderlayView: UIViewRepresentable {
+    let manager: CameraManager
+
+    func makeUIView(context: Context) -> PreviewUnderlayUIView {
+        let view = PreviewUnderlayUIView(frame: .zero)
+        view.backgroundColor = .black
+        view.isUserInteractionEnabled = false
+        manager.attachPreviewUnderlay(view.previewLayer)
+        return view
+    }
+
+    func updateUIView(_ uiView: PreviewUnderlayUIView, context: Context) {}
+
+    static func dismantleUIView(_ uiView: PreviewUnderlayUIView, coordinator: ()) {
+        uiView.previewLayer.session = nil
+    }
+}
+
+final class PreviewUnderlayUIView: UIView {
+    override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
+    var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
+}
+
 // MARK: - 实时预览视图（全 Metal 管线：CVPixelBuffer → compute shader → drawable）
 struct RealtimePreviewView: UIViewRepresentable {
     let manager: CameraManager
@@ -153,6 +186,10 @@ struct RealtimePreviewView: UIViewRepresentable {
         view.enableSetNeedsDisplay = false
         view.preferredFramesPerSecond = 60
         view.framebufferOnly = false  // 允许 compute shader 写入 drawable
+        // 非不透明：主帧流停顿的窗口内本视图按合成器计划淡出（view.alpha < 1），露出下层
+        // 系统预览底衬（CameraPreviewUnderlayView）。渲染内容本身始终全幅覆盖 drawable
+        //（aspect-fill），alpha 只做视图级合成，不影响 Metal 路径。
+        view.isOpaque = false
         // 预览降分辨率：2x 而非 3x，减少 55% 像素量
         view.contentScaleFactor = min(context.environment.displayScale, 2.0)
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
@@ -337,7 +374,13 @@ struct RealtimePreviewView: UIViewRepresentable {
             guard !view.isPaused, view.window != nil,
                   UIApplication.shared.applicationState == .active else { return }
             let flow = manager?.flowDiagnostics
-            // 帧去重：如果相机没有产生新帧，跳过渲染
+            // 过渡计划（每 vsync 拉一次，即使没有新帧也要执行——淡出/淡回正发生在停顿窗口，
+            // 那时恰无新帧）：crop = 扩展数字变焦倍率（帧对齐后的渲染侧上限作分母，见
+            // PreviewCropCeilingSynchronizer）；metalOpacity = 停顿窗口内淡出本视图、露出
+            // 系统预览底衬，恢复后淡回（见 LensTransitionCompositor.swift 设计记录）。
+            let transitionPlan = manager?.previewTransitionPlan() ?? (crop: 1, metalOpacity: 1)
+            view.alpha = transitionPlan.metalOpacity
+            // 帧去重：如果相机没有产生新帧，跳过渲染（crop 在稳态是常量，重复帧无需重绘）
             guard let (pixelBuffer, frameId, capturedAt) = manager?.getLatestFrame() else {
                 flow?.skipped(.noFrame)
                 return
@@ -472,12 +515,13 @@ struct RealtimePreviewView: UIViewRepresentable {
 
             // 扩展数字变焦：预览代理流的取景钳在活跃镜头区间上限（低光长焦 200mm 预览
             // 与 100mm 相同的真机实锤），超过上限的部分在此居中裁切补足，与成片取景一致。
-            // 分母是随镜头切换离散变化的准常量，倍率只随 zoom 单调，无回摆。
-            let crop = manager?.previewZoomCrop() ?? 1
-            if crop > 1.0005 {
+            // 分母随镜头切换离散变化、且在帧流断裂处换轨（见 PreviewCropCeilingSynchronizer），
+            // 倍率只随 zoom 单调，无回摆。裁切区是原采样区的居中子集，不越界；shader 采样
+            // 路径零改动。
+            if transitionPlan.crop > 1.0005 {
                 let cx = (Float(outW) / 2 - offsetX) / scale
                 let cy = (Float(outH) / 2 - offsetY) / scale
-                scale *= Float(crop)
+                scale *= Float(transitionPlan.crop)
                 offsetX = Float(outW) / 2 - cx * scale
                 offsetY = Float(outH) / 2 - cy * scale
             }

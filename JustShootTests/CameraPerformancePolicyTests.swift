@@ -122,4 +122,112 @@ final class CameraPerformancePolicyTests: XCTestCase {
         XCTAssertEqual(ExtendedPreviewZoom.cropFactor(zoom: 16.0, streamCeiling: 1), 1)
         XCTAssertEqual(ExtendedPreviewZoom.cropFactor(zoom: -3, streamCeiling: 8.0), 1)
     }
+
+    // MARK: - PreviewCropCeilingSynchronizer（上限换轨的帧对齐）
+
+    /// 低光 200mm 主摄钉 8.0、光线恢复切回长焦（上限 8.0→16.0）：KVO 触发后帧流仍在
+    /// 交付旧镜头内容（33ms 正常节距）→ 裁切分母保持旧值；跨镜头停帧（≥200ms 断裂）
+    /// 后的第一帧才换轨——旧内容帧绝不拿到新上限算出的取景。
+    func testCeilingChangeHoldsUntilStreamDiscontinuity() {
+        var sync = PreviewCropCeilingSynchronizer()
+        // 帧流先流动起来（首帧本身视为断裂，不能混进本用例的断言窗口）
+        var pts = 0.0
+        for _ in 0..<3 {
+            pts += 0.033
+            XCTAssertNil(sync.frameArrived(pts: pts, at: pts))
+        }
+        sync.kvCeilingDidChange(to: 16.0, at: 10.0)
+        // KVO 已登记新上限，旧镜头内容帧继续到达：分母不动
+        for _ in 0..<6 {
+            pts += 0.033
+            XCTAssertNil(sync.frameArrived(pts: pts, at: 10.0 + pts))
+            XCTAssertEqual(sync.renderCeiling, .greatestFiniteMagnitude)
+        }
+        // 停顿窗口内无帧到达：渲染侧维持旧上限（保持帧重绘不跳取景）
+        XCTAssertEqual(sync.renderCeiling, .greatestFiniteMagnitude)
+        // 新镜头第一帧：断裂 0.5s → 恰在此帧换轨
+        pts += 0.5
+        let latch = sync.frameArrived(pts: pts, at: 10.0 + pts)
+        XCTAssertEqual(latch?.ceiling, 16.0)
+        XCTAssertEqual(latch?.gapSeconds ?? 0, 0.5, accuracy: 0.0001)
+        XCTAssertEqual(sync.renderCeiling, 16.0)
+        // 换轨后帧流继续：无重复回执
+        pts += 0.033
+        XCTAssertNil(sync.frameArrived(pts: pts, at: 10.0 + pts))
+        XCTAssertEqual(sync.renderCeiling, 16.0)
+    }
+
+    /// 断裂阈值边界：125ms 断裂（<200ms）不生效，375ms 断裂生效。PTS 用二进制
+    /// 精确可表示的值（1.0/1.125/1.5），间隔差不带浮点噪声。
+    func testFrameGapThresholdBoundary() {
+        var sync = PreviewCropCeilingSynchronizer()
+        _ = sync.frameArrived(pts: 1.0, at: 1.0)
+        sync.kvCeilingDidChange(to: 8.0, at: 1.1)
+        XCTAssertNil(sync.frameArrived(pts: 1.125, at: 1.3))
+        XCTAssertEqual(sync.renderCeiling, .greatestFiniteMagnitude)
+        let latch = sync.frameArrived(pts: 1.5, at: 1.6)
+        XCTAssertEqual(latch?.ceiling, 8.0)
+    }
+
+    /// 帧流持续无断裂（假想的无缝切换）：按 600ms 年龄兜底接受，上限不会永久滞留。
+    func testContinuousStreamAcceptsCeilingByTimeout() {
+        var sync = PreviewCropCeilingSynchronizer()
+        _ = sync.frameArrived(pts: 0.0, at: 0.0)
+        sync.kvCeilingDidChange(to: 2.05, at: 1.0)
+        var pts = 0.0
+        var latch: PreviewCropCeilingSynchronizer.Latch?
+        // 30fps 持续流动 0.6s：全程不换轨……
+        for _ in 0..<18 {
+            pts += 0.033
+            latch = sync.frameArrived(pts: pts, at: 1.0 + pts)
+        }
+        XCTAssertNil(latch)
+        XCTAssertEqual(sync.renderCeiling, .greatestFiniteMagnitude)
+        // ……直到帧到达时刻距 KVO 变化 ≥0.6s
+        pts += 0.033
+        latch = sync.frameArrived(pts: pts, at: 1.0 + pts)
+        XCTAssertEqual(latch?.ceiling, 2.05)
+        XCTAssertEqual(latch?.gapSeconds ?? 0, 0.033, accuracy: 0.0001)
+    }
+
+    /// 系统在边界附近来回切换 constituent（zoom=16 稳态实测超广↔长焦振荡）：
+    /// 连续两次 KVO 变化后，断裂处取**最新**登记值。
+    func testOscillatingConstituentTakesLatestCeiling() {
+        var sync = PreviewCropCeilingSynchronizer()
+        _ = sync.frameArrived(pts: 1.0, at: 1.0)
+        sync.kvCeilingDidChange(to: 2.05, at: 5.0)
+        sync.kvCeilingDidChange(to: 16.0, at: 5.02)
+        let latch = sync.frameArrived(pts: 1.5, at: 5.5)
+        XCTAssertEqual(latch?.ceiling, 16.0)
+        XCTAssertEqual(sync.renderCeiling, 16.0)
+    }
+
+    /// 会话重启（reset）后的第一帧视为断裂：启动即低光 200mm 时扩展裁切从第一帧就正确。
+    func testFirstFrameAfterResetLatchesImmediately() {
+        var sync = PreviewCropCeilingSynchronizer()
+        _ = sync.frameArrived(pts: 1.0, at: 1.0)
+        sync.kvCeilingDidChange(to: 8.0, at: 1.0)
+        // 停顿期间 KVO 已登记，但渲染侧等第一帧新内容
+        XCTAssertEqual(sync.renderCeiling, .greatestFiniteMagnitude)
+        let resume = sync.frameArrived(pts: 1.5, at: 1.5)
+        XCTAssertEqual(resume?.ceiling, 8.0)
+        sync.reset()
+        XCTAssertEqual(sync.renderCeiling, .greatestFiniteMagnitude)
+        sync.kvCeilingDidChange(to: 8.0, at: 2.0)
+        // 重启后的第一帧（无历史 PTS）视为断裂，立即换轨
+        let first = sync.frameArrived(pts: 5.0, at: 2.0)
+        XCTAssertEqual(first?.ceiling, 8.0)
+        XCTAssertNil(first?.gapSeconds)
+    }
+
+    /// 无 KVO 变化时帧流照常流动，零副作用。
+    func testFramesWithoutCeilingChangeAreInert() {
+        var sync = PreviewCropCeilingSynchronizer()
+        var pts = 0.0
+        for _ in 0..<10 {
+            pts += 0.033
+            XCTAssertNil(sync.frameArrived(pts: pts, at: pts))
+        }
+        XCTAssertEqual(sync.renderCeiling, .greatestFiniteMagnitude)
+    }
 }

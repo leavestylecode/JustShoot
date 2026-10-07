@@ -222,7 +222,23 @@ class CameraManager: NSObject, ObservableObject {
     private var constituentObservation: NSKeyValueObservation?
     /// 活跃 constituent 的区间上限（预览代理流取景钳制点，ExtendedPreviewZoom 的分母）。
     /// 未知（.greatestFiniteMagnitude）时禁用扩展裁切，行为与原始流一致。
+    /// 仅是 KVO 侧最新值（日志用）；渲染实际使用 cropCeilingSync 里**帧对齐后**的值。
     private var activeConstituentZoomCeiling: CGFloat = .greatestFiniteMagnitude
+    /// 上限→裁切的帧对齐状态机：KVO 只登记，帧流断裂（镜头切换停帧）处才换渲染侧上限，
+    /// 否则旧镜头帧拿到新上限算出的裁切会取景跳变（预览闪烁）。
+    private let cropCeilingSync = OSAllocatedUnfairLock(initialState: PreviewCropCeilingSynchronizer())
+    /// 主源（Metal）↔ 底衬源（系统预览层）混合状态机：主帧流跨镜头切换停顿时把主源淡出、
+    /// 露出持续流动的系统合成流（Apple 官方推荐预览路径，见 LensTransitionCompositor.swift）。
+    private var underlayBlender = PreviewUnderlayBlender()
+    private var lastUnderlayOpacity: CGFloat = 0
+    private var underlayBlendLogged = false
+    /// 底衬取景对齐的当前倍率（去抖用）；配套 `underlayAlignmentActive` 只在启用/停用
+    /// 边界打日志，避免 ramp 期间按 KVO 步进刷屏。
+    private var lastUnderlayAlignmentCrop: CGFloat = 1
+    private var underlayAlignmentActive = false
+    /// 系统预览层底衬（AVCaptureVideoPreviewLayer）。由 CameraPreviewUnderlayView 挂载，
+    /// weak——生命周期归视图，视图释放后引用自动置 nil。
+    weak var previewUnderlayLayer: AVCaptureVideoPreviewLayer?
     /// 设备真值 zoom（KVO 每次写入）——扩展裁切的分子。不复用 currentZoomFactor：
     /// UI 可能乐观写目标值，ramp 跨越钳制点的瞬间会把裁切瞬间拉满。
     private var lastObservedDeviceZoom: CGFloat = 1.0
@@ -1186,6 +1202,8 @@ class CameraManager: NSObject, ObservableObject {
         }
 
         observersSetup.end()
+        // 上一轮 session 的对齐状态（旧 PTS/上限）不跨周期复用
+        cropCeilingSync.withLock { $0.reset() }
         updateActiveConstituentZoomCeiling()
         sessionConfigured = true
         trace.event("camera_configuration_complete", "generation=\(token)")
@@ -1538,6 +1556,7 @@ class CameraManager: NSObject, ObservableObject {
 
     /// 解析当前活跃 constituent 的区间上限（预览流取景钳制点）。活跃镜头不属于任何
     /// 已知 constituent（物理设备等边缘情况）时设为无界——禁用扩展裁切，行为与原始流一致。
+    /// 只更新 KVO 侧登记值；渲染侧上限由 cropCeilingSync 在帧流断裂处对齐生效。
     private func updateActiveConstituentZoomCeiling() {
         let previous = activeConstituentZoomCeiling
         if let active = videoCaptureDevice?.activePrimaryConstituent,
@@ -1547,6 +1566,8 @@ class CameraManager: NSObject, ObservableObject {
             activeConstituentZoomCeiling = .greatestFiniteMagnitude
         }
         if activeConstituentZoomCeiling != previous {
+            let ceiling = activeConstituentZoomCeiling
+            cropCeilingSync.withLock { $0.kvCeilingDidChange(to: ceiling, at: ProcessInfo.processInfo.systemUptime) }
             diagnostics.event("preview_stream_ceiling",
                 "ceiling=\(activeConstituentZoomCeiling.isFinite ? String(format: "%.2f", activeConstituentZoomCeiling) : "unbounded") lens=\(activeConstituentName)")
         }
@@ -1554,9 +1575,81 @@ class CameraManager: NSObject, ObservableObject {
 
     /// 预览渲染器每帧调用的扩展裁切倍率（≥1）：预览代理流的取景钳在活跃镜头区间上限，
     /// 超过上限的部分由渲染器居中裁切补足（ExtendedPreviewZoom），使 200mm 低光预览
-    /// 与成片取景一致。分母随镜头切换离散变化、ramp 期间恒定，倍率只随 zoom 单调。
+    /// 与成片取景一致。分母取**帧对齐后**的渲染侧上限：镜头切换的停顿窗口里保持帧
+    /// 沿用旧上限，恰在新镜头第一帧换轨，取景不因 KVO/帧内容错位而闪跳。
     func previewZoomCrop() -> CGFloat {
-        ExtendedPreviewZoom.cropFactor(zoom: lastObservedDeviceZoom, streamCeiling: activeConstituentZoomCeiling)
+        ExtendedPreviewZoom.cropFactor(zoom: lastObservedDeviceZoom, streamCeiling: cropCeilingSync.withLock { $0.renderCeiling })
+    }
+
+    /// 预览渲染器每 vsync 调用的过渡入口（LensTransitionCompositor 架构的单一接线点）：
+    /// - crop：扩展数字变焦倍率（≥1，`previewZoomCrop()`，帧对齐后的分母）；
+    /// - metalOpacity：主源视图透明度（停顿窗口内淡出、露出系统预览底衬，恢复后淡回）。
+    func previewTransitionPlan() -> (crop: CGFloat, metalOpacity: CGFloat) {
+        let crop = previewZoomCrop()
+        let mainFrameAge: TimeInterval = pixelBufferLock.withLockUnchecked { state in
+            guard let last = state.lastFrameAt else { return .infinity }
+            return ProcessInfo.processInfo.systemUptime - last
+        }
+        let underlayAvailable = previewUnderlayLayer != nil && sessionConfigured
+        let opacity = underlayBlender.update(
+            mainFrameAge: mainFrameAge,
+            underlayAvailable: underlayAvailable,
+            now: CFAbsoluteTimeGetCurrent()
+        )
+        setPreviewUnderlayOpacity(1 - opacity, frameAge: mainFrameAge)
+        updateUnderlayFramingAlignment(crop: crop)
+        return (crop, opacity)
+    }
+
+    /// 底衬取景与主源对齐：低光长焦被钳制时，主源用 ExtendedPreviewZoom 居中裁切补足
+    ///（200mm 请求预览流钳在 100mm 取景，渲染器裁 2× 补回）；底衬若不跟着放大，停顿
+    /// 窗口淡入时会瞬间跳回 100mm 取景。按同一倍率把底衬层绕中心放大——与渲染器的
+    /// 居中裁切语义一致（anchorPoint 默认即中心）。禁用隐式动画：每 vsync 直写 transform。
+    private func updateUnderlayFramingAlignment(crop: CGFloat) {
+        guard let layer = previewUnderlayLayer, crop.isFinite, crop >= 1 else { return }
+        guard abs(crop - lastUnderlayAlignmentCrop) > 0.003 else { return }
+        lastUnderlayAlignmentCrop = crop
+        let active = crop > 1.0005
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.setAffineTransform(active ? CGAffineTransform(scaleX: crop, y: crop) : .identity)
+        CATransaction.commit()
+        if active != underlayAlignmentActive {
+            underlayAlignmentActive = active
+            diagnostics.event("preview_underlay_alignment", "state=\(active ? "scaled" : "identity") crop=\(String(format: "%.2f", crop))")
+        }
+    }
+
+    /// 底衬透明度写入（含节流与状态沿日志）。主源透明度由渲染器写到 MTKView.alpha，
+    /// 底衬侧在此写——两侧互补，总和无需精确为 1（交叉区间双源可见是刻意的柔和过渡）。
+    private func setPreviewUnderlayOpacity(_ value: CGFloat, frameAge: TimeInterval) {
+        guard abs(value - lastUnderlayOpacity) > 0.003 else { return }
+        lastUnderlayOpacity = value
+        previewUnderlayLayer?.opacity = Float(value)
+        let revealing = value > 0.5
+        if revealing != underlayBlendLogged {
+            underlayBlendLogged = revealing
+            diagnostics.event("preview_underlay_blend",
+                "state=\(revealing ? "conceal" : "reveal") opacity=\(String(format: "%.2f", value)) main_frame_age_ms=\(Int(frameAge * 1000))")
+        }
+    }
+
+    /// 挂载系统预览底衬层（CameraPreviewUnderlayView 生命周期内调用一次）。
+    /// 底衬不参与会话连接结构、不影响 sessionPreset 与照片采集链路——它只是 AVFoundation
+    /// 自行合成的显示层，镜头切换时拿到系统 crossfade 而非停帧（LensTransitionCompositor.swift）。
+    func attachPreviewUnderlay(_ layer: AVCaptureVideoPreviewLayer) {
+        layer.session = session
+        layer.videoGravity = .resizeAspectFill
+        // app UI 锁竖屏：底衬固定 90°（与主源 Metal 渲染的 portrait 旋转一致）。
+        // 旋转角设置在 layer.connection 上（iOS 17+ API）；session 尚未连接时 connection
+        // 为 nil，90° 本就是 portrait 默认，跳过即可。
+        if let connection = layer.connection, connection.isVideoRotationAngleSupported(90) {
+            connection.videoRotationAngle = 90
+        }
+        previewUnderlayLayer = layer
+        lastUnderlayOpacity = 0
+        underlayBlendLogged = false
+        diagnostics.event("preview_underlay_attached")
     }
 
     /// 根据系统压力等级动态调整预览帧率，防止过热降频
@@ -2535,8 +2628,17 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
         guard sessionIntent.withLock({ $0.wantsRunning }),
               let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         self.setLatestPixelBuffer(buffer)
-        flowDiagnostics.capture(at: ProcessInfo.processInfo.systemUptime, pts: CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds,
+        let framePTS = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
+        flowDiagnostics.capture(at: ProcessInfo.processInfo.systemUptime, pts: framePTS,
             width: CVPixelBufferGetWidth(buffer), height: CVPixelBufferGetHeight(buffer))
+        // 扩展裁切上限的换轨点：帧流断裂（跨镜头切换停帧后的第一帧）处对齐 KVO 登记
+        // 的新上限，保证裁切恰在新镜头内容上生效。KVO/帧内容错位即预览闪跳的根因。
+        if let latch = cropCeilingSync.withLock({ $0.frameArrived(pts: framePTS, at: ProcessInfo.processInfo.systemUptime) }) {
+            let ceilingText = latch.ceiling.isFinite ? String(format: "%.2f", latch.ceiling) : "unbounded"
+            let gapText = latch.gapSeconds.map { String(format: "%.0f", $0 * 1_000) } ?? "first_frame"
+            diagnostics.event("preview_stream_ceiling_latched",
+                "ceiling=\(ceilingText) gap_ms=\(gapText) age_ms=\(String(format: "%.0f", latch.ageSeconds * 1_000))")
+        }
         self.logFirstFrameOnce(width: CVPixelBufferGetWidth(buffer), height: CVPixelBufferGetHeight(buffer))
         // 不再 dispatch main 触发 setNeedsDisplay：MTKView 已切换到 CADisplayLink 驱动
         // （MetalPreview.swift），每个 vsync 调一次 draw(in:)，draw 内部按 frameId 去重。
