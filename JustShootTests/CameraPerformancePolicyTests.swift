@@ -213,6 +213,22 @@ final class CameraPerformancePolicyTests: XCTestCase {
         XCTAssertEqual(latch?.gapSeconds ?? 0, 0.033, accuracy: 0.0001)
     }
 
+    /// .restricted 无缝切换（真机日志：UW→Wide 帧流不断裂）：短超时（120ms）内完成换轨——
+    /// 长超时会让渲染上限滞留旧值整个窗口，上限升向产生 zoom/旧上限 的虚假裁切
+    /// （35mm 显示成 ~50mm、换轨后再跳回，「画面大小来回切换」的根因）。
+    func testSeamlessSwitchAcceptsCeilingWithinShortWindow() {
+        var sync = PreviewCropCeilingSynchronizer()
+        _ = sync.frameArrived(pts: 1.0, at: 1.0)
+        sync.kvCeilingDidChange(to: 8.0, at: 2.0, acceptTimeout: PreviewCropCeilingSynchronizer.seamlessAcceptTimeoutSeconds)
+        // 在途帧（62.5ms 间隔 < 120ms）：保持旧上限
+        XCTAssertNil(sync.frameArrived(pts: 1.0625, at: 2.0625))
+        XCTAssertEqual(sync.renderCeiling, .greatestFiniteMagnitude)
+        // 125ms ≥ 120ms：换轨生效
+        let latch = sync.frameArrived(pts: 1.125, at: 2.125)
+        XCTAssertEqual(latch?.ceiling, 8.0)
+        XCTAssertEqual(sync.renderCeiling, 8.0)
+    }
+
     /// 系统在边界附近来回切换 constituent（zoom=16 稳态实测超广↔长焦振荡）：
     /// 连续两次 KVO 变化后，断裂处取**最新**登记值。
     func testOscillatingConstituentTakesLatestCeiling() {

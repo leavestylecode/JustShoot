@@ -95,26 +95,33 @@ enum ExtendedPreviewZoom {
 /// 把区间上限的离散变化**对齐到帧流的真实切换点**（`previewZoomCrop` 闪烁的修法）。
 ///
 /// constituent KVO 在系统*提交*镜头切换的瞬间触发，而 VideoDataOutput 交付的帧内容
-/// 要到切换完成后才换成新镜头（实测跨镜头停帧 ≥500ms，→超广 2.1–2.5s）。若 KVO 一到
-/// 就换上限，窗口内仍在渲染的旧镜头帧会拿到按新上限算的裁切——取景瞬间跳宽/跳近再
-/// 跳回（低光 200mm 上限 8.0↔16.0 时是整整 2 倍），即用户可见的预览闪烁。
+/// 要到切换完成后才换成新镜头。若 KVO 一到就换上限，窗口内仍在渲染的旧镜头帧会拿到
+/// 按新上限算的裁切——取景瞬间跳宽/跳近再跳回（低光 200mm 上限 8.0↔16.0 时是整整
+/// 2 倍），即用户可见的预览闪烁。
 ///
-/// 对齐信号：跨镜头切换必然在帧流上留下 PTS 断裂。KVO 只登记待生效上限
-/// （`kvCeilingDidChange`），`frameArrived` 在每帧到达时裁决——出现 ≥200ms 断裂
-/// （第一帧视为断裂）即认为内容已切到新镜头，此刻换上限恰好在第一帧新内容上生效；
-/// 停顿窗口内被冻结重绘的保持帧继续用旧上限，取景全程连续。帧流持续无断裂
-/// （无缝切换的假想情形）时按 600ms 年龄兜底接受，保证上限不会永久滞留旧值。
+/// 对齐信号按切换策略二分（2026-10-08 真机日志实锤两界行为）：
+/// - **`.restricted`（当前策略）**：镜头切换**无缝**——帧流不断裂（pts 节距恒 33ms），
+///   只有 1-2 帧在途旧源帧。此时长超时兜底是灾难：渲染上限滞留旧值整个超时窗
+///   （实测 622ms），上限升向（如 UW 2.0→Wide 8.0）会产生 zoom/旧上限 的虚假裁切
+///   （35mm 被裁成 ~50mm 观感，随后的超时换轨再跳回——「画面大小来回切换」的根因）。
+///   用短超时（120ms）把虚假窗口压到 ~4 帧，且靠近 switchover 时误差只有百分之几。
+/// - **`.auto`（历史策略）**：切换伴随停帧（实测 ≥500ms，→超广 2.1–2.5s）。停顿期
+///   无帧到达、超时不被评估，首帧新内容由 ≥200ms 的 PTS 断裂信号换轨；长超时（600ms）
+///   只兜底「帧流持续无断裂」的假想情形。保持帧在停顿窗口沿用旧上限，取景连续。
 struct PreviewCropCeilingSynchronizer: Sendable {
     /// 帧间断裂判定阈值：正常 30fps 节距 33ms、重负载 15fps 节距 66ms 都在下方，
-    /// 真实跨镜头切换停帧 ≥500ms。
+    /// 真实跨镜头停帧（.auto 策略）≥500ms。
     static let frameGapThresholdSeconds: Double = 0.2
-    /// KVO 上限变化后仍无断裂时，最多延迟这么久无条件接受。
-    static let acceptTimeoutSeconds: Double = 0.6
+    /// `.restricted` 无缝切换的换轨超时：~4 帧容差，覆盖在途帧深度。
+    static let seamlessAcceptTimeoutSeconds: Double = 0.12
+    /// `.auto` 停帧切换的换轨超时：等断裂信号的兜底上限。
+    static let stallingAcceptTimeoutSeconds: Double = 0.6
 
     /// 渲染侧当前应使用的上限（`previewZoomCrop` 的分母）。
     private(set) var renderCeiling: CGFloat = .greatestFiniteMagnitude
     private var kvCeiling: CGFloat = .greatestFiniteMagnitude
     private var kvCeilingChangedAt: Double = 0
+    private var activeAcceptTimeout: Double = PreviewCropCeilingSynchronizer.stallingAcceptTimeoutSeconds
     private var lastFramePTS: Double?
 
     /// 上限换轨完成的回执（`frameArrived` 恰好在此帧生效），供日志取证。
@@ -126,9 +133,15 @@ struct PreviewCropCeilingSynchronizer: Sendable {
     }
 
     /// constituent KVO 报告新的活跃区间上限（`now` 用 host uptime，与超时判定同钟）。
-    mutating func kvCeilingDidChange(to ceiling: CGFloat, at now: Double) {
+    /// `acceptTimeout` 按当前切换策略传入：无缝切换用短超时，停帧切换用长超时。
+    mutating func kvCeilingDidChange(
+        to ceiling: CGFloat,
+        at now: Double,
+        acceptTimeout: Double = PreviewCropCeilingSynchronizer.stallingAcceptTimeoutSeconds
+    ) {
         kvCeiling = ceiling
         kvCeilingChangedAt = now
+        activeAcceptTimeout = acceptTimeout
     }
 
     mutating func reset() {
@@ -141,7 +154,7 @@ struct PreviewCropCeilingSynchronizer: Sendable {
         guard kvCeiling != renderCeiling else { return nil }
         let gap = lastFramePTS.map { pts - $0 }
         let discontinuity = gap.map { $0 >= Self.frameGapThresholdSeconds } ?? true
-        let timedOut = now - kvCeilingChangedAt >= Self.acceptTimeoutSeconds
+        let timedOut = now - kvCeilingChangedAt >= activeAcceptTimeout
         guard discontinuity || timedOut else { return nil }
         renderCeiling = kvCeiling
         return Latch(ceiling: renderCeiling, gapSeconds: gap, ageSeconds: now - kvCeilingChangedAt)

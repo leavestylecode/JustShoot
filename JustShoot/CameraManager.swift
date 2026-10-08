@@ -10,8 +10,8 @@ import os
 
 // MARK: - 相机管理器
 //
-// 单文件 AVFoundation 编排：iOS 26 虚拟设备 (`builtInTripleCamera`) + `.auto` 跟随系统的镜头
-// 切换 + ZSL × 镜头切换 race 闸门 + CMMotion 方向 + tap-to-focus + 距离感知闪光 + GPS 30s 缓存。
+// 单文件 AVFoundation 编排：iOS 26 虚拟设备 (`builtInTripleCamera`) + `.restricted` 受限镜头
+// 切换（zoom 必需才换，固定 zoom 禁场景 fallback）+ ZSL × 镜头切换 race 闸门 + CMMotion 方向 + tap-to-focus + 距离感知闪光 + GPS 30s 缓存。
 //
 // 故意保留为单文件（~1,900 行）：以上每个面向都强耦合于同一 AVCaptureSession 状态机，跨文件
 // 拆 extension 会迫使大部分 `private` 提升到 `internal`，反而损失封装性。Apple AVCam 等
@@ -26,7 +26,7 @@ import os
 //   5. 闪光灯曝光补偿 + 锁/还原
 //   6. 权限
 //   7. Session 配置（format / dims / stabilization / 初始焦段 / KVO）
-//   8. 镜头切换（.auto 跟随系统 + 安全快门）
+//   8. 镜头切换（.restricted 策略 + 安全快门）
 //   9. 拍照（capturePhoto + issue）
 //  10. 后台 / 前台 / 停止
 //  11. 设备数据 dump（调试）
@@ -72,8 +72,8 @@ class CameraManager: NSObject, ObservableObject {
     // MARK: 1. 存储属性
 
     /// 虚拟设备 AVCaptureSession（iOS 26 推荐架构）：以 .builtInTripleCamera 等虚拟设备作为
-    /// 单一 input；切焦距 = 始终 .auto + 把 videoZoomFactor ramp 到目标 — 系统在内部按 zoom 做
-    /// 硬件级 constituent crossfade（能切长焦就切、近物/暗光裁主摄），预览不黑屏，无需 bridgeImage。
+    /// 单一 input；切焦距 = 把 videoZoomFactor ramp 到目标 + `.restricted` 切换策略 — 系统在内部
+    /// 按 zoom 做硬件级 constituent crossfade（能切长焦就切、近物/暗光裁主摄），预览不黑屏，无需 bridgeImage。
     let session = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
     /// 当前 session 的虚拟（或物理）设备 input —— 整个生命周期只 add 一次，不 swap。
@@ -314,8 +314,8 @@ class CameraManager: NSObject, ObservableObject {
     /// 完成后会通过 CaptureRequest.flashRestore 恢复，对外表现仍等于这里。
     @Published var exposureBias: Float = 0
 
-    /// 虚拟（或物理）设备 — 整个生命周期固定，不 swap。constituent 由系统在 `.auto` 下按 zoom
-    /// 在内部切换。session 配置完成前为 nil。
+    /// 虚拟（或物理）设备 — 整个生命周期固定，不 swap。constituent 由系统按 zoom + `.restricted`
+    /// 策略在内部切换。session 配置完成前为 nil。
     private var captureDevice: AVCaptureDevice?
 
     /// AVF 对象 + main-actor 状态打包后跨 actor 边界传递。
@@ -340,7 +340,7 @@ class CameraManager: NSObject, ObservableObject {
         diagnostics.measure("orientation_setup") { setupOrientationMonitoring() }
     }
 
-    /// 按 iOS 26 推荐顺序选取后置 capture device。优先虚拟设备：让系统在 `.auto` 下按 videoZoomFactor
+    /// 按 iOS 26 推荐顺序选取后置 capture device。优先虚拟设备：让系统按 videoZoomFactor
     /// 在内部完成 constituent 切换（硬件级 crossfade，无黑屏，能切长焦就切、近物/暗光裁主摄）。
     /// 优先级：triple（UW+W+T）→ dual（W+T）→ dualWide（UW+W）→ 单 wide 兜底。
     nonisolated private static func discoverBestCaptureDevice() -> AVCaptureDevice? {
@@ -1074,6 +1074,19 @@ class CameraManager: NSObject, ObservableObject {
                 trace.event("session_output_ready", "running=\(captureSession.isRunning) inputs=\(captureSession.inputs.count) outputs=\(captureSession.outputs.count) photo=\(output.maxPhotoDimensions.width)x\(output.maxPhotoDimensions.height) live_supported=\(output.isLivePhotoCaptureSupported) live=\(output.isLivePhotoCaptureEnabled) preset=\(captureSession.sessionPreset.rawValue) preview_auto=\(videoOutput.automaticallyConfiguresOutputBufferDimensions) preview_proxy=\(videoOutput.deliversPreviewSizedOutputBuffers)")
                 trace.event("camera_configuration_snapshot", "generation=\(token) stabilization=\(videoOutput.connection(with: .video)?.activeVideoStabilizationMode.rawValue ?? -1) \(Self.deviceDiagnosticFields(device))")
                 Log.session.info("session_started running=\(captureSession.isRunning) inputs=\(captureSession.inputs.count) outputs=\(captureSession.outputs.count) max_dims=\(output.maxPhotoDimensions.width)x\(output.maxPhotoDimensions.height)")
+                // HDR 预览能力探测（只读，不改变交付格式）：预览底图与成片计算摄影的差距
+                // （预览所见即所得的剩余缺口）要靠 HDR 预览收敛，落地 EDR 渲染分支前需要
+                // 真机事实。两条路径按 SDK 头文件区分：10-bit HLG BT.2020（常开 HDR，需解锁
+                // 现在主动锁定的 sRGB 色彩空间 + 10-bit 双平面交付格式 + 渲染器 HLG 解码）；
+                // 8-bit EDR 流融合（device.isVideoHDREnabled，半帧率翻倍的代价）。探测三项：
+                // 交付格式支持列表、当前 format 的 EDR 能力、系统自动 EDR 的实际状态。
+                let availableFormats = Set(videoOutput.availableVideoPixelFormatTypes)
+                let hdrFormats: [OSType] = [
+                    kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+                    kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
+                ]
+                let format10BitAvailable = hdrFormats.contains { availableFormats.contains($0) }
+                trace.event("preview_hdr_probe", "format_10bit=\(format10BitAvailable) format_edr_supported=\(device.activeFormat.isVideoHDRSupported) device_edr_auto=\(device.isVideoHDREnabled)")
             }
         }
 
@@ -1457,14 +1470,41 @@ class CameraManager: NSObject, ObservableObject {
         Log.session.info("📷 stabilization_applied device=\(device.localizedName, privacy: .public) preferred=\(name, privacy: .public) active=\(conn.activeVideoStabilizationMode.rawValue)")
     }
 
+    /// constituent 切换策略：`.restricted + [.videoZoomChanged]`（2026-10-07 修复「35mm 预览忽大忽小」）。
+    ///
+    /// 旧终点 `.auto` 被真机日志证伪：它允许系统**任意时刻**按对焦/曝光能力换 fallback 镜头
+    /// （Apple 文档：主体近于主摄最近对焦距离 / 曝光超限时，切到更短焦镜头）。35mm（zoom 恒 2.917、
+    /// 无任何 ramp）下 后置相机↔后置超广角 一分钟横跳 6 次；这类 fallback 切换帧流**无缝**（PTS 无
+    /// 断裂，`PreviewCropCeilingSynchronizer` 只能 600ms 超时换轨），而超广活跃时预览流取景钳在其
+    /// 区间上限 2.0（=24mm 视野）——内容与扩展裁切错位的窗口里取景反复跳宽/跳窄，即用户所见。
+    ///
+    /// `.restricted+[.videoZoomChanged]` 的语义（必须已在 lockForConfiguration 内调用）：
+    /// - 满足 videoZoomFactor 的切换**不受限**（13mm 必切超广、向下跨 switchover 强制切——旧路径不变）；
+    /// - 向上跨 switchover 仍按 AF/AE 资格评估（暗光不长焦、近距不上主摄——与 `.auto` 相同的系统判定）；
+    /// - **固定 zoom 下禁止场景驱动 fallback**（横跳根治）；仅 zoom 变化（拧焦距盘）时重新评估一次，
+    ///   评估会等 AF/AE 稳定后再落定，之后静止。
+    ///
+    /// 取舍：近于主摄最近对焦距离的 35/50mm 主体不再被自动救焦到超广（对焦可能不实）——拍近物用
+    /// 13mm 档，与胶片相机「离散镜头、各自最近对焦距离」的拟真一致。注意与历史教训区分：被否决的是
+    /// `.locked`（min zoom 被钳到活跃镜头区间下界 + 系统拒长焦时假死），`.restricted` 不限制 zoom
+    /// 必需的切换，无此问题。返回策略描述供日志取证。
+    nonisolated private static func applyConstituentSwitchingPolicy(to device: AVCaptureDevice) -> String {
+        guard device.primaryConstituentDeviceSwitchingBehavior != .unsupported else { return "unsupported" }
+        device.setPrimaryConstituentDeviceSwitchingBehavior(
+            .restricted,
+            restrictedSwitchingBehaviorConditions: [.videoZoomChanged]
+        )
+        return "restricted_zoom_changed"
+    }
+
     /// 在 session config block 内（startRunning 之前）设好初始焦段的虚拟 zoom。
     ///
     /// **为什么在 startRunning 之前设**：让 startRunning 产出的第一帧就来自正确的 constituent，
     /// ZSL ring buffer 从生下来就干净——否则用户在启动早期按快门，AVF 可能从 ring 里挑到启动
     /// 默认 zoom 的帧出片，照片记成错的镜头/焦段。
     ///
-    /// 用 `.auto`（与 applyFocalLength 一致，全程不 `.locked`）：设 videoZoomFactor，硬件在
-    /// startRunning 时按它选 constituent，之后系统按条件自动 crossfade。
+    /// 用 `.restricted`（与 applyFocalLength 一致）：设 videoZoomFactor，硬件在
+    /// startRunning 时按它选 constituent；固定 zoom 后系统不再做场景驱动的 fallback 换镜头。
     /// 走 nonisolated：从 sessionQueue.async 直接调用，不跨回 MainActor。
     nonisolated private func setInitialFocalLength(on device: AVCaptureDevice, focal: FocalLengthOption) {
         let info = DeviceFocalInfo.from(virtualDevice: device)
@@ -1481,9 +1521,9 @@ class CameraManager: NSObject, ObservableObject {
 
         do {
             try device.lockForConfiguration()
-            // .auto 跟随系统（与 applyFocalLength 一致，全程不 .locked）：设初始 zoom，系统据此选 constituent。
-            // 启动时默认就是 .auto，所以 .auto + zoom 写在同一 lock 块内安全（无「转出 .locked」的夹取坑）。
-            device.setPrimaryConstituentDeviceSwitchingBehavior(.auto, restrictedSwitchingBehaviorConditions: [])
+            // constituent 切换策略（见 applyConstituentSwitchingPolicy 头注释）：zoom 必需的切换
+            // 不受限，固定 zoom 下禁止场景驱动 fallback。与 zoom 写在同一 lock 块内幂等安全。
+            let switchingPolicy = Self.applyConstituentSwitchingPolicy(to: device)
             device.videoZoomFactor = targetZoom
             // 重开相机的 EV 重置（iPhone 相机同款语义）：bias 是设备级状态，会跨
             // stopRunning 存活——新会话一律归零。
@@ -1492,7 +1532,7 @@ class CameraManager: NSObject, ObservableObject {
             let safeShutter = self.computeSafeShutterDuration(focalMm: resolved.rawValue, format: device.activeFormat)
             device.activeMaxExposureDuration = safeShutter
             device.unlockForConfiguration()
-            Log.session.info("focal_init_at_config option=\(resolved.rawValue)mm zoom=\(String(format: "%.2f", targetZoom)) target=\(target.device.localizedName, privacy: .public)")
+            Log.session.info("focal_init_at_config option=\(resolved.rawValue)mm zoom=\(String(format: "%.2f", targetZoom)) policy=\(switchingPolicy, privacy: .public) target=\(target.device.localizedName, privacy: .public)")
         } catch {
             Log.session.error("focal_init_lock_failed error=\(error.localizedDescription, privacy: .public)")
         }
@@ -1566,8 +1606,8 @@ class CameraManager: NSObject, ObservableObject {
             }
         }
 
-        // activePrimaryConstituentDevice：记录系统当前实际用哪颗物理镜头（`.auto` 下由系统按 zoom +
-        // 条件决定），并在 active 变化时戳一下 evaluateLensSettle 重新评估取景是否到位。
+        // activePrimaryConstituentDevice：记录系统当前实际用哪颗物理镜头（系统按 zoom + AF/AE
+        // 条件决定；固定 zoom 下 .restricted 禁止 fallback），并在 active 变化时戳一下 evaluateLensSettle 重新评估取景是否到位。
         // 到位判定本身只看 zoom（见 lensIsOnTarget），不看 constituent——系统用哪颗都是合法结果。
         // 用 localizedName 只为打日志：AVCaptureDevice 非 Sendable，捕获进 Task @MainActor 会报
         // sending 警告；String 是 Sendable。
@@ -1599,9 +1639,19 @@ class CameraManager: NSObject, ObservableObject {
         }
         if activeConstituentZoomCeiling != previous {
             let ceiling = activeConstituentZoomCeiling
-            cropCeilingSync.withLock { $0.kvCeilingDidChange(to: ceiling, at: ProcessInfo.processInfo.systemUptime) }
+            // 换轨超时随切换策略自适应：.restricted 无缝切换（帧流不断裂）用短超时，
+            // 否则上限升向的滞留窗口产生 zoom/旧上限 的虚假裁切——35mm 显示成 ~50mm、
+            // 超时换轨再跳回，即「画面大小来回切换」（2026-10-08 真机日志实锤）。
+            // .auto 停帧切换保持长超时：断裂信号才是换轨点，超时只兜底无缝假想情形。
+            let behavior = videoCaptureDevice?.primaryConstituentDeviceSwitchingBehavior
+            let acceptTimeout = behavior == .restricted
+                ? PreviewCropCeilingSynchronizer.seamlessAcceptTimeoutSeconds
+                : PreviewCropCeilingSynchronizer.stallingAcceptTimeoutSeconds
+            cropCeilingSync.withLock {
+                $0.kvCeilingDidChange(to: ceiling, at: ProcessInfo.processInfo.systemUptime, acceptTimeout: acceptTimeout)
+            }
             diagnostics.event("preview_stream_ceiling",
-                "ceiling=\(activeConstituentZoomCeiling.isFinite ? String(format: "%.2f", activeConstituentZoomCeiling) : "unbounded") lens=\(activeConstituentName)")
+                "ceiling=\(ceiling.isFinite ? String(format: "%.2f", ceiling) : "unbounded") lens=\(activeConstituentName) accept_ms=\(Int(acceptTimeout * 1_000))")
         }
     }
 
@@ -1712,7 +1762,7 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - 8. 镜头切换（.auto 跟随系统）+ 安全快门
+    // MARK: - 8. 镜头切换（.restricted 策略）+ 安全快门
 
     /// Reads only. Never call the custom-gains or temperature/tint setters on a virtual camera.
     nonisolated private func scheduleAutomaticWhiteBalanceRead(from device: AVCaptureDevice) {
@@ -1811,7 +1861,7 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     /// 镜头取景是否到位：zoom ramp 已停 && zoom 命中目标。**只看 zoom（取景），不看 constituent**——
-    /// `.auto` 下用哪颗物理镜头由系统按条件决定（能切长焦就切、近物/暗光裁主摄），都是合法结果，
+    /// 用哪颗物理镜头由系统在 zoom 变化时按条件决定（能切长焦就切、近物/暗光裁主摄），都是合法结果，
     /// capture 不该等某颗特定镜头（否则系统拒绝长焦时快门假死）。zoom ramp 总会停，所以这总会到位。
     private func lensIsOnTarget() -> Bool {
         guard let t = lensTarget else { return true }
@@ -1946,13 +1996,18 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// 切焦距（`.auto` 跟随系统，iPhone 同款）。**单一路径**：始终保持
-    /// `setPrimaryConstituentDeviceSwitchingBehavior(.auto)`，只把 videoZoomFactor 平滑 ramp 到目标
-    /// 焦段对应的虚拟 zoom；系统在 ramp 跨越 switchover 阈值时自己做硬件 crossfade 切 constituent。
+    /// 切焦距（zoom 单一路径：平滑 ramp 到目标，系统跨 switchover 时做硬件 crossfade）。
+    ///
+    /// **constituent 切换策略 = `.restricted + [.videoZoomChanged]`**（`applyConstituentSwitchingPolicy`
+    /// 头注释有完整根因）：只把 videoZoomFactor ramp 到目标焦段对应的虚拟 zoom；满足 zoom 的切换
+    /// 系统照做（能切长焦就切、近物/暗光裁主摄），**固定 zoom 下不再允许场景驱动 fallback**——
+    /// `.auto` 时代 35mm 下主摄↔超广按对焦/曝光横跳、且 fallback 切换无缝（PTS 无断裂）导致
+    /// 裁切分母 600ms 换轨滞后，取景忽大忽小。
     ///
     /// **不再 `.locked`、不再 deep-ramp 过冲**——这是把多轮真机教训收敛后的终点：强锁 + 过冲既会
-    /// 抖动（过冲到 ~10x 再退回），又会在系统拒绝长焦时假死。长焦用不用最终由系统按光线/距离/画质
-    /// 判定（近物/暗光裁主摄），任何代码强求不来——`.auto` 直接接受系统决定，和 iPhone 行为一致。
+    /// 抖动（过冲到 ~10x 再退回），又会在系统拒绝长焦时假死（`.locked` 还会把 min zoom 钳到活跃
+    /// 镜头区间下界；`.restricted` 无此副作用）。长焦用不用由系统按光线/距离/画质在 zoom 变化时
+    /// 判定，任何代码强求不来——和 iPhone 行为一致。
     ///
     /// 边界焦距（24mm zoom=2.0、100mm zoom=8.0）仍加 0.05 ε 推进区间内部，鼓励系统选目标 constituent。
     /// capture 就绪（isReadyToCapture）只等 zoom ramp 停 + ZSL grace，不再等特定 constituent，所以
@@ -1984,10 +2039,11 @@ class CameraManager: NSObject, ObservableObject {
 
         // Ramp rate is computed on the hardware queue from the actual zoom, not the optimistic UI target.
 
-        // 单一路径：始终 .auto，只把 videoZoomFactor 平滑 ramp 到目标。系统在 ramp 跨越 switchover
-        // 阈值时自己做硬件 crossfade 切 constituent（能切长焦就切、近物/暗光裁主摄）。device 全程不
-        // .locked，所以 .auto + zoom 写在同一 lock 块内安全（无「转出 .locked 时 zoom 被旧 min/max
-        // 夹住」的老坑）。不再 deep-ramp 过冲 → 无前后抖动；不再等特定 constituent → 系统拒长焦不假死。
+        // 单一路径：只把 videoZoomFactor 平滑 ramp 到目标。系统在 ramp 跨越 switchover 阈值时自己做
+        // 硬件 crossfade 切 constituent（能切长焦就切、近物/暗光裁主摄）；固定 zoom 下 .restricted 禁止
+        // 场景驱动 fallback（见 applyConstituentSwitchingPolicy）。device 全程不 .locked，策略 + zoom
+        // 写在同一 lock 块内安全（无「转出 .locked 时 zoom 被旧 min/max 夹住」的老坑）。不再 deep-ramp
+        // 过冲 → 无前后抖动；不再等特定 constituent → 系统拒长焦不假死。
         let maxZoom = device.activeFormat.videoMaxZoomFactor
         let finalZoom = max(1.0, min(maxZoom, targetZoom))
         diagnostics.event("focal_begin", "focal_seq=\(focalSequence) generation=\(focalGeneration) focal_mm=\(option.rawValue) target_zoom=\(finalZoom) animated=\(animated) \(Self.deviceDiagnosticFields(device))")
@@ -2048,7 +2104,9 @@ class CameraManager: NSObject, ObservableObject {
                 configurationStatus = "superseded"
                 return
             }
-            device.setPrimaryConstituentDeviceSwitchingBehavior(.auto, restrictedSwitchingBehaviorConditions: [])
+            // constituent 策略幂等重申（见 applyConstituentSwitchingPolicy 头注释）：系统在 zoom
+            // 变化时重新评估 fallback 资格，固定 zoom 下不再换镜头。
+            _ = Self.applyConstituentSwitchingPolicy(to: device)
             guard let transition = CameraZoomTransition(currentZoom: device.videoZoomFactor, targetZoom: finalZoom,
                 isRamping: device.isRampingVideoZoom, animated: animated, fastRamp: fastRamp) else {
                 device.unlockForConfiguration()
