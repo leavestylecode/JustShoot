@@ -230,6 +230,13 @@ class CameraManager: NSObject, ObservableObject {
     /// 主源（Metal）↔ 底衬源（系统预览层）混合状态机：主帧流跨镜头切换停顿时把主源淡出、
     /// 露出持续流动的系统合成流（Apple 官方推荐预览路径，见 LensTransitionCompositor.swift）。
     private var underlayBlender = PreviewUnderlayBlender()
+    /// 「静止期镜头翻转」的底衬遮罩截止时刻（CFAbsoluteTime）。`.restricted` 的资格评估
+    /// 「等 AF/AE 稳定后再落定」会在 zoom 不变的情况下延迟翻转 constituent（2026-10-08
+    /// 真机实锤：24mm 以超广角 settle 后 125ms 翻到主摄）——同一位置两次换流即用户可见
+    /// 的「来回闪烁」。翻转发生在非 ramp 状态（病理性）时把主源淡出一段，露出系统预览
+    /// 层自带的 crossfade（系统相机同款过渡），再淡回分级画面。ramp 中的翻转是正常
+    /// 过渡，不遮罩。
+    private var underlayFlipMaskUntil: CFTimeInterval = 0
     private var lastUnderlayOpacity: CGFloat = 0
     private var underlayBlendLogged = false
     /// 底衬取景对齐的当前倍率（去抖用）；配套 `underlayAlignmentActive` 只在启用/停用
@@ -1262,15 +1269,29 @@ class CameraManager: NSObject, ObservableObject {
         prepareForFirstCapture()
         // 流式期**首次** device.lockForConfiguration 会阻塞调用线程数百 ms（系统等采集
         // 管线到安全配置点）——用户第一次切焦距/压力调帧率时「点了没反应、随后才动」的
-        // 冷启动成本就来自这里。会话刚起跑、用户尚未交互，在 sessionQueue 上做一次同值
-        // 写入把这笔成本提前付掉。
+        // 冷启动成本就来自这里。会话刚起跑、用户尚未交互，在 sessionQueue 上预付。
+        //
+        // 只做同值写入不够（2026-10-08 真机日志实锤）：同值写不触发任何 zoom 变更条件，
+        // `.restricted+[.videoZoomChanged]` 的 constituent 重评估 + 流式期首次 ramp 下发
+        // 这条真正的大头（首次 focal_hardware_apply 735ms vs 之后 1-3ms，预览停帧 ~1.9s）
+        // 只有真实的 zoom 变更才会走到——账单落在用户第一次切焦距上。这里做**出-回微
+        // ramp**（±0.02 = 0.7% 视野，随即直接写回瞬时归位）：把首次变更的全套成本付在
+        // 入场门控（previewRevealReady）放行之前，用户不可见；快门在 ready 前被 gate，
+        // ZSL ring 不会流出脏帧。
         if let device = videoCaptureDevice {
             let warmTrace = diagnostics
             sessionQueue.async {
                 let warming = warmTrace.span("device_config_warmup", "")
                 do {
                     try device.lockForConfiguration()
-                    device.videoZoomFactor = device.videoZoomFactor
+                    _ = Self.applyConstituentSwitchingPolicy(to: device)
+                    let base = device.videoZoomFactor
+                    let maxZoom = device.activeFormat.videoMaxZoomFactor
+                    device.ramp(toVideoZoomFactor: min(maxZoom, base + 0.02), withRate: 32)
+                    device.unlockForConfiguration()
+                    // 直接写回目标值：取消 ramp 并瞬时归位
+                    try device.lockForConfiguration()
+                    device.videoZoomFactor = base
                     device.unlockForConfiguration()
                     warming.end("ok", "zoom=\(device.videoZoomFactor)")
                 } catch {
@@ -1500,12 +1521,13 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     /// **长焦硬保证**（iOS 27+ per-device lock）：把 primary constituent 锁定到指定长焦物理镜头。
-    /// 锁定后系统不再做任何场景资格评估——`.restricted` 头注释记录的「向上跨 switchover 仍按
-    /// AF/AE 资格评估（暗光不长焦）」对已锁定的长焦焦段不再适用。与被否决的**旧式全局**
-    /// `.locked` 不同：只在 zoom 已落在长焦区间内、系统已实际切上长焦后锁定（settle 后），
-    /// 没有「min zoom 被钳到区间下界」的瞬跳、没有拒长焦假死。离开长焦焦段的 ramp 由
-    /// configureFocalOnSessionQueue 的策略重申解锁（.restricted 覆盖 .locked 即解锁）。
-    /// 自带 lockForConfiguration；返回状态供日志取证。
+    /// 锁定后该镜头即成为 activePrimaryConstituent、系统不再做任何场景资格评估——
+    /// `.restricted` 头注释记录的「向上跨 switchover 仍按 AF/AE 资格评估（暗光不长焦）」
+    /// 对已锁定的长焦焦段不再适用；系统从不自行选长焦时（2026-10-08 真机实锤）这也是把
+    /// primary **拉上**长焦的手段。与被否决的**旧式全局** `.locked` 不同：只在 zoom 已落在
+    /// 长焦区间内时锁定（settle 后），没有「min zoom 被钳到区间下界」的瞬跳、没有拒长焦假死。
+    /// 离开长焦焦段的 ramp 由 configureFocalOnSessionQueue 的策略重申解锁（.restricted
+    /// 覆盖 .locked 即解锁）。自带 lockForConfiguration；返回状态供日志取证。
     nonisolated private static func lockTeleConstituent(_ tele: AVCaptureDevice, on device: AVCaptureDevice) -> String {
         guard #available(iOS 27.0, *) else { return "unsupported_os" }
         guard device.isPrimaryConstituentDeviceSwitchingBehaviorLockedWithDeviceSupported else { return "unsupported_device" }
@@ -1521,24 +1543,29 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     /// settle 后的长焦锁定调度（clearLensTarget 调用，MainActor 判定 + sessionQueue 执行）。
-    /// 锁定条件：目标焦段的承载镜头是长焦、系统已实际切上长焦（暗光被拒绝时不锁——保留
-    /// .restricted 的主观数码裁切兜底，与「系统拒长焦快门不假死」的既有取舍一致）、当前
-    /// 未锁定。sessionQueue 上二次校验 permitsFocalRequest（旧 settle 的锁定不得与用户已
-    /// 发起的下一个焦段请求竞争）与 isRampingVideoZoom（不得在 ramp 中途锁定）。
+    /// 锁定条件：目标焦段的承载镜头是长焦、当前未锁定。**不要求系统已先切上长焦**——
+    /// 真机日志实锤（2026-10-08 两个 run）：`.restricted+[.videoZoomChanged]` 下系统即使在
+    /// 白天也从不自行启用长焦（零 Telephoto 事件，100/200mm 全落主摄数字裁切），「等系统
+    /// 先切再锁」的前置条件等于永不生效。settle 时 zoom 已在长焦区间内（100mm=8.05、
+    /// 200mm=16.0 ∈ [8,189]），此时锁定**直接把 primary 拉到长焦**（头文件：锁定后该镜头
+    /// 即成为 activePrimaryConstituent），无钳制跳变。连锁修复：长焦档不再蹲在主摄上限
+    /// 8.0 之上，50↔100 切换不再反复穿越该边界引发裁切/底衬对齐来回翻（用户可见的
+    /// 「画面前后移动闪烁」）。sessionQueue 上二次校验 permitsFocalRequest（旧 settle 的
+    /// 锁定不得与用户已发起的下一个焦段请求竞争）与 isRampingVideoZoom（不在 ramp 中途锁）。
     private func scheduleTeleLockAfterSettle() {
         guard let device = videoCaptureDevice,
               let tele = focalInfo.teleConstituent,
               focalInfo.constituent(for: currentFocalLength)?.device === tele.device,
-              device.activePrimaryConstituent === tele.device,
               device.primaryConstituentDeviceSwitchingBehavior != .locked else { return }
         let focalSequence = applyFocalToken
         let generation = diagnosticGeneration
+        let activeBefore = activeConstituentName
         sessionQueue.async { [weak self] in
             guard let self,
                   self.permitsFocalRequest(focalSequence, generation: generation),
                   !device.isRampingVideoZoom else { return }
             let state = Self.lockTeleConstituent(tele.device, on: device)
-            self.diagnostics.event("focal_tele_lock", "focal_seq=\(focalSequence) state=\(state)")
+            self.diagnostics.event("focal_tele_lock", "focal_seq=\(focalSequence) state=\(state) from=\(activeBefore)")
         }
     }
 
@@ -1659,11 +1686,17 @@ class CameraManager: NSObject, ObservableObject {
         constituentObservation = device.observe(\.activePrimaryConstituent, options: [.new]) { [weak self] dev, change in
             guard let self else { return }
             let logName = change.newValue.flatMap { $0?.localizedName } ?? "nil"
+            let rampingAtFlip = dev.isRampingVideoZoom
             self.diagnostics.event("focal_constituent_changed", "focal_seq=\(self.flowDiagnostics.stamp.focal) \(Self.deviceDiagnosticFields(dev))")
             Task { @MainActor in
                 if self.activeConstituentName != logName {
                     self.activeConstituentName = logName
                     Log.session.info("constituent_active_changed name=\(logName, privacy: .public)")
+                }
+                // 静止期翻转（非 ramp 中）= 病理性双跳 → 底衬遮罩窗口（见 underlayFlipMaskUntil）
+                if !rampingAtFlip {
+                    self.underlayFlipMaskUntil = CFAbsoluteTimeGetCurrent() + 0.45
+                    self.diagnostics.event("preview_flip_mask", "lens=\(logName) reason=flip_at_rest")
                 }
                 self.updateActiveConstituentZoomCeiling()
                 self.evaluateLensSettle()
@@ -1713,9 +1746,14 @@ class CameraManager: NSObject, ObservableObject {
     /// - metalOpacity：主源视图透明度（停顿窗口内淡出、露出系统预览底衬，恢复后淡回）。
     func previewTransitionPlan() -> (crop: CGFloat, metalOpacity: CGFloat) {
         let crop = previewZoomCrop()
-        let mainFrameAge: TimeInterval = pixelBufferLock.withLockUnchecked { state in
+        var mainFrameAge: TimeInterval = pixelBufferLock.withLockUnchecked { state in
             guard let last = state.lastFrameAt else { return .infinity }
             return ProcessInfo.processInfo.systemUptime - last
+        }
+        // 静止期镜头翻转的遮罩窗口内视主源为「过期」：主源淡出、露出系统预览层的
+        // crossfade，窗口结束且帧流新鲜后自然淡回（见 underlayFlipMaskUntil）。
+        if CFAbsoluteTimeGetCurrent() < underlayFlipMaskUntil {
+            mainFrameAge = .infinity
         }
         let underlayAvailable = previewUnderlayLayer != nil && sessionConfigured
         let opacity = underlayBlender.update(
