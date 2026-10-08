@@ -42,9 +42,18 @@ struct ConstituentInfo {
     let nativeMm: Float
     /// 此镜头在虚拟设备 zoom 坐标里被系统选用的范围（下界 = 上一个 switchOver 或 1.0）。
     let virtualZoomRange: ClosedRange<CGFloat>
+
+    /// 硬件分类（按 35mm 等效标称）：超广 < 20mm；主摄 20–50mm；长焦 > 50mm。
+    var isUltraWide: Bool { nativeMm < DeviceFocalInfo.ultraWideNativeMmCeiling }
+    var isTele: Bool { nativeMm > DeviceFocalInfo.teleNativeMmFloor }
 }
 
 struct DeviceFocalInfo {
+    /// 硬件镜头分类阈值（35mm 等效标称）：超广角 < 20mm（主摄 24–28mm 均在其上）；
+    /// 长焦 > 50mm（主摄最高 28mm，长焦最低 77mm，50 为安全分界）。
+    static let ultraWideNativeMmCeiling: Float = 20
+    static let teleNativeMmFloor: Float = 50
+
     /// 可用焦段选项（按设备实际镜头生成，升序）
     let options: [FocalLengthOption]
     /// 按 nativeMm 升序的 constituent 列表（UW < W < T）。仅含至少一颗。
@@ -59,6 +68,10 @@ struct DeviceFocalInfo {
         constituents: [],
         primaryNativeMm: 24
     )
+
+    /// 超广角 / 长焦 constituent（按标称焦距分类；硬件没有则为 nil）。
+    var ultraWideConstituent: ConstituentInfo? { constituents.first(where: \.isUltraWide) }
+    var teleConstituent: ConstituentInfo? { constituents.last(where: \.isTele) }
 
     /// 入页默认焦段：最接近 35mm（经典标准视角）的可用档；无则首档。
     var defaultOption: FocalLengthOption {
@@ -153,49 +166,40 @@ struct DeviceFocalInfo {
         return DeviceFocalInfo(options: options, constituents: constituents, primaryNativeMm: primaryMm)
     }
 
-    /// 根据实际物理镜头生成焦段档位。原则：
-    /// 1) 每颗物理镜头的原生焦距必出现（isNative，无裁切、画质最佳、精确命中 Apple 标称）；
-    /// 2) 补入经典中间焦段 [35, 50] 与「最长镜头 2×」长焦延伸，仅当它：
-    ///    - 落在设备可达等效焦距范围内（zoom ≤ maxZoom），
-    ///    - 相对承载它的镜头数字裁切 ≤ maxCrop（避免画质崩塌），
-    ///    - 不与已有档位过近（±6% 视为重复，原生优先）。
-    /// 单镜头 → 如 [26, 35, 50]；双镜头(UW+W) → [13,24,35,50]；双(W+T) → [24,35,50,77,154]；
-    /// 三镜头(17 Pro) → [13,24,35,50,100,200]。各自匹配且焦距准确。
+    /// 档位集合的纯函数核心（可单测）。产品语义（2026-10-08 用户拍板）：
+    /// - 标准档 [主摄标称, 35, 50] 恒在（任何后置设备都有主摄）；
+    /// - 硬件存在超广角镜头才显示超广档（用其标称值，现代机型 13mm）；
+    /// - 硬件存在长焦镜头才显示 100 与 200；
+    /// - 主摄标称非 24（如旧机型 26mm）时标准首档用实际标称，保证原生档标记与 zoom 锚定准确。
+    static func optionValues(mainMm: Int, ultraWideMm: Int?, hasTele: Bool) -> [Int] {
+        var values: [Int] = []
+        if let ultraWideMm { values.append(ultraWideMm) }
+        values.append(mainMm)
+        values.append(contentsOf: [35, 50])
+        if hasTele { values.append(contentsOf: [100, 200]) }
+        return Array(Set(values)).sorted()
+    }
+
+    /// 根据实际物理镜头生成焦段档位：`optionValues` 的集合 + isNative 标记（档位恰为某颗
+    /// 镜头的标称原生焦距）+ 可达性护栏（档位换算的 videoZoomFactor 超出 maxZoom 的丢弃，
+    /// 如无变焦余量设备上的 200mm）。三摄 → [13,24,35,50,100,200]；双(UW+W) → [13,24,35,50]；
+    /// 双(W+T) → [24,35,50,100,200]；单摄 → [24(或标称),35,50]。
     private static func buildOptions(constituents: [ConstituentInfo], maxZoom: CGFloat) -> [FocalLengthOption] {
-        guard let widest = constituents.first, let longest = constituents.last else {
-            return [FocalLengthOption(26, isNative: true)]
+        guard let main = constituents.first(where: { !$0.isUltraWide }) ?? constituents.first else {
+            return [FocalLengthOption(24, isNative: true)]
         }
-        let maxCrop: Float = 2.1   // 单颗镜头上可接受的最大数字裁切倍率（50mm 在主摄上 2.08x 仍可接受）
-        // 设备可达的最长等效焦距：最长镜头从其下界算起、裁切不超过 maxCrop、且 zoom 不超过 maxZoom
-        let teleReachZoom = min(maxZoom, longest.virtualZoomRange.lowerBound * CGFloat(maxCrop))
-        let maxEquiv = longest.nativeMm * Float(teleReachZoom / longest.virtualZoomRange.lowerBound)
-        let minEquiv = widest.nativeMm
-
-        // 候选：各镜头原生（isNative）+ 经典中间焦段 + 最长镜头 2× 长焦延伸
-        var candidates: [(mm: Int, isNative: Bool)] = constituents.map { (Int($0.nativeMm.rounded()), true) }
-        for m in [35, 50] { candidates.append((m, false)) }
-        candidates.append((Int((longest.nativeMm * 2).rounded()), false))
-
-        // 同一 mm 时原生排前，便于去重时原生覆盖近似的非原生
-        candidates.sort { ($0.mm, $0.isNative ? 0 : 1) < ($1.mm, $1.isNative ? 0 : 1) }
-
-        var result: [FocalLengthOption] = []
-        for cand in candidates {
-            let mmF = Float(cand.mm)
-            // 在设备可达等效范围内
-            guard mmF >= minEquiv - 0.5, mmF <= maxEquiv + 0.5 else { continue }
-            // 承载镜头 + 数字裁切检查（原生焦段裁切=1，必过）
-            guard let host = constituents.last(where: { $0.nativeMm <= mmF + 0.5 }) ?? constituents.first else { continue }
-            guard mmF / host.nativeMm <= maxCrop + 0.01 else { continue }
-            // 去重：与已选档 ±6% 视为重复；若新档是原生而旧的不是，用原生替换
-            if let dup = result.firstIndex(where: { abs(Float($0.value) - mmF) / mmF < 0.06 }) {
-                if cand.isNative && !result[dup].isNative {
-                    result[dup] = FocalLengthOption(cand.mm, isNative: true)
-                }
-                continue
-            }
-            result.append(FocalLengthOption(cand.mm, isNative: cand.isNative))
+        let values = optionValues(
+            mainMm: Int(main.nativeMm.rounded()),
+            ultraWideMm: constituents.first(where: \.isUltraWide).map { Int($0.nativeMm.rounded()) },
+            hasTele: constituents.contains(where: \.isTele)
+        )
+        return values.compactMap { mm -> FocalLengthOption? in
+            guard let host = constituents.last(where: { $0.nativeMm <= Float(mm) + 0.5 }) ?? constituents.first,
+                  host.nativeMm > 0 else { return nil }
+            let zoom = CGFloat(Float(mm)) * host.virtualZoomRange.lowerBound / CGFloat(host.nativeMm)
+            guard zoom <= maxZoom + 0.5 else { return nil }
+            let isNative = constituents.contains { Int($0.nativeMm.rounded()) == mm }
+            return FocalLengthOption(mm, isNative: isNative)
         }
-        return result.sorted { $0.value < $1.value }
     }
 }

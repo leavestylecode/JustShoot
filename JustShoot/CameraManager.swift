@@ -1486,8 +1486,10 @@ class CameraManager: NSObject, ObservableObject {
     ///
     /// 取舍：近于主摄最近对焦距离的 35/50mm 主体不再被自动救焦到超广（对焦可能不实）——拍近物用
     /// 13mm 档，与胶片相机「离散镜头、各自最近对焦距离」的拟真一致。注意与历史教训区分：被否决的是
-    /// `.locked`（min zoom 被钳到活跃镜头区间下界 + 系统拒长焦时假死），`.restricted` 不限制 zoom
-    /// 必需的切换，无此问题。返回策略描述供日志取证。
+    /// **旧式全局** `.locked`（min zoom 被钳到活跃镜头区间下界 + 系统拒长焦时假死），`.restricted`
+    /// 不限制 zoom 必需的切换，无此问题。iOS 27 的 per-device 锁定（lockTeleConstituent）是另一条
+    /// 路径：仅在长焦焦段 settle、系统已切上长焦后锁定，专治「暗光不长焦」的场景资格拒绝——对本
+    /// 策略的其余语义零影响。返回策略描述供日志取证。
     nonisolated private static func applyConstituentSwitchingPolicy(to device: AVCaptureDevice) -> String {
         guard device.primaryConstituentDeviceSwitchingBehavior != .unsupported else { return "unsupported" }
         device.setPrimaryConstituentDeviceSwitchingBehavior(
@@ -1495,6 +1497,49 @@ class CameraManager: NSObject, ObservableObject {
             restrictedSwitchingBehaviorConditions: [.videoZoomChanged]
         )
         return "restricted_zoom_changed"
+    }
+
+    /// **长焦硬保证**（iOS 27+ per-device lock）：把 primary constituent 锁定到指定长焦物理镜头。
+    /// 锁定后系统不再做任何场景资格评估——`.restricted` 头注释记录的「向上跨 switchover 仍按
+    /// AF/AE 资格评估（暗光不长焦）」对已锁定的长焦焦段不再适用。与被否决的**旧式全局**
+    /// `.locked` 不同：只在 zoom 已落在长焦区间内、系统已实际切上长焦后锁定（settle 后），
+    /// 没有「min zoom 被钳到区间下界」的瞬跳、没有拒长焦假死。离开长焦焦段的 ramp 由
+    /// configureFocalOnSessionQueue 的策略重申解锁（.restricted 覆盖 .locked 即解锁）。
+    /// 自带 lockForConfiguration；返回状态供日志取证。
+    nonisolated private static func lockTeleConstituent(_ tele: AVCaptureDevice, on device: AVCaptureDevice) -> String {
+        guard #available(iOS 27.0, *) else { return "unsupported_os" }
+        guard device.isPrimaryConstituentDeviceSwitchingBehaviorLockedWithDeviceSupported else { return "unsupported_device" }
+        do {
+            try device.lockForConfiguration()
+            device.setPrimaryConstituentDeviceSwitchingBehaviorLockedWith(tele)
+            device.unlockForConfiguration()
+            return "locked"
+        } catch {
+            Log.session.error("tele_lock_failed error=\(error.localizedDescription, privacy: .public)")
+            return "lock_failed"
+        }
+    }
+
+    /// settle 后的长焦锁定调度（clearLensTarget 调用，MainActor 判定 + sessionQueue 执行）。
+    /// 锁定条件：目标焦段的承载镜头是长焦、系统已实际切上长焦（暗光被拒绝时不锁——保留
+    /// .restricted 的主观数码裁切兜底，与「系统拒长焦快门不假死」的既有取舍一致）、当前
+    /// 未锁定。sessionQueue 上二次校验 permitsFocalRequest（旧 settle 的锁定不得与用户已
+    /// 发起的下一个焦段请求竞争）与 isRampingVideoZoom（不得在 ramp 中途锁定）。
+    private func scheduleTeleLockAfterSettle() {
+        guard let device = videoCaptureDevice,
+              let tele = focalInfo.teleConstituent,
+              focalInfo.constituent(for: currentFocalLength)?.device === tele.device,
+              device.activePrimaryConstituent === tele.device,
+              device.primaryConstituentDeviceSwitchingBehavior != .locked else { return }
+        let focalSequence = applyFocalToken
+        let generation = diagnosticGeneration
+        sessionQueue.async { [weak self] in
+            guard let self,
+                  self.permitsFocalRequest(focalSequence, generation: generation),
+                  !device.isRampingVideoZoom else { return }
+            let state = Self.lockTeleConstituent(tele.device, on: device)
+            self.diagnostics.event("focal_tele_lock", "focal_seq=\(focalSequence) state=\(state)")
+        }
     }
 
     /// 在 session config block 内（startRunning 之前）设好初始焦段的虚拟 zoom。
@@ -1899,6 +1944,8 @@ class CameraManager: NSObject, ObservableObject {
         lensTarget = nil
         lensOnTargetSince = nil
         promoteReadinessIfPossible()
+        // 长焦焦段落定 → 锁定长焦物理镜头（硬保证；拒绝切换/非长焦焦段时内部自判不锁）
+        scheduleTeleLockAfterSettle()
     }
 
     /// 开始一次镜头切换：登记目标 zoom + 启动稳定轮询。capture 就绪只看 zoom 到位（见 lensIsOnTarget）。
@@ -2041,9 +2088,10 @@ class CameraManager: NSObject, ObservableObject {
 
         // 单一路径：只把 videoZoomFactor 平滑 ramp 到目标。系统在 ramp 跨越 switchover 阈值时自己做
         // 硬件 crossfade 切 constituent（能切长焦就切、近物/暗光裁主摄）；固定 zoom 下 .restricted 禁止
-        // 场景驱动 fallback（见 applyConstituentSwitchingPolicy）。device 全程不 .locked，策略 + zoom
-        // 写在同一 lock 块内安全（无「转出 .locked 时 zoom 被旧 min/max 夹住」的老坑）。不再 deep-ramp
-        // 过冲 → 无前后抖动；不再等特定 constituent → 系统拒长焦不假死。
+        // 场景驱动 fallback（见 applyConstituentSwitchingPolicy）。长焦焦段在 settle 后按设备锁定
+        //（scheduleTeleLockAfterSettle——iOS 27 per-device lock，仅在 zoom 已入长焦区间后锁定，无旧式
+        // 全局 .locked 的钳制瞬跳）；离开长焦焦段的 ramp 由策略重申解锁。不再 deep-ramp
+        // 过冲 → 无前后抖动；不再等特定 constituent → 系统拒长焦不假死（锁定仅锦上添花）。
         let maxZoom = device.activeFormat.videoMaxZoomFactor
         let finalZoom = max(1.0, min(maxZoom, targetZoom))
         diagnostics.event("focal_begin", "focal_seq=\(focalSequence) generation=\(focalGeneration) focal_mm=\(option.rawValue) target_zoom=\(finalZoom) animated=\(animated) \(Self.deviceDiagnosticFields(device))")
@@ -2066,6 +2114,8 @@ class CameraManager: NSObject, ObservableObject {
         // 触发更重的管线重配。
         let usesRamp = animated
         let usesFastRamp = !crossesConstituent
+        // 目标焦段的承载镜头是长焦 → settle 后锁定该物理镜头（scheduleTeleLockAfterSettle）
+        let teleTarget = focalInfo.constituent(for: option)?.device === focalInfo.teleConstituent?.device
 
         // 设备 I/O（lockForConfiguration + ramp + 安全快门）移到 sessionQueue 执行。streaming 中
         // **首次** lockForConfiguration 会阻塞调用线程数百 ms（系统等采集管线到安全配置点）；放在
@@ -2076,7 +2126,7 @@ class CameraManager: NSObject, ObservableObject {
             self?.diagnostics.event("focal_dequeued", "focal_seq=\(focalSequence) wait_ms=\(Diagnostics.milliseconds(since: focalQueuedAt))")
             self?.configureFocalOnSessionQueue(
                 device: device, finalZoom: finalZoom,
-                animated: usesRamp, fastRamp: usesFastRamp,
+                animated: usesRamp, fastRamp: usesFastRamp, teleTarget: teleTarget,
                 focalMm: option.rawValue, focalSequence: focalSequence, generation: focalGeneration
             )
         }
@@ -2085,7 +2135,7 @@ class CameraManager: NSObject, ObservableObject {
     /// applyFocalLength 的设备配置段，在 sessionQueue 上执行（nonisolated，不触碰 @MainActor 状态）。
     /// 把 lockForConfiguration/ramp 从主线程移走，避免首次配置阻塞主线程导致预览掉帧。
     nonisolated private func configureFocalOnSessionQueue(
-        device: AVCaptureDevice, finalZoom: CGFloat, animated: Bool, fastRamp: Bool, focalMm: Int, focalSequence: UInt64, generation: UInt64
+        device: AVCaptureDevice, finalZoom: CGFloat, animated: Bool, fastRamp: Bool, teleTarget: Bool, focalMm: Int, focalSequence: UInt64, generation: UInt64
     ) {
         let configuring = diagnostics.span("focal_hardware_apply", "focal_seq=\(focalSequence) focal_mm=\(focalMm)")
         var configurationStatus = "error"
@@ -2104,9 +2154,16 @@ class CameraManager: NSObject, ObservableObject {
                 configurationStatus = "superseded"
                 return
             }
-            // constituent 策略幂等重申（见 applyConstituentSwitchingPolicy 头注释）：系统在 zoom
-            // 变化时重新评估 fallback 资格，固定 zoom 下不再换镜头。
-            _ = Self.applyConstituentSwitchingPolicy(to: device)
+            // constituent 策略（见 applyConstituentSwitchingPolicy 头注释）：目标仍是长焦且当前
+            // 已按设备锁定（settle 后的 scheduleTeleLockAfterSettle）→ 保持锁定不重申——重申
+            // .restricted 等于解锁，长焦→长焦（100↔200mm）切换会白付一次解锁-再锁定抖动；
+            // 其余情形幂等重申 .restricted+[.videoZoomChanged]，离开长焦焦段时这次重申同时就是解锁。
+            let policyState: String
+            if teleTarget && device.primaryConstituentDeviceSwitchingBehavior == .locked {
+                policyState = "kept_tele_lock"
+            } else {
+                policyState = Self.applyConstituentSwitchingPolicy(to: device)
+            }
             guard let transition = CameraZoomTransition(currentZoom: device.videoZoomFactor, targetZoom: finalZoom,
                 isRamping: device.isRampingVideoZoom, animated: animated, fastRamp: fastRamp) else {
                 device.unlockForConfiguration()
@@ -2122,7 +2179,7 @@ class CameraManager: NSObject, ObservableObject {
             let safeShutter = computeSafeShutterDuration(focalMm: focalMm, format: device.activeFormat)
             device.activeMaxExposureDuration = safeShutter
             device.unlockForConfiguration()
-            diagnostics.event("focal_transition_plan", "focal_seq=\(focalSequence) anchor_zoom=\(transition.anchorZoom.map { String(format: "%.3f", Double($0)) } ?? "none") target_zoom=\(transition.targetZoom) rate=\(transition.rate) ramp=\(transition.usesRamp)")
+            diagnostics.event("focal_transition_plan", "focal_seq=\(focalSequence) anchor_zoom=\(transition.anchorZoom.map { String(format: "%.3f", Double($0)) } ?? "none") target_zoom=\(transition.targetZoom) rate=\(transition.rate) ramp=\(transition.usesRamp) policy=\(policyState)")
             diagnostics.event("focal_device_locked", "focal_seq=\(focalSequence) wait_ms=\(String(format: "%.2f", lockWaitMS))")
             diagnostics.event("focal_ramp_issued", "focal_seq=\(focalSequence) \(Self.deviceDiagnosticFields(device))")
             configurationStatus = "ok"
