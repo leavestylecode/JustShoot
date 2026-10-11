@@ -38,11 +38,86 @@ private enum FilmGrainCharacter: Sendable {
     }
 }
 
-/// 所有“胶片自身”的技术参数统一从这里输出。颗粒 + 光学（halation/bloom/headroom）；
-/// CameraView 只消费结果，不暴露一排用户开关。
+/// 所有“胶片自身”的技术参数统一从这里输出。颗粒 + 光学（halation/bloom/headroom）+
+/// 色温响应（未校白）；CameraView 只消费结果，不暴露一排用户开关。
 struct FilmRenderProfile: Sendable, Equatable, Codable {
     let grain: FilmGrainParameters
     let optics: FilmOpticsParameters
+    /// Optional 仅为 journal 旧任务解码兼容（早期 manifest 无此键 → nil → 中性不响应）。
+    let chromatic: FilmChromaticResponseParameters?
+
+    var effectiveChromatic: FilmChromaticResponseParameters { chromatic ?? .neutral }
+}
+
+// MARK: - 胶片原生色温响应（未校白模拟）
+//
+// 数码管线先 AWB 校白再套 LUT，等价于“每卷胶片都被完美校白”——而胶片的味道很大部分
+// 来自**没有**校白：T 卷在日光下整卷偏蓝、日光卷在钨丝灯下偏橙、400H 阴影里的青调。
+// 这里按胶片原生平衡色温对场景色温的偏差，在线性 RGB 域做 von Kries 对角响应：
+//
+//   gain = W(sceneCCT) / W(nativeCCT)     （W = 该色温单位白向量的线性光值）
+//
+// AWB 已把场景白拉到中性，乘上 gain 恰好把它“放回”该胶片乳剂下的原生偏色。
+// strength 对每通道增益取幂（0 = 完全校白 = 现状，1 = 完整原生响应）。色温 tint 轴
+// 不参与（AWB 已拉平；初版只做 CCT 轴，非线性的阴影/高光 tint 待真机校准后再上）。
+struct FilmChromaticResponseParameters: Sendable, Equatable, Codable {
+    /// 胶片乳剂的设计平衡色温（K）。Tungsten 电影卷 3200，其余日光卷 5500。
+    let nativeCCT: Float
+    /// 0 = 完全校白（现状行为），1 = 完整原生响应。
+    let strength: Float
+
+    static let neutral = FilmChromaticResponseParameters(nativeCCT: 6_500, strength: 0)
+
+    var isNeutral: Bool { strength <= 0.0001 }
+
+    /// 场景色温 → 线性 RGB 域的每通道增益。读数缺失/无效时返回单位增益（不响应）。
+    func responseGain(sceneCCT: Float?) -> SIMD3<Float> {
+        guard !isNeutral, let sceneCCT, sceneCCT.isFinite else { return .one }
+        let scene = Self.linearRGBUnitWhite(clamping: sceneCCT)
+        let native = Self.linearRGBUnitWhite(clamping: nativeCCT)
+        var gain = SIMD3<Float>(
+            scene.x / max(native.x, 0.01),
+            scene.y / max(native.y, 0.01),
+            scene.z / max(native.z, 0.01)
+        )
+        // 极端读数（混合光源/读数跳变）防失控；真实乳剂的偏色也从不无限大。
+        for index in gain.indices {
+            let clamped = min(max(gain[index], 0.5), 2.2)
+            gain[index] = pow(clamped, strength)
+        }
+        return gain
+    }
+
+    /// CCT → 单位白向量（线性光域，未做显示域钳制）。
+    /// 用 Planckian 轨迹的标准分段多项式（Wyszecki & Stiles 拟合，1667–25000K 有效）求
+    /// 黑体 xy 色度 → XYZ → linear sRGB。不能用 sRGB 显示域拟合（如 Tanner Helland）：
+    /// 它在暖端把红通道饱和在 1，红端辐照度比例丢失，von Kries 的商恒为 1——
+    /// 钨丝灯下日光卷的橙调会消失。向量不做归一化（增益是两向量的商，尺度约掉）。
+    static func linearRGBUnitWhite(clamping kelvin: Float) -> SIMD3<Float> {
+        let t = min(max(kelvin, 2_000), 15_000)
+        let x: Float
+        if t <= 4_000 {
+            x = -0.266_123_9e9 / (t * t * t) - 0.234_358_0e6 / (t * t) + 0.877_695_6e3 / t + 0.179_910
+        } else {
+            x = -3.025_846_9e9 / (t * t * t) + 2.107_037_9e6 / (t * t) + 0.222_634_7e3 / t + 0.240_390
+        }
+        let y: Float
+        if t <= 2_222 {
+            y = -1.106_381_4 * x * x * x - 1.348_110_2 * x * x + 2.185_558_32 * x - 0.202_196_83
+        } else if t <= 4_000 {
+            y = -0.954_947_6 * x * x * x - 1.374_185_93 * x * x + 2.091_370_15 * x - 0.167_488_67
+        } else {
+            y = 3.081_758_0 * x * x * x - 5.873_386_7 * x * x + 3.751_129_97 * x - 0.370_014_83
+        }
+        guard y > 0 else { return .one }
+        // xy 色度 → XYZ（Y=1），再经 sRGB(D65) 逆矩阵到线性光。
+        let bigX = x / y
+        let bigZ = (1 - x - y) / y
+        let r = 3.240_6 * bigX - 1.537_2 - 0.498_6 * bigZ
+        let g = -0.968_9 * bigX + 1.875_8 + 0.041_5 * bigZ
+        let b = 0.055_7 * bigX - 0.204_0 + 1.057_0 * bigZ
+        return SIMD3<Float>(max(r, 0), max(g, 0), max(b, 0))
+    }
 }
 
 private enum AutomaticFilmProfile {
@@ -89,10 +164,26 @@ extension FilmPreset {
         }
     }
 
+    /// 胶片原生色温响应（初版保守值，待真机在日光/阴影/钨丝灯三环境实拍校准）：
+    /// 钨点平衡的 T 卷响应最深；反转片出厂校色严格、响应最浅；现代消费负片居中偏克制。
+    var chromaticResponse: FilmChromaticResponseParameters {
+        switch self {
+        case .kodakVision5219:  return FilmChromaticResponseParameters(nativeCCT: 3_200, strength: 0.60)
+        case .kodakVision5203:  return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.52)
+        case .kodak5207:        return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.52)
+        case .kodakPortra400:   return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.42)
+        case .fujiPro400H:      return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.46)
+        case .fujiC200:         return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.38)
+        case .fujiProvia100F:   return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.24)
+        case .harmanPhoenix200: return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.55)
+        }
+    }
+
     var renderProfile: FilmRenderProfile {
         FilmRenderProfile(
             grain: AutomaticFilmProfile.grain(iso: iso, character: grainCharacter),
-            optics: filmOptics
+            optics: filmOptics,
+            chromatic: chromaticResponse
         )
     }
 }
@@ -103,10 +194,11 @@ extension FilmSource {
         case .preset(let preset):
             return preset.renderProfile
         case .custom(_, _, let iso, _):
-            // 自定义 LUT = 用户导入什么就出什么：保留颗粒的 ISO 自动性，光学模块关闭。
+            // 自定义 LUT = 用户导入什么就出什么：保留颗粒的 ISO 自动性，光学与色温响应关闭。
             return FilmRenderProfile(
                 grain: AutomaticFilmProfile.grain(iso: iso, character: .balanced),
-                optics: .disabled
+                optics: .disabled,
+                chromatic: nil
             )
         }
     }

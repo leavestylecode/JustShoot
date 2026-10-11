@@ -287,6 +287,8 @@ private actor CaptureWorker {
                     let result = try await LivePhotoProcessor.process(
                         sourceURL: journal.file("source.mov", for: job.id), lutCacheKey: recipe.filterName,
                         capturedLUT: lut, grain: recipe.profile.grain, optics: recipe.profile.optics,
+                        chromatic: recipe.profile.effectiveChromatic,
+                        chromaticSceneCCT: recipe.chromaticSceneCCT,
                         grainBaseSeed: recipe.grainSeed, photoDisplayTime: displayTime,
                         outputURL: journal.file("rendered.mov", for: job.id), trace: trace)
                     video.end()
@@ -377,6 +379,8 @@ private actor CaptureWorker {
                 FilmProcessor.shared.applyLUTPreservingMetadata(
                     imageData: raw, lutCacheKey: recipe.filterName, capturedLUT: lut,
                     grain: recipe.profile.grain, grainSeed: seed, optics: recipe.profile.optics,
+                    chromatic: recipe.profile.effectiveChromatic,
+                    chromaticSceneCCT: recipe.chromaticSceneCCT,
                     outputQuality: recipe.outputQuality, location: recipe.location?.location,
                     captureDate: recipe.captureDate, focalLengthIn35mm: recipe.focalLength,
                     contentIdentifier: contentID)

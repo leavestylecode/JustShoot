@@ -36,6 +36,7 @@ private final class PipelineBox: @unchecked Sendable {
     let lut: CubeLUT?
     let grain: FilmGrainParameters
     let optics: FilmOpticsParameters
+    let chromaticGain: SIMD3<Float>
     let grainBaseSeed: UInt32
 
     init(reader: AVAssetReader, writer: AVAssetWriter,
@@ -44,7 +45,7 @@ private final class PipelineBox: @unchecked Sendable {
          audioOutput: AVAssetReaderTrackOutput?, audioInput: AVAssetWriterInput?,
          metadataInput: AVAssetWriterInput, metadataAdaptor: AVAssetWriterInputMetadataAdaptor, stillGroup: AVTimedMetadataGroup,
          lut: CubeLUT?, grain: FilmGrainParameters, optics: FilmOpticsParameters,
-         grainBaseSeed: UInt32) {
+         chromaticGain: SIMD3<Float>, grainBaseSeed: UInt32) {
         self.reader = reader
         self.writer = writer
         self.videoOutput = videoOutput
@@ -58,6 +59,7 @@ private final class PipelineBox: @unchecked Sendable {
         self.lut = lut
         self.grain = grain
         self.optics = optics
+        self.chromaticGain = chromaticGain
         self.grainBaseSeed = grainBaseSeed
     }
 }
@@ -101,6 +103,8 @@ enum LivePhotoProcessor {
         capturedLUT: CubeLUT? = nil,
         grain: FilmGrainParameters,
         optics: FilmOpticsParameters = .disabled,
+        chromatic: FilmChromaticResponseParameters = .neutral,
+        chromaticSceneCCT: Float? = nil,
         grainBaseSeed: UInt32,
         photoDisplayTime: CMTime,
         outputURL: URL,
@@ -260,6 +264,7 @@ enum LivePhotoProcessor {
                 lut: lut,
                 grain: grain,
                 optics: optics,
+                chromaticGain: chromatic.responseGain(sceneCCT: chromaticSceneCCT),
                 grainBaseSeed: grainBaseSeed
             )
 
@@ -293,30 +298,33 @@ enum LivePhotoProcessor {
         return nil
     }
 
-    // MARK: - 逐帧 LUT + 光学 + 颗粒渲染
+    // MARK: - 逐帧 LUT + 色温响应 + 光学 + 颗粒渲染
     //
-    // srcPixel(BGRA) → CIImage → CIColorCubeWithColorSpace → FilmOptics → FilmGrain
-    // → 输出 pixel buffer。链序与静态图/预览一致（LUT → headroom → halation/bloom → grain）。
+    // srcPixel(BGRA) → CIImage → 色温响应(线性域增益) → CIColorCubeWithColorSpace →
+    // FilmOptics → FilmGrain → 输出 pixel buffer。链序与静态图/预览一致
+    //（chromatic → LUT → headroom → halation/bloom → grain）。
     // 每帧新建一个 CIFilter（与 FilmProcessor 一致——避免跨帧/跨线程复用同一 filter 实例的竞争）。
     fileprivate static func renderFrame(
         _ srcPixel: CVPixelBuffer,
         lut: CubeLUT?,
         grain: FilmGrainParameters,
         optics: FilmOpticsParameters,
+        chromaticGain: SIMD3<Float>,
         grainSeed: UInt32,
         pool: CVPixelBufferPool?
     ) -> CVPixelBuffer? {
         let srcImage = CIImage(cvPixelBuffer: srcPixel)
+        let responded = FilmChromaticRenderer.applying(to: srcImage, gain: chromaticGain)
 
         let gradedImage: CIImage
         if let lut, let filter = CIFilter(name: "CIColorCubeWithColorSpace") {
-            filter.setValue(srcImage, forKey: kCIInputImageKey)
+            filter.setValue(responded, forKey: kCIInputImageKey)
             filter.setValue(lut.dimension, forKey: "inputCubeDimension")
             filter.setValue(lut.data, forKey: "inputCubeData")
             filter.setValue(srgb, forKey: "inputColorSpace")
-            gradedImage = filter.outputImage ?? srcImage
+            gradedImage = filter.outputImage ?? responded
         } else {
-            gradedImage = srcImage
+            gradedImage = responded
         }
         let opticallyGraded = FilmOpticsRenderer.applying(to: gradedImage, parameters: optics)
         let outImage = FilmGrainRenderer.applying(
@@ -438,7 +446,7 @@ private final class LivePhotoTranscode: @unchecked Sendable {
                 let timestamp = CMSampleBufferGetPresentationTimeStamp(sample)
                 let seed = FilmGrainRenderer.temporalSeed(base: box.grainBaseSeed, seconds: timestamp.seconds)
                 guard let output = LivePhotoProcessor.renderFrame(source, lut: box.lut, grain: box.grain,
-                    optics: box.optics, grainSeed: seed, pool: box.pixelAdaptor.pixelBufferPool) else {
+                    optics: box.optics, chromaticGain: box.chromaticGain, grainSeed: seed, pool: box.pixelAdaptor.pixelBufferPool) else {
                     fail("pixel_buffer_allocation"); return false
                 }
                 guard !isFinished, box.pixelAdaptor.append(output, withPresentationTime: timestamp) else {

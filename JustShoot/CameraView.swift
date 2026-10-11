@@ -114,7 +114,8 @@ struct CameraView: View {
                                 lutCacheKey: preparedLUT?.key ?? previewLUTKey,
                                 preparedLUT: preparedLUT?.lut,
                                 grain: preparedLUT?.profile.grain ?? source.renderProfile.grain,
-                                optics: preparedLUT?.profile.optics ?? source.renderProfile.optics
+                                optics: preparedLUT?.profile.optics ?? source.renderProfile.optics,
+                                chromatic: preparedLUT?.profile.effectiveChromatic ?? source.renderProfile.effectiveChromatic
                             )
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 .contentShape(Rectangle())
@@ -636,6 +637,11 @@ struct CameraView: View {
         // 自动渲染配置与随机基种子也在快门时刻固化。后续切换胶片不会改变已排队照片；
         // Live Photo 用同一基种子按时间戳派生逐帧 seed，静态帧与标记时刻保持连续。
         let renderProfile = currentSource.renderProfile
+        // 胶片色温响应的输入用**设备 AWB 读数**（物理语义：乳剂对到达的光响应，不感知用户
+        // 手动 WB 意图——那是校白侧的调整，与乳剂侧正交叠加，恰是真实胶片摄影的分层）。
+        // 读数与预览同一来源，成片与预览所见一致。
+        let chromaticSceneCCT = cameraManager.automaticWhiteBalanceReading?.temperature
+        let chromaticGain = renderProfile.effectiveChromatic.responseGain(sceneCCT: chromaticSceneCCT)
         let grainBaseSeed = UInt32.random(in: 1...UInt32.max)
         let location = cameraManager.captureLocation(at: captureDate).map(CaptureLocation.init)
 
@@ -730,7 +736,10 @@ struct CameraView: View {
                 displayLabel: displayLabel, focalLength: focalMm, outputQuality: Double(outputQuality),
                 profile: renderProfile, grainSeed: grainBaseSeed, location: location,
                 lutDimension: capturedLUT.dimension,
+                chromaticSceneCCT: chromaticSceneCCT,
                 photoDisplayTime: displayTime.isValid && displayTime.isNumeric ? displayTime.seconds : nil)
+            captureTrace.event("chromatic_response_snapshot",
+                "native_kk=\(Int(renderProfile.effectiveChromatic.nativeCCT)) strength=\(String(format: "%.2f", renderProfile.effectiveChromatic.strength)) scene_kk=\(chromaticSceneCCT.map { Int($0) }.map(String.init) ?? "unavailable") gain=\(String(format: "%.3f/%.3f/%.3f", chromaticGain.x, chromaticGain.y, chromaticGain.z))")
             capturePipeline.enqueue(result, recipe: recipe, lut: capturedLUT)
         }
     }

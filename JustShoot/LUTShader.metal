@@ -25,6 +25,10 @@ struct PreviewParams {
     float highlightThreshold;
     float headroomAmount;
     float headroomShoulder;
+    // 胶片色温响应（未校白）：线性域每通道增益，CPU 按场景色温 + 胶片原生平衡算好并已平滑。
+    float chromaticGainR;
+    float chromaticGainG;
+    float chromaticGainB;
 };
 
 
@@ -55,6 +59,11 @@ kernel void previewLUT(
     }
     constexpr sampler linearSampler(filter::linear, address::clamp_to_edge);
     float3 color = float3(input.sample(linearSampler, (source + 0.5) / float2(inW, inH)).rgb);
+    // 胶片色温响应先于 LUT：真实胶片是"乳剂先响应、显影定色"，校白模拟必须在色彩映射之前。
+    color = justShootApplyChromaticGain(
+        color,
+        float3(params.chromaticGainR, params.chromaticGainG, params.chromaticGainB)
+    );
     float dim = float(params.lutDimension);
     float3 coordinate = color * ((dim - 1.0) / dim) + 0.5 / dim;
     float3 display = justShootApplyHeadroom(lut.sample(linearSampler, coordinate).rgb,

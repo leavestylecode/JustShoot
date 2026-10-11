@@ -164,7 +164,8 @@ enum FilmOpticsRenderer {
         let extent = image.extent
         let longEdge = max(extent.width, extent.height)
 
-        // 能量图：显示域 luma 的高光软阈值，halation 与 bloom 共用。
+        // 能量图：线性域的高光软阈值权重（halation 与 bloom 共用）。能量场自产自销，
+        // 下面的 CIGaussianBlur 因此天然发生在线性域——物理正确的光能量扩散。
         guard let energy = highlightKernel.apply(
             extent: extent,
             arguments: [image, FilmOpticsParameters.highlightThreshold]
@@ -208,5 +209,36 @@ enum FilmOpticsRenderer {
         var output = applyingHeadroom(to: image, parameters: parameters)
         output = applyingLightDiffusion(to: output, parameters: parameters)
         return output
+    }
+}
+
+// MARK: - 胶片色温响应渲染（未校白）
+
+/// LUT 之前的线性域每通道增益。增益由 FilmChromaticResponseParameters.responseGain
+/// （快门时刻的场景色温快照）在 CPU 算好传入；单位增益时 kernel 内部直接返回原值。
+/// 与 Metal 预览共享 FilmOpticsMath.h 的同一段数学。
+enum FilmChromaticRenderer {
+    private static let kernel: CIColorKernel? = {
+        guard let url = Bundle.main.url(forResource: "default", withExtension: "metallib") else {
+            Log.lut.error("film_chromatic_kernel_missing")
+            return nil
+        }
+        let data = try? Data(contentsOf: url)
+        guard let data else { return nil }
+        return try? CIColorKernel(functionName: "justShootChromaticGain", fromMetalLibraryData: data)
+    }()
+
+    static func applying(to image: CIImage, gain: SIMD3<Float>) -> CIImage {
+        let isUnit = abs(gain.x - 1) < 0.0005 && abs(gain.y - 1) < 0.0005 && abs(gain.z - 1) < 0.0005
+        guard !isUnit,
+              !image.extent.isEmpty,
+              !image.extent.isInfinite,
+              let kernel else {
+            return image
+        }
+        return kernel.apply(
+            extent: image.extent,
+            arguments: [image, CIVector(x: CGFloat(gain.x), y: CGFloat(gain.y), z: CGFloat(gain.z))]
+        ) ?? image
     }
 }

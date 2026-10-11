@@ -441,6 +441,8 @@ final class FilmProcessor: Sendable {
         grain: FilmGrainParameters = .disabled,
         grainSeed: UInt32 = 0,
         optics: FilmOpticsParameters = .disabled,
+        chromatic: FilmChromaticResponseParameters = .neutral,
+        chromaticSceneCCT: Float? = nil,
         outputQuality: CGFloat = 1.0,
         location: CLLocation? = nil,
         captureDate: Date = Date(),
@@ -471,7 +473,7 @@ final class FilmProcessor: Sendable {
 
         let inputExtent = ciInput.extent
         let isLandscape = inputExtent.width > inputExtent.height
-        Log.lut.info("lut_apply_begin key=\(lutCacheKey, privacy: .public) exif=\(exifOrientation) w=\(Int(inputExtent.width)) h=\(Int(inputExtent.height)) landscape=\(isLandscape)")
+        Log.lut.info("lut_apply_begin key=\(lutCacheKey, privacy: .public) exif=\(exifOrientation) w=\(Int(inputExtent.width)) h=\(Int(inputExtent.height)) landscape=\(isLandscape) chromatic_kk=\(chromaticSceneCCT.map { Int($0) }.map(String.init) ?? "off") strength=\(String(format: "%.2f", chromatic.strength))")
 
         // 出片保持 sensor 原生 4:3（横）/ 3:4（纵）画幅，与预览 viewport `.aspectRatio(3.0/4.0)`
         // 完全对齐。sensor 输出已经是 4:3，下面的 crop 在 |差异| ≤ 0.01 时是 no-op；保留这段代码
@@ -502,7 +504,13 @@ final class FilmProcessor: Sendable {
             return nil
         }
 
-        colorCube.setValue(ciInput, forKey: kCIInputImageKey)
+        // 胶片色温响应（未校白）先于 LUT：乳剂先对光响应、显影再定色。与 Metal 预览同序。
+        let chromaticallyResponded = FilmChromaticRenderer.applying(
+            to: ciInput,
+            gain: chromatic.responseGain(sceneCCT: chromaticSceneCCT)
+        )
+
+        colorCube.setValue(chromaticallyResponded, forKey: kCIInputImageKey)
         colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
         colorCube.setValue(lut.data, forKey: "inputCubeData")
         colorCube.setValue(srgbColorSpace, forKey: "inputColorSpace")

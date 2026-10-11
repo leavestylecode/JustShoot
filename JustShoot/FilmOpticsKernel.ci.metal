@@ -5,7 +5,7 @@ using namespace metal;
 
 // The CIContext working space is explicitly sRGB, matching the Metal preview.
 
-/// 肩部保护（去饱和 + 软压余量）：LUT 之后逐像素应用。
+/// 肩部保护（去饱和 + 软压余量）：LUT 之后逐像素应用。影调风格模块，保持显示域。
 [[stitchable]] float4 justShootHeadroom(
     coreimage::sample_t pixel,
     float amount,
@@ -16,8 +16,9 @@ using namespace metal;
     return float4(softened, pixel.a);
 }
 
-/// 高光能量图：显示域 luma 的软阈值权重，输出灰度标量场供高斯扩散。
-/// 下游（blur/composite）直接在这个标量场上运算，不再做域转换。
+/// 高光能量图：输入显示域像素，输出**线性域**能量标量场供高斯扩散。
+/// 能量图自产自销——CI 的模糊与合成 kernel 都消费这个场，域语义由本函数与
+/// justShootCompositeOptics 共同约定，CIContext 配置无需感知。
 [[stitchable]] float4 justShootHighlightEnergy(
     coreimage::sample_t pixel,
     float threshold
@@ -48,4 +49,13 @@ using namespace metal;
         bloomAmount
     );
     return float4(composed, base.a);
+}
+
+/// 胶片色温响应（未校白）：LUT 之前的线性域每通道增益。静态图与 Live Photo 共用；
+/// Metal 预览在 LUTShader.metal 的 previewLUT 内联同一段数学（FilmOpticsMath.h 共享）。
+[[stitchable]] float4 justShootChromaticGain(
+    coreimage::sample_t pixel,
+    float3 gain
+) {
+    return float4(justShootApplyChromaticGain(pixel.rgb, gain), pixel.a);
 }

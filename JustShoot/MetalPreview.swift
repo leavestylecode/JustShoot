@@ -167,6 +167,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     let preparedLUT: CubeLUT?
     let grain: FilmGrainParameters
     let optics: FilmOpticsParameters
+    let chromatic: FilmChromaticResponseParameters
 
     func makeUIView(context: Context) -> MTKView {
         // 复用启动时预热好的共享 device，避免在转场期间于主线程实例化 GPU 设备。
@@ -208,6 +209,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         context.coordinator.preparedLUT = preparedLUT
         context.coordinator.grain = grain
         context.coordinator.optics = optics
+        context.coordinator.chromatic = chromatic
         context.coordinator.manager = manager
         manager.previewMTKView = uiView
     }
@@ -231,6 +233,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         var preparedLUT: CubeLUT?
         var grain: FilmGrainParameters = .disabled
         var optics: FilmOpticsParameters = .disabled
+        var chromatic: FilmChromaticResponseParameters = .neutral
         weak var manager: CameraManager?
 
         // Metal 核心对象
@@ -313,6 +316,24 @@ struct RealtimePreviewView: UIViewRepresentable {
             var highlightThreshold: Float
             var headroomAmount: Float
             var headroomShoulder: Float
+            var chromaticGainR: Float
+            var chromaticGainG: Float
+            var chromaticGainB: Float
+        }
+
+        /// 色温响应增益的低通平滑：WB 读数 0.5s 采样 + 100K 量化，直接跳变会在预览上
+        /// 产生可见的色阶闪烁。每帧向目标指数逼近（60fps 下 ~150ms 收敛，肉眼顺滑）。
+        private var smoothedChromaticGain: SIMD3<Float>?
+
+        private func chromaticGainForFrame() -> SIMD3<Float> {
+            let target = chromatic.responseGain(sceneCCT: manager?.automaticWhiteBalanceReading?.temperature)
+            guard let smoothed = smoothedChromaticGain else {
+                smoothedChromaticGain = target
+                return target
+            }
+            let next = smoothed + (target - smoothed) * 0.12
+            smoothedChromaticGain = next
+            return next
         }
 
         func setup(view: MTKView) {
@@ -526,6 +547,9 @@ struct RealtimePreviewView: UIViewRepresentable {
                 offsetY = Float(outH) / 2 - cy * scale
             }
 
+            // 色温响应增益每帧取一次：内部低通平滑消化 WB 读数的量化台阶。
+            let chromaticGain = chromaticGainForFrame()
+
             var params = PreviewParams(
                 scale: scale,
                 offsetX: offsetX,
@@ -554,7 +578,10 @@ struct RealtimePreviewView: UIViewRepresentable {
                 ),
                 highlightThreshold: FilmOpticsParameters.highlightThreshold,
                 headroomAmount: optics.headroomAmount,
-                headroomShoulder: optics.headroomShoulder
+                headroomShoulder: optics.headroomShoulder,
+                chromaticGainR: chromaticGain.x,
+                chromaticGainG: chromaticGain.y,
+                chromaticGainB: chromaticGain.z
             )
 
             // 编码 compute 命令

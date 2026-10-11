@@ -384,7 +384,7 @@ final class CapturePipelineTests: XCTestCase {
     private func recipe(lut: CubeLUT) -> CaptureRecipe {
         CaptureRecipe(id: UUID(), captureDate: Date(timeIntervalSince1970: 123456), filterName: "test",
                       displayLabel: nil, focalLength: 35, outputQuality: 0.8,
-                      profile: FilmRenderProfile(grain: .disabled, optics: .disabled), grainSeed: 1,
-                      location: nil, lutDimension: lut.dimension, photoDisplayTime: 1.5)
+                      profile: FilmRenderProfile(grain: .disabled, optics: .disabled, chromatic: nil), grainSeed: 1,
+                      location: nil, lutDimension: lut.dimension, chromaticSceneCCT: nil, photoDisplayTime: 1.5)
     }
 }

@@ -44,6 +44,9 @@ struct CaptureRecipe: Codable, Sendable {
     let grainSeed: UInt32
     let location: CaptureLocation?
     let lutDimension: Int
+    /// 快门时刻的场景色温快照（设备 AWB 读数，K）。胶片色温响应（未校白）的输入；
+    /// optional 兼容旧 journal——缺失时响应中性（增益 1），渲染结果与旧版一致。
+    let chromaticSceneCCT: Float?
     let photoDisplayTime: Double?
 }
 

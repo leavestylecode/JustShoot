@@ -2,9 +2,14 @@
 #define FilmOpticsMath_h
 
 // 胶片光学模块（halation / bloom / headroom）的共享数学，被两处包含：
-//   - LUTShader.metal（实时预览，显示域单 pass）
+//   - LUTShader.metal（实时预览，单 pass）
 //   - FilmOpticsKernel.ci.metal（静态图 / Live Photo，CI sRGB 工作空间）
-// 与 FilmGrainMath.h 同一约定：所有函数工作在 sRGB 显示值 [0,1]。
+//
+// 域约定：光传输模块（高光能量提取、加色合成）工作在场景线性光域——halation/bloom
+// 是光子能量的扩散，gamma 编码值上做高斯模糊会按错误的比例分配晕能量（中调晕被夸大、
+// 暗部晕被压低）。风格化模块（LUT、headroom、颗粒）保持 sRGB 显示域，它们模拟的是
+// 影调/密度响应，本来就是显示相关的。跨域边界在函数内部完成（sRGB↔linear EOTF），
+// 调用方永远只见显示值。
 //
 // 高光保护的总原则：合成前先把亮度软压出余量，合成后用单调软肩把浮点和映射回 [0,1)。
 // 任何两个不同亮度在输出端仍是两个可区分的值——1.05 与 1.20 不再被截成同一个 1.0，
@@ -12,10 +17,57 @@
 #include <metal_stdlib>
 using namespace metal;
 
-/// 高光能量提取：threshold 之上 0.18 的软肩内平滑爬升，只让"光源"而非"亮面"发光晕。
-inline float justShootOpticsHighlightWeight(float luma, float threshold)
+/// sRGB EOTF（IEC 61966-2-1 精确分段式，非 2.2 幂近似）。光学链跨域边界的唯一通道。
+inline float justShootSrgbToLinearValue(float x)
 {
-    return smoothstep(threshold, min(threshold + 0.18, 1.0), luma);
+    return x <= 0.04045 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4);
+}
+
+/// sRGB 逆 EOTF（OETF）。合成结果回到显示域后仍可大于 1（如 base 1.0 + 光晕能量），
+/// 函数不截断、保持单调，白电平收敛交给下游软肩。
+inline float justShootLinearToSrgbValue(float x)
+{
+    return x <= 0.0031308 ? x * 12.92 : 1.055 * pow(max(x, 0.0), 1.0 / 2.4) - 0.055;
+}
+
+inline float3 justShootSrgbToLinear(float3 c)
+{
+    return float3(
+        justShootSrgbToLinearValue(c.r),
+        justShootSrgbToLinearValue(c.g),
+        justShootSrgbToLinearValue(c.b)
+    );
+}
+
+inline float3 justShootLinearToSrgb(float3 c)
+{
+    return float3(
+        justShootLinearToSrgbValue(c.r),
+        justShootLinearToSrgbValue(c.g),
+        justShootLinearToSrgbValue(c.b)
+    );
+}
+
+/// 胶片色温响应（未校白）：线性光域的每通道增益（von Kries 对角近似，Swift 侧
+/// FilmChromaticResponseParameters.responseGain 用同一数学算出增益传入）。
+/// 跨域边界在函数内部完成，调用方只见显示域像素。
+inline float3 justShootApplyChromaticGain(float3 display, float3 gain)
+{
+    if (gain.r >= 0.9999 && gain.r <= 1.0001
+        && gain.g >= 0.9999 && gain.g <= 1.0001
+        && gain.b >= 0.9999 && gain.b <= 1.0001) return display;
+    return justShootLinearToSrgb(justShootSrgbToLinear(display) * gain);
+}
+
+/// 高光能量提取：threshold 之上 0.18 的软肩内平滑爬升，只让"光源"而非"亮面"发光晕。
+/// luma 与 threshold 均以显示域定义（参数直觉域），内部 decode 到线性域做 smoothstep——
+/// 扩散的是线性光能量：光源（显示 luma≈1）权重不变，亮面的权重比显示域版本更低，
+/// 大面积白墙不再像旧版那样把晕推得过白。
+inline float justShootOpticsHighlightWeight(float displayLuma, float threshold)
+{
+    float lo = justShootSrgbToLinearValue(threshold);
+    float hi = justShootSrgbToLinearValue(min(threshold + 0.18, 1.0));
+    return smoothstep(lo, hi, justShootSrgbToLinearValue(displayLuma));
 }
 
 /// halation 色相：0 = 纯红（片基反射只再曝红层），1 = 橙（绿层也被打到）。
@@ -71,13 +123,22 @@ inline float3 justShootApplyHeadroom(float3 color, float amount, float shoulder)
     return mix(desaturated, withHeadroom, weight);
 }
 
-/// 光晕合成（显示域）：halation 按能量染橙红、bloom 近中性微暖，加色混合。
-/// 增益常数在这里单点定义——Metal 预览与 CI 成片必须共用同一组数值。
+/// 光晕增益常数在这里单点定义——Metal 预览与 CI 成片必须共用同一组数值。
+/// 线性域合成的初值推导：中调（显示 0.5）处 sRGB 编码导数 ≈ 1.08，旧显示域增益
+/// 0.55/0.42 换算 0.55/1.08 ≈ 0.51、0.42/1.08 ≈ 0.39；halation 主体是点光源
+/// （提取权重≈1，只吃编码导数修正）取 0.50，bloom 主体是亮面（线性域提取权重还
+/// 整体偏低）再往下补，取 0.38。待真机夜景对照图校准。
+constant float justShootOpticsHalationGain = 0.50;
+constant float justShootOpticsBloomGain = 0.38;
+
+/// 光晕合成（线性光域）：底图与染色能量按光子比例叠加，再编码回显示域。
+/// tint 常数是显示域调定的观感色，decode 后参与线性叠加——色相与旧显示域版本一致，
+/// 变化的只是能量-亮度映射：亮面晕收敛、点光源晕的衰减梯度与物理一致。
 ///
 /// 能量走饱和响应 1-exp(-E)：小能量近似线性，点光源的发光观感与旧版一致；
 /// 大面积亮面（扩散后局部能量趋于 1 以上）贡献次线性衰减，整片亮墙不再被继续推白。
 ///
-/// 合成结果不做硬截断：先保留浮点，再用软肩把超过 knee 的部分单调压回 [0, 1)。
+/// 合成结果先编码回显示域（不截断、保持单调），再由软肩把超过 knee 的部分压回 [0, 1)。
 inline float3 justShootCompositeOptics(
     float3 baseDisplay,
     float halationEnergy,
@@ -88,15 +149,20 @@ inline float3 justShootCompositeOptics(
 ) {
     if (halationAmount <= 0.0001 && bloomAmount <= 0.0001) return baseDisplay;
 
+    float3 baseLinear = justShootSrgbToLinear(baseDisplay);
     float halationResponse = 1.0 - exp(-max(halationEnergy, 0.0));
     float bloomResponse = 1.0 - exp(-max(bloomEnergy, 0.0));
-    float3 halationAdd = justShootOpticsHalationTint(halationHue)
-        * halationResponse * halationAmount * 0.55;
-    float3 bloomAdd = float3(1.000, 0.985, 0.955)
-        * bloomResponse * bloomAmount * 0.42;
+    float3 halationAdd = justShootSrgbToLinear(justShootOpticsHalationTint(halationHue))
+        * halationResponse * halationAmount * justShootOpticsHalationGain;
+    float3 bloomAdd = justShootSrgbToLinear(float3(1.000, 0.985, 0.955))
+        * bloomResponse * bloomAmount * justShootOpticsBloomGain;
 
-    float3 composed = max(baseDisplay + halationAdd + bloomAdd, 0.0);
-    return justShootShoulderCompress3(composed, justShootOpticsCompositeKnee, 1.0);
+    float3 composedLinear = max(baseLinear + halationAdd + bloomAdd, 0.0);
+    return justShootShoulderCompress3(
+        justShootLinearToSrgb(composedLinear),
+        justShootOpticsCompositeKnee,
+        1.0
+    );
 }
 
 #endif
