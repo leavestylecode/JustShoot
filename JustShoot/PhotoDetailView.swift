@@ -204,7 +204,8 @@ struct PhotoDetailView: View {
         .toolbar { navigationToolbar }
         .toolbar { bottomToolbar }
         .onAppear {
-            Diagnostics.emit("photo_detail_open", id: currentPhotoID?.uuidString ?? "photo-detail", fields: "count=\(photos.count)")
+            Diagnostics.emit("photo_detail_open", id: currentPhotoID?.uuidString ?? "photo-detail",
+                fields: "count=\(photos.count) photos_auth=\(PHPhotoLibrary.authorizationStatus(for: .readWrite).rawValue)")
             dismisser.onDismiss = { dismiss() }
             reconcilePhotos()
             schedulePreheat()

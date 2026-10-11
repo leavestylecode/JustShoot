@@ -487,6 +487,9 @@ final class AssetImageLoader: @unchecked Sendable {
 
     /// UIKit cell 用：opportunistic 渐进交付（先糊后清），completion 可能被多次回调（PHImageManager
     /// 在主线程回调）。返回 PHImageRequestID 供 cell 复用时 cancel。
+    ///
+    /// 12s 超时兜底：PhotoKit 在授权边缘态/库索引异常时可能**完全不回调**，cell 永远停在黑块。
+    /// 超时补发一次 nil（仅在从未收到 final 交付时），让 UI 落到失败态而不是无限等待。
     @discardableResult
     func requestThumbnail(id: String, maxPixel: Int, completion: @escaping (UIImage?) -> Void) -> PHImageRequestID {
         guard let asset = asset(id: id) else { completion(nil); return PHInvalidImageRequestID }
@@ -496,13 +499,23 @@ final class AssetImageLoader: @unchecked Sendable {
         opts.isNetworkAccessAllowed = true
         let size = CGSize(width: maxPixel, height: maxPixel)
         let key = "\(id)_\(maxPixel)" as NSString
-        return manager.requestImage(for: asset, targetSize: size, contentMode: .aspectFill, options: opts) { [weak self] image, info in
+        let delivered = Box(false)
+        let completionBox = Box(completion)
+        let requestID = manager.requestImage(for: asset, targetSize: size, contentMode: .aspectFill, options: opts) { [weak self] image, info in
             let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
             if let image, !degraded, let self {
                 self.cache.setObject(image, forKey: key, cost: self.cost(image))
+                delivered.value = true
             }
             completion(image)
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
+            guard let self, !delivered.value, requestID != PHInvalidImageRequestID else { return }
+            self.manager.cancelImageRequest(requestID)
+            Log.gallery.error("asset_thumbnail_timeout id=\(id, privacy: .public) max=\(maxPixel) authorization=\(PHPhotoLibrary.authorizationStatus(for: .readWrite).rawValue)")
+            completionBox.value(nil)
+        }
+        return requestID
     }
 
     func cancel(_ requestID: PHImageRequestID) {
@@ -542,7 +555,12 @@ final class AssetImageLoader: @unchecked Sendable {
         }
     }
 
+    /// 单发请求统一入口。超时兜底:PhotoKit 在授权边缘态（PLPrivacy 判定需要弹窗但弹不出）/库索引
+    /// 异常时,`requestImage` 的 resultHandler 可能**永不回调**——上层 `.task` 挂死、详情页停在
+    /// 无限 spinner 且诊断 span 永不结束（真机 2026-10-10 全黑查看事件的形态）。12s 未交付按取消
+    /// 落定,span 记录 timeout + 当前授权状态,`loadFailed` 得以置位,UI 显示失败态 + 可重试。
     private func performRequest<Value: Sendable>(span: DiagnosticSpan?,
+        timeout: TimeInterval = 12,
         start: (@escaping (Value?, [AnyHashable: Any]?) -> Void) -> PHImageRequestID) async -> Value? {
         let state = PhotoRequestState<Value>()
         return await withTaskCancellationHandler {
@@ -558,6 +576,17 @@ final class AssetImageLoader: @unchecked Sendable {
                         error.map { Diagnostics.errorFields($0) } ?? "")
                 }
                 if state.register(requestID) { manager.cancelImageRequest(requestID) }
+                Task { [weak self] in
+                    try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                    guard !state.isFinished, let self else { return }
+                    let cancellation = state.cancel()
+                    if cancellation.requestID != PHInvalidImageRequestID {
+                        self.manager.cancelImageRequest(cancellation.requestID)
+                    }
+                    if cancellation.didFinish {
+                        span?.end("timeout", "authorization=\(PHPhotoLibrary.authorizationStatus(for: .readWrite).rawValue)")
+                    }
+                }
             }
         } onCancel: {
             let cancellation = state.cancel()
