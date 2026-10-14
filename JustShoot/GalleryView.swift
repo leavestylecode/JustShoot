@@ -219,17 +219,17 @@ struct GalleryView: View {
         let rowIDs = toDelete.map { $0.id }
         let container = modelContext.container
         let pipeline = CapturePipeline.shared
-        guard pipeline.beginDeletion(rowIDs) else { return }
-
         Task { @MainActor in
-            defer { pipeline.endDeletion(rowIDs) }
+            guard let gateIDs = await pipeline.beginDeletion(rowIDs: rowIDs, assetIDs: assetIDs) else { return }
+            defer { pipeline.endDeletion(gateIDs) }
             do {
                 if !assetIDs.isEmpty {
                     try await PhotoLibrary.delete(localIdentifiers: assetIDs)
                 }
-                let saver = PhotoSaver(modelContainer: container)
-                try await saver.delete(ids: rowIDs)
-                for id in rowIDs { ImageLoader.shared.removeDiskCache(for: id) }
+                let saver = await PhotoSaver.background(container: container)
+                let removedIDs = try await saver.delete(ids: gateIDs)
+                await pipeline.completeDeletion(removedIDs)
+                for id in removedIDs { ImageLoader.shared.removeDiskCache(for: id) }
                 selectedPhotos.removeAll()
                 withAnimation(.easeInOut(duration: 0.25)) { isSelecting = false }
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -237,6 +237,10 @@ struct GalleryView: View {
             } catch {
                 // 用户取消系统删除确认 / 删除失败：保留索引行，不改 UI。
                 Log.save.info("photos_delete_cancelled_or_failed count=\(rowIDs.count) error=\(error.localizedDescription, privacy: .public)")
+                let photosError = error as NSError
+                if photosError.domain != PHPhotosErrorDomain || photosError.code != PHPhotosError.Code.userCancelled.rawValue {
+                    pipeline.lastError = error.localizedDescription
+                }
             }
         }
     }

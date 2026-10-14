@@ -5,33 +5,13 @@ import CoreLocation
 import CoreMotion
 import UIKit
 import MetalKit
-import ImageIO
 import os
 
 // MARK: - 相机管理器
 //
-// 单文件 AVFoundation 编排：iOS 26 虚拟设备 (`builtInTripleCamera`) + `.restricted` 受限镜头
-// 切换（zoom 必需才换，固定 zoom 禁场景 fallback）+ ZSL × 镜头切换 race 闸门 + CMMotion 方向 + tap-to-focus + 距离感知闪光 + GPS 30s 缓存。
-//
-// 故意保留为单文件（~1,900 行）：以上每个面向都强耦合于同一 AVCaptureSession 状态机，跨文件
-// 拆 extension 会迫使大部分 `private` 提升到 `internal`，反而损失封装性。Apple AVCam 等
-// 官方 sample 的 CameraModel 也是单文件 700–800 行；本 app 因为多了一层胶片 LUT + 自定义
-// 焦段策略稍长一些，但整体仍是一个内聚的状态机。
-//
-// 章节顺序（沿 capture 流程的自然走向）：
-//   1. 存储属性 + init / deinit
-//   2. 帧状态（pixel buffer / first frame）
-//   3. 方向（CMMotion + RotationCoordinator KVO + EXIF orientation）
-//   4. 对焦 / 曝光补偿
-//   5. 闪光灯曝光补偿 + 锁/还原
-//   6. 权限
-//   7. Session 配置（format / dims / stabilization / 初始焦段 / KVO）
-//   8. 镜头切换（.restricted 策略 + 安全快门）
-//   9. 拍照（capturePhoto + issue）
-//  10. 后台 / 前台 / 停止
-//  11. 设备数据 dump（调试）
-//  12. 位置服务
-//  13. AVCapturePhotoCaptureDelegate / CLLocationManagerDelegate / 其它 delegate
+// MainActor owns UI/delegate state. The serial hardware queue owns device/session changes;
+// CameraCaptureAdmission freezes one exposure across storage reservation and native capture.
+// Pure policies, lens admission, Metal preview, and device diagnostics live in separate files.
 
 /// 一次拍照的完整产出，跨 actor 边界传给 CameraView 的后处理。非 live 时只有 imageData，
 /// 其余为 nil/invalid。live 时还带配对视频文件 URL + content identifier + still-image-time，
@@ -40,6 +20,25 @@ struct CaptureResult: Sendable {
     let imageData: Data
     let livePhotoMovieURL: URL?
     let photoDisplayTime: CMTime
+    let warning: CaptureWarning?
+
+    init(imageData: Data, livePhotoMovieURL: URL?, photoDisplayTime: CMTime, requestedLive: Bool = false) {
+        self.imageData = imageData
+        self.livePhotoMovieURL = livePhotoMovieURL
+        self.photoDisplayTime = photoDisplayTime
+        warning = requestedLive && livePhotoMovieURL == nil ? .livePhotoMovieUnavailable : nil
+    }
+}
+
+enum CaptureWarning: Equatable, Sendable {
+    case livePhotoMovieUnavailable
+
+    var message: String {
+        switch self {
+        case .livePhotoMovieUnavailable:
+            String(localized: "The still photo will be saved, but its Live Photo video could not be captured.")
+        }
+    }
 }
 
 struct CaptureStill: Sendable {
@@ -92,6 +91,7 @@ class CameraManager: NSObject, ObservableObject {
     nonisolated private static let hardwareQueue = DispatchQueue(label: "camera.hardware.queue", qos: .userInitiated)
     private let sessionQueue = CameraManager.hardwareQueue
     private let sessionIntent = OSAllocatedUnfairLock(initialState: CameraSessionIntent())
+    private let captureAdmission = OSAllocatedUnfairLock(initialState: CameraCaptureAdmission())
     private var isCameraVisible = false
 
     /// 线程安全的像素缓冲区（用 os_unfair_lock 保护跨线程访问）
@@ -113,6 +113,9 @@ class CameraManager: NSObject, ObservableObject {
     /// 镜头切换的稳定轮询 task：beginLensSwitch 启动，每 ~30ms evaluateLensSettle 一次，直到
     /// 镜头到位 + grace 走完（finishLensSwitch），或 maxWait 兜底超时。新一次 beginLensSwitch 取消旧的。
     private var lensSettleTask: Task<Void, Never>?
+    private var lensSettleDeadline: TimeInterval?
+    private let lensSourceStability = OSAllocatedUnfairLock(initialState: CameraLensCaptureGate.SourceStability())
+    private var lastTeleLockAttempt: CameraLensCaptureGate.RequestStamp?
 
     /// 弱引用 MTKView，用于从相机回调触发渲染。
     /// `internal` 而不是 `private`：`MetalPreview.swift` 的 `RealtimePreviewView.updateUIView`
@@ -145,6 +148,7 @@ class CameraManager: NSObject, ObservableObject {
     ///   - flashRestore    : 开闪光时 issue 阶段锁的 AE/WB，capture 终结时还原。随单次拍照走，
     ///                       结构上不可能跨拍照互相覆盖（旧 pendingFlashRestore 共享字段会）。
     private struct CaptureRequest {
+        let admission: CameraCaptureAdmission.Token
         let trace: DiagnosticTrace
         let onData: (CaptureResult?) -> Void
         let onShutterReady: () -> Void
@@ -169,6 +173,18 @@ class CameraManager: NSObject, ObservableObject {
         var stillCheckpointed = false
         var isCheckpointingStill = false
         var pendingMovieURL: URL?
+    }
+
+    /// Immutable AVFoundation arguments retained while a late source change delays invocation.
+    private struct NativeCaptureInvocation: @unchecked Sendable {
+        let output: AVCapturePhotoOutput
+        let settings: AVCapturePhotoSettings
+        let admission: CameraCaptureAdmission.Token
+        let trace: DiagnosticTrace
+        let rotationAngle: CGFloat?
+        let expectsLiveMovie: Bool
+        let enqueuedAt: TimeInterval
+        let deadline: TimeInterval
     }
     /// 在途拍照按 `settings.uniqueID` 分桶——取代旧的单槽 `inFlightCapture?`。分桶后多张拍照可重叠：
     /// 静态图就绪即放开快门，上一张还在等 ~1.5s 配对视频时用户已能按下一张，新旧 capture 各自独立、
@@ -256,6 +272,7 @@ class CameraManager: NSObject, ObservableObject {
     private var focalLengthPicker: AVCaptureIndexPicker?
     /// 系统级 EV 滑块（iOS 18+）。虚拟设备架构下 device 实例不变，整生命周期内只装一次。
     private var exposureBiasSlider: AVCaptureSystemExposureBiasSlider?
+    private var exposureControlEpoch: UInt64 = 0
 
     // 位置管理器
     private let locationManager = CLLocationManager()
@@ -328,16 +345,6 @@ class CameraManager: NSObject, ObservableObject {
     /// 虚拟（或物理）设备 — 整个生命周期固定，不 swap。constituent 由系统按 zoom + `.restricted`
     /// 策略在内部切换。session 配置完成前为 nil。
     private var captureDevice: AVCaptureDevice?
-
-    /// AVF 对象 + main-actor 状态打包后跨 actor 边界传递。
-    /// 这些 NSObject 在 dumpLensSpecsImpl 里只读 nonisolated 属性，与主 actor 写入无并发；
-    /// `@unchecked Sendable` 表达"语义上 Sendable，但编译器无法证明"。
-    private struct LensDumpArgs: @unchecked Sendable {
-        let device: AVCaptureDevice
-        let focalInfo: DeviceFocalInfo
-        let photoOutput: AVCapturePhotoOutput
-        let videoDataOutput: AVCaptureVideoDataOutput
-    }
 
     // MARK: - init / deinit / 设备发现
 
@@ -435,6 +442,7 @@ class CameraManager: NSObject, ObservableObject {
             diagnostics.event("camera_state", "state=\(value.logValue) generation=\(diagnosticGeneration)")
             Log.session.info("camera_readiness state=\(value.logValue, privacy: .public)")
         }
+        updateCaptureControls()
     }
 
     /// 每次冷配置/恢复 session 都重新等一张新帧，杜绝旧 pixel buffer 让 UI 过早解锁。
@@ -603,32 +611,59 @@ class CameraManager: NSObject, ObservableObject {
         Log.orientation.info("rotation_applied preview=90° capture=\(Int(captureAngle))° device=\(self.currentDeviceOrientation.rawValue)")
     }
 
-    private func exifOrientationFromRotationAngle(_ rotationAngle: CGFloat) -> Int {
-        let normalizedAngle = Int(rotationAngle) % 360
-        switch normalizedAngle {
-        case 0: return 1
-        case 90, -270: return 6
-        case 180, -180: return 3
-        case 270, -90: return 8
-        default: return 1
-        }
-    }
-
-    private func orientationFromRotationAngle(_ rotationAngle: CGFloat) -> CGImagePropertyOrientation {
-        let normalizedAngle = Int(rotationAngle) % 360
-        switch normalizedAngle {
-        case 0: return .up
-        case 90, -270: return .right
-        case 180, -180: return .down
-        case 270, -90: return .left
-        default: return .up
-        }
-    }
-
     // MARK: - 4. 对焦 / 曝光补偿
 
     private var isExposing: Bool {
-        capturePreparationTask != nil || inFlightCaptures.values.contains { !$0.shutterReleased }
+        captureAdmission.withLock { $0.isBusy } || capturePreparationTask != nil ||
+            inFlightCaptures.values.contains { !$0.shutterReleased }
+    }
+
+    private func updateCaptureControls() {
+        let enabled = readiness == .ready && !isExposing
+        focalLengthPicker?.isEnabled = enabled
+        exposureBiasSlider?.isEnabled = enabled
+    }
+
+    /// Freeze hardware settings before the view awaits storage reservation.
+    func beginCaptureAdmission() -> CameraCaptureAdmission.Token? {
+        guard readiness == .ready, isCaptureAvailable, !isExposing,
+              sessionIntent.withLock({ $0.wantsRunning }) else { return nil }
+        let generation = diagnosticGeneration
+        let focalSequence = applyFocalToken
+        let focalLength = currentFocalLength.rawValue
+        let userBias = exposureBias
+        let flashEnabled = flashMode == .on
+        let rotationAngle = rotationCoordinator.map { Double($0.videoRotationAngleForHorizonLevelCapture) }
+        latestFocalRequest.withLock { $0 = focalSequence }
+        let token = captureAdmission.withLock {
+            $0.begin(sessionGeneration: generation, focalSequence: focalSequence,
+                focalLength: focalLength, exposureBias: userBias,
+                flashEnabled: flashEnabled, rotationAngle: rotationAngle)
+        }
+        updateCaptureControls()
+        return token
+    }
+
+    func isCaptureAdmissionValid(_ token: CameraCaptureAdmission.Token) -> Bool {
+        let generation = diagnosticGeneration
+        return sessionIntent.withLock { $0.permitsStart(token.sessionGeneration) } &&
+            captureAdmission.withLock { $0.permits(token, generation: generation) }
+    }
+
+    func cancelCaptureAdmission(_ token: CameraCaptureAdmission.Token) {
+        captureAdmission.withLock { _ = $0.cancel(token) }
+        updateCaptureControls()
+    }
+
+    /// Exposed bytes keep their checkpoint path. Pending reservations and delayed flash calls
+    /// are cancelled instead of being carried into a later session generation.
+    private func cancelUnexposedCapture() {
+        capturePreparationTask?.cancel()
+        guard let cancelled = captureAdmission.withLock({ $0.cancelUnissued() }) else { return }
+        for id in inFlightCaptures.keys.filter({ inFlightCaptures[$0]?.admission == cancelled }) {
+            deliverCaptureIfReady(id: id, terminal: true)
+        }
+        updateCaptureControls()
     }
 
     private func configureDevice(_ operation: @escaping @Sendable (AVCaptureDevice) -> Void) {
@@ -775,6 +810,7 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     func toggleFlashMode() {
+        guard !isExposing else { return }
         flashMode = (flashMode == .on) ? .off : .on
     }
 
@@ -1034,7 +1070,7 @@ class CameraManager: NSObject, ObservableObject {
                     if captureSession.canAddOutput(output) {
                         captureSession.addOutput(output)
 
-                        // 按用户画质档声明会话上限：最高档请求 .quality，其余 .balanced。
+                        // Ordinary capture uses balanced quality at both output and request.
                         // 预热与每次拍摄使用同一策略；具体计算摄影算法仍由系统按场景选择。
                         // 注意：不开 isAutoDeferredPhotoDeliveryEnabled——其 deferred 结果只交付
                         // PhotoKit，自定义 SwiftData 存储拿不到，开启反而只拿到早期低质版本。
@@ -1144,14 +1180,14 @@ class CameraManager: NSObject, ObservableObject {
         // 默认 Debug 也不刷 70+ 行。需要设备诊断时在 Scheme 环境变量加入
         // JUSTSHOOT_LENS_DUMP=1；Release 编译时整个分支不存在。
         if ProcessInfo.processInfo.environment["JUSTSHOOT_LENS_DUMP"] == "1" {
-            let args = LensDumpArgs(
+            let args = CameraDeviceDiagnostics.Snapshot(
                 device: device,
                 focalInfo: focalInfo,
                 photoOutput: photoOutput,
                 videoDataOutput: videoDataOutput
             )
             Task.detached(priority: .background) {
-                Self.dumpLensSpecsImpl(args: args)
+                CameraDeviceDiagnostics.dump(args)
             }
         }
         #endif
@@ -1171,6 +1207,7 @@ class CameraManager: NSObject, ObservableObject {
             if session.canAddControl(picker) {
                 session.addControl(picker)
                 focalLengthPicker = picker
+                updateCaptureControls()
                 Log.session.info("camera_control_index_picker_added options=\(titles)")
             }
             // 系统 EV 滑块（绑当前设备）。机身 Camera Control 长按可在 picker / slider 间切换。
@@ -1217,6 +1254,7 @@ class CameraManager: NSObject, ObservableObject {
                 self.diagnostics.event("session_interrupted", "reason=\(reason)")
                 self.sessionInterrupted = true
                 self.sessionIntent.withLock { _ = $0.request(running: false) }
+                self.cancelUnexposedCapture()
                 self.lensSettleTask?.cancel()
                 self.lensSettleTask = nil
                 self.beginCameraPreparation()
@@ -1348,23 +1386,9 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// Preserve the best supported photo dimensions. Reuse an equivalent current format;
-    /// preview resolution is controlled independently by AVCaptureVideoDataOutput.
+    /// Prefer a supported ordinary photo format. Preview buffers and still dimensions are
+    /// negotiated separately; choosing a large video format must not imply HEIF Max output.
     nonisolated private func applyBestFormatAndModes(on device: AVCaptureDevice) {
-        let cap = 60_000_000
-
-        // 该 format 在 ≤cap 区间内可解锁的最大 4:3 photo dim 像素面积；找不到返回 0。
-        func bestPhotoArea(_ fmt: AVCaptureDevice.Format) -> Int {
-            fmt.supportedMaxPhotoDimensions
-                .filter { dim in
-                    let r = Float(dim.width) / Float(dim.height)
-                    return abs(r - 4.0 / 3.0) < 0.02
-                }
-                .map { Int($0.width) * Int($0.height) }
-                .filter { $0 <= cap }
-                .max() ?? 0
-        }
-
         let candidates = device.formats.filter { fmt in
             let d = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
             guard d.width > 0, d.height > 0 else { return false }
@@ -1374,9 +1398,9 @@ class CameraManager: NSObject, ObservableObject {
         }
 
         let bestFormat = candidates.max { lhs, rhs in
-            // 主键：photo 路径上能拿到的最大 4:3 dim（≤24MP）
-            let lp = bestPhotoArea(lhs)
-            let rp = bestPhotoArea(rhs)
+            // Compare the dimensions ordinary mode would actually request.
+            let lp = CameraCapturePolicy.automaticPhotoFormatScore(from: lhs.supportedMaxPhotoDimensions)
+            let rp = CameraCapturePolicy.automaticPhotoFormatScore(from: rhs.supportedMaxPhotoDimensions)
             if lp != rp { return lp < rp }
             // Tiebreaker：video dim（保高分辨率预览）
             let l = CMVideoFormatDescriptionGetDimensions(lhs.formatDescription)
@@ -1388,7 +1412,9 @@ class CameraManager: NSObject, ObservableObject {
             try device.lockForConfiguration()
             if let bestFormat {
                 let current = device.activeFormat
-                let keepCurrent = candidates.contains(where: { $0 === current }) && bestPhotoArea(current) == bestPhotoArea(bestFormat)
+                let keepCurrent = candidates.contains(where: { $0 === current }) &&
+                    CameraCapturePolicy.automaticPhotoFormatScore(from: current.supportedMaxPhotoDimensions) ==
+                    CameraCapturePolicy.automaticPhotoFormatScore(from: bestFormat.supportedMaxPhotoDimensions)
                 let fmt = keepCurrent ? current : bestFormat
                 let newDims = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
                 if device.activeFormat !== fmt {
@@ -1443,29 +1469,16 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// 给 photo output 选 4:3 输出尺寸（device 必须已 connect 到 photo output）。
-    /// 策略：挑 ≤60M 像素的最大 4:3 dim。iPhone 17 Pro 上选中 48MP（8064×6048），
-    /// 因为该机器不暴露 24MP 中间档（详见 applyBestFormatAndModes 注释）。
-    /// 数码 zoom 工作机制：videoZoomFactor 在 sensor 上 center crop，输出 dim 自动随之缩小,
-    /// 不需要手动按焦段调 maxPhotoDimensions——系统直接交付裁后真实像素。
-    /// 例：48MP cap + 1.46x 数码 zoom → 出片 ~5520×4140 (~22.8MP)，对齐 iPhone Camera 35mm。
     nonisolated private func applyMaxPhotoDimensions(output: AVCapturePhotoOutput, device: AVCaptureDevice) {
-        let supportedDimensions = device.activeFormat.supportedMaxPhotoDimensions
-        let cap = 60_000_000
-        let aspect43 = supportedDimensions.filter { dim in
-            let ratio = Float(dim.width) / Float(dim.height)
-            return abs(ratio - 4.0/3.0) < 0.05
-        }
-        if let selected = aspect43
-            .filter({ Int($0.width) * Int($0.height) <= cap })
-            .max(by: { Int($0.width) * Int($0.height) < Int($1.width) * Int($1.height) })
-        {
-            output.maxPhotoDimensions = selected
-        } else if let fallback = aspect43.min(by: { Int($0.width) * Int($0.height) < Int($1.width) * Int($1.height) }) {
-            output.maxPhotoDimensions = fallback
-        } else if let smallest = supportedDimensions.min(by: { $0.width < $1.width }) {
-            output.maxPhotoDimensions = smallest
-        }
+        let supported = device.activeFormat.supportedMaxPhotoDimensions
+        let selected = CameraCapturePolicy.automaticPhotoDimensions(from: supported)
+        if let selected { output.maxPhotoDimensions = selected }
+        let supportedText = supported.map { "\($0.width)x\($0.height)" }.joined(separator: ",")
+        let selectedText = selected.map { "\($0.width)x\($0.height)" } ?? "none"
+        let reason = selected.map { _ in
+            CameraCapturePolicy.automaticPhotoFormatScore(from: supported) > 0 ? "ordinary_supported" : "smallest_supported_fallback"
+        } ?? "no_supported_4_3_dimensions"
+        diagnostics.event("photo_dimensions_selected", "supported=[\(supportedText)] selected=\(selectedText) reason=\(reason)")
     }
 
     /// 仅对预览/取景路径启用防抖，对齐 iPhone Camera 的"稳定取景"做法。
@@ -1493,43 +1506,14 @@ class CameraManager: NSObject, ObservableObject {
         Log.session.info("📷 stabilization_applied device=\(device.localizedName, privacy: .public) preferred=\(name, privacy: .public) active=\(conn.activeVideoStabilizationMode.rawValue)")
     }
 
-    /// constituent 切换策略：`.restricted + [.videoZoomChanged]`（2026-10-07 修复「35mm 预览忽大忽小」）。
-    ///
-    /// 旧终点 `.auto` 被真机日志证伪：它允许系统**任意时刻**按对焦/曝光能力换 fallback 镜头
-    /// （Apple 文档：主体近于主摄最近对焦距离 / 曝光超限时，切到更短焦镜头）。35mm（zoom 恒 2.917、
-    /// 无任何 ramp）下 后置相机↔后置超广角 一分钟横跳 6 次；这类 fallback 切换帧流**无缝**（PTS 无
-    /// 断裂，`PreviewCropCeilingSynchronizer` 只能 600ms 超时换轨），而超广活跃时预览流取景钳在其
-    /// 区间上限 2.0（=24mm 视野）——内容与扩展裁切错位的窗口里取景反复跳宽/跳窄，即用户所见。
-    ///
-    /// `.restricted+[.videoZoomChanged]` 的语义（必须已在 lockForConfiguration 内调用）：
-    /// - 满足 videoZoomFactor 的切换**不受限**（13mm 必切超广、向下跨 switchover 强制切——旧路径不变）；
-    /// - 向上跨 switchover 仍按 AF/AE 资格评估（暗光不长焦、近距不上主摄——与 `.auto` 相同的系统判定）；
-    /// - **固定 zoom 下禁止场景驱动 fallback**（横跳根治）；仅 zoom 变化（拧焦距盘）时重新评估一次，
-    ///   评估会等 AF/AE 稳定后再落定，之后静止。
-    ///
-    /// 取舍：近于主摄最近对焦距离的 35/50mm 主体不再被自动救焦到超广（对焦可能不实）——拍近物用
-    /// 13mm 档，与胶片相机「离散镜头、各自最近对焦距离」的拟真一致。注意与历史教训区分：被否决的是
-    /// **旧式全局** `.locked`（min zoom 被钳到活跃镜头区间下界 + 系统拒长焦时假死），`.restricted`
-    /// 不限制 zoom 必需的切换，无此问题。iOS 27 的 per-device 锁定（lockTeleConstituent）是另一条
-    /// 路径：仅在长焦焦段 settle、系统已切上长焦后锁定，专治「暗光不长焦」的场景资格拒绝——对本
-    /// 策略的其余语义零影响。返回策略描述供日志取证。
+    /// Keep zoom-driven physical switching without scene-driven fallback at a fixed zoom.
+    /// The helper avoids rewriting an unchanged policy and explicitly unlocks per-device locks.
     nonisolated private static func applyConstituentSwitchingPolicy(to device: AVCaptureDevice) -> String {
-        guard device.primaryConstituentDeviceSwitchingBehavior != .unsupported else { return "unsupported" }
-        device.setPrimaryConstituentDeviceSwitchingBehavior(
-            .restricted,
-            restrictedSwitchingBehaviorConditions: [.videoZoomChanged]
-        )
-        return "restricted_zoom_changed"
+        CameraConstituentSwitchingPolicy.applyRestricted(to: device)
     }
 
-    /// **长焦硬保证**（iOS 27+ per-device lock）：把 primary constituent 锁定到指定长焦物理镜头。
-    /// 锁定后该镜头即成为 activePrimaryConstituent、系统不再做任何场景资格评估——
-    /// `.restricted` 头注释记录的「向上跨 switchover 仍按 AF/AE 资格评估（暗光不长焦）」
-    /// 对已锁定的长焦焦段不再适用；系统从不自行选长焦时（2026-10-08 真机实锤）这也是把
-    /// primary **拉上**长焦的手段。与被否决的**旧式全局** `.locked` 不同：只在 zoom 已落在
-    /// 长焦区间内时锁定（settle 后），没有「min zoom 被钳到区间下界」的瞬跳、没有拒长焦假死。
-    /// 离开长焦焦段的 ramp 由 configureFocalOnSessionQueue 的策略重申解锁（.restricted
-    /// 覆盖 .locked 即解锁）。自带 lockForConfiguration；返回状态供日志取证。
+    /// Optional iOS 27 per-device lock. The supported system path remains usable when
+    /// this capability is unavailable; the diagnostic result explains each skip.
     nonisolated private static func lockTeleConstituent(_ tele: AVCaptureDevice, on device: AVCaptureDevice,
         permitsRequest: @Sendable () -> Bool) -> String {
         guard #available(iOS 27.0, *) else { return "unsupported_os" }
@@ -1538,6 +1522,11 @@ class CameraManager: NSObject, ObservableObject {
             try device.lockForConfiguration()
             defer { device.unlockForConfiguration() }
             guard permitsRequest() else { return "superseded" }
+            guard !device.isRampingVideoZoom else { return "ramping" }
+            guard device.constituentDevices.contains(where: { $0 === tele }) else { return "target_not_member" }
+            guard device.isPrimaryConstituentDeviceSwitchingBehaviorLockedWithDeviceSupported else { return "unsupported_device" }
+            if device.primaryConstituentDeviceSwitchingBehavior == .locked,
+               device.activePrimaryConstituent === tele { return "already_locked_target" }
             device.setPrimaryConstituentDeviceSwitchingBehaviorLockedWith(tele)
             return "locked"
         } catch {
@@ -1546,46 +1535,54 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// settle 后的长焦锁定调度（finishLensSwitch 调用，MainActor 判定 + sessionQueue 执行）。
-    /// 锁定条件：目标焦段的承载镜头是长焦、当前未锁定。**不要求系统已先切上长焦**——
-    /// 真机日志实锤（2026-10-08 两个 run）：`.restricted+[.videoZoomChanged]` 下系统即使在
-    /// 白天也从不自行启用长焦（零 Telephoto 事件，100/200mm 全落主摄数字裁切），「等系统
-    /// 先切再锁」的前置条件等于永不生效。settle 时 zoom 已在长焦区间内（100mm=8.05、
-    /// 200mm=16.0 ∈ [8,189]），此时锁定**直接把 primary 拉到长焦**（头文件：锁定后该镜头
-    /// 即成为 activePrimaryConstituent），无钳制跳变。连锁修复：长焦档不再蹲在主摄上限
-    /// 8.0 之上，50↔100 切换不再反复穿越该边界引发裁切/底衬对齐来回翻（用户可见的
-    /// 「画面前后移动闪烁」）。sessionQueue 上二次校验 permitsFocalRequest（旧 settle 的
-    /// 锁定不得与用户已发起的下一个焦段请求竞争）与 isRampingVideoZoom（不在 ramp 中途锁）。
     private func scheduleTeleLockAfterSettle() {
-        guard #available(iOS 27.0, *) else { return }
-        guard let device = videoCaptureDevice,
-              device.isPrimaryConstituentDeviceSwitchingBehaviorLockedWithDeviceSupported,
-              let tele = focalInfo.teleConstituent,
-              focalInfo.constituent(for: currentFocalLength)?.device === tele.device,
-              device.primaryConstituentDeviceSwitchingBehavior != .locked else { return }
         let focalSequence = applyFocalToken
         let generation = diagnosticGeneration
-        let activeBefore = activeConstituentName
-        // Locking can select a new physical source after zoom has settled. Start its own grace
-        // period only after the hardware operation completes, so ZSL cannot pick the old source.
-        beginLensSwitch(zoom: lensCaptureGate.targetZoom ?? device.videoZoomFactor,
-            zslGraceMs: 150, maxWaitMs: 2800, hardwarePending: true)
+        let target = focalInfo.constituent(for: currentFocalLength)
+        let tele = focalInfo.teleConstituent
+        let device = videoCaptureDevice
+        var lockSupported = false
+        var reason = "unsupported_os"
+        let mapping = focalInfo.constituents.map {
+            "\($0.device.deviceType.rawValue):\($0.nativeMm):\($0.virtualZoomRange.lowerBound)-\($0.virtualZoomRange.upperBound)"
+        }.joined(separator: ",")
+        defer {
+            diagnostics.event("focal_tele_lock_decision",
+                "focal_seq=\(focalSequence) generation=\(generation) focal_mm=\(currentFocalLength.rawValue) reason=\(reason) lock_supported=\(lockSupported) behavior=\(device.map { String(describing: $0.primaryConstituentDeviceSwitchingBehavior) } ?? "none") target=\(target?.device.deviceType.rawValue ?? "none") tele=\(tele?.device.deviceType.rawValue ?? "none") mapping=[\(mapping)] \(device.map(Self.deviceDiagnosticFields) ?? "device=none")")
+        }
+        guard #available(iOS 27.0, *) else { return }
+        guard let device else { reason = "no_device"; return }
+        lockSupported = device.isPrimaryConstituentDeviceSwitchingBehaviorLockedWithDeviceSupported
+        guard lockSupported else { reason = "unsupported_device"; return }
+        guard let tele else { reason = "no_tele_mapping"; return }
+        guard let target else { reason = "no_target_mapping"; return }
+        guard target.device === tele.device else { reason = "target_not_tele"; return }
+        guard let targetZoom = lensCaptureGate.targetZoom,
+              tele.virtualZoomRange.contains(targetZoom) else { reason = "target_zoom_out_of_range"; return }
+        if device.primaryConstituentDeviceSwitchingBehavior == .locked,
+           device.activePrimaryConstituent === tele.device { reason = "already_locked_target"; return }
+        guard permitsFocalRequest(focalSequence, generation: generation) else { reason = "superseded"; return }
+        let stamp = CameraLensCaptureGate.RequestStamp(generation: generation, focalSequence: focalSequence)
+        guard lastTeleLockAttempt != stamp else { reason = "already_attempted_for_request"; return }
+        lastTeleLockAttempt = stamp
+        reason = device.primaryConstituentDeviceSwitchingBehavior == .locked ? "replace_other_lock" : "scheduled"
+        let activeBefore = device.activePrimaryConstituent?.deviceType.rawValue ?? "none"
+        // A lock can change the source after zoom settles. Acknowledge the hardware before
+        // starting its own grace, and let source KVO extend that grace if selection arrives later.
+        beginLensSwitch(zoom: targetZoom, zslGraceMs: 150, maxWaitMs: 2800, hardwarePending: true)
         sessionQueue.async { [weak self] in
-            guard let self,
-                  self.permitsFocalRequest(focalSequence, generation: generation),
-                  !device.isRampingVideoZoom else { return }
+            guard let self else { return }
             let state = Self.lockTeleConstituent(tele.device, on: device) {
                 self.permitsFocalRequest(focalSequence, generation: generation)
             }
-            self.diagnostics.event("focal_tele_lock", "focal_seq=\(focalSequence) state=\(state) from=\(activeBefore)")
+            self.diagnostics.event("focal_tele_lock", "focal_seq=\(focalSequence) generation=\(generation) state=\(state) from=\(activeBefore) \(Self.deviceDiagnosticFields(device))")
             Task { @MainActor [weak self] in
-                guard let self, self.permitsFocalRequest(focalSequence, generation: generation) else { return }
-                if state == "locked" {
-                    self.lensCaptureGate.hardwareApplied()
-                    self.evaluateLensSettle()
-                } else {
-                    self.finishLensSwitch(reason: "tele_lock_failed", failed: true)
-                }
+                guard let self, self.permitsFocalRequest(focalSequence, generation: generation),
+                      !self.lensCaptureGate.hasFailed else { return }
+                // This lock is an optional quality enhancement. A refusal leaves ordinary
+                // capture available; it does not require the system to select a specific lens.
+                self.lensCaptureGate.hardwareApplied()
+                self.evaluateLensSettle()
             }
         }
     }
@@ -1639,10 +1636,20 @@ class CameraManager: NSObject, ObservableObject {
             session.removeControl(old)
             exposureBiasSlider = nil
         }
-        let slider = AVCaptureSystemExposureBiasSlider(device: device)
+        exposureControlEpoch &+= 1
+        let controlEpoch = exposureControlEpoch
+        let slider = AVCaptureSystemExposureBiasSlider(device: device) { [weak self] bias in
+            // This action is only called for user changes from Camera Control. Device writes
+            // during flash preparation/restoration must not become the user's exposure bias.
+            guard let self, bias.isFinite,
+                  self.exposureControlEpoch == controlEpoch,
+                  self.videoCaptureDevice === device else { return }
+            self.exposureBias = bias
+        }
         if session.canAddControl(slider) {
             session.addControl(slider)
             exposureBiasSlider = slider
+            updateCaptureControls()
             Log.session.info("camera_control_bias_slider_added device=\(device.localizedName, privacy: .public) range=\(String(format: "%.1f", device.minExposureTargetBias))–\(String(format: "%.1f", device.maxExposureTargetBias))ev")
         } else {
             Log.session.info("camera_control_bias_slider_skip device=\(device.localizedName, privacy: .public) reason=can_not_add")
@@ -1652,6 +1659,7 @@ class CameraManager: NSObject, ObservableObject {
     /// 把 zoom / focus / pressure / activePrimaryConstituent KVO 绑到 capture device。
     /// 虚拟设备架构下整个 session 生命周期内 device 实例不变，只在 configureAndStartSession 末尾调一次。
     private func bindDeviceObservers(to device: AVCaptureDevice) {
+        let observationEpoch = lensSourceStability.withLock { $0.invalidateObservations() }
         zoomObservation?.invalidate()
         focusObservation?.invalidate()
         pressureObservation?.invalidate()
@@ -1663,9 +1671,12 @@ class CameraManager: NSObject, ObservableObject {
 
         zoomObservation = device.observe(\.videoZoomFactor, options: [.new]) { [weak self] dev, change in
             guard let self, let newZoom = change.newValue else { return }
+            let stamp = self.focalRequestStamp()
             let isRamping = dev.isRampingVideoZoom
             self.flowDiagnostics.zoom(Double(newZoom), ramping: isRamping)
             Task { @MainActor in
+                guard self.lensSourceStability.withLock({ $0.observationEpoch == observationEpoch }),
+                      self.permitsFocalRequest(stamp.focalSequence, generation: stamp.generation) else { return }
                 self.currentZoomFactor = newZoom
                 self.lastObservedDeviceZoom = CGFloat(newZoom)
                 // ramp 推进/停止都戳一下镜头稳定评估（基于设备真值，含 isRampingVideoZoom + zoom 命中）
@@ -1699,17 +1710,25 @@ class CameraManager: NSObject, ObservableObject {
             }
         }
 
-        // activePrimaryConstituentDevice：记录系统当前实际用哪颗物理镜头（系统按 zoom + AF/AE
-        // 条件决定；固定 zoom 下 .restricted 禁止 fallback），并在 active 变化时戳一下 evaluateLensSettle 重新评估取景是否到位。
-        // 到位判定本身只看 zoom（见 lensIsOnTarget），不看 constituent——系统用哪颗都是合法结果。
-        // 用 localizedName 只为打日志：AVCaptureDevice 非 Sendable，捕获进 Task @MainActor 会报
-        // sending 警告；String 是 Sendable。
-        constituentObservation = device.observe(\.activePrimaryConstituent, options: [.new]) { [weak self] dev, change in
+        // Source selection may complete after zoom settles. Any physical source change starts
+        // a fresh ZSL grace; it never requires a particular lens or revives a failed request.
+        constituentObservation = device.observe(\.activePrimaryConstituent, options: [.old, .new]) { [weak self] dev, change in
             guard let self else { return }
+            let oldID = change.oldValue.flatMap { $0?.uniqueID }
+            let newID = change.newValue.flatMap { $0?.uniqueID }
+            guard oldID != newID else { return }
+            let stamp = self.focalRequestStamp()
+            guard self.permitsFocalRequest(stamp.focalSequence, generation: stamp.generation),
+                  self.lensSourceStability.withLock({
+                      $0.record(stamp: stamp, observationEpoch: observationEpoch,
+                          at: ProcessInfo.processInfo.systemUptime)
+                  }) else { return }
             let logName = change.newValue.flatMap { $0?.localizedName } ?? "nil"
             let rampingAtFlip = dev.isRampingVideoZoom
-            self.diagnostics.event("focal_constituent_changed", "focal_seq=\(self.flowDiagnostics.stamp.focal) \(Self.deviceDiagnosticFields(dev))")
+            self.diagnostics.event("focal_constituent_changed", "focal_seq=\(stamp.focalSequence) generation=\(stamp.generation) \(Self.deviceDiagnosticFields(dev))")
             Task { @MainActor in
+                guard self.lensSourceStability.withLock({ $0.observationEpoch == observationEpoch }),
+                      self.permitsFocalRequest(stamp.focalSequence, generation: stamp.generation) else { return }
                 if self.activeConstituentName != logName {
                     self.activeConstituentName = logName
                     Log.session.info("constituent_active_changed name=\(logName, privacy: .public)")
@@ -1722,6 +1741,10 @@ class CameraManager: NSObject, ObservableObject {
                     self.diagnostics.event("preview_flip_mask", "lens=\(logName) reason=flip_at_rest")
                 }
                 self.updateActiveConstituentZoomCeiling()
+                if self.lensCaptureGate.sourceDidChange(stamp: stamp) {
+                    self.diagnostics.event("focal_source_grace", "focal_seq=\(stamp.focalSequence) generation=\(stamp.generation) grace_ms=150")
+                    self.pollLensSettle(maxWaitMs: 2800, preservingDeadline: true)
+                }
                 self.evaluateLensSettle()
             }
         }
@@ -1970,6 +1993,8 @@ class CameraManager: NSObject, ObservableObject {
     var isReadyToCapture: Bool {
         guard isCaptureAvailable, photoOutput.captureReadiness == .ready,
               let device = videoCaptureDevice else { return false }
+        let stamp = focalRequestStamp()
+        guard lensSourceStability.withLock({ $0.remainingGrace(stamp: stamp, at: ProcessInfo.processInfo.systemUptime) == 0 }) else { return false }
         return lensCaptureGate.isReady(zoom: device.videoZoomFactor,
             isRamping: device.isRampingVideoZoom)
     }
@@ -1995,15 +2020,19 @@ class CameraManager: NSObject, ObservableObject {
     /// 标记一次镜头切换彻底结束（幂等）。on-target + grace 命中，或 maxWait 兜底超时调用。
     private func finishLensSwitch(reason: String, failed: Bool) {
         guard let targetZoom = lensCaptureGate.targetZoom else { return }
-        if failed { lensCaptureGate.fail() }
         lensSwitchFailed = failed
+        if failed {
+            lensCaptureGate.fail()
+            cancelUnexposedCapture()
+        }
         lensSettleTask?.cancel(); lensSettleTask = nil
+        lensSettleDeadline = nil
         let active = videoCaptureDevice?.activePrimaryConstituent?.localizedName ?? "nil"
         Log.session.info("lens_settled reason=\(reason, privacy: .public) active=\(active, privacy: .public) zoom=\(String(format: "%.2f", targetZoom)) failed=\(failed)")
         diagnostics.event("focal_settled", "focal_seq=\(applyFocalToken) reason=\(reason) failed=\(failed) target_zoom=\(targetZoom) \(videoCaptureDevice.map(Self.deviceDiagnosticFields) ?? "device=none")")
         flowDiagnostics.flush(reason: "focal_settled", force: true)
         promoteReadinessIfPossible()
-        // 长焦焦段落定 → 锁定长焦物理镜头（硬保证；拒绝切换/非长焦焦段时内部自判不锁）
+        // Evaluate the optional telephoto lock without requiring a particular source to capture.
         if !failed { scheduleTeleLockAfterSettle() }
     }
 
@@ -2011,14 +2040,23 @@ class CameraManager: NSObject, ObservableObject {
     /// - zslGraceMs: zoom 到位后给系统 constituent crossfade 收尾的额外等待。
     /// - maxWaitMs: 兜底放弃时刻，超时终结本次请求并拒绝拍摄；重新选焦距后可重试。
     private func beginLensSwitch(zoom: CGFloat, zslGraceMs: Int, maxWaitMs: Int, hardwarePending: Bool = false) {
-        lensCaptureGate.begin(zoom: zoom, graceMs: zslGraceMs, hardwarePending: hardwarePending)
+        let stamp = CameraLensCaptureGate.RequestStamp(generation: diagnosticGeneration, focalSequence: applyFocalToken)
+        latestFocalRequest.withLock { $0 = stamp.focalSequence }
+        lensCaptureGate.begin(zoom: zoom, graceMs: zslGraceMs, hardwarePending: hardwarePending, stamp: stamp)
         lensSwitchFailed = false
-        let token = applyFocalToken
+        pollLensSettle(maxWaitMs: maxWaitMs)
+    }
+
+    private func pollLensSettle(maxWaitMs: Int, preservingDeadline: Bool = false) {
+        guard let stamp = lensCaptureGate.requestStamp else { return }
+        let newDeadline = ProcessInfo.processInfo.systemUptime + Double(maxWaitMs) / 1_000
+        let deadline = preservingDeadline ? lensSettleDeadline ?? newDeadline : newDeadline
+        lensSettleDeadline = deadline
         lensSettleTask?.cancel()
         lensSettleTask = Task { @MainActor [weak self] in
-            let deadline = ProcessInfo.processInfo.systemUptime + Double(maxWaitMs) / 1000.0
             while !Task.isCancelled {
-                guard let self, self.applyFocalToken == token else { return }
+                guard let self, self.permitsFocalRequest(stamp.focalSequence, generation: stamp.generation),
+                      self.lensCaptureGate.requestStamp == stamp else { return }
                 self.evaluateLensSettle()
                 if !self.lensCaptureGate.isTransitioning { return }
                 if ProcessInfo.processInfo.systemUptime >= deadline {
@@ -2098,22 +2136,9 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// 切焦距（zoom 单一路径：平滑 ramp 到目标，系统跨 switchover 时做硬件 crossfade）。
-    ///
-    /// **constituent 切换策略 = `.restricted + [.videoZoomChanged]`**（`applyConstituentSwitchingPolicy`
-    /// 头注释有完整根因）：只把 videoZoomFactor ramp 到目标焦段对应的虚拟 zoom；满足 zoom 的切换
-    /// 系统照做（能切长焦就切、近物/暗光裁主摄），**固定 zoom 下不再允许场景驱动 fallback**——
-    /// `.auto` 时代 35mm 下主摄↔超广按对焦/曝光横跳、且 fallback 切换无缝（PTS 无断裂）导致
-    /// 裁切分母 600ms 换轨滞后，取景忽大忽小。
-    ///
-    /// **不再 `.locked`、不再 deep-ramp 过冲**——这是把多轮真机教训收敛后的终点：强锁 + 过冲既会
-    /// 抖动（过冲到 ~10x 再退回），又会在系统拒绝长焦时假死（`.locked` 还会把 min zoom 钳到活跃
-    /// 镜头区间下界；`.restricted` 无此副作用）。长焦用不用由系统按光线/距离/画质在 zoom 变化时
-    /// 判定，任何代码强求不来——和 iPhone 行为一致。
-    ///
-    /// 边界焦距（24mm zoom=2.0、100mm zoom=8.0）仍加 0.05 ε 推进区间内部，鼓励系统选目标 constituent。
-    /// capture 就绪（isReadyToCapture）只等 zoom ramp 停 + ZSL grace，不再等特定 constituent，所以
-    /// 系统拒长焦时快门不假死。`applyFocalToken` 让快速连点时旧 lensSettleTask 轮询失效。
+    /// Ramp to the selected zoom under the restricted switching policy. Request tokens discard
+    /// superseded hardware work; the capture gate waits for acknowledgement, zoom and ZSL grace.
+    /// Supported iOS 27 telephoto selections then lock their constituent with a separate grace.
     private func applyFocalLength(_ option: FocalLengthOption, animated: Bool = true) {
         guard let device = videoCaptureDevice else {
             Log.session.error("focal_apply_no_device option=\(option.rawValue)")
@@ -2179,6 +2204,7 @@ class CameraManager: NSObject, ObservableObject {
         let usesFastRamp = !crossesConstituent
         // 目标焦段的承载镜头是长焦 → settle 后锁定该物理镜头（scheduleTeleLockAfterSettle）
         let teleTarget = focalInfo.constituent(for: option)?.device === focalInfo.teleConstituent?.device
+        let teleDevice = focalInfo.teleConstituent?.device
 
         // 设备 I/O（lockForConfiguration + ramp + 安全快门）移到 sessionQueue 执行。streaming 中
         // **首次** lockForConfiguration 会阻塞调用线程数百 ms（系统等采集管线到安全配置点）；放在
@@ -2190,6 +2216,7 @@ class CameraManager: NSObject, ObservableObject {
             self?.configureFocalOnSessionQueue(
                 device: device, finalZoom: finalZoom,
                 animated: usesRamp, fastRamp: usesFastRamp, teleTarget: teleTarget,
+                teleDevice: teleDevice,
                 focalMm: option.rawValue, focalSequence: focalSequence, generation: focalGeneration
             )
         }
@@ -2198,7 +2225,8 @@ class CameraManager: NSObject, ObservableObject {
     /// applyFocalLength 的设备配置段，在 sessionQueue 上执行（nonisolated，不触碰 @MainActor 状态）。
     /// 把 lockForConfiguration/ramp 从主线程移走，避免首次配置阻塞主线程导致预览掉帧。
     nonisolated private func configureFocalOnSessionQueue(
-        device: AVCaptureDevice, finalZoom: CGFloat, animated: Bool, fastRamp: Bool, teleTarget: Bool, focalMm: Int, focalSequence: UInt64, generation: UInt64
+        device: AVCaptureDevice, finalZoom: CGFloat, animated: Bool, fastRamp: Bool, teleTarget: Bool,
+        teleDevice: AVCaptureDevice?, focalMm: Int, focalSequence: UInt64, generation: UInt64
     ) {
         let configuring = diagnostics.span("focal_hardware_apply", "focal_seq=\(focalSequence) focal_mm=\(focalMm)")
         var configurationStatus = "error"
@@ -2229,30 +2257,35 @@ class CameraManager: NSObject, ObservableObject {
                 configurationStatus = "superseded"
                 return
             }
-            // constituent 策略（见 applyConstituentSwitchingPolicy 头注释）：目标仍是长焦且当前
-            // 已按设备锁定（settle 后的 scheduleTeleLockAfterSettle）→ 保持锁定不重申——重申
-            // .restricted 等于解锁，长焦→长焦（100↔200mm）切换会白付一次解锁-再锁定抖动；
-            // 其余情形幂等重申 .restricted+[.videoZoomChanged]，离开长焦焦段时这次重申同时就是解锁。
+            // Keep a lock only when it holds the intended telephoto source. Other locks
+            // are explicitly released before restoring the zoom-driven restricted policy.
             let policyState: String
-            if teleTarget && device.primaryConstituentDeviceSwitchingBehavior == .locked {
+            let policySpan = diagnostics.span("focal_policy_apply", "focal_seq=\(focalSequence)")
+            if teleTarget && device.primaryConstituentDeviceSwitchingBehavior == .locked,
+               device.activePrimaryConstituent === teleDevice {
                 policyState = "kept_tele_lock"
             } else {
                 policyState = Self.applyConstituentSwitchingPolicy(to: device)
             }
+            policySpan.end("ok", "policy=\(policyState)")
             guard let transition = CameraZoomTransition(currentZoom: device.videoZoomFactor, targetZoom: finalZoom,
                 isRamping: device.isRampingVideoZoom, animated: animated, fastRamp: fastRamp) else {
                 device.unlockForConfiguration()
                 configurationStatus = "invalid_zoom"
                 return
             }
+            let zoomSpan = diagnostics.span("focal_zoom_apply", "focal_seq=\(focalSequence)")
             if let anchor = transition.anchorZoom { device.videoZoomFactor = anchor }
             if transition.usesRamp {
                 device.ramp(toVideoZoomFactor: transition.targetZoom, withRate: transition.rate)
             } else {
                 device.videoZoomFactor = transition.targetZoom
             }
+            zoomSpan.end()
+            let exposureSpan = diagnostics.span("focal_exposure_limit", "focal_seq=\(focalSequence)")
             let safeShutter = exposureDurationCap(focalMm: focalMm, format: device.activeFormat)
             device.activeMaxExposureDuration = safeShutter
+            exposureSpan.end()
             device.unlockForConfiguration()
             diagnostics.event("focal_transition_plan", "focal_seq=\(focalSequence) anchor_zoom=\(transition.anchorZoom.map { String(format: "%.3f", Double($0)) } ?? "none") target_zoom=\(transition.targetZoom) rate=\(transition.rate) ramp=\(transition.usesRamp) policy=\(policyState)")
             diagnostics.event("focal_device_locked", "focal_seq=\(focalSequence) wait_ms=\(String(format: "%.2f", lockWaitMS))")
@@ -2269,9 +2302,15 @@ class CameraManager: NSObject, ObservableObject {
         latestFocalRequest.withLock { $0 == sequence } && sessionIntent.withLock { $0.permitsStart(generation) }
     }
 
+    nonisolated private func focalRequestStamp() -> CameraLensCaptureGate.RequestStamp {
+        CameraLensCaptureGate.RequestStamp(generation: diagnosticGeneration,
+            focalSequence: latestFocalRequest.withLock { $0 })
+    }
+
     // MARK: - 9. 拍照
 
     func capturePhoto(
+        admission suppliedAdmission: CameraCaptureAdmission.Token? = nil,
         live: Bool = false,
         trace: DiagnosticTrace? = nil,
         onWillCapture: (() -> Void)? = nil,
@@ -2283,14 +2322,28 @@ class CameraManager: NSObject, ObservableObject {
         let captureTrace = trace ?? DiagnosticTrace()
         // A requested Live Photo must not silently turn into a still when capability is lost.
         guard !live || LivePhotoCaptureState(photoOutput).canCapture else {
+            if let suppliedAdmission { cancelCaptureAdmission(suppliedAdmission) }
             updateLivePhotoCaptureState(reason: "capture_guard")
             captureTrace.event("live_photo_request_unavailable", "supported=\(photoOutput.isLivePhotoCaptureSupported) enabled=\(photoOutput.isLivePhotoCaptureEnabled)")
             onShutterReady()
             completion(nil)
             return
         }
+        guard let admission = suppliedAdmission ?? beginCaptureAdmission(),
+              isCaptureAdmissionValid(admission) else {
+            if let suppliedAdmission { cancelCaptureAdmission(suppliedAdmission) }
+            onShutterReady()
+            completion(nil)
+            return
+        }
+        guard captureAdmission.withLock({ $0.beginPreparation(admission, generation: admission.sessionGeneration) }) else {
+            onShutterReady()
+            completion(nil)
+            return
+        }
         let wantsLive = live
         let request = CaptureRequest(
+            admission: admission,
             trace: captureTrace,
             onData: completion,
             onShutterReady: onShutterReady,
@@ -2310,11 +2363,17 @@ class CameraManager: NSObject, ObservableObject {
         let generation = captureGeneration
         capturePreparationTask = Task { @MainActor [weak self] in
             guard let self else { request.onShutterReady(); request.onData(nil); return }
-            defer { if self.captureGeneration == generation { self.capturePreparationTask = nil } }
+            defer {
+                if self.captureGeneration == generation {
+                    self.capturePreparationTask = nil
+                    self.updateCaptureControls()
+                }
+            }
             let waiting = request.trace.span("capture_ready_wait")
             let ready = await self.waitForReadyToCapture()
             waiting.end(ready ? "ok" : "not_ready")
-            guard ready else {
+            guard ready, self.isCaptureAdmissionValid(admission) else {
+                self.cancelCaptureAdmission(admission)
                 request.onShutterReady(); request.onData(nil); return
             }
             await self.issueCapturePhoto(request)
@@ -2326,53 +2385,54 @@ class CameraManager: NSObject, ObservableObject {
     /// request 在此填好 flashRestore 后，按 settings.uniqueID 登记进 inFlightCaptures。
     private func issueCapturePhoto(_ request: CaptureRequest) async {
         var request = request
+        guard !Task.isCancelled, isCaptureAdmissionValid(request.admission) else {
+            cancelCaptureAdmission(request.admission)
+            request.onShutterReady()
+            request.onData(nil)
+            return
+        }
         guard !request.expectsLiveMovie || LivePhotoCaptureState(photoOutput).canCapture else {
             updateLivePhotoCaptureState(reason: "capture_issue_guard")
             request.trace.event("live_photo_request_unavailable", "stage=issue supported=\(photoOutput.isLivePhotoCaptureSupported) enabled=\(photoOutput.isLivePhotoCaptureEnabled)")
+            cancelCaptureAdmission(request.admission)
             request.onShutterReady()
             request.onData(nil)
             return
         }
         request.trace.event("capture_issue", "camera=\(diagnostics.id)")
-        let issueTime = Log.now()
         // 防御性兜底：waitForReadyToCapture 返回 ready 到这里之间仍隔着调度边界，其间 session 可能被
         // 切后台 / stopSession 拆掉 connection。无 active connection 时 photoOutput.capturePhoto 会抛
         // NSException 崩溃——这里改为优雅终结：放开快门 + 以 nil 释放后处理槽位。
         guard photoOutput.connection(with: .video)?.isActive == true else {
             Log.capture.error("capture_skip reason=no_active_connection")
+            cancelCaptureAdmission(request.admission)
             request.onShutterReady()
             request.onData(nil)
             return
         }
-        // HEIF/HEVC 编码：相同视觉质量下文件比 JPEG 小 ~50%，是 iPhone Camera 的默认格式。
-        // 48MP cap 后 24mm 单张 JPEG ~25-35MB，HEIF 直接降到 ~6-10MB；35mm/100mm 等中等焦段也都同步缩。
-        // 系统不支持 HEVC（极少见，旧设备）时 fallback 到 JPEG。
+        // Prefer HEIF when supported, with JPEG as the system fallback.
         let settings: AVCapturePhotoSettings
         if photoOutput.availablePhotoCodecTypes.contains(.hevc) {
             settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
         } else {
             settings = AVCapturePhotoSettings()
         }
-        // 关键：必须把 settings.maxPhotoDimensions 显式设到 output 的声明值，否则系统兜底到默认 12MP
-        // (4032×3024)，叠加数码 zoom 后画幅会大幅缩水（如 35mm 1.46x 会从 24MP 退化到 ~10MP）。
-        // output.maxPhotoDimensions 只是 capability 声明，per-capture settings 不继承——这是
-        // iOS 16+ 的标准模式（取代旧的 isHighResolutionPhotoEnabled）。
-        // 真实细节由 active format 决定：48MP active 时 35mm 在 48MP 上裁切到 ~22MP 后交付,
-        // 与 iPhone Camera 在 1.5x 的真实细节对齐。
+        // Per-capture settings must explicitly use the ordinary dimensions selected for this
+        // output; AVFoundation may still deliver a different final size for the current scene.
         settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
-        // 请求用户选定的采集质量，且不超过当前会话上限，避免 AVF 的 Obj-C 异常。
+        // Use automatic balanced capture, bounded by the output capability.
         settings.photoQualityPrioritization = CameraCapturePolicy.current.qualityPrioritization(supportedMax: photoOutput.maxPhotoQualityPrioritization)
 
         if let device = videoCaptureDevice, device.hasFlash {
-            settings.flashMode = (flashMode == .on) ? .on : .off
-            if flashMode == .on {
+            settings.flashMode = request.admission.flashEnabled ? .on : .off
+            if request.admission.flashEnabled {
                 // 距离感知 flash bias 是"用户未表达意图时的智能默认"；用户若在 sun rail 上主动
                 // 拨过 EV（exposureBias != 0），把它叠加到 flash bias 上——与 iPhone 原相机一致：
                 // EV 补偿在含闪光的测光结果之上继续生效。userBias=0 时 combinedBias==flashBias，
                 // 与旧行为完全等价。savedBias 读的是 device.exposureTargetBias（已镜像等于 userBias），
                 // capture 完成后经 CaptureRequest.flashRestore 还原回 userBias，@Published exposureBias 全程不变。
                 let flashBias = calculateFlashExposureBias(device: device)
-                let combinedBias = flashBias + exposureBias
+                let combinedBias = flashBias + request.admission.exposureBias
                 let preparingFlash = request.trace.span("flash_prepare")
                 request.flashRestore = await withCheckedContinuation { continuation in
                     sessionQueue.async {
@@ -2419,14 +2479,14 @@ class CameraManager: NSObject, ObservableObject {
 
         // 闪光灯下恒定色彩（Constant Color）减少白平衡偏移。Live Photo 与 Constant Color（内部走
         // bracketed capture）不兼容——live 时跳过，避免 AVF 拒绝 settings。
-        if photoOutput.isConstantColorSupported, flashMode == .on, !wantsLive {
+        if photoOutput.isConstantColorSupported, request.admission.flashEnabled, !wantsLive {
             settings.isConstantColorEnabled = true
         }
 
         // 抓取当前 rotation 角度（避免在 sessionQueue 跨 actor 访问）。
         // 出片随物理朝向：横握出横片、竖握出竖片，与 iPhone 系统相机一致。
         // 见 applyVideoOrientationToOutputs 的"预览/出片解耦"说明。
-        let rotationAngle = rotationCoordinator?.videoRotationAngleForHorizonLevelCapture
+        let rotationAngle = request.admission.rotationAngle.map { CGFloat($0) }
         let output = photoOutput
         let delegate = self
         // 闪光灯路径需要 200ms 延迟让 lockExposure + setExposureTargetBias 真正生效。
@@ -2440,14 +2500,14 @@ class CameraManager: NSObject, ObservableObject {
         let nativeTrace = request.trace
         captureTraces.withLock { $0[nativeTraceID] = nativeTrace }
         request.trace.event("capture_registered", "av_id=\(settings.uniqueID) live=\(wantsLive)")
-        request.trace.event("capture_configuration", "camera=\(diagnostics.id) focal_seq=\(applyFocalToken) focal_mm=\(currentFocalLength.rawValue) flash=\(flashMode.rawValue) live=\(wantsLive) photo=\(settings.maxPhotoDimensions.width)x\(settings.maxPhotoDimensions.height) \(videoCaptureDevice.map(Self.deviceDiagnosticFields) ?? "device=none")")
+        request.trace.event("capture_configuration", "camera=\(diagnostics.id) focal_seq=\(request.admission.focalSequence) focal_mm=\(request.admission.focalLength) flash=\(request.admission.flashEnabled ? "on" : "off") live=\(wantsLive) prioritization=\(settings.photoQualityPrioritization.rawValue) max_prioritization=\(photoOutput.maxPhotoQualityPrioritization.rawValue) photo=\(settings.maxPhotoDimensions.width)x\(settings.maxPhotoDimensions.height) \(videoCaptureDevice.map(Self.deviceDiagnosticFields) ?? "device=none")")
         let watchedID = settings.uniqueID
         captureWatchdogs[watchedID] = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: .seconds(15)) } catch { return }
             Log.capture.error("capture_delivery_timeout id=\(watchedID)")
             self?.deliverCaptureIfReady(id: watchedID, terminal: true)
         }
-        if Task.isCancelled {
+        if Task.isCancelled || !isCaptureAdmissionValid(request.admission) {
             deliverCaptureIfReady(id: watchedID, terminal: true)
             return
         }
@@ -2479,38 +2539,80 @@ class CameraManager: NSObject, ObservableObject {
         let equivLive = self.focalInfo.equivalentMm(forZoom: liveZoom, activeConstituent: activeLens)
         let digiCrop = lensNativeMm > 0 ? Float(equivSet) / lensNativeMm : 0
         Log.capture.info("capture_focal equiv_set=\(equivSet)mm equiv_live=\(String(format: "%.1f", equivLive))mm lens=\(lensName, privacy: .public)/\(String(format: "%.0f", lensNativeMm))mm zoom=\(String(format: "%.2f", liveZoom))x digi_crop=\(String(format: "%.2f", digiCrop))x")
-        let captureID = settings.uniqueID
-        let captureTrace = request.trace
         let enqueuedAt = ProcessInfo.processInfo.systemUptime
-        sessionQueue.asyncAfter(deadline: deadline) { [weak self] in
-            // 重查 connection：登记（1585）到这里之间隔着 flash 的 200ms 延迟窗口，期间 stopSession /
-            // pauseSessionForBackground 可能已把 session 停掉。对非活跃 connection 调 capturePhoto 会抛
-            // NSException，且 delegate 终结回调永不到达 → inFlightCaptures 条目、flashRestore（AE/WB
-            // 保持 .locked）、onShutterReady 全部永久泄漏。这里改为优雅终结：还原 AE/WB + 放开快门 +
-            // 以 nil 释放后处理槽位。
-            guard output.connection(with: .video)?.isActive == true else {
-                Log.capture.error("capture_skip reason=connection_inactive_at_invoke")
-                Task { @MainActor in self?.deliverCaptureIfReady(id: captureID, terminal: true) }
-                return
-            }
-            guard !wantsLive || LivePhotoCaptureState(output).canCapture else {
-                captureTrace.event("live_photo_request_unavailable", "stage=invoke supported=\(output.isLivePhotoCaptureSupported) enabled=\(output.isLivePhotoCaptureEnabled)")
-                Task { @MainActor in
-                    self?.updateLivePhotoCaptureState(reason: "capture_invoke_guard")
-                    self?.deliverCaptureIfReady(id: captureID, terminal: true)
-                }
-                return
-            }
-            if let angle = rotationAngle,
-               let connection = output.connection(with: .video),
-               connection.isVideoRotationAngleSupported(angle) {
-                connection.videoRotationAngle = angle
-            }
-            let dispatchLatency = (CFAbsoluteTimeGetCurrent() - issueTime) * 1000.0
-            Log.capture.info("capture_invoke dt_issue=\(String(format: "%.1f", dispatchLatency))ms")
-            captureTrace.event("capture_invoke", "av_id=\(captureID) hardware_wait_ms=\(Diagnostics.milliseconds(since: enqueuedAt))")
-            output.capturePhoto(with: settings, delegate: delegate)
+        let invocation = NativeCaptureInvocation(output: output, settings: settings,
+            admission: request.admission, trace: request.trace, rotationAngle: rotationAngle,
+            expectsLiveMovie: wantsLive, enqueuedAt: enqueuedAt, deadline: enqueuedAt + 4)
+        sessionQueue.asyncAfter(deadline: deadline) {
+            delegate.invokeCapturePhoto(invocation)
         }
+    }
+
+    /// Runs only on the hardware queue. Source KVO updates the native grace synchronously,
+    /// so an already-prepared capture cannot outrun its main-actor source-change callback.
+    nonisolated private func invokeCapturePhoto(_ invocation: NativeCaptureInvocation) {
+        let admission = invocation.admission
+        let id = invocation.settings.uniqueID
+        func finish() {
+            Task { @MainActor in self.deliverCaptureIfReady(id: id, terminal: true) }
+        }
+        guard permitsFocalRequest(admission.focalSequence, generation: admission.sessionGeneration),
+              captureAdmission.withLock({ $0.permits(admission, generation: admission.sessionGeneration) }) else {
+            invocation.trace.event("capture_skip", "reason=admission_cancelled")
+            finish()
+            return
+        }
+        guard invocation.output.connection(with: .video)?.isActive == true else {
+            invocation.trace.event("capture_skip", "reason=connection_inactive_at_invoke")
+            finish()
+            return
+        }
+        guard !invocation.expectsLiveMovie || LivePhotoCaptureState(invocation.output).canCapture else {
+            invocation.trace.event("live_photo_request_unavailable", "stage=invoke")
+            Task { @MainActor in
+                self.updateLivePhotoCaptureState(reason: "capture_invoke_guard")
+                self.deliverCaptureIfReady(id: id, terminal: true)
+            }
+            return
+        }
+        let stamp = CameraLensCaptureGate.RequestStamp(generation: admission.sessionGeneration,
+            focalSequence: admission.focalSequence)
+        let now = ProcessInfo.processInfo.systemUptime
+        let sourceWait = lensSourceStability.withLock { $0.remainingGrace(stamp: stamp, at: now) }
+        if sourceWait > 0 || invocation.output.captureReadiness != .ready {
+            guard now < invocation.deadline else {
+                invocation.trace.event("capture_skip", "reason=native_readiness_timeout")
+                finish()
+                return
+            }
+            let delay = max(0.015, sourceWait)
+            invocation.trace.event("capture_native_wait", "reason=source_or_output_readiness wait_ms=\(Int(delay * 1_000))")
+            Self.hardwareQueue.asyncAfter(deadline: .now() + delay) { self.invokeCapturePhoto(invocation) }
+            return
+        }
+        if let angle = invocation.rotationAngle,
+           let connection = invocation.output.connection(with: .video),
+           connection.isVideoRotationAngleSupported(angle) {
+            connection.videoRotationAngle = angle
+        }
+        // Lock ordering is lifecycle -> source -> admission. A pause or source change before
+        // this commit keeps the request unissued and eligible for cancellation/retry.
+        let committed = sessionIntent.withLock { intent in
+            intent.permitsStart(admission.sessionGeneration) && lensSourceStability.withLock { source in
+                source.remainingGrace(stamp: stamp, at: ProcessInfo.processInfo.systemUptime) == 0 &&
+                    captureAdmission.withLock { $0.markIssued(admission, generation: admission.sessionGeneration) }
+            }
+        }
+        guard committed else {
+            if ProcessInfo.processInfo.systemUptime < invocation.deadline,
+               permitsFocalRequest(admission.focalSequence, generation: admission.sessionGeneration),
+               captureAdmission.withLock({ $0.permits(admission, generation: admission.sessionGeneration) }) {
+                Self.hardwareQueue.asyncAfter(deadline: .now() + 0.015) { self.invokeCapturePhoto(invocation) }
+            } else { finish() }
+            return
+        }
+        invocation.trace.event("capture_invoke", "av_id=\(id) hardware_wait_ms=\(Diagnostics.milliseconds(since: invocation.enqueuedAt))")
+        invocation.output.capturePhoto(with: invocation.settings, delegate: self)
     }
 
     // MARK: - 10. 后台 / 前台 / 停止
@@ -2523,9 +2625,11 @@ class CameraManager: NSObject, ObservableObject {
         flowDiagnostics.flush(reason: "camera_pause", force: true)
         diagnostics.event("camera_pause_requested")
         sessionIntent.withLock { _ = $0.request(running: false) }
+        cancelUnexposedCapture()
         startupTask?.cancel()
         lensSettleTask?.cancel()
         lensSettleTask = nil
+        lensSettleDeadline = nil
         stopLocationServices()
         beginCameraPreparation()
         let captureSession = session
@@ -2568,6 +2672,9 @@ class CameraManager: NSObject, ObservableObject {
                     // A hardware callback from the previous generation is deliberately ignored.
                     // Reissue the pending selection instead of leaving its acknowledgement gate closed.
                     self.applyFocalLength(pendingFocal, animated: false)
+                } else if running, !self.lensCaptureGate.hasFailed, let device = self.videoCaptureDevice {
+                    self.beginLensSwitch(zoom: self.lensCaptureGate.targetZoom ?? device.videoZoomFactor,
+                        zslGraceMs: 150, maxWaitMs: 1200)
                 }
                 self.promoteReadinessIfPossible()
                 self.reconcileAudioInput()
@@ -2582,6 +2689,7 @@ class CameraManager: NSObject, ObservableObject {
         diagnostics.event("camera_close_requested")
         isCameraVisible = false
         sessionIntent.withLock { _ = $0.request(running: false) }
+        cancelUnexposedCapture()
         // 取消可能仍在 await configureAndStartSession 的启动任务,
         // 避免它在 sessionQueue 上把 startRunning 跑完后我们又得排队 stopRunning。
         startupTask?.cancel()
@@ -2594,6 +2702,7 @@ class CameraManager: NSObject, ObservableObject {
         focusHoldTimer?.invalidate()
         focusHoldTimer = nil
         // 及早失效所有 KVO，避免 session 停止期间仍有回调被派发到已释放的闭包
+        lensSourceStability.withLock { _ = $0.invalidateObservations() }
         focusObservation?.invalidate()
         focusObservation = nil
         zoomObservation?.invalidate()
@@ -2613,6 +2722,7 @@ class CameraManager: NSObject, ObservableObject {
         currentVideoInput = nil
         focalLengthPicker = nil
         exposureBiasSlider = nil
+        exposureControlEpoch &+= 1
         rotationCoordinator = nil
         // 麦克风输入随 session 一并释放（最后的 sessionQueue 块停用音频会话）；下次入页由
         // reconcileAudioInput 按当时开关重新挂。
@@ -2638,6 +2748,7 @@ class CameraManager: NSObject, ObservableObject {
         }
         lensSettleTask?.cancel()
         lensSettleTask = nil
+        lensSettleDeadline = nil
         lensCaptureGate.reset()
         lensSwitchFailed = false
         applyFocalToken &+= 1
@@ -2674,142 +2785,6 @@ class CameraManager: NSObject, ObservableObject {
             stopping.end()
         }
 
-    }
-
-    // MARK: - 11. 设备数据 dump（调试用）
-    //
-    // 一次性打印当前后置虚拟设备 / 会话的所有可读数据，便于调试与设备适配。
-    // 必须在 session 配置完成后调用，否则 activeFormat / 缩放范围 / maxPhotoDimensions 会读到默认值。
-    // nonisolated + 所有依赖通过 LensDumpArgs 传入：可在 background QoS task 上跑，不占用主 actor。
-
-    nonisolated private static func dumpLensSpecsImpl(args: LensDumpArgs) {
-        let device = args.device
-        let focalInfo = args.focalInfo
-        let photoOutput = args.photoOutput
-        let videoDataOutput = args.videoDataOutput
-        let log = Log.session
-        let modelID = hardwareModelIdentifier()
-        let pos: String = {
-            switch device.position {
-            case .back: return "back"
-            case .front: return "front"
-            case .unspecified: return "unspecified"
-            @unknown default: return "unknown"
-            }
-        }()
-
-        log.info("📷 lens_dump_begin hw=\(modelID, privacy: .public)")
-
-        // 1) 设备身份
-        log.info("📷 device id=\(device.uniqueID, privacy: .public) name=\(device.localizedName, privacy: .public) modelID=\(device.modelID, privacy: .public) manufacturer=\(device.manufacturer, privacy: .public) type=\(device.deviceType.rawValue, privacy: .public) position=\(pos, privacy: .public) virtual=\(device.isVirtualDevice)")
-
-        // 2) Constituent devices（虚拟设备的物理镜头组成）+ switchOver 阈值
-        let constituentList = device.constituentDevices.map { c in
-            "\(c.localizedName)/\(String(format: "%.1f", c.nominalFocalLengthIn35mmFilm))mm"
-        }.joined(separator: ", ")
-        let switchOvers = device.virtualDeviceSwitchOverVideoZoomFactors.map { String(format: "%.2f", CGFloat(truncating: $0)) }.joined(separator: ",")
-        log.info("📷 constituents [\(constituentList, privacy: .public)] switchOvers=[\(switchOvers, privacy: .public)]")
-        log.info("📷 optics current_device=\(device.localizedName, privacy: .public) aperture=f/\(String(format: "%.2f", device.lensAperture)) primaryMm=\(focalInfo.primaryNativeMm) focalOptions=\(focalInfo.options.map { $0.rawValue }, privacy: .public)")
-
-        // 4) 缩放范围 / 当前缩放
-        let fmt = device.activeFormat
-        log.info("📷 zoom min=\(String(format: "%.2f", device.minAvailableVideoZoomFactor)) max=\(String(format: "%.2f", device.maxAvailableVideoZoomFactor)) format_max=\(String(format: "%.2f", fmt.videoMaxZoomFactor)) current=\(String(format: "%.3f", device.videoZoomFactor)) upscale_threshold=\(String(format: "%.2f", fmt.videoZoomFactorUpscaleThreshold))")
-
-        // 5) 当前 active format
-        let dims = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
-        let fpsRanges = fmt.videoSupportedFrameRateRanges
-            .map { "\(Int($0.minFrameRate))–\(Int($0.maxFrameRate))" }
-            .joined(separator: ",")
-        let colorSpaces = fmt.supportedColorSpaces.map { String(describing: $0) }.joined(separator: ",")
-        log.info("📷 active_format dims=\(dims.width)x\(dims.height) fov=\(String(format: "%.2f", fmt.videoFieldOfView))° fps=[\(fpsRanges, privacy: .public)] iso=\(Int(fmt.minISO))–\(Int(fmt.maxISO)) exposure=\(CMTimeGetSeconds(fmt.minExposureDuration))s–\(CMTimeGetSeconds(fmt.maxExposureDuration))s binned=\(fmt.isVideoBinned) hdr=\(fmt.isVideoHDRSupported) color_spaces=[\(colorSpaces, privacy: .public)] active_color=\(String(describing: device.activeColorSpace), privacy: .public)")
-
-        // 6) 照片输出能力
-        let photoDims = fmt.supportedMaxPhotoDimensions
-            .map { "\($0.width)x\($0.height)" }
-            .joined(separator: ",")
-        let outDims = photoOutput.maxPhotoDimensions
-        let qPri: String = {
-            switch photoOutput.maxPhotoQualityPrioritization {
-            case .speed: return "speed"
-            case .balanced: return "balanced"
-            case .quality: return "quality"
-            @unknown default: return "unknown"
-            }
-        }()
-        log.info("📷 photo_caps supported=[\(photoDims, privacy: .public)] selected=\(outDims.width)x\(outDims.height) responsive=\(photoOutput.isResponsiveCaptureEnabled) fast_capture=\(photoOutput.isFastCapturePrioritizationEnabled) zsl=\(photoOutput.isZeroShutterLagEnabled) constant_color=\(photoOutput.isConstantColorSupported) quality_pri=\(qPri, privacy: .public)")
-
-        // 7) 闪光灯/低光增强
-        log.info("📷 flash has_flash=\(device.hasFlash) flash_available=\(device.isFlashAvailable) torch=\(device.hasTorch) low_light_supported=\(device.isLowLightBoostSupported) low_light_active=\(device.isLowLightBoostEnabled)")
-
-        // 8) 对焦/曝光/白平衡 模式
-        let focusModes: [(AVCaptureDevice.FocusMode, String)] = [(.locked, "locked"), (.autoFocus, "auto"), (.continuousAutoFocus, "continuous")]
-        let supportedFocus = focusModes.filter { device.isFocusModeSupported($0.0) }.map { $0.1 }.joined(separator: ",")
-        let exposureModes: [(AVCaptureDevice.ExposureMode, String)] = [(.locked, "locked"), (.autoExpose, "auto"), (.continuousAutoExposure, "continuous"), (.custom, "custom")]
-        let supportedExposure = exposureModes.filter { device.isExposureModeSupported($0.0) }.map { $0.1 }.joined(separator: ",")
-        let wbModes: [(AVCaptureDevice.WhiteBalanceMode, String)] = [(.locked, "locked"), (.autoWhiteBalance, "auto"), (.continuousAutoWhiteBalance, "continuous")]
-        let supportedWB = wbModes.filter { device.isWhiteBalanceModeSupported($0.0) }.map { $0.1 }.joined(separator: ",")
-        log.info("📷 modes focus_supported=[\(supportedFocus, privacy: .public)] focus_current=\(device.focusMode.rawValue) exposure_supported=[\(supportedExposure, privacy: .public)] exposure_current=\(device.exposureMode.rawValue) wb_supported=[\(supportedWB, privacy: .public)] wb_current=\(device.whiteBalanceMode.rawValue) smooth_focus=\(device.isSmoothAutoFocusEnabled) subject_area_monitor=\(device.isSubjectAreaChangeMonitoringEnabled)")
-
-        // 8.5) 视频防抖
-        let stabModes: [(AVCaptureVideoStabilizationMode, String)] = [
-            (.off, "off"), (.standard, "std"), (.cinematic, "cine"),
-            (.cinematicExtended, "cineExt"), (.cinematicExtendedEnhanced, "cineExtEnh"),
-            (.previewOptimized, "preview"), (.lowLatency, "lowLat"), (.auto, "auto")
-        ]
-        let supportedStab = stabModes.filter { fmt.isVideoStabilizationModeSupported($0.0) }.map { $0.1 }.joined(separator: ",")
-        let stabName: (AVCaptureVideoStabilizationMode) -> String = { mode in
-            switch mode {
-            case .off: return "off"
-            case .standard: return "std"
-            case .cinematic: return "cine"
-            case .cinematicExtended: return "cineExt"
-            case .cinematicExtendedEnhanced: return "cineExtEnh"
-            case .previewOptimized: return "preview"
-            case .lowLatency: return "lowLat"
-            case .auto: return "auto"
-            @unknown default: return "unknown"
-            }
-        }
-        if let conn = videoDataOutput.connection(with: .video) {
-            log.info("📷 stabilization supported=[\(supportedStab, privacy: .public)] active=\(stabName(conn.activeVideoStabilizationMode), privacy: .public) preferred=\(stabName(conn.preferredVideoStabilizationMode), privacy: .public)")
-        } else {
-            log.info("📷 stabilization supported=[\(supportedStab, privacy: .public)] active=no_video_connection")
-        }
-
-        // 9) 实时曝光/对焦读数（瞬时值，仅供参考）
-        let expSec = CMTimeGetSeconds(device.exposureDuration)
-        let expReadable = expSec > 0 && expSec < 1 ? "1/\(Int(round(1.0 / expSec)))s" : String(format: "%.3fs", expSec)
-        let wbGains = device.deviceWhiteBalanceGains
-        log.info("📷 live iso=\(Int(device.iso)) exposure=\(expReadable, privacy: .public) lens_position=\(String(format: "%.3f", device.lensPosition)) target_bias=\(String(format: "%.2f", device.exposureTargetBias))ev target_offset=\(String(format: "%.2f", device.exposureTargetOffset))ev bias_range=\(String(format: "%.1f", device.minExposureTargetBias))–\(String(format: "%.1f", device.maxExposureTargetBias)) wb_gains=[r=\(String(format: "%.2f", wbGains.redGain)) g=\(String(format: "%.2f", wbGains.greenGain)) b=\(String(format: "%.2f", wbGains.blueGain))] wb_max_gain=\(String(format: "%.2f", device.maxWhiteBalanceGain)) pressure=\(device.systemPressureState.level.rawValue, privacy: .public)")
-
-        // 10) 全部 format 列表
-        for (i, f) in device.formats.enumerated() {
-            let d = CMVideoFormatDescriptionGetDimensions(f.formatDescription)
-            let maxFPS = f.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 0
-            let isActive = (f === fmt) ? " *" : ""
-            let photoCaps = f.supportedMaxPhotoDimensions
-                .map { "\($0.width)x\($0.height)" }
-                .joined(separator: ",")
-            log.info("📷 format[\(i)]\(isActive, privacy: .public) dims=\(d.width)x\(d.height) fov=\(String(format: "%.1f", f.videoFieldOfView))° max_fps=\(Int(maxFPS)) binned=\(f.isVideoBinned) hdr=\(f.isVideoHDRSupported) photo_caps=[\(photoCaps, privacy: .public)]")
-        }
-
-        log.info("📷 lens_dump_end")
-    }
-
-    /// 原始硬件标识（如 "iPhone18,3"）。仅用于日志排查，不再参与焦距推算
-    /// （iOS 26 的 `nominalFocalLengthIn35mmFilm` 已让查表式硬编码彻底过时）。
-    nonisolated private static func hardwareModelIdentifier() -> String {
-        #if targetEnvironment(simulator)
-        return ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "Simulator"
-        #else
-        var systemInfo = utsname()
-        uname(&systemInfo)
-        let mirror = Mirror(reflecting: systemInfo.machine)
-        return mirror.children.reduce("") { acc, el in
-            guard let v = el.value as? Int8, v != 0 else { return acc }
-            return acc + String(Character(UnicodeScalar(UInt8(v))))
-        }
-        #endif
     }
 
     // MARK: - 12. 位置服务
@@ -2925,7 +2900,7 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didCapturePhotoFor resolvedSettings: AVCaptureResolvedPhotoSettings) {
         Log.capture.info("delegate_did_capture dims=\(resolvedSettings.photoDimensions.width)x\(resolvedSettings.photoDimensions.height)")
         let id = resolvedSettings.uniqueID
-        captureTraces.withLock { $0[id] }?.event("exposure_end_native", "av_id=\(id)")
+        captureTraces.withLock { $0[id] }?.event("exposure_end_native", "av_id=\(id) resolved_photo=\(resolvedSettings.photoDimensions.width)x\(resolvedSettings.photoDimensions.height)")
         DispatchQueue.main.async { self.inFlightCaptures[id]?.onExposureComplete?() }
     }
 
@@ -2953,6 +2928,8 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
             return
         }
         encoding?.end("ok", "bytes=\(imageData.count)")
+        trace?.event("native_photo_metadata", CameraPhotoDiagnostics.fields(imageData: imageData,
+            resolvedDimensions: photo.resolvedSettings.photoDimensions))
         Log.capture.info("delegate_process_ok bytes=\(imageData.count)")
 
         // CIImage(data:) in applyLUTPreservingMetadata already applies EXIF orientation,
@@ -3075,6 +3052,10 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         // live 时静态图 ~300ms 就到，配对视频的 ~1.5s 录制窗口不再卡住下一张。
         if !req.shutterReleased, req.stillArrived || req.terminalReceived {
             req.shutterReleased = true
+            let admission = req.admission
+            captureAdmission.withLock { _ = $0.release(admission) }
+            inFlightCaptures[id] = req
+            updateCaptureControls()
             req.onShutterReady()
         }
 
@@ -3097,7 +3078,8 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
             req.onData(CaptureResult(
                 imageData: data,
                 livePhotoMovieURL: req.movieURL,
-                photoDisplayTime: req.photoDisplayTime
+                photoDisplayTime: req.photoDisplayTime,
+                requestedLive: req.expectsLiveMovie
             ))
         } else {
             // 静态图缺失 = 整次拍摄作废，caller 拿到 nil 提前返回——已到达的 live 源视频

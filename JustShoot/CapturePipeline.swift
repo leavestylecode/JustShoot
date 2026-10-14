@@ -32,18 +32,18 @@ final class CapturePipeline: ObservableObject {
     static let shared = CapturePipeline()
     @Published private(set) var pendingCount = 0
     @Published private(set) var retainedCount = 0
+    @Published private(set) var recoveryIssues: [CaptureRecoveryIssue] = []
     @Published private(set) var lastCompletion: CaptureCompletion?
     @Published var lastError: String?
 
     private var worker: CaptureWorker?
     private let deletionGate = CaptureDeletionGate()
     @Published private var isReady = false
-    private var reservedBytes: [UUID: Int64] = [:]
-    private var activeIDs: Set<UUID> = []
-    private(set) var pendingJobIDs: Set<UUID> = []
+    private var queueState = CaptureQueueState()
+    var pendingJobIDs: Set<UUID> { queueState.pendingJobIDs }
 
     var canCapture: Bool {
-        isReady && worker != nil && activeIDs.union(pendingJobIDs).count < CaptureJournal.maximumJobs
+        isReady && worker != nil && queueState.occupiedCount < CaptureJournal.maximumJobs
     }
 
     func configure(container: ModelContainer) async {
@@ -62,28 +62,27 @@ final class CapturePipeline: ObservableObject {
             return nil
         }
         let spaceCheck = trace.span("capture_storage_check")
-        activeIDs.insert(id)
-        reservedBytes[id] = 128 * 1_024 * 1_024 + Int64(lutBytes)
+        guard queueState.reserve(id, bytes: 128 * 1_024 * 1_024 + Int64(lutBytes), maximumJobs: CaptureJournal.maximumJobs) else { return nil }
         updateCounts()
-        let hasSpace = await worker.hasRoom(for: reservedBytes.values.reduce(0, +))
+        let hasSpace = await worker.hasRoom(for: queueState.reservedBytes)
         spaceCheck.end(hasSpace ? "ok" : "insufficient_space")
         guard hasSpace else {
             cancelReservation(id)
             lastError = String(localized: "Please wait for your photos to finish saving, or free up storage.")
             return nil
         }
-        trace.event("capture_reserved", "pending=\(pendingCount) reserved_mb=\(reservedBytes.values.reduce(0, +) / 1_048_576)")
+        trace.event("capture_reserved", "pending=\(pendingCount) reserved_mb=\(queueState.reservedBytes / 1_048_576)")
         return id
     }
 
     func cancelReservation(_ id: UUID) {
-        reservedBytes[id] = nil
-        activeIDs.remove(id)
+        queueState.cancelReservation(id)
         updateCounts()
     }
 
     func enqueue(_ result: CaptureResult, recipe: CaptureRecipe, lut: CubeLUT) {
         guard let worker else { cancelReservation(recipe.id); return }
+        if let warning = result.warning { lastError = warning.message }
         Task(priority: .utility) {
             let activity = CaptureBackgroundActivity()
             do {
@@ -91,6 +90,7 @@ final class CapturePipeline: ObservableObject {
             } catch {
                 cancelReservation(recipe.id)
                 lastError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
+                await worker.refreshRecoveryState()
             }
             activity.end()
         }
@@ -117,7 +117,7 @@ final class CapturePipeline: ObservableObject {
     func enterBackground() async { await worker?.pause() }
 
     func beginDeletion(_ ids: [UUID]) -> Bool {
-        guard deletionGate.begin(Set(ids), active: activeIDs) else {
+        guard deletionGate.begin(Set(ids), active: queueState.activeIDs) else {
             lastError = String(localized: "Please wait for these photos to finish saving before deleting them.")
             return false
         }
@@ -125,29 +125,65 @@ final class CapturePipeline: ObservableObject {
         return true
     }
 
+    /// A recovered/upserted row can keep a different UUID from the journal's capture.
+    /// Protect both identities, including an asset saved before its identifier was checkpointed.
+    func beginDeletion(rowIDs: [UUID], assetIDs: [String]) async -> [UUID]? {
+        do {
+            let ids = try await worker?.deletionCaptureIDs(rowIDs: Set(rowIDs), assetIDs: Set(assetIDs)) ?? Set(rowIDs)
+            let allIDs = ids.sorted { $0.uuidString < $1.uuidString }
+            return beginDeletion(allIDs) ? allIDs : nil
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+
     func endDeletion(_ ids: [UUID]) {
         deletionGate.end(Set(ids))
         Diagnostics.emit("photo_delete_end", fields: "count=\(ids.count)")
     }
 
-    fileprivate func synchronizePending(_ ids: Set<UUID>) {
-        activeIDs.subtract(pendingJobIDs.subtracting(ids))
-        pendingJobIDs = ids
+    /// Call while the deletion gate is still held, after the index transaction commits.
+    func completeDeletion(_ ids: Set<UUID>) async {
+        queueState.remove(ids)
+        updateCounts()
+        await worker?.completeDeletion(ids)
+    }
+
+    func exportRecoveryOriginal(_ issue: CaptureRecoveryIssue) async -> URL? {
+        do { return try await worker?.exportRecoveryOriginal(issue) }
+        catch { lastError = error.localizedDescription; return nil }
+    }
+
+    func discardRecoveryFiles(_ issue: CaptureRecoveryIssue) async {
+        guard let worker, beginDeletion([issue.captureID]) else { return }
+        defer { endDeletion([issue.captureID]) }
+        do {
+            try await worker.discardRecoveryFiles(issue)
+            await completeDeletion([issue.captureID])
+        } catch {
+            lastError = error.localizedDescription
+            await worker.refreshRecoveryState()
+        }
+    }
+
+    fileprivate func synchronizeRecovery(_ inventory: CaptureRecoveryInventory, revision: UInt64) {
+        guard queueState.synchronize(pendingIDs: Set(inventory.jobs.map(\.id)),
+            issueIDs: Set(inventory.issues.map(\.captureID)), revision: revision) else { return }
+        recoveryIssues = inventory.issues
         updateCounts()
     }
 
-    fileprivate func accepted(_ ids: Set<UUID>) {
-        for id in ids { reservedBytes[id] = nil }
-        pendingJobIDs.formUnion(ids)
-        activeIDs.formUnion(ids)
+    @discardableResult
+    fileprivate func accepted(_ ids: Set<UUID>) -> Set<UUID> {
+        let admitted = queueState.activate(Set(ids.filter { !deletionGate.contains($0) }))
         updateCounts()
+        return admitted
     }
 
-    fileprivate func finished(_ id: UUID, completion: CaptureCompletion?, error: String?, retained: Bool = true) {
-        activeIDs.remove(id)
-        if !retained { pendingJobIDs.remove(id) }
+    fileprivate func finished(_ id: UUID, completion: CaptureCompletion?, error: String?, retained: Bool, revision: UInt64) {
+        queueState.finish(id, retained: retained && completion == nil, revision: revision)
         if let completion {
-            pendingJobIDs.remove(id)
             lastCompletion = completion
         }
         if let error { lastError = error }
@@ -157,10 +193,10 @@ final class CapturePipeline: ObservableObject {
     private func updateCounts() {
         let previousPending = pendingCount
         let previousRetained = retainedCount
-        pendingCount = activeIDs.count
-        retainedCount = pendingJobIDs.subtracting(activeIDs).count
+        pendingCount = queueState.pendingCount
+        retainedCount = queueState.retainedCount
         if pendingCount != previousPending || retainedCount != previousRetained {
-            Diagnostics.emit("capture_queue_state", fields: "active=\(pendingCount) retained=\(retainedCount) reserved=\(reservedBytes.count)")
+            Diagnostics.emit("capture_queue_state", fields: "active=\(pendingCount) retained=\(retainedCount) reserved=\(queueState.reservationCount) recovery_issues=\(recoveryIssues.count)")
         }
     }
 }
@@ -196,6 +232,7 @@ private actor CaptureWorker {
     private var drainTask: Task<Void, Never>?
     private var suspended = false
     private var enqueuedAt: [UUID: TimeInterval] = [:]
+    private var recoveryRevision: UInt64 = 0
 
     init(container: ModelContainer, deletionGate: CaptureDeletionGate) {
         self.container = container
@@ -241,26 +278,77 @@ private actor CaptureWorker {
         suspended = !allowProcessing
         if let drainTask, drainTask.isCancelled { await drainTask.value }
         do {
-            let jobs = try DiagnosticTrace(id: "recovery").measure("capture_recovery") {
-                try journal.recover(excludingInFlight: inFlightNativeIDs)
+            let inventory = try DiagnosticTrace(id: "recovery").measure("capture_recovery") {
+                try journal.recoverInventory(excludingInFlight: inFlightNativeIDs)
             }
-            await CapturePipeline.shared.synchronizePending(Set(jobs.map(\.id)))
-            await schedule(jobs)
+            await publishRecovery(inventory)
+            await schedule(inventory.jobs)
         } catch {
             Log.save.error("capture_recovery_failed error=\(error.localizedDescription, privacy: .public)")
+            await MainActor.run { CapturePipeline.shared.lastError = error.localizedDescription }
         }
     }
 
+    func refreshRecoveryState() async {
+        do { await publishRecovery(try journal.inventory()) }
+        catch { await MainActor.run { CapturePipeline.shared.lastError = error.localizedDescription } }
+    }
+
+    private func publishRecovery(_ inventory: CaptureRecoveryInventory) async {
+        recoveryRevision += 1
+        let revision = recoveryRevision
+        await CapturePipeline.shared.synchronizeRecovery(inventory, revision: revision)
+    }
+
+    private func publishFinished(_ id: UUID, completion: CaptureCompletion?, error: String?, retained: Bool = true) async {
+        recoveryRevision += 1
+        let revision = recoveryRevision
+        await CapturePipeline.shared.finished(id, completion: completion, error: error, retained: retained, revision: revision)
+        if completion != nil || !retained { await refreshRecoveryState() }
+    }
+
+    func deletionCaptureIDs(rowIDs: Set<UUID>, assetIDs: Set<String>) throws -> Set<UUID> {
+        CaptureDeletionSelection.captureIDs(rowIDs: rowIDs, assetIDs: assetIDs, jobs: try journal.jobs(),
+            libraryCaptureIDs: PhotoLibrary.captureIdentifiers(from: Array(assetIDs)))
+    }
+
+    func completeDeletion(_ ids: Set<UUID>) async {
+        queue.removeAll { ids.contains($0.id) }
+        scheduledIDs.subtract(ids)
+        for id in ids { enqueuedAt[id] = nil }
+        await refreshRecoveryState()
+    }
+
+    func exportRecoveryOriginal(_ issue: CaptureRecoveryIssue) throws -> URL {
+        try journal.exportOriginal(for: issue)
+    }
+
+    func discardRecoveryFiles(_ issue: CaptureRecoveryIssue) throws {
+        guard !inFlightNativeIDs.contains(issue.captureID) else { throw CaptureJournal.JournalError.recoveryChanged }
+        try journal.discardRecoveryFiles(for: issue)
+    }
+
     private func schedule(_ jobs: [CaptureJob]) async {
-        let added = jobs.filter { $0.awaitingCaptureCompletion != true && scheduledIDs.insert($0.id).inserted }
+        let added = jobs.filter {
+            $0.awaitingCaptureCompletion != true && !deletionGate.contains($0.id)
+                && FileManager.default.fileExists(atPath: journal.file("manifest.json", for: $0.id).path)
+                && scheduledIDs.insert($0.id).inserted
+        }
         for job in added {
             enqueuedAt[job.id] = ProcessInfo.processInfo.systemUptime
             DiagnosticTrace(id: job.id.uuidString).event("capture_queued", "queue_depth=\(queue.count + added.count) rendered_checkpoint=\(job.rendered)")
         }
         // Publish admission before exposing jobs to the drain loop. Actor reentrancy must not
         // let processing start while the UI still considers that capture idle/deletable.
-        await CapturePipeline.shared.accepted(Set(added.map(\.id)))
-        queue.append(contentsOf: added)
+        let admitted = await CapturePipeline.shared.accepted(Set(added.map(\.id)))
+        // A deletion may commit while admission crosses actors. Do not resurrect its queued copy.
+        let ready = added.filter {
+            admitted.contains($0.id) && scheduledIDs.contains($0.id)
+                && !deletionGate.contains($0.id)
+                && FileManager.default.fileExists(atPath: journal.file("manifest.json", for: $0.id).path)
+        }
+        scheduledIDs.subtract(Set(added.map(\.id)).subtracting(ready.map(\.id)))
+        queue.append(contentsOf: ready)
         queue.sort { $0.recipe.captureDate < $1.recipe.captureDate }
         guard !suspended, drainTask == nil, !queue.isEmpty else { return }
         drainTask = Task(priority: .utility) { await drain() }
@@ -279,7 +367,7 @@ private actor CaptureWorker {
             trace.event("capture_job_dequeued", "queue_wait_ms=\(Diagnostics.milliseconds(since: queued)) queued=\(queue.count) age_s=\(Int(max(0, Date().timeIntervalSince(job.recipe.captureDate))))")
             if Task.isCancelled {
                 scheduledIDs.remove(job.id)
-                await CapturePipeline.shared.finished(job.id, completion: nil, error: nil)
+                await publishFinished(job.id, completion: nil, error: nil)
                 continue
             }
             let activity = await CaptureBackgroundActivity { [weak self] in
@@ -289,13 +377,18 @@ private actor CaptureWorker {
             do {
                 let result = try await process(job)
                 processing.end()
-                await CapturePipeline.shared.finished(job.id, completion: result, error: nil)
+                await publishFinished(job.id, completion: result, error: nil)
             } catch {
                 processing.end(error is CancellationError ? "cancelled" : "error", Diagnostics.errorFields(error))
                 Log.save.error("capture_deferred id=\(job.id) error=\(error.localizedDescription, privacy: .public)")
-                await CapturePipeline.shared.finished(job.id, completion: nil,
+                if !(error is CancellationError) {
+                    do { try journal.markNeedsAttention(job.id) }
+                    catch { Diagnostics.emit("capture_attention_marker_failed", id: job.id.uuidString, fields: Diagnostics.errorFields(error)) }
+                }
+                await publishFinished(job.id, completion: nil,
                     error: error is CancellationError ? nil : String(localized: "Your photo is kept on this device. Saving will be retried when you return to the app."),
                     retained: FileManager.default.fileExists(atPath: journal.directory(for: job.id).path))
+                if !(error is CancellationError) { await refreshRecoveryState() }
             }
             scheduledIDs.remove(job.id)
             await activity.end()
@@ -420,19 +513,25 @@ private actor CaptureWorker {
         let trace = DiagnosticTrace(id: job.id.uuidString)
         let raw = try trace.measure("still_source_read") { try Data(contentsOf: journal.file("original.image", for: job.id)) }
         let rendering = trace.span("still_render")
-        let image = await Task.detached(priority: .utility) {
-            trace.measure("still_render_worker") { autoreleasepool {
-                FilmProcessor.shared.applyLUTPreservingMetadata(
-                    imageData: raw, lutCacheKey: recipe.filterName, capturedLUT: lut,
-                    grain: recipe.profile.grain, grainSeed: seed, optics: recipe.profile.optics,
-                    chromatic: recipe.profile.effectiveChromatic,
-                    chromaticSceneCCT: recipe.chromaticSceneCCT,
-                    outputQuality: recipe.outputQuality, location: recipe.location?.location,
-                    captureDate: recipe.captureDate, focalLengthIn35mm: recipe.focalLength,
-                    contentIdentifier: contentID, diagnosticCaptureID: job.id)
-            } }
-        }.value
-        rendering.end(image == nil ? "failed" : "ok", "output_bytes=\(image?.count ?? 0)")
+        let cancellation = CaptureRenderCancellation()
+        let image = await withTaskCancellationHandler {
+            await Task.detached(priority: .utility) {
+                trace.measure("still_render_worker") { autoreleasepool {
+                    FilmProcessor.shared.applyLUTPreservingMetadata(
+                        imageData: raw, lutCacheKey: recipe.filterName, capturedLUT: lut,
+                        grain: recipe.profile.grain, grainSeed: seed, optics: recipe.profile.optics,
+                        chromatic: recipe.profile.effectiveChromatic,
+                        chromaticSceneCCT: recipe.chromaticSceneCCT,
+                        outputQuality: recipe.outputQuality.map { CGFloat($0) }, location: recipe.location?.location,
+                        captureDate: recipe.captureDate, focalLengthIn35mm: recipe.focalLength,
+                        contentIdentifier: contentID, diagnosticCaptureID: job.id, cancellation: cancellation)
+                } }
+            }.value
+        } onCancel: {
+            cancellation.cancel()
+        }
+        rendering.end(cancellation.isCancelled ? "cancelled" : image == nil ? "failed" : "ok", "output_bytes=\(image?.count ?? 0)")
+        try cancellation.checkCancellation()
         try checkPending(job.id)
         guard let image else { throw CaptureJournal.JournalError.invalidJob }
         return image

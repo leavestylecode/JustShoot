@@ -1,5 +1,7 @@
 import Foundation
 import CoreLocation
+import ImageIO
+import UniformTypeIdentifiers
 
 struct CaptureLocation: Codable, Sendable {
     let latitude: Double
@@ -39,7 +41,8 @@ struct CaptureRecipe: Codable, Sendable {
     let filterName: String
     let displayLabel: String?
     let focalLength: Int
-    let outputQuality: Double
+    /// Only legacy jobs freeze a manual quality value. New captures use automatic encoding.
+    let outputQuality: Double?
     let profile: FilmRenderProfile
     let grainSeed: UInt32
     let location: CaptureLocation?
@@ -72,9 +75,47 @@ struct CaptureJob: Codable, Sendable {
     var id: UUID { recipe.id }
 }
 
+struct CaptureRecoveryIssue: Identifiable, Hashable, Sendable {
+    enum Reason: Hashable, Sendable {
+        case missingManifest
+        case unreadableManifest
+        case unsupportedVersion
+        case missingResources
+        case incompleteStaging
+        case discardedFiles
+        case processingFailed
+
+        var message: String {
+            switch self {
+            case .missingManifest: String(localized: "This photo's recovery information is missing.")
+            case .unreadableManifest: String(localized: "This photo's recovery information could not be read.")
+            case .unsupportedVersion: String(localized: "This photo needs a different version of the app to recover.")
+            case .missingResources: String(localized: "Some files needed to recover this photo are missing.")
+            case .incompleteStaging: String(localized: "This photo has not finished preparing for recovery.")
+            case .discardedFiles: String(localized: "Files from a deleted photo are still kept on this device.")
+            case .processingFailed: String(localized: "This photo could not finish processing or saving. You can retry or export the original.")
+            }
+        }
+    }
+
+    /// Directory identity also distinguishes a staging copy from its committed capture.
+    let id: String
+    let captureID: UUID
+    let reason: Reason
+    let hasOriginal: Bool
+    let date: Date?
+}
+
+struct CaptureRecoveryInventory: Sendable {
+    var jobs: [CaptureJob] = []
+    var issues: [CaptureRecoveryIssue] = []
+}
+
 /// The manifest is the commit marker. Incomplete staging directories are retained for recovery,
 /// and only a completed export/index transaction may remove a committed job.
 struct CaptureJournal: Sendable {
+    private struct ManifestVersion: Decodable { let formatVersion: Int }
+
     let root: URL
     static let maximumJobs = 16
     static let maximumBytes: Int64 = 1_024 * 1_024 * 1_024
@@ -82,11 +123,15 @@ struct CaptureJournal: Sendable {
     enum JournalError: LocalizedError {
         case full
         case invalidJob
+        case recoveryChanged
+        case originalUnavailable
 
         var errorDescription: String? {
             switch self {
             case .full: String(localized: "Please wait for your photos to finish saving.")
             case .invalidJob: String(localized: "A saved photo could not be opened. Its original files have been kept.")
+            case .recoveryChanged: String(localized: "This recovery item has changed. Please try again.")
+            case .originalUnavailable: String(localized: "The original photo is not available to export.")
             }
         }
     }
@@ -100,27 +145,71 @@ struct CaptureJournal: Sendable {
     func file(_ name: String, for id: UUID) -> URL { directory(for: id).appendingPathComponent(name) }
 
     func jobs() throws -> [CaptureJob] {
-        guard FileManager.default.fileExists(atPath: root.path) else { return [] }
-        return try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
-            .filter { UUID(uuidString: $0.lastPathComponent) != nil }
-            .compactMap { directory in
-                guard !FileManager.default.fileExists(atPath: directory.appendingPathComponent("discarded").path) else { return nil }
-                do {
-                    let job = try JSONDecoder().decode(CaptureJob.self, from: Data(contentsOf: directory.appendingPathComponent("manifest.json")))
-                    guard job.formatVersion == 1, job.id.uuidString == directory.lastPathComponent else { throw JournalError.invalidJob }
-                    return job
-                } catch {
-                    // A damaged manifest must never cause deletion of its original capture.
-                    Log.save.error("capture_manifest_unreadable directory=\(directory.lastPathComponent, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
-                    return nil
-                }
+        try inventory().jobs
+    }
+
+    /// Files that cannot currently be processed stay visible alongside recoverable jobs.
+    /// Nothing in this read-only scan repairs or removes the original capture.
+    func inventory() throws -> CaptureRecoveryInventory {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: root.path) else { return CaptureRecoveryInventory() }
+        var result = CaptureRecoveryInventory()
+        for directory in try fm.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey]) {
+            let name = directory.lastPathComponent
+            let staging = name.hasPrefix("staging-")
+            let captureName = staging ? String(name.dropFirst("staging-".count)) : name
+            guard let id = UUID(uuidString: captureName),
+                  try directory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true else { continue }
+            let original = directory.appendingPathComponent("original.image")
+            let hasOriginal = fm.fileExists(atPath: original.path)
+            let date = (try? original.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+                ?? (try? directory.resourceValues(forKeys: [.creationDateKey]).creationDate)
+            func issue(_ reason: CaptureRecoveryIssue.Reason) {
+                result.issues.append(CaptureRecoveryIssue(id: name, captureID: id, reason: reason, hasOriginal: hasOriginal, date: date))
             }
-            .sorted { $0.recipe.captureDate < $1.recipe.captureDate }
+            if fm.fileExists(atPath: directory.appendingPathComponent("discarded").path) {
+                issue(.discardedFiles)
+                continue
+            }
+            let manifest = directory.appendingPathComponent("manifest.json")
+            guard fm.fileExists(atPath: manifest.path) else { issue(.missingManifest); continue }
+            let job: CaptureJob
+            do {
+                let data = try Data(contentsOf: manifest)
+                let version = try JSONDecoder().decode(ManifestVersion.self, from: data)
+                guard version.formatVersion == 1 else { issue(.unsupportedVersion); continue }
+                job = try JSONDecoder().decode(CaptureJob.self, from: data)
+            } catch {
+                issue(.unreadableManifest)
+                Log.save.error("capture_manifest_unreadable directory=\(name, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+                continue
+            }
+            guard job.id.uuidString == captureName else { issue(.unreadableManifest); continue }
+            let required = job.rendered
+                ? ["rendered.image"] + (job.hasRenderedMovie ? ["rendered.mov"] : [])
+                : ["original.image", "lut.bin"] + (job.hasSourceMovie ? ["source.mov"] : [])
+            guard required.allSatisfy({ fm.fileExists(atPath: directory.appendingPathComponent($0).path) }) else {
+                issue(.missingResources)
+                continue
+            }
+            if staging { issue(.incompleteStaging) }
+            else {
+                result.jobs.append(job)
+                if fm.fileExists(atPath: directory.appendingPathComponent("attention").path) { issue(.processingFailed) }
+            }
+        }
+        result.jobs.sort { $0.recipe.captureDate < $1.recipe.captureDate }
+        result.issues.sort { $0.id < $1.id }
+        return result
     }
 
     func recover(excludingInFlight inFlight: Set<UUID> = []) throws -> [CaptureJob] {
+        try recoverInventory(excludingInFlight: inFlight).jobs
+    }
+
+    func recoverInventory(excludingInFlight inFlight: Set<UUID> = []) throws -> CaptureRecoveryInventory {
         let fm = FileManager.default
-        guard fm.fileExists(atPath: root.path) else { return [] }
+        guard fm.fileExists(atPath: root.path) else { return CaptureRecoveryInventory() }
         for staging in try fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
             where staging.lastPathComponent.hasPrefix("staging-") {
             guard let data = try? Data(contentsOf: staging.appendingPathComponent("manifest.json")),
@@ -131,9 +220,13 @@ struct CaptureJournal: Sendable {
                   fm.fileExists(atPath: staging.appendingPathComponent("lut.bin").path),
                   !job.hasSourceMovie || fm.fileExists(atPath: staging.appendingPathComponent("source.mov").path),
                   !fm.fileExists(atPath: directory(for: job.id).path) else { continue }
-            try fm.moveItem(at: staging, to: directory(for: job.id))
+            do { try fm.moveItem(at: staging, to: directory(for: job.id)) }
+            catch {
+                Log.save.error("capture_staging_recovery_deferred id=\(job.id) error=\(error.localizedDescription, privacy: .public)")
+            }
         }
-        return try jobs().map { job in
+        var recovered = try inventory()
+        recovered.jobs = recovered.jobs.map { job in
             guard job.awaitingCaptureCompletion == true, !inFlight.contains(job.id) else { return job }
             // A previous process cannot finish this native capture. Recover its durable still,
             // and retain a movie if AVFoundation finished writing it before the process ended.
@@ -148,6 +241,54 @@ struct CaptureJournal: Sendable {
                 return (try? completeCapture(id: job.id, photoDisplayTime: nil, movieURL: nil, recovered: true)) ?? job
             }
         }
+        return recovered
+    }
+
+    /// Export is an exact copy, so recovery never depends on decoding or re-encoding the original.
+    func exportOriginal(for issue: CaptureRecoveryIssue) throws -> URL {
+        let current = try currentIssue(issue)
+        guard current.hasOriginal else { throw JournalError.originalUnavailable }
+        let source = root.appendingPathComponent(current.id, isDirectory: true).appendingPathComponent("original.image")
+        let data = try Data(contentsOf: source, options: .mappedIfSafe)
+        let imageSource = CGImageSourceCreateWithData(data as CFData, nil)
+        let type = imageSource.flatMap { CGImageSourceGetType($0) }
+        let suffix = type.flatMap { UTType($0 as String)?.preferredFilenameExtension } ?? "image"
+        let exportDirectory = try ShareExportDirectory.application.create()
+        let destination = exportDirectory.appendingPathComponent("JustShoot-Recovered-\(current.captureID.uuidString.prefix(8)).\(suffix)")
+        do { try FileManager.default.copyItem(at: source, to: destination) }
+        catch {
+            try? FileManager.default.removeItem(at: exportDirectory)
+            throw error
+        }
+        return destination
+    }
+
+    func discardRecoveryFiles(for issue: CaptureRecoveryIssue) throws {
+        let current = try currentIssue(issue)
+        try FileManager.default.removeItem(at: root.appendingPathComponent(current.id, isDirectory: true))
+    }
+
+    func markDiscarded(_ issue: CaptureRecoveryIssue) throws {
+        let current = try currentIssue(issue)
+        try write(Data(), to: root.appendingPathComponent(current.id, isDirectory: true).appendingPathComponent("discarded"))
+    }
+
+    func markNeedsAttention(_ id: UUID) throws {
+        _ = try job(for: id)
+        try write(Data(), to: file("attention", for: id))
+    }
+
+    func undoDiscard(_ issue: CaptureRecoveryIssue) throws {
+        let current = try currentIssue(issue)
+        let marker = root.appendingPathComponent(current.id, isDirectory: true).appendingPathComponent("discarded")
+        if FileManager.default.fileExists(atPath: marker.path) { try FileManager.default.removeItem(at: marker) }
+    }
+
+    private func currentIssue(_ issue: CaptureRecoveryIssue) throws -> CaptureRecoveryIssue {
+        guard let current = try inventory().issues.first(where: { $0.id == issue.id && $0.captureID == issue.captureID }) else {
+            throw JournalError.recoveryChanged
+        }
+        return current
     }
 
     func hasRoom(for bytes: Int64) throws -> Bool {

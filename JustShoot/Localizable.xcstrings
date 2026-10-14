@@ -122,6 +122,23 @@
         }
       }
     },
+    "%lld photos need recovery attention." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld photos need recovery attention."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 张照片需要处理恢复问题。"
+          }
+        }
+      }
+    },
     "%lld selected" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -234,6 +251,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "复现问题后，可导出最近的诊断日志。日志不含照片或精确位置。"
+          }
+        }
+      }
+    },
+    "Allow Photos access in Settings to save or delete photos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Photos access in Settings to save or delete photos."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在设置中允许访问照片，以保存或删除照片。"
           }
         }
       }
@@ -1060,6 +1094,23 @@
         }
       }
     },
+    "Delete Recovery Files" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Recovery Files"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除恢复文件"
+          }
+        }
+      }
+    },
     "Delete photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1161,6 +1212,23 @@
         }
       }
     },
+    "Export Original" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Original"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出原片"
+          }
+        }
+      }
+    },
     "Exposures" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1207,6 +1275,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "LUT 解析失败或尺寸不匹配"
+          }
+        }
+      }
+    },
+    "Files from a deleted photo are still kept on this device." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files from a deleted photo are still kept on this device."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已删除照片的部分文件仍保留在此设备上。"
           }
         }
       }
@@ -1552,16 +1637,6 @@
         }
       }
     },
-    "High" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高"
-          }
-        }
-      }
-    },
     "ISO" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1837,33 +1912,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "哑光"
-          }
-        }
-      }
-    },
-    "Maximum" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最高"
-          }
-        }
-      }
-    },
-    "Maximum also switches capture to the system's highest-quality pipeline; shots take slightly longer to finish." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Maximum also switches capture to the system's highest-quality pipeline; shots take slightly longer to finish."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "「最高」档同时会把采集切换到系统最高画质管线，成片处理会稍慢。"
           }
         }
       }
@@ -2214,12 +2262,19 @@
         }
       }
     },
-    "Photo Quality" : {
+    "Permanently delete recovery files?" : {
+      "extractionState" : "manual",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permanently delete recovery files?"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "照片画质"
+            "value" : "永久删除恢复文件？"
           }
         }
       }
@@ -2243,6 +2298,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法加载相册，请重试。"
+          }
+        }
+      }
+    },
+    "Photos needing attention" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos needing attention"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要处理的照片"
           }
         }
       }
@@ -2454,6 +2526,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重试"
+          }
+        }
+      }
+    },
+    "Retry Recovery" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry Recovery"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试恢复"
           }
         }
       }
@@ -2720,22 +2809,46 @@
         }
       }
     },
+    "Some files needed to recover this photo are missing." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some files needed to recover this photo are missing."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复这张照片所需的部分文件缺失。"
+          }
+        }
+      }
+    },
+    "Some photos are not accessible. Allow access to those photos in Settings before deleting them." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some photos are not accessible. Allow access to those photos in Settings before deleting them."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分照片不可访问。请在设置中允许访问这些照片后再删除。"
+          }
+        }
+      }
+    },
     "Sound" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "声音"
-          }
-        }
-      }
-    },
-    "Space Saving" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "节省空间"
           }
         }
       }
@@ -2862,6 +2975,74 @@
         }
       }
     },
+    "The original photo is not available to export." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The original photo is not available to export."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原始照片不可用，无法导出。"
+          }
+        }
+      }
+    },
+    "The photo could not be saved. Please try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The photo could not be saved. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存照片，请重试。"
+          }
+        }
+      }
+    },
+    "The still photo will be saved, but its Live Photo video could not be captured." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The still photo will be saved, but its Live Photo video could not be captured."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "静态照片将会保存，但未能拍摄实况视频。"
+          }
+        }
+      }
+    },
+    "These files are kept on this device. You can retry recovery or export the original before deleting them." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These files are kept on this device. You can retry recovery or export the original before deleting them."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文件已保留在此设备上。你可以重试恢复，或在删除前导出原片。"
+          }
+        }
+      }
+    },
     "This LUT is invalid or unsupported." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2880,6 +3061,125 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此 LUT 的输入范围暂不受支持。"
+          }
+        }
+      }
+    },
+    "This permanently deletes the original and video files kept for this recovery item. Photos already in your library are kept." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This permanently deletes the original and video files kept for this recovery item. Photos already in your library are kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这将永久删除为这张照片保留的原片和视频文件。已存入照片图库的照片会保留。"
+          }
+        }
+      }
+    },
+    "This photo could not finish processing or saving. You can retry or export the original." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This photo could not finish processing or saving. You can retry or export the original."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这张照片未能完成处理或保存。你可以重试或导出原片。"
+          }
+        }
+      }
+    },
+    "This photo has not finished preparing for recovery." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This photo has not finished preparing for recovery."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这张照片尚未完成恢复准备。"
+          }
+        }
+      }
+    },
+    "This photo needs a different version of the app to recover." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This photo needs a different version of the app to recover."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这张照片需要其他版本的应用才能恢复。"
+          }
+        }
+      }
+    },
+    "This photo's recovery information could not be read." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This photo's recovery information could not be read."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取这张照片的恢复信息。"
+          }
+        }
+      }
+    },
+    "This photo's recovery information is missing." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This photo's recovery information is missing."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这张照片的恢复信息缺失。"
+          }
+        }
+      }
+    },
+    "This recovery item has changed. Please try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This recovery item has changed. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这张照片的恢复状态已变化，请重试。"
           }
         }
       }

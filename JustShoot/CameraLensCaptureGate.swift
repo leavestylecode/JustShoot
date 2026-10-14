@@ -2,15 +2,52 @@ import CoreGraphics
 
 /// A timeout is a failed request, not evidence that the selected focal length was reached.
 struct CameraLensCaptureGate: Sendable {
+    struct RequestStamp: Equatable, Sendable {
+        let generation: UInt64
+        let focalSequence: UInt64
+    }
+
+    /// Updated on the native KVO thread before its main-actor task. This closes the window
+    /// where the hardware queue could otherwise invoke a capture before that task runs.
+    struct SourceStability: Sendable {
+        private(set) var observationEpoch: UInt64 = 0
+        private var change: (stamp: RequestStamp, at: Double)?
+
+        mutating func invalidateObservations() -> UInt64 {
+            observationEpoch &+= 1
+            change = nil
+            return observationEpoch
+        }
+
+        mutating func record(stamp: RequestStamp, observationEpoch: UInt64, at now: Double) -> Bool {
+            guard self.observationEpoch == observationEpoch, now.isFinite else { return false }
+            if let change {
+                guard stamp.generation >= change.stamp.generation, now >= change.at else { return false }
+                if stamp.generation == change.stamp.generation,
+                   stamp.focalSequence < change.stamp.focalSequence { return false }
+            }
+            change = (stamp, now)
+            return true
+        }
+
+        func remainingGrace(stamp: RequestStamp, at now: Double) -> Double {
+            guard let change, change.stamp == stamp else { return 0 }
+            return max(0, change.at + 0.150 - now)
+        }
+    }
+
     private(set) var targetZoom: CGFloat?
+    private(set) var requestStamp: RequestStamp?
     private(set) var isTransitioning = false
     private(set) var hasFailed = false
     private var hardwarePending = false
     private var graceSeconds: Double = 0
     private var onTargetSince: Double?
 
-    mutating func begin(zoom: CGFloat, graceMs: Int, hardwarePending: Bool = false) {
+    mutating func begin(zoom: CGFloat, graceMs: Int, hardwarePending: Bool = false,
+                        stamp: RequestStamp? = nil) {
         targetZoom = zoom
+        requestStamp = stamp
         graceSeconds = Double(graceMs) / 1_000
         self.hardwarePending = hardwarePending
         onTargetSince = nil
@@ -19,6 +56,16 @@ struct CameraLensCaptureGate: Sendable {
     }
 
     mutating func hardwareApplied() { hardwarePending = false }
+
+    /// A physical source can change after the zoom's grace has completed. Restart a full
+    /// source grace without clearing a failed request or acknowledging pending hardware.
+    mutating func sourceDidChange(stamp: RequestStamp, graceMs: Int = 150) -> Bool {
+        guard requestStamp == stamp, targetZoom != nil, !hasFailed else { return false }
+        graceSeconds = max(graceSeconds, Double(graceMs) / 1_000)
+        onTargetSince = nil
+        isTransitioning = true
+        return true
+    }
 
     func isOnTarget(zoom: CGFloat, isRamping: Bool) -> Bool {
         guard !hardwarePending, !isRamping, zoom.isFinite else { return false }

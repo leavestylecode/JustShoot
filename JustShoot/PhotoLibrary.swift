@@ -22,9 +22,31 @@ private final class Box<T>: @unchecked Sendable {
     init(_ value: T) { self.value = value }
 }
 
-enum PhotoLibraryError: Error {
+enum PhotoLibraryError: LocalizedError, Equatable {
     case notAuthorized
     case saveFailed
+    case inaccessibleAssets
+
+    var errorDescription: String? {
+        switch self {
+        case .notAuthorized:
+            String(localized: "Allow Photos access in Settings to save or delete photos.")
+        case .saveFailed:
+            String(localized: "The photo could not be saved. Please try again.")
+        case .inaccessibleAssets:
+            String(localized: "Some photos are not accessible. Allow access to those photos in Settings before deleting them.")
+        }
+    }
+}
+
+/// Missing assets imply deletion only when the whole library is visible.
+enum PhotoDeletionPolicy {
+    static func failure(authorization: PHAuthorizationStatus, requestedCount: Int,
+                        accessibleCount: Int) -> PhotoLibraryError? {
+        guard authorization == .authorized || authorization == .limited else { return .notAuthorized }
+        if authorization == .limited && accessibleCount != requestedCount { return .inaccessibleAssets }
+        return nil
+    }
 }
 
 enum PhotoLibrary {
@@ -32,8 +54,8 @@ enum PhotoLibrary {
 
     // MARK: - 授权（读写）
     //
-    // 真相源在相册，所以需要 .readWrite（写入 + 回读自建资产）。.limited 也可用：app 始终能
-    // 读取自己创建的资产。仅在 .notDetermined 时弹一次系统授权，已决定状态不重复打扰。
+    // 真相源在相册，所以需要 .readWrite（写入 + 回读资产）。.limited 下新建资产会加入可见选集；
+    // 读取不到已有资产时不能据此判定它已被删除。仅在 .notDetermined 时弹一次系统授权。
     static func ensureAuthorized(trace: DiagnosticTrace? = nil) async throws {
         let authorization = trace?.span("photos_authorization")
         let current = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -67,6 +89,17 @@ enum PhotoLibrary {
             return UUID(uuidString: String(stem.dropFirst("JustShoot_".count)))
         }
         return nil
+    }
+
+    /// An older backfilled row may have a different UUID from its durable capture job.
+    static func captureIdentifiers(from localIdentifiers: [String]) -> Set<UUID> {
+        guard isAuthorized, !localIdentifiers.isEmpty else { return [] }
+        let assets = PHAsset.fetchAssets(withLocalIdentifiers: localIdentifiers, options: nil)
+        var ids: Set<UUID> = []
+        assets.enumerateObjects { asset, _, _ in
+            if let id = captureIdentifier(of: asset) { ids.insert(id) }
+        }
+        return ids
     }
 
     static func findCapture(id: UUID, creationDate: Date) -> String? {
@@ -285,11 +318,26 @@ enum PhotoLibrary {
     // 抛错，caller 据此保留 SwiftData 索引行。fetch 放在 change block 内，避免 PHFetchResult 跨 await。
     static func delete(localIdentifiers: [String]) async throws {
         guard !localIdentifiers.isEmpty else { return }
+        let identifiers = Array(Set(localIdentifiers))
+        // Reject inaccessible batches before opening a system deletion confirmation.
+        if let failure = PhotoDeletionPolicy.failure(
+            authorization: PHPhotoLibrary.authorizationStatus(for: .readWrite),
+            requestedCount: identifiers.count,
+            accessibleCount: PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: nil).count
+        ) { throw failure }
+
+        let failureBox = Box<PhotoLibraryError?>(nil)
         try await PHPhotoLibrary.shared().performChanges {
-            let assets = PHAsset.fetchAssets(withLocalIdentifiers: localIdentifiers, options: nil)
+            let assets = PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: nil)
+            // Authorization or selection can change between preflight and the transaction.
+            failureBox.value = PhotoDeletionPolicy.failure(
+                authorization: PHPhotoLibrary.authorizationStatus(for: .readWrite),
+                requestedCount: identifiers.count, accessibleCount: assets.count)
+            guard failureBox.value == nil else { return }
             guard assets.count > 0 else { return }
             PHAssetChangeRequest.deleteAssets(assets)
         }
+        if let failure = failureBox.value { throw failure }
     }
 
     // MARK: - 反向同步辅助
@@ -355,7 +403,7 @@ final class PhotoLibrarySync: NSObject, PHPhotoLibraryChangeObserver {
         start(container: container)
         guard !didMaintain else { return }
         didMaintain = true
-        let saver = await Task.detached { PhotoSaver(modelContainer: container) }.value
+        let saver = await PhotoSaver.background(container: container)
         await saver.performLaunchMaintenance()
     }
 
@@ -373,7 +421,7 @@ final class PhotoLibrarySync: NSObject, PHPhotoLibraryChangeObserver {
         let task = Task {
             let reconciliation = DiagnosticTrace(id: "library-sync").span("library_reconcile")
             defer { reconciliation.end() }
-            let saver = await Task.detached { PhotoSaver(modelContainer: container) }.value
+            let saver = await PhotoSaver.background(container: container)
             repeat {
                 self.needsAnotherPass = false
                 try? await Task.sleep(for: .milliseconds(400))

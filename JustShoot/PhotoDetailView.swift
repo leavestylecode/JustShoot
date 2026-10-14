@@ -412,17 +412,18 @@ struct PhotoDetailView: View {
         let assetID = photoToDelete.assetLocalIdentifier
         let container = modelContext.container
         let pipeline = CapturePipeline.shared
-        guard pipeline.beginDeletion([deletedId]) else { return }
         let orderedIDs = photos.filter { !$0.isDeleted }.map(\.id)
 
         // 真相源在系统相册：先 PHAsset 删除（系统弹原生确认）。用户确认 → 更新 UI + 删索引行；
         // 取消 → 抛错，照片原样保留（不做乐观移除，避免删失败后照片"复活"闪烁）。
         Task { @MainActor in
-            defer { pipeline.endDeletion([deletedId]) }
+            guard let gateIDs = await pipeline.beginDeletion(rowIDs: [deletedId], assetIDs: assetID.map { [$0] } ?? []) else { return }
+            defer { pipeline.endDeletion(gateIDs) }
             do {
                 if let assetID { try await PhotoLibrary.delete(localIdentifiers: [assetID]) }
-                let saver = PhotoSaver(modelContainer: container)
-                try await saver.delete(ids: [deletedId])
+                let saver = await PhotoSaver.background(container: container)
+                let removedIDs = try await saver.delete(ids: gateIDs)
+                await pipeline.completeDeletion(removedIDs)
                 // "下一张"必须在删除事务完成、按当前数组重解——系统确认弹窗可挂起数秒，期间
                 // reconcile / 外部删除可能已改动 photos，await 前解出的邻位索引会指向错误照片。
                 // 优先右邻（移除后原 idx 位置即右邻），最末位回退左邻（即新末位）。
@@ -434,10 +435,14 @@ struct PhotoDetailView: View {
                 }
                 reconcilePhotos()
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
-                ImageLoader.shared.removeDiskCache(for: deletedId)
+                for id in removedIDs { ImageLoader.shared.removeDiskCache(for: id) }
                 Log.save.info("photo_deleted id=\(deletedId.uuidString, privacy: .public)")
             } catch {
                 Log.save.info("photo_delete_cancelled_or_failed id=\(deletedId.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+                let photosError = error as NSError
+                if photosError.domain != PHPhotosErrorDomain || photosError.code != PHPhotosError.Code.userCancelled.rawValue {
+                    pipeline.lastError = error.localizedDescription
+                }
             }
         }
     }

@@ -3,24 +3,41 @@ import Foundation
 
 /// One policy is used by session setup, prepared settings and actual captures.
 struct CameraCapturePolicy: Sendable, Equatable {
-    let photoQuality: PhotoQuality
+    private static let ordinaryPhotoPixelLimit: Int64 = 26_000_000
     let safeShutterEnabled: Bool
 
     static var current: Self { Self(defaults: .standard) }
 
-    init(photoQuality: PhotoQuality, safeShutterEnabled: Bool) {
-        self.photoQuality = photoQuality
+    init(safeShutterEnabled: Bool) {
         self.safeShutterEnabled = safeShutterEnabled
     }
 
     init(defaults: UserDefaults) {
-        photoQuality = defaults.string(forKey: "photoOutputQuality")
-            .flatMap(PhotoQuality.init(rawValue:)) ?? .default
         safeShutterEnabled = defaults.object(forKey: "safeShutterLimitEnabled") as? Bool ?? true
     }
 
     var qualityPrioritization: AVCapturePhotoOutput.QualityPrioritization {
-        photoQuality == .maximum ? .quality : .balanced
+        .balanced
+    }
+
+    /// Prefer the ordinary 24 MP class where the device exposes it, rather than HEIF Max.
+    /// Nominal 24 MP dimensions can contain about 24.5 million pixels. Never invent a size
+    /// that the current format does not support; older formats commonly expose only 12/48 MP.
+    static func automaticPhotoDimensions(from dimensions: [CMVideoDimensions]) -> CMVideoDimensions? {
+        let supported = dimensions.filter {
+            $0.width > 0 && $0.height > 0 && abs(Double($0.width) / Double($0.height) - 4.0 / 3.0) < 0.02
+        }
+        func pixels(_ size: CMVideoDimensions) -> Int64 { Int64(size.width) * Int64(size.height) }
+        let ordinary = supported.filter { pixels($0) <= ordinaryPhotoPixelLimit }
+        return ordinary.max { pixels($0) < pixels($1) } ?? supported.min { pixels($0) < pixels($1) }
+    }
+
+    /// Prefer formats with an ordinary supported size. A Max-only format must not beat
+    /// a real 24 MP format merely because its fallback dimensions contain more pixels.
+    static func automaticPhotoFormatScore(from dimensions: [CMVideoDimensions]) -> Int64 {
+        guard let selected = automaticPhotoDimensions(from: dimensions) else { return .min }
+        let pixels = Int64(selected.width) * Int64(selected.height)
+        return pixels <= ordinaryPhotoPixelLimit ? pixels : -pixels
     }
 
     func qualityPrioritization(supportedMax: AVCapturePhotoOutput.QualityPrioritization) -> AVCapturePhotoOutput.QualityPrioritization {

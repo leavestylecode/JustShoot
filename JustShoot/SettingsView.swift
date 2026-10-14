@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import UIKit
 
 // MARK: - 设置页
 //
@@ -14,8 +15,6 @@ struct SettingsView: View {
     @ObservedObject private var capturePipeline = CapturePipeline.shared
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var curveLibrary: FilmCurveLibrary
-    /// 照片输出画质档。与 CameraView 共享同一 @AppStorage key，拍照时读取生效（无需重启 app）。
-    @AppStorage("photoOutputQuality") private var photoQuality: PhotoQuality = .default
     /// Live Photo 是否录音。与 CameraView 共享同一 @AppStorage key，下次入相机即生效。默认开。
     @AppStorage("livePhotoSoundEnabled") private var livePhotoSoundEnabled = true
     /// 安全快门限制（默认开）。与 CameraManager 共享同一 key：开 = AE 上限按 1/等效焦距收紧；
@@ -28,6 +27,9 @@ struct SettingsView: View {
     @State private var microphoneDenied = false
     @State private var exportingDiagnostics = false
     @State private var diagnosticExportFailed = false
+    @State private var recoveryToDiscard: CaptureRecoveryIssue?
+    @State private var recoveryExport: RecoveryOriginalExport?
+    @State private var isManagingRecovery = false
 
     // TODO: 上架后填入真实 App Store 数字 ID（apps.apple.com/app/id<这里>）。
     private let appStoreId = "0000000000"
@@ -40,8 +42,8 @@ struct SettingsView: View {
                 VStack(spacing: 16) {
                     appHeader
                     if capturePipeline.pendingCount + capturePipeline.retainedCount > 0 { pendingPhotosSection }
+                    if !capturePipeline.recoveryIssues.isEmpty { recoveryPhotosSection }
                     filmCurveSection
-                    photoQualitySection
                     captureSection
                     livePhotoSection
                     diagnosticsSection
@@ -63,6 +65,21 @@ struct SettingsView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("Please try exporting the diagnostic log again.")
+        }
+        .sheet(item: $recoveryExport) { export in
+            RecoveryOriginalShareSheet(url: export.url)
+        }
+        .confirmationDialog("Permanently delete recovery files?", isPresented: Binding(
+            get: { recoveryToDiscard != nil },
+            set: { if !$0 { recoveryToDiscard = nil } }
+        ), titleVisibility: .visible) {
+            if let issue = recoveryToDiscard {
+                Button("Delete Recovery Files", role: .destructive) {
+                    manageRecovery { await capturePipeline.discardRecoveryFiles(issue) }
+                }
+            }
+        } message: {
+            Text("This permanently deletes the original and video files kept for this recovery item. Photos already in your library are kept.")
         }
     }
 
@@ -134,6 +151,56 @@ struct SettingsView: View {
         }
     }
 
+    private var recoveryPhotosSection: some View {
+        sectionCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Photos needing attention", systemImage: "exclamationmark.triangle")
+                    .font(.headline)
+                Text("\(capturePipeline.recoveryIssues.count) photos need recovery attention.")
+                Text("These files are kept on this device. You can retry recovery or export the original before deleting them.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button("Retry Recovery") { manageRecovery { await capturePipeline.retryPending() } }
+                    .disabled(isManagingRecovery || capturePipeline.pendingCount > 0)
+                ForEach(capturePipeline.recoveryIssues) { issue in
+                    Divider()
+                    VStack(alignment: .leading, spacing: 8) {
+                        if let date = issue.date {
+                            Text(date, format: .dateTime.year().month().day().hour().minute())
+                                .font(.subheadline)
+                        }
+                        Text(issue.reason.message)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            Button("Export Original") {
+                                manageRecovery {
+                                    if let url = await capturePipeline.exportRecoveryOriginal(issue) {
+                                        recoveryExport = RecoveryOriginalExport(url: url)
+                                    }
+                                }
+                            }
+                            .disabled(!issue.hasOriginal || isManagingRecovery)
+                            Spacer()
+                            Button("Delete Recovery Files", role: .destructive) { recoveryToDiscard = issue }
+                                .disabled(isManagingRecovery)
+                        }
+                    }
+                }
+            }
+            .padding()
+        }
+    }
+
+    private func manageRecovery(_ action: @escaping @MainActor () async -> Void) {
+        guard !isManagingRecovery else { return }
+        isManagingRecovery = true
+        Task { @MainActor in
+            defer { isManagingRecovery = false }
+            await action()
+        }
+    }
+
     // MARK: - 胶片曲线
 
     private var filmCurveSection: some View {
@@ -184,56 +251,6 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-            }
-        }
-    }
-
-    // MARK: - 照片画质（用户可配置）
-    //
-    // iOS 原生「单选列表」写法（与 设置→相机→格式 一致）：每行 = 档位名(标题) + 右侧体积(灰) +
-    // 选中打绿勾，不自绘任何图形。体积是纯数字+MB（跨语言通用）；需翻译的只有标题 + 4 个最短档位名。
-    // 默认 .standard。改动即时写入 @AppStorage，下一张拍照就生效。
-    private var photoQualitySection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Photo Quality", systemImage: "photo")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.leading, 4)
-
-            sectionCard {
-                ForEach(PhotoQuality.allCases) { quality in
-                    Button {
-                        photoQuality = quality
-                    } label: {
-                        HStack(spacing: 10) {
-                            Text(quality.displayName)
-                                .foregroundStyle(.white)
-                            Spacer()
-                            Text(quality.approximateSize)
-                                .font(.subheadline)
-                                .monospacedDigit()
-                                .foregroundStyle(.secondary)
-                            // 始终占位（未选中时透明），让右侧体积文字在各行对齐、不跳动。
-                            Image(systemName: "checkmark")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.green)
-                                .opacity(photoQuality == quality ? 1 : 0)
-                        }
-                        .padding(.vertical, 4)
-                        .contentShape(Rectangle())
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(quality.displayName), \(quality.approximateSize)")
-                        .accessibilityAddTraits(photoQuality == quality ? [.isButton, .isSelected] : .isButton)
-                    }
-                    .buttonStyle(.plain)
-
-                    if quality != PhotoQuality.allCases.last {
-                        Divider().overlay(Color.white.opacity(0.08))
-                    }
-                }
-                Text("Maximum also switches capture to the system's highest-quality pipeline; shots take slightly longer to finish.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }

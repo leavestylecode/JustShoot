@@ -285,7 +285,7 @@ private final class RuntimeDiagnosticLifecycle {
         #endif
         let app = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
-        Diagnostics.emit("run_begin", fields: "schema=\(Diagnostics.schemaVersion) camera_revision=2026-10-05-flow-audit color_pipeline=independent_auto_v2 gallery_pipeline=committed_snapshot_v2 lut_max_hz=30 utc=\(Date().ISO8601Format()) model=\(model) ios=\(version.majorVersion).\(version.minorVersion).\(version.patchVersion) configuration=\(configuration) simulator=\(simulator) app=\(app) build=\(build) stall_threshold_ms=250 preview_window_ms=2000 \(Diagnostics.resourceFields())")
+        Diagnostics.emit("run_begin", fields: "schema=\(Diagnostics.schemaVersion) camera_revision=2026-10-14-auto-capture photo_encoding=automatic_v1 color_pipeline=tagged_srgb_v3 gallery_pipeline=committed_snapshot_v2 lut_max_hz=30 utc=\(Date().ISO8601Format()) model=\(model) ios=\(version.majorVersion).\(version.minorVersion).\(version.patchVersion) configuration=\(configuration) simulator=\(simulator) app=\(app) build=\(build) stall_threshold_ms=250 preview_window_ms=2000 \(Diagnostics.resourceFields())")
         DiagnosticWatchdog.shared.setActive(UIApplication.shared.applicationState == .active)
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in

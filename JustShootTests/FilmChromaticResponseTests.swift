@@ -96,6 +96,7 @@ final class FilmChromaticResponseTests: XCTestCase {
         }
         """
         let job = try JSONDecoder().decode(CaptureRecipe.self, from: Data(legacyJSON.utf8))
+        XCTAssertEqual(job.outputQuality, 0.9, "旧任务应保留拍摄时冻结的编码质量")
         XCTAssertNil(job.chromaticSceneCCT, "旧 manifest 无场景色温快照字段，应解码为 nil")
         XCTAssertEqual(job.profile.effectiveChromatic, .neutral)
         XCTAssertEqual(job.profile.effectiveChromatic.responseGain(sceneCCT: 3_200), SIMD3<Float>(1, 1, 1))

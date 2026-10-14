@@ -17,9 +17,6 @@ struct CameraView: View {
     /// 当前选中的胶片源。底部右侧封面打开 picker 后可切换——`@State` 让 toolbar title、
     /// 预览 LUT (RealtimePreviewView.lutCacheKey)、右下封面、左下最近照片 badge 都自动跟随。
     @State private var source: FilmSource
-    /// 用户在设置页选的输出画质档。拍照时读它的 compressionQuality 传给包含元数据的单次图像编码。
-    /// 默认 .standard（对齐 iPhone 原相机体积）。
-    @AppStorage("photoOutputQuality") private var photoQuality: PhotoQuality = .default
     /// Live Photo 开关（顶栏切换，默认开，像 iPhone 原相机）。开启时每张拍照同时录一段动态视频，
     /// 静态图与视频都套当前胶片 LUT 后存为系统相册 Live Photo。开关始终保留在顶栏。
     @AppStorage("livePhotoEnabled") private var livePhotoEnabled = true
@@ -622,7 +619,11 @@ struct CameraView: View {
             cameraManager.diagnostics.event("shutter_ignored", "reason=lut_not_ready")
             return
         }
-        let requestedID = UUID()
+        guard let admission = cameraManager.beginCaptureAdmission() else {
+            cameraManager.diagnostics.event("shutter_ignored", "reason=admission_busy")
+            return
+        }
+        let requestedID = admission.id
         let captureTrace = DiagnosticTrace(id: requestedID.uuidString)
         captureTrace.event("shutter_tap", "camera=\(cameraManager.diagnostics.id) pending=\(capturePipeline.pendingCount) requested_live=\(livePhotoEnabled) \(colorAdjustmentDiagnosticFields)")
         let tapTime = Log.now()
@@ -646,22 +647,24 @@ struct CameraView: View {
         let location = cameraManager.captureLocation(at: captureDate).map(CaptureLocation.init)
 
         let capturedLUT = preparedLUT.lut
-        let focalMm = cameraManager.currentFocalLength.rawValue
-        // 在 MainActor 上读取用户选的画质档，捕获进后台 task（detached 里不能再读 @AppStorage）。
-        let outputQuality = photoQuality.compressionQuality
+        let focalMm = admission.focalLength
         let wantsLive = livePhotoEnabled
         guard !wantsLive || cameraManager.livePhotoCaptureState.canCapture else {
             captureTrace.event("live_photo_request_unavailable", "stage=shutter supported=\(cameraManager.livePhotoCaptureState.supported) enabled=\(cameraManager.livePhotoCaptureState.enabled)")
+            cameraManager.cancelCaptureAdmission(admission)
             captureError = String(localized: "Live Photo is unavailable. Turn off Live Photo or reopen the camera to try again.")
             return
         }
         isShutterBusy = true
         guard let captureID = await capturePipeline.reserve(lutBytes: capturedLUT.data.count, id: requestedID) else {
+            cameraManager.cancelCaptureAdmission(admission)
             isShutterBusy = false
             return
         }
-        guard cameraManager.readiness == .ready, cameraManager.isCaptureAvailable else {
+        guard cameraManager.isCaptureAdmissionValid(admission),
+              cameraManager.readiness == .ready, cameraManager.isCaptureAvailable else {
             capturePipeline.cancelReservation(captureID)
+            cameraManager.cancelCaptureAdmission(admission)
             isShutterBusy = false
             return
         }
@@ -671,7 +674,7 @@ struct CameraView: View {
         }()
         let recipe = CaptureRecipe(
             id: captureID, captureDate: captureDate, filterName: currentSource.photoFilterName,
-            displayLabel: displayLabel, focalLength: focalMm, outputQuality: Double(outputQuality),
+            displayLabel: displayLabel, focalLength: focalMm, outputQuality: nil,
             profile: renderProfile, grainSeed: grainBaseSeed, location: location,
             lutDimension: capturedLUT.dimension, chromaticSceneCCT: chromaticSceneCCT, photoDisplayTime: nil)
         // tap 即 +1：spinner 覆盖「曝光 + 等 live 视频 + 排队 + 后处理」全程，后台 task 跑完才 -1。
@@ -686,7 +689,7 @@ struct CameraView: View {
             shutterPressed = false
         }
 
-        cameraManager.capturePhoto(live: wantsLive, trace: captureTrace, onWillCapture: {
+        cameraManager.capturePhoto(admission: admission, live: wantsLive, trace: captureTrace, onWillCapture: {
             // AVF 主曝光起始帧——开闪光灯时即氙气主脉冲发射的瞬间，关闪光灯时 ZSL/responsive
             // 让这一刻在 tap 后 50–150ms 内 fire。在这里驱动白屏，UI 与真实光线同帧。
             //
@@ -731,6 +734,7 @@ struct CameraView: View {
                 // 没有这行快门会永久 disabled。
                 isShutterBusy = false
                 capturePipeline.cancelReservation(captureID)
+                guard cameraManager.diagnosticGeneration == admission.sessionGeneration else { return }
                 captureError = cameraManager.lensSwitchFailed
                     ? String(localized: "Could not switch to this focal length. Select it again to retry.")
                     : wantsLive && !cameraManager.livePhotoCaptureState.canCapture
