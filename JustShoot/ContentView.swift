@@ -186,11 +186,7 @@ struct ContentView: View {
             modelContext.insert(customLUT)
             try modelContext.save()
 
-            // 预加载到缓存
-            let source = FilmSource.from(customLUT)
-            Task.detached(priority: .userInitiated) {
-                FilmProcessor.shared.preload(source: source)
-            }
+            // Load the table when selected; importing an unused LUT needs no second parse or cache entry.
         } catch {
             modelContext.rollback()
             // 文件可能已写入而行保存失败——删掉孤儿 .cube，否则 Documents/CustomLUTs 里

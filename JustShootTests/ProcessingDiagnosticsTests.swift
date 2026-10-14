@@ -17,7 +17,7 @@ final class ProcessingDiagnosticsTests: XCTestCase {
             try? FileManager.default.removeItem(at: directory)
         }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-            DispatchQueue.global(qos: .utility).async {
+            DispatchQueue.global(qos: .utility).async(qos: .utility, flags: [.enforceQoS, .detached]) {
                 do {
                     try autoreleasepool {
                         let context = CIContext(options: [.priorityRequestLow: true])
@@ -26,8 +26,10 @@ final class ProcessingDiagnosticsTests: XCTestCase {
                         let data = try XCTUnwrap(context.jpegRepresentation(of: input,
                             colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!, options: [:]))
                         let preset = FilmPreset.fujiC200
-                        let lut = try FilmProcessor.shared.loadCubeLUT(resourceName: preset.lutResourceName)
-                        let result = FilmProcessor.shared.applyLUTPreservingMetadata(imageData: data,
+                        // Keep this fixture's rendering context independent of other tests' caches.
+                        let processor = FilmProcessor()
+                        let lut = try processor.loadCubeLUT(resourceName: preset.lutResourceName)
+                        let result = processor.applyLUTPreservingMetadata(imageData: data,
                             lutCacheKey: preset.lutResourceName, capturedLUT: lut,
                             grain: preset.renderProfile.grain, optics: preset.filmOptics, diagnosticCaptureID: id)
                         XCTAssertNotNil(result)

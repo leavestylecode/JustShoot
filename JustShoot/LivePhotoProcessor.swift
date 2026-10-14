@@ -95,7 +95,7 @@ enum LivePhotoProcessor {
 
     // 专用 CIContext：与 FilmProcessor 一致地锁 sRGB working/output 空间，走 Metal。视频帧量大，
     // 关 cacheIntermediates 控内存。整个进程共享一个，避免每次拍摄重建。
-    private static let srgb: CGColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+    private static let srgb = FilmImagePipeline.colorSpace
     private static let ciContext: CIContext = {
         let opts: [CIContextOption: Any] = [
             .workingColorSpace: srgb,
@@ -184,14 +184,20 @@ enum LivePhotoProcessor {
             writer.metadata = [contentIdentifierMetadataItem(contentIdentifier)]
 
             // 视频输入：HEVC 优先，旧设备回退 H.264。保留源 preferredTransform（出片朝向）。
-            let hevcSettings: [String: Any] = [AVVideoCodecKey: AVVideoCodecType.hevc, AVVideoWidthKey: width, AVVideoHeightKey: height]
+            let hevcSettings: [String: Any] = [
+                AVVideoCodecKey: AVVideoCodecType.hevc,
+                AVVideoWidthKey: width,
+                AVVideoHeightKey: height,
+                AVVideoColorPropertiesKey: FilmVideoColorSpace.writerProperties
+            ]
             let codec: AVVideoCodecType = writer.canApply(outputSettings: hevcSettings, forMediaType: .video) ? .hevc : .h264
             let videoWriterInput = AVAssetWriterInput(
                 mediaType: .video,
                 outputSettings: [
                     AVVideoCodecKey: codec,
                     AVVideoWidthKey: width,
-                    AVVideoHeightKey: height
+                    AVVideoHeightKey: height,
+                    AVVideoColorPropertiesKey: FilmVideoColorSpace.writerProperties
                 ]
             )
             videoWriterInput.expectsMediaDataInRealTime = false
@@ -257,7 +263,7 @@ enum LivePhotoProcessor {
                 timeRange: CMTimeRange(start: stillTime, duration: stillDuration)
             )
 
-            let lut = capturedLUT ?? FilmProcessor.shared.getCachedLUT(cacheKey: lutCacheKey)
+            let lut = capturedLUT ?? FilmProcessor.shared.resolveLUT(cacheKey: lutCacheKey)
             if lut == nil {
                 Log.lut.info("livephoto_lut_passthrough key=\(lutCacheKey, privacy: .public) reason=lut_missing")
             }
@@ -328,31 +334,17 @@ enum LivePhotoProcessor {
         pool: CVPixelBufferPool?
     ) -> CVPixelBuffer? {
         let srcImage = CIImage(cvPixelBuffer: srcPixel)
-        let responded = FilmChromaticRenderer.applying(to: srcImage, gain: chromaticGain)
-
-        let gradedImage: CIImage
-        if let lut, let filter = CIFilter(name: "CIColorCubeWithColorSpace") {
-            filter.setValue(responded, forKey: kCIInputImageKey)
-            filter.setValue(lut.dimension, forKey: "inputCubeDimension")
-            filter.setValue(lut.data, forKey: "inputCubeData")
-            filter.setValue(srgb, forKey: "inputColorSpace")
-            gradedImage = filter.outputImage ?? responded
-        } else {
-            gradedImage = responded
-        }
-        let opticallyGraded = FilmOpticsRenderer.applying(to: gradedImage, parameters: optics)
-        let outImage = FilmGrainRenderer.applying(
-            to: opticallyGraded,
-            parameters: grain,
-            seed: grainSeed
-        )
+        guard let stages = FilmImagePipeline.stages(for: srcImage, lut: lut,
+            chromaticGain: chromaticGain, optics: optics, grain: grain,
+            grainSeed: grainSeed) else { return nil }
 
         var outPixel: CVPixelBuffer?
         if let pool {
             CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &outPixel)
         }
         guard let dst = outPixel else { return nil }
-        ciContext.render(outImage, to: dst, bounds: srcImage.extent, colorSpace: srgb)
+        ciContext.render(stages.final, to: dst, bounds: srcImage.extent, colorSpace: srgb)
+        FilmVideoColorSpace.tag(dst)
         return dst
     }
 

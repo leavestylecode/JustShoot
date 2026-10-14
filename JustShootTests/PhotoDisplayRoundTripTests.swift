@@ -1,6 +1,7 @@
 import XCTest
 import Photos
 import CoreImage
+import ImageIO
 @testable import JustShoot
 
 /// 复现真机「拍完 → 相册查看全黑」的全链路集成测试。
@@ -17,7 +18,7 @@ final class PhotoDisplayRoundTripTests: XCTestCase {
         let width = 5712, height = 4284
         let source = try Self.syntheticCapture(width: width, height: height)
 
-        // 2) 与真机一致的渲染配置(C200 + 完整 renderProfile 含色温响应)+ 48MP heif10 输出
+        // 2) 普通拍照的自动编码，保留实际 24.47MP 像素和完整胶片处理链。
         let preset = FilmPreset.fujiC200
         let profile = preset.renderProfile
         let lut = try FilmProcessor.shared.loadCubeLUT(resourceName: preset.lutResourceName)
@@ -29,11 +30,13 @@ final class PhotoDisplayRoundTripTests: XCTestCase {
             grainSeed: 0x1234_5678,
             optics: profile.optics,
             chromatic: profile.effectiveChromatic,
-            chromaticSceneCCT: 6_300,
-            outputQuality: 1.0
+            chromaticSceneCCT: 6_300
         )
         let rendered = try XCTUnwrap(renderedResult, "渲染输出为空——新管线(色温响应/线性光学)产片失败")
-        XCTAssertGreaterThan(rendered.count, 1_000_000, "48MP heif10 不可能小于 1MB")
+        let encodedSource = try XCTUnwrap(CGImageSourceCreateWithData(rendered as CFData, nil))
+        let properties = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(encodedSource, 0, nil) as? [String: Any])
+        XCTAssertEqual(properties[kCGImagePropertyPixelWidth as String] as? Int, width)
+        XCTAssertEqual(properties[kCGImagePropertyPixelHeight as String] as? Int, height)
 
         // 3) 入库(与 CapturePipeline 同一路径),返回 localIdentifier
         let captureID = UUID()

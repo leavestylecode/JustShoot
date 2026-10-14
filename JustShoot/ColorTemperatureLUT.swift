@@ -6,16 +6,14 @@ import CoreImage.CIFilterBuiltins
 /// No capture-device white-balance setter is involved (virtual cameras can reject those setters).
 actor ColorTemperatureLUT {
     static let shared = ColorTemperatureLUT()
-    private let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
+    private let colorSpace = FilmImagePipeline.colorSpace
     private var context: CIContext?
-    private var cache: [String: CubeLUT] = [:]
-    private var accessOrder: [String] = []
-    private let maximumCacheBytes: Int
-    private(set) var cachedBytes = 0
+    private var cache: ByteBudgetLRU<String, CubeLUT>
+    var cachedBytes: Int { cache.retainedBytes }
     var cachedCount: Int { cache.count }
 
     init(maximumCacheBytes: Int = 16 * 1_024 * 1_024) {
-        self.maximumCacheBytes = max(0, maximumCacheBytes)
+        cache = ByteBudgetLRU(maximumBytes: maximumCacheBytes, maximumEntries: 8)
     }
 
     nonisolated static func cacheKey(baseKey: String, selection: CameraWhiteBalanceSelection,
@@ -33,9 +31,8 @@ actor ColorTemperatureLUT {
                  reference: CameraWhiteBalanceReading? = CameraWhiteBalanceReading.neutral) throws -> CubeLUT {
         try Task.checkCancellation()
         let processor = FilmProcessor.shared
-        processor.preload(source: source, curve: curve)
+        let base = try processor.loadLUT(source: source, curve: curve)
         let baseKey = processor.composedLUTCacheKey(source.lutCacheKey, curve: curve)
-        guard let base = processor.getCachedLUT(cacheKey: baseKey) else { throw CubeLUT.ParseError.malformed }
         return try prepare(base: base, baseKey: baseKey, selection: selection, tint: tint, reference: reference)
     }
 
@@ -49,27 +46,12 @@ actor ColorTemperatureLUT {
         // Automatic axes keep the camera's current values; no-op recipes use the original bytes.
         guard !resolved.isNeutral else { return base }
         let key = Self.cacheKey(baseKey: baseKey, selection: selection, tint: tint, reference: reference)
-        if let existing = cache[key] {
-            touch(key)
+        if let existing = cache.value(forKey: key) {
             return existing
         }
         let result = try autoreleasepool { try bake(base: base, adjustment: resolved) }
-        if result.data.count <= maximumCacheBytes {
-            while cachedBytes + result.data.count > maximumCacheBytes || cache.count >= 8 {
-                guard let oldest = accessOrder.first else { break }
-                accessOrder.removeFirst()
-                if let removed = cache.removeValue(forKey: oldest) { cachedBytes -= removed.data.count }
-            }
-            cache[key] = result
-            cachedBytes += result.data.count
-            touch(key)
-        }
+        cache.insert(result, forKey: key, cost: result.data.count)
         return result
-    }
-
-    private func touch(_ key: String) {
-        accessOrder.removeAll { $0 == key }
-        accessOrder.append(key)
     }
 
     private func bake(base: CubeLUT, adjustment recipe: ResolvedCameraColorAdjustment) throws -> CubeLUT {

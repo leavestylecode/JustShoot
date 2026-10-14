@@ -703,7 +703,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             guard let device = metalDevice else { return nil }
 
             // 从 FilmProcessor 缓存获取 LUT 数据
-            guard let lut = preparedLUT ?? FilmProcessor.shared.getCachedLUT(cacheKey: cacheKey) else { return nil }
+            guard let lut = preparedLUT ?? FilmProcessor.shared.cachedLUT(cacheKey: cacheKey) else { return nil }
             let dim = lut.dimension
             let uploadStartedAt = ProcessInfo.processInfo.systemUptime
 

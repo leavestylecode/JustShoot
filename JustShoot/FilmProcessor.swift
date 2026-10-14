@@ -16,8 +16,8 @@ final class FilmProcessor: Sendable {
     private let srgbColorSpace: CGColorSpace
     /// CIContext 首次创建在真机约需 1 秒；与 LUT cache 分锁，避免纯 LUT 读取触发或等待 GPU 初始化。
     private let renderContextLock = OSAllocatedUnfairLock<CIContext?>(initialState: nil)
-    /// 保护 lutCache 的锁
-    private let lock = OSAllocatedUnfairLock<LUTState>(initialState: LUTState())
+    /// LUT bytes share one budget; lightweight source/curve recipes have separate entry limits.
+    private let lock: OSAllocatedUnfairLock<LUTState>
 
     private struct CurveComposition: Sendable {
         let baseKey: String
@@ -26,15 +26,20 @@ final class FilmProcessor: Sendable {
 
     /// 锁内保护的可变状态（仅缓存 LUT 数据，不缓存 CIFilter）
     private struct LUTState {
-        var lutCache: [String: CubeLUT] = [:]
+        var luts: ByteBudgetLRU<String, CubeLUT>
         /// 动态用户曲线无法从缓存键反解完整控制点，因此在生成键时登记轻量合成配方。
-        var curveCompositions: [String: CurveComposition] = [:]
-        /// 只跟踪曲线合成条目；原始内置/自定义 LUT 不参与驱逐。
-        var composedAccessOrder: [String] = []
+        var curveCompositions: ByteBudgetLRU<String, CurveComposition>
+        var fileSources: ByteBudgetLRU<String, URL>
+
+        init(maximumBytes: Int, maximumRecipeEntries: Int) {
+            luts = ByteBudgetLRU(maximumBytes: maximumBytes, maximumEntries: 64)
+            curveCompositions = ByteBudgetLRU(maximumBytes: 0, maximumEntries: maximumRecipeEntries)
+            fileSources = ByteBudgetLRU(maximumBytes: 0, maximumEntries: maximumRecipeEntries)
+        }
     }
 
-    /// 64³ RGBA Float LUT 约 4 MiB。限制衍生组合，避免遍历多个自定义 LUT × 曲线后常驻数百 MB。
-    private static let maxComposedLUTs = 12
+    /// A 128³ table is 32 MiB. Entry counts alone cannot bound retained LUT memory.
+    static let maximumLUTCacheBytes = 64 * 1_024 * 1_024
     private static let compiledLUTMagic = Array("JSLUT001".utf8)
     private static let compiledLUTHeaderSize = 16
 
@@ -56,11 +61,17 @@ final class FilmProcessor: Sendable {
         return f
     }()
 
-    private init() {
+    init(maximumLUTCacheBytes: Int = FilmProcessor.maximumLUTCacheBytes,
+         maximumRecipeEntries: Int = 128) {
         let timer = Log.perf("film_processor_init", logger: Log.lut)
-        self.srgbColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        self.srgbColorSpace = FilmImagePipeline.colorSpace
+        self.lock = OSAllocatedUnfairLock(initialState: LUTState(
+            maximumBytes: maximumLUTCacheBytes, maximumRecipeEntries: maximumRecipeEntries))
         timer.end()
     }
+
+    var cachedLUTBytes: Int { lock.withLock { $0.luts.retainedBytes } }
+    var cachedLUTCount: Int { lock.withLock { $0.luts.count } }
 
     /// 唯一的静态照片 CIContext。创建过程在锁内执行：后台预热与极快首拍撞车时，后者等待同一实例，
     /// 不会各自创建一份昂贵的 Metal context。
@@ -122,8 +133,10 @@ final class FilmProcessor: Sendable {
         id: UUID,
         original: Data,
         stages: [(name: String, image: CIImage)],
-        context: CIContext
+        context: CIContext,
+        cancellation: CaptureRenderCancellation?
     ) {
+        guard cancellation?.isCancelled != true else { return }
         let directory = Self.stageDiagnosticsRoot.appendingPathComponent(id.uuidString, isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -133,6 +146,7 @@ final class FilmProcessor: Sendable {
             try original.write(to: directory.appendingPathComponent("1_original.\(originalExtension)"), options: .atomic)
 
             for stage in stages {
+                guard cancellation?.isCancelled != true else { return }
                 var encoded: Data?
                 var ext = "heic"
                 if let heif10 = try? context.heif10Representation(
@@ -141,6 +155,8 @@ final class FilmProcessor: Sendable {
                     options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.9]
                 ) {
                     encoded = heif10
+                } else if cancellation?.isCancelled == true {
+                    return
                 } else if let jpeg = context.jpegRepresentation(
                     of: stage.image,
                     colorSpace: srgbColorSpace,
@@ -149,6 +165,7 @@ final class FilmProcessor: Sendable {
                     encoded = jpeg
                     ext = "jpg"
                 }
+                guard cancellation?.isCancelled != true else { return }
                 if let encoded {
                     try encoded.write(to: directory.appendingPathComponent("\(stage.name).\(ext)"), options: .atomic)
                 }
@@ -237,7 +254,7 @@ final class FilmProcessor: Sendable {
 
     func loadCubeLUT(resourceName: String) throws -> CubeLUT {
         // 快速路径：缓存命中
-        if let cached = lock.withLock({ $0.lutCache[resourceName] }) {
+        if let cached = lock.withLock({ $0.luts.value(forKey: resourceName) }) {
             Log.lut.debug("lut_cache_hit name=\(resourceName, privacy: .public) dim=\(cached.dimension)")
             return cached
         }
@@ -250,7 +267,7 @@ final class FilmProcessor: Sendable {
             do {
                 let data = try Data(contentsOf: compiledURL, options: .mappedIfSafe)
                 let cube = Self.applyingShadowToe(to: try Self.decodeCompiledLUT(data))
-                lock.withLock { $0.lutCache[resourceName] = cube }
+                _ = lock.withLock { $0.luts.insert(cube, forKey: resourceName, cost: cube.data.count) }
                 totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=binary bytes=\(data.count) shadow_toe=on")
                 return cube
             } catch {
@@ -272,7 +289,7 @@ final class FilmProcessor: Sendable {
             let parseTimer = Log.perf("lut_text_parse", logger: Log.lut)
             let cube = Self.applyingShadowToe(to: try Self.parseCubeFile(text))
             parseTimer.end("name=\(resourceName) dim=\(cube.dimension) shadow_toe=on")
-            lock.withLock { $0.lutCache[resourceName] = cube }
+            _ = lock.withLock { $0.luts.insert(cube, forKey: resourceName, cost: cube.data.count) }
             totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=text")
             return cube
         } catch {
@@ -319,13 +336,16 @@ final class FilmProcessor: Sendable {
     /// 从文件 URL 加载自定义 LUT（用于用户导入的 .cube 文件）
     @discardableResult
     func loadCubeLUTFromFile(url: URL, cacheKey: String) throws -> CubeLUT {
-        if let cached = lock.withLock({ $0.lutCache[cacheKey] }) {
+        if let cached = lock.withLock({ state in
+            state.fileSources.insert(url, forKey: cacheKey, cost: 0)
+            return state.luts.value(forKey: cacheKey)
+        }) {
             return cached
         }
         do {
             let text = try Self.readCubeText(from: url)
             let cube = try Self.parseCubeFile(text)
-            lock.withLock { $0.lutCache[cacheKey] = cube }
+            _ = lock.withLock { $0.luts.insert(cube, forKey: cacheKey, cost: cube.data.count) }
             return cube
         } catch {
             Log.lut.error("lut_custom_parse_failed key=\(cacheKey, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
@@ -333,17 +353,14 @@ final class FilmProcessor: Sendable {
         }
     }
 
-    /// 删除自定义 LUT 时调用——把对应缓存条目移除。否则用户导入后又删除的 .cube 会在整个进程
-    /// 生命周期内继续占用内存（一个 64³ cube ≈ 4 MiB），随导入/删除次数无上限增长。
-    /// 同时清掉以它为基底的曲线合成条目（键 = "\(key)#curve-…"）。
+    /// Deleting a custom LUT also invalidates its cached bytes, source and derived recipes.
     func removeCachedLUT(cacheKey: String) {
         lock.withLock { state in
-            state.lutCache[cacheKey] = nil
+            state.luts.removeValue(forKey: cacheKey)
+            state.fileSources.removeValue(forKey: cacheKey)
             let prefix = cacheKey + "#curve-"
-            state.lutCache.keys.filter { $0.hasPrefix(prefix) }.forEach { state.lutCache[$0] = nil }
-            state.curveCompositions.keys.filter { $0.hasPrefix(prefix) }
-                .forEach { state.curveCompositions[$0] = nil }
-            state.composedAccessOrder.removeAll { $0.hasPrefix(prefix) }
+            state.luts.removeAll { $0.hasPrefix(prefix) }
+            state.curveCompositions.removeAll { $0.hasPrefix(prefix) }
         }
     }
 
@@ -351,79 +368,67 @@ final class FilmProcessor: Sendable {
     func composedLUTCacheKey(_ lutKey: String, curve: FilmCurve) -> String {
         guard !curve.isNeutral else { return lutKey }
         let composedKey = lutKey + curve.cacheKeySuffix
-        lock.withLock { state in
-            state.curveCompositions[composedKey] = CurveComposition(baseKey: lutKey, curve: curve)
+        _ = lock.withLock { state in
+            state.curveCompositions.insert(CurveComposition(baseKey: lutKey, curve: curve),
+                forKey: composedKey, cost: 0)
         }
         return composedKey
     }
 
-    /// 获取已缓存的 LUT 数据（用于 Metal 预览创建 3D 纹理 / 成片 CIColorCube）。
-    /// 动态曲线缓存未命中时根据已登记配方同步合成；基底必须已 preload。
-    func getCachedLUT(cacheKey: String) -> CubeLUT? {
-        if let cached = lock.withLock({ state -> CubeLUT? in
-            guard let cached = state.lutCache[cacheKey] else { return nil }
-            if state.curveCompositions[cacheKey] != nil {
-                Self.touchComposedKey(cacheKey, state: &state)
-            }
-            return cached
-        }) {
-            return cached
-        }
-        guard let composition = lock.withLock({ $0.curveCompositions[cacheKey] }) else { return nil }
-        return getOrComposeLUT(
-            baseKey: composition.baseKey,
-            curve: composition.curve,
-            composedKey: cacheKey
-        )
+    /// Strictly memory-only: safe for callers that must never perform source I/O.
+    func cachedLUT(cacheKey: String) -> CubeLUT? {
+        lock.withLock { $0.luts.value(forKey: cacheKey) }
     }
 
-    /// 取基底 LUT 并应用曲线，结果以带内容指纹的组合键缓存。
-    private func getOrComposeLUT(baseKey: String, curve: FilmCurve, composedKey: String) -> CubeLUT? {
-        if let cached = lock.withLock({ state -> CubeLUT? in
-            guard let cached = state.lutCache[composedKey] else { return nil }
-            Self.touchComposedKey(composedKey, state: &state)
-            return cached
-        }) {
+    /// Evicted bytes reload from their source. Current curve selections register a recipe before
+    /// preparation; very old user recipes may be forgotten, while captures own immutable LUT bytes.
+    func resolveLUT(cacheKey: String) -> CubeLUT? {
+        if let cached = cachedLUT(cacheKey: cacheKey) {
             return cached
         }
-        guard let base = lock.withLock({ $0.lutCache[baseKey] }) else { return nil }
+        if let composition = lock.withLock({ $0.curveCompositions.value(forKey: cacheKey) }) {
+            guard let base = resolveLUT(cacheKey: composition.baseKey) else { return nil }
+            return compose(base: base, curve: composition.curve, composedKey: cacheKey)
+        }
+        if let url = lock.withLock({ $0.fileSources.value(forKey: cacheKey) }) {
+            return try? loadCubeLUTFromFile(url: url, cacheKey: cacheKey)
+        }
+        if Bundle.main.url(forResource: cacheKey, withExtension: "jslut") != nil
+            || Bundle.main.url(forResource: cacheKey, withExtension: "cube") != nil {
+            return try? loadCubeLUT(resourceName: cacheKey)
+        }
+        return nil
+    }
+
+    private func compose(base: CubeLUT, curve: FilmCurve, composedKey: String) -> CubeLUT {
+        if let cached = lock.withLock({ $0.luts.value(forKey: composedKey) }) {
+            return cached
+        }
         let timer = Log.perf("lut_curve_compose", logger: Log.lut)
         let composed = curve.applied(to: base)
-        let evictedKey = lock.withLock { state -> String? in
-            state.lutCache[composedKey] = composed
-            Self.touchComposedKey(composedKey, state: &state)
-            guard state.composedAccessOrder.count > Self.maxComposedLUTs else { return nil }
-            let oldest = state.composedAccessOrder.removeFirst()
-            state.lutCache[oldest] = nil
-            return oldest
-        }
-        if let evictedKey {
-            Log.lut.debug("lut_curve_cache_evict key=\(evictedKey, privacy: .public)")
-        }
-        timer.end("base=\(baseKey) curve=\(curve.id) dim=\(composed.dimension)")
+        _ = lock.withLock { $0.luts.insert(composed, forKey: composedKey, cost: composed.data.count) }
+        timer.end("curve=\(curve.id) dim=\(composed.dimension)")
         return composed
     }
 
-    private static func touchComposedKey(_ key: String, state: inout LUTState) {
-        state.composedAccessOrder.removeAll { $0 == key }
-        state.composedAccessOrder.append(key)
-    }
-
-    /// 预加载 FilmSource 对应的 LUT；非中性曲线同步合成条目，
-    /// 让预览纹理 / 成片后续 getCachedLUT 直接命中缓存。
-    func preload(source: FilmSource, curve: FilmCurve = .builtIn(.none)) {
+    /// Returns the requested bytes even when a configured cache budget cannot retain the table.
+    func loadLUT(source: FilmSource, curve: FilmCurve = .builtIn(.none)) throws -> CubeLUT {
         let baseKey = source.lutCacheKey
+        let base: CubeLUT
         switch source {
         case .preset(let p):
-            preload(preset: p)
+            base = try loadCubeLUT(resourceName: p.lutResourceName)
         case .custom(_, _, _, let fileName):
             let url = CustomLUT.storageDirectory.appendingPathComponent(fileName)
-            _ = try? loadCubeLUTFromFile(url: url, cacheKey: baseKey)
+            base = try loadCubeLUTFromFile(url: url, cacheKey: baseKey)
         }
-        if !curve.isNeutral {
-            let composedKey = composedLUTCacheKey(baseKey, curve: curve)
-            _ = getOrComposeLUT(baseKey: baseKey, curve: curve, composedKey: composedKey)
-        }
+        guard !curve.isNeutral else { return base }
+        let key = composedLUTCacheKey(baseKey, curve: curve)
+        return compose(base: base, curve: curve, composedKey: key)
+    }
+
+    func preload(source: FilmSource, curve: FilmCurve = .builtIn(.none)) {
+        _ = try? loadLUT(source: source, curve: curve)
     }
 
     /// 应用 LUT 并保留/添加元数据（拍照用，统一 sRGB 色彩空间）
@@ -434,6 +439,10 @@ final class FilmProcessor: Sendable {
     ///   各自显式写入，配对不依赖原始字节往返。
     /// - diagnosticCaptureID: 开启「保留处理阶段对照图」设置时（见 stageDiagnosticsEnabled），
     ///   逐阶段写出原片 / LUT 后 / 光学后 / 成片四张对照图，用于定位细节在哪一步丢失。
+    /// - outputQuality: nil selects automatic encoding. A non-nil value preserves only an
+    ///   older journal's frozen compression recipe; new captures leave this unset.
+    /// - cancellation: Checked before and after costly work. Cancellation returns nil;
+    ///   an encoding call already in progress completes before observing the signal.
     func applyLUTPreservingMetadata(
         imageData: Data,
         lutCacheKey: String,
@@ -443,13 +452,15 @@ final class FilmProcessor: Sendable {
         optics: FilmOpticsParameters = .disabled,
         chromatic: FilmChromaticResponseParameters = .neutral,
         chromaticSceneCCT: Float? = nil,
-        outputQuality: CGFloat = 1.0,
+        outputQuality: CGFloat? = nil,
         location: CLLocation? = nil,
         captureDate: Date = Date(),
         focalLengthIn35mm: Int? = nil,
         contentIdentifier: String? = nil,
-        diagnosticCaptureID: UUID? = nil
+        diagnosticCaptureID: UUID? = nil,
+        cancellation: CaptureRenderCancellation? = nil
     ) -> Data? {
+        guard cancellation?.isCancelled != true else { return nil }
         // 读取原始 metadata（AVCapture 写入的完整 EXIF / TIFF / Maker / 色彩空间字典）。
         // 一次读取，后面 orientation 判断 + metadata 注入都复用，避免重复打开 CGImageSource。
         let sourceProps: [String: Any] = {
@@ -467,6 +478,7 @@ final class FilmProcessor: Sendable {
             Log.lut.error("lut_apply_failed reason=ciimage_init_nil bytes=\(imageData.count)")
             return nil
         }
+        guard cancellation?.isCancelled != true else { return nil }
         let timer = Log.perf("lut_apply", logger: Log.lut)
         // 物理旋转像素到视觉正向朝向，这样 extent 反映真实宽高、输出 orientation=1 才正确
         var ciInput = rawCI.oriented(forExifOrientation: exifOrientation)
@@ -495,57 +507,22 @@ final class FilmProcessor: Sendable {
             ciInput = ciInput.cropped(to: cropRect)
         }
 
-        // 应用 LUT 滤镜（每次创建新 CIFilter，避免线程竞争）
-        // 使用 CIColorCubeWithColorSpace 显式指定输入色彩空间为 sRGB，
-        // 保证在 P3/HDR 源像素上应用 LUT 时的颜色一致性
-        guard let colorCube = CIFilter(name: "CIColorCubeWithColorSpace"),
-              let lut = capturedLUT ?? getCachedLUT(cacheKey: lutCacheKey) else {
+        guard cancellation?.isCancelled != true else { return nil }
+        guard let lut = capturedLUT ?? resolveLUT(cacheKey: lutCacheKey) else {
             Log.lut.error("lut_apply_failed reason=lut_missing key=\(lutCacheKey, privacy: .public)")
             return nil
         }
 
-        // 胶片色温响应（未校白）先于 LUT：乳剂先对光响应、显影再定色。与 Metal 预览同序。
-        let chromaticallyResponded = FilmChromaticRenderer.applying(
-            to: ciInput,
-            gain: chromatic.responseGain(sceneCCT: chromaticSceneCCT)
-        )
-
-        colorCube.setValue(chromaticallyResponded, forKey: kCIInputImageKey)
-        colorCube.setValue(lut.dimension, forKey: "inputCubeDimension")
-        colorCube.setValue(lut.data, forKey: "inputCubeData")
-        colorCube.setValue(srgbColorSpace, forKey: "inputColorSpace")
-
-        guard let gradedOutput = colorCube.outputImage else { return nil }
-        // 光学链（headroom → halation/bloom）在 LUT 后、颗粒前——颗粒代表显影终态的结构，
-        // 应加在光晕已成形、去饱和已发生的"显影结果"上，与 Metal 预览同序。
-        // 诊断模式下各阶段各留一张对照图，与原片放同一查看器里即可定位细节丢失的环节。
+        guard let stages = FilmImagePipeline.stages(for: ciInput, lut: lut,
+            chromaticGain: chromatic.responseGain(sceneCCT: chromaticSceneCCT),
+            optics: optics, grain: grain, grainSeed: grainSeed,
+            cancellation: cancellation) else { return nil }
+        let output = stages.final
         let wantsStageDiagnostics = diagnosticCaptureID != nil && Self.stageDiagnosticsEnabled
-        var stageSamples: [(name: String, image: CIImage)] = []
-        if wantsStageDiagnostics {
-            stageSamples.append(("2_after_lut", gradedOutput))
-        }
-        let opticallyGraded = FilmOpticsRenderer.applying(to: gradedOutput, parameters: optics)
-        if wantsStageDiagnostics {
-            stageSamples.append(("3_after_optics", opticallyGraded))
-        }
-        let output = FilmGrainRenderer.applying(
-            to: opticallyGraded,
-            parameters: grain,
-            seed: grainSeed
-        )
-        if wantsStageDiagnostics {
-            stageSamples.append(("4_after_grain", output))
-        }
 
-        // 渲染为 10-bit HEIC（HEVC Main10），与 iPhone Camera 出片比特深度对齐。
-        // CIColorCubeWithColorSpace 在浮点域插值 LUT cell，输出的中间色精度本身就 > 8-bit，
-        // 压回 RGBA8 会量化掉这部分精度——渐变最易在天空/皮肤上出 banding。10-bit 保留这部分。
-        // 文件体积比 8-bit + 0.95 大 ~50–80%（200mm/12MP 约 300KB → 700–900KB），
-        // 对齐 iPhone Camera 的同场景出片大小。
-        // 兜底链：heif10 → 8-bit HEIC → JPEG（极旧设备无 HEVC 编码器）。
-        // 渲染输出的真实像素尺寸 = LUT 输出 CIImage 的 extent（= 裁切后的输入 extent）。
-        // 这是判断"文件为何小"的关键诊断量：几百 KB 若伴随完整 ~22MP 尺寸 → 编码质量问题；
-        // 若尺寸本身就小 → 采集/解码端把分辨率丢了。
+        // Prefer 10-bit HEIC to retain precision in LUT interpolation and smooth gradients.
+        // Automatic compression keeps the full output extent and film grain; only an
+        // unavailable codec causes fallback to 8-bit HEIC or JPEG.
         var metadata = sourceProps
 
         // 方向：像素已通过 .oriented(forExifOrientation:) 物理旋转到正向，输出标记为 .up
@@ -620,55 +597,45 @@ final class FilmProcessor: Sendable {
         let outExtent = output.extent
         let outMP = (outExtent.isInfinite || outExtent.isEmpty) ? 0 : (outExtent.width * outExtent.height) / 1_000_000
 
+        guard cancellation?.isCancelled != true else { return nil }
         let ciContext = renderingContext()
-        let rendered: Data
-        let codec: String
-        if let heif10 = try? ciContext.heif10Representation(
-            of: outputWithMetadata,
-            colorSpace: srgbColorSpace,
-            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
-        ) {
-            rendered = heif10
-            codec = "heif10"
-        } else if let heif8 = ciContext.heifRepresentation(
-            of: outputWithMetadata,
-            format: .RGBA8,
-            colorSpace: srgbColorSpace,
-            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
-        ) {
-            Log.lut.info("lut_render_fallback codec=heif8 reason=heif10_unavailable")
-            rendered = heif8
-            codec = "heif8"
-        } else if let jpeg = ciContext.jpegRepresentation(
-            of: outputWithMetadata,
-            colorSpace: srgbColorSpace,
-            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: outputQuality]
-        ) {
-            Log.lut.info("lut_render_fallback codec=jpeg reason=heif_unavailable")
-            rendered = jpeg
-            codec = "jpeg"
-        } else {
-            Log.lut.error("lut_apply_failed reason=render_failed")
+        guard cancellation?.isCancelled != true else { return nil }
+        guard let encoded = PhotoImageEncoder.encode(outputWithMetadata, context: ciContext,
+            colorSpace: srgbColorSpace, legacyQuality: outputQuality, cancellation: cancellation) else {
+            if cancellation?.isCancelled != true { Log.lut.error("lut_apply_failed reason=render_failed") }
             return nil
         }
+        let rendered = encoded.data
+        let codec = encoded.decision.codec.rawValue
+        if encoded.decision.codec != .heif10 {
+            Log.lut.info("lut_render_fallback codec=\(codec, privacy: .public) reason=preferred_codec_unavailable")
+        }
+        guard cancellation?.isCancelled != true else { return nil }
+
+        DiagnosticTrace(id: diagnosticCaptureID?.uuidString ?? "photo-encoder").event("photo_encoding",
+            "mode=\(encoded.decision.mode.rawValue) scene=\(grain.isEnabled ? "film_grain" : "clean_render") " +
+            "pixels=\(Int(outExtent.width * outExtent.height)) width=\(Int(outExtent.width)) height=\(Int(outExtent.height)) " +
+            "codec=\(codec) source_bytes=\(imageData.count) output_bytes=\(rendered.count) " +
+            "selected_quality=\(String(format: "%.2f", Double(encoded.decision.quality))) grain_amount=\(String(format: "%.3f", grain.amount))")
 
         // 🔑 一击定位行：像素与 metadata 一次编码完成后。codec / 输出像素尺寸 / 百万像素 / 质量参数 /
         // 输入原始字节 / 编码后字节 全在一行。若 rendered_bytes 这里就只有几百 KB 而 out_dims 是完整
         // ~5500×4100，则问题在编码质量；若 out_dims 本身就小，则问题在采集/解码端。
-        Log.lut.info("lut_render_done codec=\(codec, privacy: .public) out_dims=\(Int(outExtent.width))x\(Int(outExtent.height)) mp=\(String(format: "%.1f", outMP)) quality=\(String(format: "%.2f", Double(outputQuality))) grain=\(String(format: "%.3f", grain.amount)) optics=\(optics.isEnabled) halation=\(String(format: "%.2f", optics.halationAmount)) bloom=\(String(format: "%.2f", optics.bloomAmount)) headroom=\(String(format: "%.2f", optics.headroomAmount)) in_bytes=\(imageData.count) rendered_bytes=\(rendered.count)")
+        Log.lut.info("lut_render_done codec=\(codec, privacy: .public) out_dims=\(Int(outExtent.width))x\(Int(outExtent.height)) mp=\(String(format: "%.1f", outMP)) quality=\(String(format: "%.2f", Double(encoded.decision.quality))) grain=\(String(format: "%.3f", grain.amount)) optics=\(optics.isEnabled) halation=\(String(format: "%.2f", optics.halationAmount)) bloom=\(String(format: "%.2f", optics.bloomAmount)) headroom=\(String(format: "%.2f", optics.headroomAmount)) in_bytes=\(imageData.count) rendered_bytes=\(rendered.count)")
 
         if wantsStageDiagnostics, let diagnosticCaptureID {
             writeStageDiagnostics(
                 id: diagnosticCaptureID,
                 original: imageData,
-                stages: stageSamples,
-                context: ciContext
+                stages: [("2_after_lut", stages.graded), ("3_after_optics", stages.optical),
+                         ("4_after_grain", stages.final)],
+                context: ciContext,
+                cancellation: cancellation
             )
         }
 
-        // 注入 metadata：把原始 source props 中的 EXIF/TIFF/GPS 等字典通过 CGImageDestination 写到
-        // 已编码的图像上。**source 和 destination 是同一 imageType 时，AddImageFromSource 是 fast copy +
-        // metadata replace**（Apple docs 原话），不会重新压缩——画质零损失。
+        guard cancellation?.isCancelled != true else { return nil }
+        // Pixels and metadata have already been encoded together in a single pass.
         timer.end("in=\(imageData.count)B out=\(rendered.count)B gps=\(location != nil)")
         return rendered
     }
