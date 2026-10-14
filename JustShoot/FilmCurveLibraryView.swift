@@ -15,15 +15,26 @@ struct FilmCurveLibraryView: View {
 
     var body: some View {
         List {
+            if let error = library.storageError {
+                Section {
+                    Text(error)
+                        .foregroundStyle(.secondary)
+                }
+            }
             Section {
                 ForEach(CurvePreset.allCases) { preset in
                     Toggle(isOn: builtInVisibilityBinding(preset)) {
-                        FilmCurvePreviewCard(
-                            curve: .builtIn(preset),
-                            isSelected: false,
-                            cardSize: CGSize(width: 108, height: 76),
-                            graphSize: CGSize(width: 94, height: 40)
-                        )
+                        HStack(spacing: 12) {
+                            FilmCurvePreviewCard(
+                                curve: .builtIn(preset),
+                                isSelected: false,
+                                cardSize: CGSize(width: 108, height: 76),
+                                graphSize: CGSize(width: 94, height: 40)
+                            )
+                            Text(preset.summary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .tint(.green)
                     .disabled(preset == .none)
@@ -34,8 +45,9 @@ struct FilmCurveLibraryView: View {
             } header: {
                 Text("Built-in Curves")
             } footer: {
-                Text("Neutral is always available")
+                Text("Curves adjust the film's tones. Neutral keeps its original response.")
             }
+            .disabled(!library.canEdit)
 
             Section("My Curves") {
                 if library.customCurves.isEmpty {
@@ -74,6 +86,7 @@ struct FilmCurveLibraryView: View {
                     }
                 }
             }
+            .disabled(!library.canEdit)
         }
         .scrollContentBackground(.hidden)
         .background(Color.black)
@@ -93,6 +106,7 @@ struct FilmCurveLibraryView: View {
                     Image(systemName: "plus")
                 }
                 .accessibilityLabel("Add Curve")
+                .disabled(!library.canEdit)
             }
         }
         .alert(
@@ -218,7 +232,7 @@ struct FilmCurveEditorView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save", action: save)
-                    .disabled(trimmedName.isEmpty)
+                    .disabled(trimmedName.isEmpty || !library.canEdit)
             }
         }
     }

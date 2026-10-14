@@ -1,0 +1,204 @@
+import XCTest
+@testable import JustShoot
+
+@MainActor
+final class FilmCurveLibraryTests: XCTestCase {
+    private struct StoredPayload: Codable {
+        var version = 2
+        var customCurves: [CustomFilmCurve] = []
+        var hiddenBuiltInIDs: [String] = []
+        var selectedCurveID: String?
+    }
+
+    private func withDefaults(_ body: (UserDefaults) throws -> Void) throws {
+        let name = "film-curves-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        try body(defaults)
+    }
+
+    private func store(_ payload: StoredPayload, in defaults: UserDefaults) throws {
+        defaults.set(try JSONEncoder().encode(payload), forKey: "filmCurveLibrary.v1")
+    }
+
+    private func load(_ defaults: UserDefaults) throws -> StoredPayload {
+        try JSONDecoder().decode(StoredPayload.self, from: XCTUnwrap(defaults.data(forKey: "filmCurveLibrary.v1")))
+    }
+
+    func testOnlyThePreviouslySelectedRetiredOrRedefinedCurveMigrates() throws {
+        for id in ["airyPastel", "softFaded", "warmRetro", "softShoulder"] {
+            try withDefaults { defaults in
+                defaults.set(id, forKey: "curvePreset")
+                let library = FilmCurveLibrary(defaults: defaults)
+                let curve = try XCTUnwrap(library.customCurves.first)
+                XCTAssertEqual(library.customCurves.count, 1)
+                XCTAssertTrue(curve.isVisible)
+                XCTAssertEqual(library.selectedCurveID, curve.filmCurve.id)
+                let restored = FilmCurveLibrary(defaults: defaults)
+                XCTAssertEqual(restored.customCurves.count, 1)
+                XCTAssertEqual(restored.selectedCurveID, library.selectedCurveID)
+                XCTAssertEqual(restored.customCurves.first?.id, curve.id)
+            }
+        }
+        try withDefaults { defaults in
+            try store(StoredPayload(hiddenBuiltInIDs: ["airyPastel", "softFaded", "warmRetro"]), in: defaults)
+            defaults.set("highContrast", forKey: "curvePreset")
+            let library = FilmCurveLibrary(defaults: defaults)
+            XCTAssertTrue(library.customCurves.isEmpty)
+            XCTAssertEqual(library.selectedCurveID, "highContrast")
+            XCTAssertTrue(library.hiddenBuiltInIDs.isEmpty)
+        }
+    }
+
+    func testMigrationAtomicallyRecordsItsSelectionAndIgnoresAStaleLegacyMirror() throws {
+        try withDefaults { defaults in
+            defaults.set("warmRetro", forKey: "curvePreset")
+            let first = FilmCurveLibrary(defaults: defaults)
+            let payload = try load(defaults)
+            XCTAssertEqual(payload.version, 2)
+            XCTAssertEqual(payload.selectedCurveID, first.selectedCurveID)
+            XCTAssertEqual(payload.customCurves.first?.id, first.customCurves.first?.id)
+            // Simulate interruption before the compatibility mirror was written.
+            defaults.set("warmRetro", forKey: "curvePreset")
+            let second = FilmCurveLibrary(defaults: defaults)
+            XCTAssertEqual(second.customCurves, first.customCurves)
+            XCTAssertEqual(second.selectedCurveID, first.selectedCurveID)
+            XCTAssertEqual(defaults.string(forKey: "curvePreset"), first.selectedCurveID)
+        }
+    }
+
+    func testFreshInstallAndNewSoftContrastNeverReceiveLegacyMigrationOnReload() throws {
+        try withDefaults { defaults in
+            let first = FilmCurveLibrary(defaults: defaults)
+            XCTAssertEqual(try load(defaults).selectedCurveID, "none")
+            XCTAssertTrue(first.select(.builtIn(.filmSoft)))
+            let second = FilmCurveLibrary(defaults: defaults)
+            XCTAssertTrue(second.customCurves.isEmpty)
+            XCTAssertEqual(second.selectedCurveID, "softShoulder")
+        }
+    }
+
+    func testMigrationPreservesThePreviousSoftCurveAndWarmRGBEndpoints() throws {
+        let soft = try XCTUnwrap(LegacyCurveMigration.customCurve(for: "softShoulder"))
+        XCTAssertEqual(soft.masterPoints, CurveMath.points([
+            (0, 0), (0.08, 0.045), (0.25, 0.20), (0.50, 0.52), (0.75, 0.82), (0.92, 0.965), (1, 1)
+        ]))
+        XCTAssertEqual(soft.filmCurve.sampleGray(0.25).red, 0.20, accuracy: 0.001)
+        let warm = try XCTUnwrap(LegacyCurveMigration.customCurve(for: "warmRetro"))
+        XCTAssertEqual(warm.masterPoints, CurveMath.identityPoints)
+        let black = warm.filmCurve.sampleGray(0)
+        let white = warm.filmCurve.sampleGray(1)
+        XCTAssertEqual(black.red, 0.015, accuracy: 0.000001)
+        XCTAssertEqual(black.green, 0.025, accuracy: 0.000001)
+        XCTAssertEqual(black.blue, 0.055, accuracy: 0.000001)
+        XCTAssertEqual(white.red, 1, accuracy: 0.000001)
+        XCTAssertEqual(white.green, 0.985, accuracy: 0.000001)
+        XCTAssertEqual(white.blue, 0.93, accuracy: 0.000001)
+        XCTAssertNil(LegacyCurveMigration.customCurve(for: "none"))
+        XCTAssertNil(LegacyCurveMigration.customCurve(for: "unknown"))
+    }
+
+    func testLegacyHiddenSelectionsFallBackWithoutRevivingHiddenCurves() throws {
+        for selection in ["softShoulder", "warmRetro", "crossProcess"] {
+            try withDefaults { defaults in
+                try store(StoredPayload(hiddenBuiltInIDs: ["none", selection, "airyPastel"]), in: defaults)
+                defaults.set(selection, forKey: "curvePreset")
+                let library = FilmCurveLibrary(defaults: defaults)
+                XCTAssertEqual(library.selectedCurveID, "none")
+                XCTAssertTrue(library.customCurves.isEmpty)
+                XCTAssertTrue(library.isBuiltInVisible(.none))
+                XCTAssertFalse(library.hiddenBuiltInIDs.contains("airyPastel"))
+            }
+        }
+    }
+
+    func testUnknownOrMalformedPayloadCannotBeOverwrittenByAnyMutation() throws {
+        let future = Data("{\"version\":99,\"futureData\":\"preserve me\"}".utf8)
+        let malformed = Data("not JSON".utf8)
+        for original in [future, malformed] {
+            try withDefaults { defaults in
+                defaults.set(original, forKey: "filmCurveLibrary.v1")
+                defaults.set("warmRetro", forKey: "curvePreset")
+                let library = FilmCurveLibrary(defaults: defaults)
+                let custom = CustomFilmCurve(name: "New")
+                XCTAssertNotNil(library.storageError)
+                XCTAssertFalse(library.canEdit)
+                XCTAssertFalse(library.add(custom))
+                XCTAssertFalse(library.update(custom))
+                XCTAssertFalse(library.delete(id: custom.id))
+                XCTAssertFalse(library.select(.builtIn(.punch)))
+                XCTAssertFalse(library.setBuiltIn(.punch, isVisible: false))
+                XCTAssertFalse(library.setCustomVisibility(id: custom.id, isVisible: false))
+                XCTAssertEqual(defaults.data(forKey: "filmCurveLibrary.v1"), original)
+                XCTAssertEqual(defaults.string(forKey: "curvePreset"), "warmRetro")
+            }
+        }
+    }
+
+    func testExistingCustomIdentityDatesVisibilityAndChannelPointsSurviveCatalogMigration() throws {
+        try withDefaults { defaults in
+            var existing = CustomFilmCurve(name: "Mine")
+            existing.createdAt = Date(timeIntervalSinceReferenceDate: 100)
+            existing.updatedAt = Date(timeIntervalSinceReferenceDate: 200)
+            existing.isVisible = false
+            existing.bluePoints = CurveMath.points([(0, 0.05), (0.5, 0.65), (1, 0.9)])
+            try store(StoredPayload(version: 1, customCurves: [existing], hiddenBuiltInIDs: ["matteShadow"]), in: defaults)
+            defaults.set("airyPastel", forKey: "curvePreset")
+            let library = FilmCurveLibrary(defaults: defaults)
+            XCTAssertEqual(library.customCurves.first { $0.id == existing.id }, existing)
+            XCTAssertEqual(library.customCurves.count, 2)
+            XCTAssertFalse(library.isBuiltInVisible(.matte))
+            XCTAssertNil(library.curve(id: existing.filmCurve.id))
+        }
+    }
+
+    func testSavingAStaleEditorDraftDoesNotRestoreHiddenVisibility() throws {
+        try withDefaults { defaults in
+            let library = FilmCurveLibrary(defaults: defaults)
+            let initial = CustomFilmCurve(name: "Initial")
+            XCTAssertTrue(library.add(initial))
+            XCTAssertTrue(library.select(initial.filmCurve))
+            var draft = initial
+            XCTAssertTrue(library.setCustomVisibility(id: initial.id, isVisible: false))
+            draft.name = "Edited"
+            XCTAssertTrue(library.update(draft))
+            let saved = try XCTUnwrap(library.customCurves.first)
+            XCTAssertFalse(saved.isVisible)
+            XCTAssertEqual(saved.name, "Edited")
+            XCTAssertEqual(saved.createdAt, initial.createdAt)
+            XCTAssertEqual(library.selectedCurveID, "none")
+            XCTAssertNil(library.curve(id: initial.filmCurve.id))
+        }
+    }
+
+    func testDuplicateSaveCannotInsertASecondCurveWithTheSameUUID() throws {
+        try withDefaults { defaults in
+            let library = FilmCurveLibrary(defaults: defaults)
+            let curve = CustomFilmCurve(name: "Saved once")
+            XCTAssertTrue(library.add(curve))
+            var duplicate = curve
+            duplicate.name = "Should not replace it"
+            XCTAssertFalse(library.add(duplicate))
+            XCTAssertEqual(library.customCurves.count, 1)
+            XCTAssertEqual(library.customCurves.first?.name, "Saved once")
+            XCTAssertEqual(FilmCurveLibrary(defaults: defaults).customCurves.count, 1)
+        }
+    }
+
+    func testHidingOrDeletingASelectionPersistsNeutralAlongWithTheCatalog() throws {
+        try withDefaults { defaults in
+            let library = FilmCurveLibrary(defaults: defaults)
+            XCTAssertTrue(library.select(.builtIn(.punch)))
+            XCTAssertTrue(library.setBuiltIn(.punch, isVisible: false))
+            XCTAssertEqual(try load(defaults).selectedCurveID, "none")
+            let curve = CustomFilmCurve(name: "Delete me")
+            XCTAssertTrue(library.add(curve))
+            XCTAssertTrue(library.select(curve.filmCurve))
+            XCTAssertTrue(library.delete(id: curve.id))
+            let restored = FilmCurveLibrary(defaults: defaults)
+            XCTAssertEqual(restored.selectedCurveID, "none")
+            XCTAssertTrue(restored.customCurves.isEmpty)
+            XCTAssertFalse(restored.isBuiltInVisible(.punch))
+        }
+    }
+}

@@ -406,11 +406,8 @@ struct FilmCurvePreviewCard: View {
         switch curve.builtInPreset {
         case .some(.none): return Color(white: 0.82)
         case .some(.filmSoft): return Color(red: 0.96, green: 0.70, blue: 0.32)
-        case .some(.openShadows): return Color(red: 0.35, green: 0.72, blue: 0.96)
         case .some(.punch): return Color(red: 1.00, green: 0.38, blue: 0.30)
         case .some(.matte): return Color(red: 0.78, green: 0.66, blue: 0.52)
-        case .some(.fade): return Color(red: 0.70, green: 0.55, blue: 0.92)
-        case .some(.warmPrint): return Color(red: 1.00, green: 0.56, blue: 0.22)
         case .some(.crossProcess): return Color(red: 0.92, green: 0.34, blue: 0.72)
         case nil: return Color(red: 0.38, green: 0.82, blue: 0.72)
         }
@@ -448,7 +445,7 @@ private struct CurveManagerPickerCell: View {
 
 // MARK: - 曲线差异图
 /// 虚线是恒等响应；半透明面积直接显示预设相对恒等线提亮/压暗了多少。
-/// 只有真正逐通道分离的 Warm Print / X-Pro 才画 RGB 三线，其他预设保持单线清晰度。
+/// 只有实际响应不同的 RGB 通道才画三线；相同通道只画一条合成线。
 struct CurveGraphView: View {
     let curve: FilmCurve
     let accent: Color

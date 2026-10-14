@@ -43,7 +43,8 @@ final class FilmProcessorCacheTests: XCTestCase {
     func testEvictedCompositionRebuildsItsBaseWithoutChangingCaptureSnapshot() throws {
         let root = try directory()
         defer { try? FileManager.default.removeItem(at: root) }
-        let processor = FilmProcessor(maximumLUTCacheBytes: 128)
+        let composedBytes = 33 * 33 * 33 * 16
+        let processor = FilmProcessor(maximumLUTCacheBytes: composedBytes)
         _ = try processor.loadCubeLUTFromFile(url: writeCube(in: root, named: "film"), cacheKey: "film")
         let key = processor.composedLUTCacheKey("film", curve: .builtIn(.matte))
         let snapshot = try XCTUnwrap(processor.resolveLUT(cacheKey: key))
@@ -51,14 +52,14 @@ final class FilmProcessorCacheTests: XCTestCase {
         XCTAssertNil(processor.cachedLUT(cacheKey: key))
         let rebuilt = try XCTUnwrap(processor.resolveLUT(cacheKey: key))
         XCTAssertEqual(rebuilt.data, snapshot.data)
-        XCTAssertEqual(processor.cachedLUTBytes, 128)
+        XCTAssertEqual(processor.cachedLUTBytes, composedBytes)
         XCTAssertEqual(processor.cachedLUTCount, 1)
     }
 
     func testSourcePreparationWorksWhenNoTableFitsTheCacheBudget() throws {
         let processor = FilmProcessor(maximumLUTCacheBytes: 0)
         let source = FilmSource.preset(.fujiC200)
-        let curve = FilmCurve.builtIn(.openShadows)
+        let curve = FilmCurve.builtIn(.filmSoft)
         let captured = try processor.loadLUT(source: source, curve: curve)
         let rebuilt = try processor.loadLUT(source: source, curve: curve)
         XCTAssertEqual(rebuilt.data, captured.data)

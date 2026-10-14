@@ -222,6 +222,22 @@
         }
       }
     },
+    "Add midtone contrast with an S-curve." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add midtone contrast with an S-curve."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用 S 曲线增强中间调反差。"
+          }
+        }
+      }
+    },
     "Adjust color temperature" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -806,6 +822,22 @@
         }
       }
     },
+    "Cool shadows and warm highlights." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cool shadows and warm highlights."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冷色暗部，暖色亮部。"
+          }
+        }
+      }
+    },
     "Corners" : {},
     "Could not delete filter" : {
       "extractionState" : "manual",
@@ -940,6 +972,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "曲线选择"
+          }
+        }
+      }
+    },
+    "Curves adjust the film's tones. Neutral keeps its original response." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Curves adjust the film's tones. Neutral keeps its original response."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲线调整胶片输出的影调，中性保留原有响应。"
           }
         }
       }
@@ -1751,6 +1799,22 @@
         }
       }
     },
+    "Keep the film's original tones." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep the film's original tones."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留胶片原有的影调。"
+          }
+        }
+      }
+    },
     "LIVE" : {},
     "LUT resource not found: %@.cube" : {
       "extractionState" : "manual",
@@ -1780,6 +1844,22 @@
       }
     },
     "Library" : {},
+    "Lift blacks for a faded print look." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lift blacks for a faded print look."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "抬高黑位，呈现褪色相纸质感。"
+          }
+        }
+      }
+    },
     "Live Photo" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2480,6 +2560,22 @@
         }
       }
     },
+    "Reduce midtone contrast." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reduce midtone contrast."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "降低中间调反差。"
+          }
+        }
+      }
+    },
     "Reset" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2564,6 +2660,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "圆角"
+          }
+        }
+      }
+    },
+    "S-Curve" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S-Curve"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S 曲线"
           }
         }
       }
@@ -2805,6 +2917,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "小"
+          }
+        }
+      }
+    },
+    "Soft Contrast" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soft Contrast"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "柔和反差"
           }
         }
       }
@@ -3497,6 +3625,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "照片和滤镜均已保留，请重试。"
+          }
+        }
+      }
+    },
+    "Your saved curves could not be read. They are preserved on this device; editing is unavailable." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your saved curves could not be read. They are preserved on this device; editing is unavailable."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取已保存的曲线。数据仍保留在此设备上，目前无法编辑。"
           }
         }
       }

@@ -191,6 +191,10 @@ struct CameraView: View {
                         orientation: cameraManager.currentDeviceOrientation,
                         onManage: { showCurveManager = true }
                     ) { curve in
+                        guard curveLibrary.canEdit else {
+                            showCurveManager = true
+                            return
+                        }
                         if curve.id != selectedCurve.id {
                             cameraManager.hapticSoft.impactOccurred()
                             curveLibrary.select(curve)
@@ -490,6 +494,7 @@ struct CameraView: View {
             guard preparedLUT?.key != key else { return }
             let requestedSource = source
             let curve = selectedCurve
+            let curveFields = curveDiagnosticFields(curve)
             let selection = whiteBalanceSelection
             let tint = tintSelection
             let reference = cameraManager.automaticWhiteBalanceReading
@@ -506,13 +511,13 @@ struct CameraView: View {
             guard key == previewLUTKey else { return }
             lutPreparationCadence.started(at: ProcessInfo.processInfo.systemUptime)
             let lutWait = cameraManager.diagnostics.span("camera_lut_prepare",
-                "\(colorAdjustmentDiagnosticFields) cadence_wait_ms=\(Diagnostics.milliseconds(since: requestedAt))")
+                "\(curveFields) \(colorAdjustmentDiagnosticFields) cadence_wait_ms=\(Diagnostics.milliseconds(since: requestedAt))")
             do {
                 let lut = try await ColorTemperatureLUT.shared.prepare(source: requestedSource, curve: curve, selection: selection, tint: tint, reference: reference)
                 lutWait.end("ok", "cancelled=\(Task.isCancelled)")
                 guard !Task.isCancelled, key == previewLUTKey else { return }
                 preparedLUT = (key, lut, requestedSource.renderProfile)
-                cameraManager.diagnostics.event("camera_lut_ready", "dimension=\(lut.dimension) \(colorAdjustmentDiagnosticFields)")
+                cameraManager.diagnostics.event("camera_lut_ready", "dimension=\(lut.dimension) \(curveFields) \(colorAdjustmentDiagnosticFields)")
             } catch is CancellationError {
                 lutWait.end("cancelled")
             } catch {
@@ -585,6 +590,11 @@ struct CameraView: View {
             tint: tintSelection, reference: cameraManager.automaticWhiteBalanceReading)
     }
 
+    private func curveDiagnosticFields(_ curve: FilmCurve) -> String {
+        let suffix = curve.cacheKeySuffix
+        return "curve_id=\(curve.id) curve_key=\(suffix.isEmpty ? "identity" : suffix)"
+    }
+
     private var colorAdjustmentDiagnosticFields: String {
         let reading = cameraManager.automaticWhiteBalanceReading
         let resolved = reading.flatMap { ResolvedCameraColorAdjustment.resolve(temperature: whiteBalanceSelection, tint: tintSelection, reading: $0) }
@@ -623,9 +633,11 @@ struct CameraView: View {
             cameraManager.diagnostics.event("shutter_ignored", "reason=admission_busy")
             return
         }
+        let capturedCurve = selectedCurve
+        let curveFields = curveDiagnosticFields(capturedCurve)
         let requestedID = admission.id
         let captureTrace = DiagnosticTrace(id: requestedID.uuidString)
-        captureTrace.event("shutter_tap", "camera=\(cameraManager.diagnostics.id) pending=\(capturePipeline.pendingCount) requested_live=\(livePhotoEnabled) \(colorAdjustmentDiagnosticFields)")
+        captureTrace.event("shutter_tap", "camera=\(cameraManager.diagnostics.id) pending=\(capturePipeline.pendingCount) requested_live=\(livePhotoEnabled) \(curveFields) \(colorAdjustmentDiagnosticFields)")
         let tapTime = Log.now()
         // 拍摄时刻快照：相册 creationDate 必须反映按快门的瞬间。后处理已串行排队，若在队列任务
         // 里才求值 Date()，连拍尾部照片的时间会晚数秒到数十秒（Photos 按 creationDate 排序展示）。
