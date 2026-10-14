@@ -65,6 +65,20 @@ private final class PipelineBox: @unchecked Sendable {
 }
 
 enum LivePhotoProcessor {
+    /// A readable recovered movie keeps ordinary retry semantics if encoding later fails.
+    static func isReadableSource(at url: URL) async throws -> Bool {
+        try Task.checkCancellation()
+        do {
+            let asset = AVURLAsset(url: url)
+            let tracks = try await asset.loadTracks(withMediaType: .video)
+            let duration = try await asset.load(.duration)
+            try Task.checkCancellation()
+            return !tracks.isEmpty && duration.isNumeric && duration.seconds.isFinite && duration.seconds > 0
+        } catch {
+            if Task.isCancelled { throw CancellationError() }
+            return false
+        }
+    }
 
     enum ProcessError: Error {
         case noVideoTrack

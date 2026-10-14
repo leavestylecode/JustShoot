@@ -21,7 +21,7 @@ final class PhotoDisplayRoundTripTests: XCTestCase {
         let preset = FilmPreset.fujiC200
         let profile = preset.renderProfile
         let lut = try FilmProcessor.shared.loadCubeLUT(resourceName: preset.lutResourceName)
-        let renderedResult = await FilmProcessor.shared.applyLUTPreservingMetadata(
+        let renderedResult = FilmProcessor.shared.applyLUTPreservingMetadata(
             imageData: source,
             lutCacheKey: preset.lutResourceName,
             capturedLUT: lut,

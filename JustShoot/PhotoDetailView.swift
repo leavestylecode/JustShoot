@@ -510,7 +510,9 @@ private struct PagerImage: View {
                     isCurrent: isCurrent,
                     fallback: displayImage,
                     targetMaxPixel: previewMaxPixel,
-                    dismisser: dismisser
+                    dismisser: dismisser,
+                    stillLoadFailed: loadFailed,
+                    loadAttempt: $loadAttempt
                 )
             } else if let image = displayImage {
                 ZoomablePhotoView(image: image, isCurrent: isCurrent, dismisser: dismisser)
@@ -823,35 +825,70 @@ private struct LivePhotoPage: View {
     let fallback: UIImage?
     let targetMaxPixel: Int
     let dismisser: DragDismissController
+    let stillLoadFailed: Bool
+    @Binding var loadAttempt: Int
 
     @State private var livePhoto: PHLivePhoto?
+    @State private var liveLoadFailed = false
+    @State private var loadedAssetID: String?
+
+    private struct LoadRequest: Hashable {
+        let photoID: UUID
+        let assetID: String?
+        let isCurrent: Bool
+        let maxPixel: Int
+        let attempt: Int
+    }
 
     var body: some View {
         ZStack {
             Color.black
-            if let livePhoto, let size = fallback?.size {
+            if let livePhoto {
                 // 可缩放 Live Photo：放进通用 ZoomingScrollView（双指缩放/双击/平移），PHLivePhotoView
-                // 自带的长按播放照常。naturalSize 取自 fallback 静图（与 Live Photo 同次拍摄、aspect 一致）。
-                ZoomableLivePhotoView(livePhoto: livePhoto, naturalSize: size, isCurrent: isCurrent, dismisser: dismisser)
+                // 自带的长按播放照常。使用 Live Photo 自身尺寸，不依赖静态占位图加载成功。
+                ZoomableLivePhotoView(livePhoto: livePhoto, naturalSize: livePhoto.size, isCurrent: isCurrent, dismisser: dismisser)
             } else if let fallback {
                 Image(uiImage: fallback)
                     .resizable()
                     .scaledToFit()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if isCurrent, liveLoadFailed {
+                    VStack(spacing: 8) {
+                        Text("Unable to load Live Photo").font(.caption)
+                        Button("Retry") { loadAttempt += 1 }
+                    }
+                    .padding(12)
+                    .background(.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 12))
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, 20)
+                }
             } else {
-                ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                VStack(spacing: 12) {
+                    if stillLoadFailed {
+                        Text("Unable to load photo").foregroundStyle(.secondary)
+                    } else {
+                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    }
+                    Button("Retry") { loadAttempt += 1 }.tint(.white)
+                }
             }
         }
         // LIVE 角标不在这里画——图片区会延伸到导航栏下方，贴顶会被导航栏遮挡。改由 PhotoDetailView
         // 在安全区内（导航栏下方）统一绘制，见 body 的 .overlay。
         // photo.id + isCurrent 任一变化都重评估：翻到该页（isCurrent 变 true）即异步加载 live 资源。
-        .task(id: "\(photo.id.uuidString)-\(isCurrent)") {
-            guard !photo.isDeleted, isCurrent, livePhoto == nil, let aid = photo.assetLocalIdentifier else { return }
+        .task(id: LoadRequest(photoID: photo.id, assetID: photo.isDeleted ? nil : photo.assetLocalIdentifier,
+            isCurrent: isCurrent, maxPixel: targetMaxPixel, attempt: loadAttempt)) {
+            guard !photo.isDeleted, isCurrent, let aid = photo.assetLocalIdentifier,
+                  livePhoto == nil || loadedAssetID != aid else { return }
+            if loadedAssetID != aid { livePhoto = nil }
+            liveLoadFailed = false
             let side = CGFloat(targetMaxPixel)
             let result = await AssetImageLoader.shared.livePhoto(id: aid, targetSize: CGSize(width: side, height: side),
                 trace: DiagnosticTrace(id: photo.id.uuidString))
             guard !Task.isCancelled else { return }
             livePhoto = result
+            loadedAssetID = aid
+            liveLoadFailed = result == nil
         }
     }
 }

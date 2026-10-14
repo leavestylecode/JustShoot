@@ -1,9 +1,45 @@
 import XCTest
+import AVFoundation
+import UIKit
 @testable import JustShoot
 
 /// LensTransitionCompositor（主源↔底衬混合状态机）的纯逻辑单测。
 /// 覆盖：底衬不可用退化、停顿淡出、恢复淡回、滞回带保持、正常帧节距不误触发。
 final class LensTransitionCompositorTests: XCTestCase {
+    @MainActor
+    func testUnderlayCompositionDoesNotDimIdenticalSourcesDuringFade() throws {
+        let manager = CameraManager()
+        defer { manager.stopSession() }
+        let container = CALayer()
+        container.frame = CGRect(x: 0, y: 0, width: 8, height: 8)
+        container.backgroundColor = UIColor.black.cgColor
+        let underlay = AVCaptureVideoPreviewLayer()
+        underlay.frame = container.bounds
+        underlay.backgroundColor = UIColor.white.cgColor
+        underlay.opacity = 0.65
+        manager.attachPreviewUnderlay(underlay)
+        container.addSublayer(underlay)
+        let upper = CALayer()
+        upper.frame = container.bounds
+        upper.backgroundColor = UIColor.white.cgColor
+        container.addSublayer(upper)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: container.bounds.size, format: format)
+        for opacity: Float in [1, 0.65, 0.5, 0.35, 0] {
+            upper.opacity = opacity
+            let rendered = renderer.image { container.render(in: $0.cgContext) }
+            let image = try XCTUnwrap(rendered.cgImage)
+            var pixel = [UInt8](repeating: 0, count: 4)
+            try pixel.withUnsafeMutableBytes { bytes in
+                let context = try XCTUnwrap(CGContext(data: bytes.baseAddress, width: 1, height: 1,
+                    bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+                context.draw(image, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+            }
+            XCTAssertTrue(pixel.allSatisfy { $0 >= 250 }, "Preview dimmed at alpha=\(opacity): \(pixel)")
+        }
+    }
 
     func testUnderlayUnavailablePinsMainSourceOpaque() {
         var blender = PreviewUnderlayBlender()

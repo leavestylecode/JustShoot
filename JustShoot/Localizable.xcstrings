@@ -784,6 +784,23 @@
         }
       }
     },
+    "Could not switch to this focal length. Select it again to retry." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not switch to this focal length. Select it again to retry."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法切换到此焦距，请重新选择该焦距后重试。"
+          }
+        }
+      }
+    },
     "Couldn't access the file" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2962,6 +2979,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "调整筛选条件试试"
+          }
+        }
+      }
+    },
+    "Unable to load Live Photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to load Live Photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载实况照片"
           }
         }
       }

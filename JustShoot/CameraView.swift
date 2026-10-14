@@ -665,6 +665,15 @@ struct CameraView: View {
             isShutterBusy = false
             return
         }
+        let displayLabel: String? = {
+            if case .custom(_, let name, _, _) = currentSource { return name }
+            return nil
+        }()
+        let recipe = CaptureRecipe(
+            id: captureID, captureDate: captureDate, filterName: currentSource.photoFilterName,
+            displayLabel: displayLabel, focalLength: focalMm, outputQuality: Double(outputQuality),
+            profile: renderProfile, grainSeed: grainBaseSeed, location: location,
+            lutDimension: capturedLUT.dimension, chromaticSceneCCT: chromaticSceneCCT, photoDisplayTime: nil)
         // tap 即 +1：spinner 覆盖「曝光 + 等 live 视频 + 排队 + 后处理」全程，后台 task 跑完才 -1。
         shutterPressed = true
         cameraManager.hapticMedium.impactOccurred()
@@ -701,11 +710,13 @@ struct CameraView: View {
             captureTrace.event("exposure_complete_main")
             Log.capture.info("exposure_complete dt_from_tap=\(Log.ms(since: tapTime))ms")
         }, onShutterReady: {
-            // 静态图已拍下 + 闪光灯 AE/WB 已还原 → 立即放开快门，让用户能按下一张。
+            // 静态图完成早期落盘 + 闪光灯 AE/WB 已还原 → 放开快门，让用户能按下一张。
             // live 配对视频（~1.5s 环形缓冲）与全部后处理仍在后台进行，不阻塞这一步。
             // 这是把「快门可再按」从「完整交付」解耦后的核心收益：live 模式快门响应从 ~1.5s 降到 ~300ms。
             captureTrace.event("shutter_available")
             isShutterBusy = false
+        }, onStillCaptured: { still in
+            await capturePipeline.checkpointStill(still, recipe: recipe, lut: capturedLUT)
         }) { result in
             // 拍照交付（启动后处理的信号，**不是**放开快门的信号——快门早在 onShutterReady 放开了）。
             // 闪光灯 AE/WB 已在 CameraManager.deliverCaptureIfReady 里于静态图就绪时还原。
@@ -720,27 +731,20 @@ struct CameraView: View {
                 // 没有这行快门会永久 disabled。
                 isShutterBusy = false
                 capturePipeline.cancelReservation(captureID)
-                captureError = wantsLive && !cameraManager.livePhotoCaptureState.canCapture
+                captureError = cameraManager.lensSwitchFailed
+                    ? String(localized: "Could not switch to this focal length. Select it again to retry.")
+                    : wantsLive && !cameraManager.livePhotoCaptureState.canCapture
                     ? String(localized: "Live Photo is unavailable. Turn off Live Photo or reopen the camera to try again.")
                     : String(localized: "Capture failed: couldn't get image data, please try again")
                 return
             }
             captureTrace.event("capture_received", "bytes=\(result.imageData.count) live=\(result.livePhotoMovieURL != nil)")
-            let displayLabel: String? = {
-                if case .custom(_, let name, _, _) = currentSource { return name }
-                return nil
-            }()
             let displayTime = result.photoDisplayTime
-            let recipe = CaptureRecipe(
-                id: captureID, captureDate: captureDate, filterName: currentSource.photoFilterName,
-                displayLabel: displayLabel, focalLength: focalMm, outputQuality: Double(outputQuality),
-                profile: renderProfile, grainSeed: grainBaseSeed, location: location,
-                lutDimension: capturedLUT.dimension,
-                chromaticSceneCCT: chromaticSceneCCT,
-                photoDisplayTime: displayTime.isValid && displayTime.isNumeric ? displayTime.seconds : nil)
+            let completedRecipe = recipe.withPhotoDisplayTime(
+                displayTime.isValid && displayTime.isNumeric ? displayTime.seconds : nil)
             captureTrace.event("chromatic_response_snapshot",
                 "native_kk=\(Int(renderProfile.effectiveChromatic.nativeCCT)) strength=\(String(format: "%.2f", renderProfile.effectiveChromatic.strength)) scene_kk=\(chromaticSceneCCT.map { Int($0) }.map(String.init) ?? "unavailable") gain=\(String(format: "%.3f/%.3f/%.3f", chromaticGain.x, chromaticGain.y, chromaticGain.z))")
-            capturePipeline.enqueue(result, recipe: recipe, lut: capturedLUT)
+            capturePipeline.enqueue(result, recipe: completedRecipe, lut: capturedLUT)
         }
     }
 

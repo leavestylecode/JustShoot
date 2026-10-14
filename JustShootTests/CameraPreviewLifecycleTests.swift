@@ -4,14 +4,13 @@ import MetalKit
 
 @MainActor
 final class CameraPreviewLifecycleTests: XCTestCase {
-    private func makeWindow() throws -> UIWindow {
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive })
+    private func makeWindow() async throws -> UIWindow {
+        let scene = try await TestWindowScene.foreground()
         return UIWindow(windowScene: scene)
     }
 
-    func testInactiveNotificationPausesImmediatelyAndForegroundResumes() throws {
-        let window = try makeWindow()
+    func testInactiveNotificationPausesImmediatelyAndForegroundResumes() async throws {
+        let window = try await makeWindow()
         let view = CameraPreviewMetalView(frame: window.bounds, device: nil)
         defer { view.removeFromSuperview() }
         window.addSubview(view)
@@ -28,8 +27,8 @@ final class CameraPreviewLifecycleTests: XCTestCase {
         XCTAssertFalse(view.isPaused)
     }
 
-    func testDetachedViewCannotBeRestartedByForegroundNotification() throws {
-        let window = try makeWindow()
+    func testDetachedViewCannotBeRestartedByForegroundNotification() async throws {
+        let window = try await makeWindow()
         let view = CameraPreviewMetalView(frame: window.bounds, device: nil)
         XCTAssertTrue(view.isPaused)
         window.addSubview(view)
@@ -44,8 +43,8 @@ final class CameraPreviewLifecycleTests: XCTestCase {
         view.removeFromSuperview()
     }
 
-    func testSceneMustAlsoBeActiveBeforeResuming() throws {
-        let window = try makeWindow()
+    func testSceneMustAlsoBeActiveBeforeResuming() async throws {
+        let window = try await makeWindow()
         let scene = try XCTUnwrap(window.windowScene)
         let view = CameraPreviewMetalView(frame: window.bounds, device: nil)
         defer { view.removeFromSuperview() }
@@ -60,8 +59,8 @@ final class CameraPreviewLifecycleTests: XCTestCase {
         XCTAssertFalse(view.isPaused)
     }
 
-    func testDismantleStopsDrawingAndDisconnectsDelegate() throws {
-        let window = try makeWindow()
+    func testDismantleStopsDrawingAndDisconnectsDelegate() async throws {
+        let window = try await makeWindow()
         let view = CameraPreviewMetalView(frame: .zero, device: nil)
         defer { view.removeFromSuperview() }
         window.addSubview(view)

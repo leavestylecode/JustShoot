@@ -48,12 +48,23 @@ struct CaptureRecipe: Codable, Sendable {
     /// optional 兼容旧 journal——缺失时响应中性（增益 1），渲染结果与旧版一致。
     let chromaticSceneCCT: Float?
     let photoDisplayTime: Double?
+
+    func withPhotoDisplayTime(_ time: Double?) -> Self {
+        Self(id: id, captureDate: captureDate, filterName: filterName, displayLabel: displayLabel,
+            focalLength: focalLength, outputQuality: outputQuality, profile: profile, grainSeed: grainSeed,
+            location: location, lutDimension: lutDimension, chromaticSceneCCT: chromaticSceneCCT,
+            photoDisplayTime: time)
+    }
 }
 
 struct CaptureJob: Codable, Sendable {
     var formatVersion = 1
-    let recipe: CaptureRecipe
-    let hasSourceMovie: Bool
+    var recipe: CaptureRecipe
+    var hasSourceMovie: Bool
+    /// Optional fields keep manifests written before early still checkpointing readable.
+    var awaitingCaptureCompletion: Bool?
+    var pendingMovieURL: URL?
+    var recoveredIncompleteCapture: Bool?
     var rendered = false
     var hasRenderedMovie = false
     var assetIdentifier: String?
@@ -107,7 +118,7 @@ struct CaptureJournal: Sendable {
             .sorted { $0.recipe.captureDate < $1.recipe.captureDate }
     }
 
-    func recover() throws -> [CaptureJob] {
+    func recover(excludingInFlight inFlight: Set<UUID> = []) throws -> [CaptureJob] {
         let fm = FileManager.default
         guard fm.fileExists(atPath: root.path) else { return [] }
         for staging in try fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
@@ -122,7 +133,21 @@ struct CaptureJournal: Sendable {
                   !fm.fileExists(atPath: directory(for: job.id).path) else { continue }
             try fm.moveItem(at: staging, to: directory(for: job.id))
         }
-        return try jobs()
+        return try jobs().map { job in
+            guard job.awaitingCaptureCompletion == true, !inFlight.contains(job.id) else { return job }
+            // A previous process cannot finish this native capture. Recover its durable still,
+            // and retain a movie if AVFoundation finished writing it before the process ended.
+            let movie = job.pendingMovieURL.flatMap {
+                fm.fileExists(atPath: $0.path) ? $0 : nil
+            }
+            do {
+                return try completeCapture(id: job.id, photoDisplayTime: nil, movieURL: movie, recovered: true)
+            } catch {
+                Log.save.error("capture_checkpoint_recovery_deferred id=\(job.id) error=\(error.localizedDescription, privacy: .public)")
+                // A missing/unreadable native movie should not block other recoverable jobs.
+                return (try? completeCapture(id: job.id, photoDisplayTime: nil, movieURL: nil, recovered: true)) ?? job
+            }
+        }
     }
 
     func hasRoom(for bytes: Int64) throws -> Bool {
@@ -133,7 +158,8 @@ struct CaptureJournal: Sendable {
         return available.map { $0 >= bytes + 128 * 1_024 * 1_024 } ?? true
     }
 
-    func stage(recipe: CaptureRecipe, imageData: Data, movieURL: URL?, lut: CubeLUT, reserved: Bool = false) throws -> CaptureJob {
+    func stage(recipe: CaptureRecipe, imageData: Data, movieURL: URL?, lut: CubeLUT, reserved: Bool = false,
+        awaitingCaptureCompletion: Bool = false, pendingMovieURL: URL? = nil) throws -> CaptureJob {
         guard recipe.lutDimension == lut.dimension else { throw JournalError.invalidJob }
         let fm = FileManager.default
         try fm.createDirectory(at: root, withIntermediateDirectories: true)
@@ -156,10 +182,42 @@ struct CaptureJournal: Sendable {
             if !fm.fileExists(atPath: destination.path) { try fm.copyItem(at: movieURL, to: destination) }
             try fm.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: destination.path)
         }
-        let job = CaptureJob(recipe: recipe, hasSourceMovie: movieURL != nil)
+        let job = CaptureJob(recipe: recipe, hasSourceMovie: movieURL != nil,
+            awaitingCaptureCompletion: awaitingCaptureCompletion ? true : nil, pendingMovieURL: pendingMovieURL)
         try write(JSONEncoder().encode(job), to: staging.appendingPathComponent("manifest.json"))
         try fm.moveItem(at: staging, to: directory(for: recipe.id))
         if let movieURL { try? fm.removeItem(at: movieURL) }
+        return job
+    }
+
+    func job(for id: UUID) throws -> CaptureJob {
+        let job = try JSONDecoder().decode(CaptureJob.self, from: Data(contentsOf: file("manifest.json", for: id)))
+        guard job.formatVersion == 1, job.id == id,
+              !FileManager.default.fileExists(atPath: file("discarded", for: id).path) else { throw JournalError.invalidJob }
+        return job
+    }
+
+    /// Commit the movie before changing the manifest. A crash between these writes leaves a
+    /// complete source.mov that recovery can discover, while the original still stays usable.
+    func completeCapture(id: UUID, photoDisplayTime: Double?, movieURL: URL?, recovered: Bool = false) throws -> CaptureJob {
+        var job = try job(for: id)
+        guard job.awaitingCaptureCompletion == true else { return job }
+        let fm = FileManager.default
+        let destination = file("source.mov", for: id)
+        if let movieURL, !fm.fileExists(atPath: destination.path) {
+            let temporary = file("source.pending.mov", for: id)
+            if fm.fileExists(atPath: temporary.path) { try fm.removeItem(at: temporary) }
+            try fm.copyItem(at: movieURL, to: temporary)
+            try fm.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: temporary.path)
+            try fm.moveItem(at: temporary, to: destination)
+        }
+        job.hasSourceMovie = fm.fileExists(atPath: destination.path)
+        job.recipe = job.recipe.withPhotoDisplayTime(photoDisplayTime)
+        job.awaitingCaptureCompletion = nil
+        job.pendingMovieURL = nil
+        job.recoveredIncompleteCapture = recovered ? true : nil
+        try update(job)
+        if let movieURL, movieURL != destination { try? fm.removeItem(at: movieURL) }
         return job
     }
 

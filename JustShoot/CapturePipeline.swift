@@ -84,7 +84,7 @@ final class CapturePipeline: ObservableObject {
 
     func enqueue(_ result: CaptureResult, recipe: CaptureRecipe, lut: CubeLUT) {
         guard let worker else { cancelReservation(recipe.id); return }
-        Task {
+        Task(priority: .utility) {
             let activity = CaptureBackgroundActivity()
             do {
                 try await worker.enqueue(result, recipe: recipe, lut: lut)
@@ -93,6 +93,20 @@ final class CapturePipeline: ObservableObject {
                 lastError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
             }
             activity.end()
+        }
+    }
+
+    /// Persist before the camera releases the shutter; video delivery can arrive later.
+    func checkpointStill(_ still: CaptureStill, recipe: CaptureRecipe, lut: CubeLUT) async {
+        guard let worker else { return }
+        let activity = CaptureBackgroundActivity()
+        defer { activity.end() }
+        do {
+            try await worker.checkpointStill(still, recipe: recipe, lut: lut)
+        } catch {
+            // Keep the reservation and native bytes. Final delivery retries staging the complete
+            // capture, and a staging directory with a committed manifest remains recoverable.
+            lastError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
         }
     }
 
@@ -178,6 +192,7 @@ private actor CaptureWorker {
     private let journal = CaptureJournal.application
     private var queue: [CaptureJob] = []
     private var scheduledIDs: Set<UUID> = []
+    private var inFlightNativeIDs: Set<UUID> = []
     private var drainTask: Task<Void, Never>?
     private var suspended = false
     private var enqueuedAt: [UUID: TimeInterval] = [:]
@@ -197,18 +212,38 @@ private actor CaptureWorker {
 
     func enqueue(_ result: CaptureResult, recipe: CaptureRecipe, lut: CubeLUT) async throws {
         let trace = DiagnosticTrace(id: recipe.id.uuidString)
+        defer { inFlightNativeIDs.remove(recipe.id) }
         let job = try trace.measure("capture_journal_stage") {
-            try journal.stage(recipe: recipe, imageData: result.imageData,
-                              movieURL: result.livePhotoMovieURL, lut: lut, reserved: true)
+            // Promote a complete staging directory if an earlier rename failed.
+            if !FileManager.default.fileExists(atPath: journal.file("manifest.json", for: recipe.id).path) {
+                _ = try journal.recover(excludingInFlight: inFlightNativeIDs)
+            }
+            if FileManager.default.fileExists(atPath: journal.file("manifest.json", for: recipe.id).path) {
+                return try journal.completeCapture(id: recipe.id, photoDisplayTime: recipe.photoDisplayTime,
+                    movieURL: result.livePhotoMovieURL)
+            }
+            return try journal.stage(recipe: recipe, imageData: result.imageData,
+                movieURL: result.livePhotoMovieURL, lut: lut, reserved: true)
         }
         await schedule([job])
+    }
+
+    func checkpointStill(_ still: CaptureStill, recipe: CaptureRecipe, lut: CubeLUT) async throws {
+        inFlightNativeIDs.insert(recipe.id)
+        let job = try DiagnosticTrace(id: recipe.id.uuidString).measure("capture_still_checkpoint") {
+            try journal.stage(recipe: recipe, imageData: still.imageData, movieURL: nil, lut: lut, reserved: true,
+                awaitingCaptureCompletion: true, pendingMovieURL: still.pendingLivePhotoMovieURL)
+        }
+        await CapturePipeline.shared.accepted([job.id])
     }
 
     func resume(allowProcessing: Bool = true) async {
         suspended = !allowProcessing
         if let drainTask, drainTask.isCancelled { await drainTask.value }
         do {
-            let jobs = try DiagnosticTrace(id: "recovery").measure("capture_recovery") { try journal.recover() }
+            let jobs = try DiagnosticTrace(id: "recovery").measure("capture_recovery") {
+                try journal.recover(excludingInFlight: inFlightNativeIDs)
+            }
             await CapturePipeline.shared.synchronizePending(Set(jobs.map(\.id)))
             await schedule(jobs)
         } catch {
@@ -217,7 +252,7 @@ private actor CaptureWorker {
     }
 
     private func schedule(_ jobs: [CaptureJob]) async {
-        let added = jobs.filter { scheduledIDs.insert($0.id).inserted }
+        let added = jobs.filter { $0.awaitingCaptureCompletion != true && scheduledIDs.insert($0.id).inserted }
         for job in added {
             enqueuedAt[job.id] = ProcessInfo.processInfo.systemUptime
             DiagnosticTrace(id: job.id.uuidString).event("capture_queued", "queue_depth=\(queue.count + added.count) rendered_checkpoint=\(job.rendered)")
@@ -281,6 +316,11 @@ private actor CaptureWorker {
             var contentID: String?
             var stillSeed = recipe.grainSeed
             if job.hasSourceMovie {
+                if job.recoveredIncompleteCapture == true,
+                   try await LivePhotoProcessor.isReadableSource(at: journal.file("source.mov", for: job.id)) {
+                    job.recoveredIncompleteCapture = nil
+                    try journal.update(job)
+                }
                 let displayTime = recipe.photoDisplayTime.map { CMTime(seconds: $0, preferredTimescale: 600) } ?? .invalid
                 let video = trace.span("live_video_process")
                 do {
@@ -299,15 +339,21 @@ private actor CaptureWorker {
                     video.end(error is CancellationError ? "cancelled" : "error", Diagnostics.errorFields(error))
                     // A failed movie must not hide the usable still. Keep the complete journal for
                     // retry, and expose a static fallback in the gallery without discarding the video.
-                    if !(error is CancellationError) {
+                    if error is CancellationError { throw error }
+                    if job.recoveredIncompleteCapture == true {
+                        // The process ended while AVFoundation was writing this movie. A partial
+                        // movie must not trap a durable still in a permanently failing retry loop.
+                        job.hasRenderedMovie = false
+                        trace.event("capture_recovered_as_still", "reason=incomplete_movie")
+                    } else {
                         let fallback = try await renderStill(job, lut: lut, contentID: nil, seed: recipe.grainSeed)
                         _ = try await saver.save(id: job.id, captureDate: recipe.captureDate,
                             assetLocalIdentifier: nil, imageData: fallback, filmPresetName: recipe.filterName,
                             filmDisplayLabel: recipe.displayLabel, latitude: recipe.location?.latitude,
                             longitude: recipe.location?.longitude, altitude: recipe.location?.altitude,
                             locationTimestamp: recipe.location?.timestamp)
+                        throw error
                     }
-                    throw error
                 }
             }
             try checkPending(job.id)
@@ -383,7 +429,7 @@ private actor CaptureWorker {
                     chromaticSceneCCT: recipe.chromaticSceneCCT,
                     outputQuality: recipe.outputQuality, location: recipe.location?.location,
                     captureDate: recipe.captureDate, focalLengthIn35mm: recipe.focalLength,
-                    contentIdentifier: contentID)
+                    contentIdentifier: contentID, diagnosticCaptureID: job.id)
             } }
         }.value
         rendering.end(image == nil ? "failed" : "ok", "output_bytes=\(image?.count ?? 0)")
