@@ -29,6 +29,39 @@ Physical-source changes rearm the capture grace even after zoom has settled. The
 
 The queue accepts at most 16 outstanding captures with a 1 GiB soft disk budget and conservative pre-exposure disk reservations. Accepted captures are persisted even if the soft budget changes during exposure. Filesystem failures are surfaced; original files are never intentionally discarded to satisfy a queue budget. Future journal formats must be migrated explicitly; unreadable jobs are retained and visible. Successful journal cleanup removes originals and full recipes; finished media cannot currently be reprocessed nondestructively with another film.
 
+## Tone curves
+
+The built-in catalog has five distinct roles:
+
+| Curve | Adjustment |
+| --- | --- |
+| Neutral | Keep the film LUT's original tones. |
+| Soft Contrast | Inverse S: reduce midtone contrast while keeping black/white endpoints. |
+| S-Curve | Increase midtone contrast with a controlled shadow toe. |
+| Matte | Lift the black point for a faded print response. |
+| X-Pro | Separate RGB responses: cool shadows and warm highlights. |
+
+Open Shadows, Fade and Warm Print are retired from the catalog. The old Film Soft was another contrast-increasing S; Soft Contrast now has the opposite role. On upgrade, an active retired or changed preset is copied into My Curves with its original control points. Unselected retired entries are removed; existing custom curves and already journaled LUT bytes are preserved.
+
+```mermaid
+flowchart LR
+    A[Camera RGB / film chromatic response] --> WB
+    RGB --> C[Headroom / halation / bloom]
+    C --> D[Grain]
+    D --> E[Preview / still / Live]
+    subgraph Cube[Prepared cube]
+        WB[Relative temperature / tint] --> LUT[Film LUT]
+        LUT --> M[Master curve]
+        M --> RGB[Individual RGB curves]
+    end
+```
+
+Curve adjustments work on the developed sRGB output, after the film LUT. Control points use the same natural cubic spline in the editor, graph and LUT composition, sampled at 256 positions. Individual RGB curves follow the master. The graph displays this additional adjustment; the viewfinder shows it together with the film, optics and grain. These are artistic print/grading controls, and Soft Contrast adjusts existing tones rather than recovering clipped capture detail. Adobe's [tone-curve documentation](https://helpx.adobe.com/lightroom-classic/desktop/process-and-develop-photos/image-tone-color.html) describes the same input/output and combined/individual-channel model; the five-preset selection is this app's design choice.
+
+Custom curve tables are prepared once and reused by selection, graphs, gray samples and LUT composition. Effective identity curves return the original LUT bytes, preserving finite imported HDR values outside the curve's unit domain. Render cache keys include the custom UUID and channel-separated control-point fingerprint; names, visibility and dates do not change the rendered pixels. Curve data and selection share one payload, with a mirrored legacy preference for compatibility. Unsupported or unreadable payloads stay intact and make curve management read-only. `camera_lut_prepare`, `camera_lut_ready` and `shutter_tap` record the curve identity without logging its custom name.
+
+Non-neutral compositions use at least a 33³ cube. A 2³ or 3³ identity import otherwise samples only the endpoints or midpoint, where S-Curve and Soft Contrast are unchanged, and silently loses the requested curve. Low-dimensional sources are interpolated before curve baking; original source data stays intact, and the resulting roughly 562 KiB table remains inside the existing byte-budget caches. Higher-dimensional sources keep their resolution.
+
 ## Validation
 
 The viewfinder supports tap-to-focus and vertical exposure adjustment even while the film picker is open. A horizontal swipe selects a film while that picker is open; a gesture's purpose is locked once its direction is clear. Viewfinder directions follow how the phone was held at gesture start, keeping film and exposure axes distinct in landscape.
@@ -38,6 +71,8 @@ The compact control along the bottom of the viewfinder keeps temperature and tin
 The camera remains on automatic white balance. A manual axis is corrected in software relative to the latest measured camera white point, while an automatic axis retains its camera value. Both axes and the reference are included in the immutable LUT recipe/cache key. Preview, still processing and Live Photo processing share the same LUT; no custom hardware white-balance setters are used. Table generation runs on a serial actor with a bounded cache, and the last ready table keeps rendering while a new one is prepared. The shutter waits for the selected table without changing brightness. Both Auto axes use the original table exactly, so readout changes alone do not rebuild the LUT. Each new camera view starts with both axes on Auto. Validate device readouts and final colors on physical hardware.
 
 `JustShootTests` covers LUT validation, capture-journal recovery and backpressure, timestamp-preserving index updates, color-space behavior, photo metadata, and Live Photo frame/metadata integrity and cancellation.
+
+The October 15, 2026 tone-curve simplification adds 38 regressions for curve roles and continuity, identity/HDR preservation, low-dimensional LUT composition, RGB order, immutable capture snapshots, legacy-selection migration and unreadable-library protection. XcodeBuildMCP validation on iPhone 18 Pro / iOS 27.0 Simulator passed 286/287 Debug tests with zero failures and one Photos-authorization integration skip; Release built successfully without Swift compilation warnings. UI inspection verified five manager entries, five template options and the S-Curve editor. The existing full-suite Core Image QoS warning remains recorded below. Real-device image comparisons are still required for subjective grading and preview/export appearance.
 
 The October 14, 2026 refactor adds 40 regression tests for shutter admission and stale session tokens, Live downgrade reporting, queue capacity after deletion, recovery inventories and original export, historical row/capture aliases, limited-access deletion policy, cache byte budgets and reconstruction, render cancellation, and encoded Live color tags. XcodeBuildMCP validation with `JustShoot.xcodeproj` / `JustShoot`, iPhone 18 Pro (iOS 27.0 Simulator): Debug tests passed 212/213 with one Photos-authorization integration test skipped; Release build passed. Both configurations produced no Swift compilation warnings; Xcode emitted its existing AppIntents metadata-extraction warning because the app has no AppIntents dependency. Existing lens, journal, metadata and hosted UI tests remain included. Hosted UI tests wait for the foreground window scene before constructing test windows.
 
@@ -91,4 +126,4 @@ The source audit covers storage startup, permissions and lifecycle, preview/zoom
 
 The simulator cross-page test also reproduced cooperative-pool starvation: ten detached cover-loading tasks waited inside the HEIF decoder, while camera discovery had already returned but startup/LUT tasks could not resume. Covers, legacy photo thumbnails/previews, cover color extraction and share conversion now use a dedicated operation queue with at most two concurrent blocking jobs. Cancelled queued work is skipped and cancelled waiters are released immediately. Resource/heartbeat logs include `image_work_active` and `image_work_queued`. Regression tests cover the concurrency bound, cancellation behind a blocked decoder, and a real bundled HEIF cover. Repeating Library → Films → Camera after the fix completed the LUT preparation and displayed the simulator's camera-unavailable state. This does not replace a device performance comparison.
 
-Device checks still required: rapid focal reversals and actual framing; flash/EV/automatic color readings; still and Live Photo capture with microphone allowed/denied; immediate gallery entry; deletion while a saved fallback is being retried; cancellation of the system delete confirmation; background/foreground during saving; restricted Photos/iCloud access; low storage; and delivery to a receiving share extension. Export the complete run with `camera_revision=2026-10-14-auto-capture` after reproducing an issue.
+Device checks still required: rapid focal reversals and actual framing; flash/EV/automatic color readings; still and Live Photo capture with microphone allowed/denied; immediate gallery entry; deletion while a saved fallback is being retried; cancellation of the system delete confirmation; background/foreground during saving; restricted Photos/iCloud access; low storage; and delivery to a receiving share extension. Export the complete run with `camera_revision=2026-10-15-curves` after reproducing an issue.

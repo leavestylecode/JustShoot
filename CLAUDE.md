@@ -33,6 +33,8 @@ The interface stays portrait. Accelerometer readings drive control/gesture orien
 
 The shared order is chromatic response → composed LUT → highlight headroom → halation/bloom → grain. Curves and relative manual temperature/tint are baked into the LUT. The capture device stays on automatic white balance.
 
+The curve catalog is Neutral, Soft Contrast, S-Curve, Matte and X-Pro. Keep those roles distinct: Soft Contrast reduces midtone contrast; S-Curve increases it. Curves map film output, with the custom master before individual RGB curves. Reuse precomputed 256-sample tables; preserve the natural-spline behavior of existing custom definitions. Effective identity must leave LUT bytes unchanged, including finite HDR values. Legacy active styles migrate to a custom definition before their menu entries change. Curve data and selection share one payload; never overwrite an unreadable or unsupported curve library.
+
 All paths use sRGB. Preview resolution and diffusion work are bounded; stills retain full resolution. Live video must explicitly carry matching color tags. Preserve the movie transform, audio, content identifier and timed still-image marker.
 
 Static pixels are physically oriented before encoding and marked Orientation=1. Merge metadata before one encoding pass: 10-bit HEIC, then 8-bit HEIC, then JPEG. Do not add a second image compression pass or use repeated full-image encoding to chase an exact file size. Automatic HEIF quality is 0.85; JPEG fallback is 0.9. The codec varies byte allocation with content while preserving the delivered pixel dimensions and film graph. Legacy journals retain their frozen manual quality. Do not claim these public defaults exactly reproduce Apple Camera's private processing.
