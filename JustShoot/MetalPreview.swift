@@ -67,9 +67,24 @@ final class CameraPreviewMetalView: MTKView {
     private var applicationActive = UIApplication.shared.applicationState == .active
     private var sceneActive = false
     private var dismantled = false
+    private var configuredPreviewScale: CGFloat?
+    private var resizePolicy = PreviewDrawableResizePolicy()
+    private var resizeTask: Task<Void, Never>?
+
+    /// UIKit's zoom transition supplies fractional raster scales. Keep the configured
+    /// preview density so those animation samples cannot bypass manual drawable sizing.
+    override var contentScaleFactor: CGFloat {
+        get { configuredPreviewScale ?? super.contentScaleFactor }
+        set {
+            if configuredPreviewScale != nil, !canResizeDrawable { return }
+            let scale = configuredPreviewScale ?? newValue
+            if super.contentScaleFactor != scale { super.contentScaleFactor = scale }
+        }
+    }
 
     override init(frame frameRect: CGRect, device: (any MTLDevice)?) {
         super.init(frame: frameRect, device: device)
+        autoResizeDrawable = false
         isPaused = true
         let center = NotificationCenter.default
         center.addObserver(self, selector: #selector(applicationWillResignActive), name: UIApplication.willResignActiveNotification, object: nil)
@@ -82,6 +97,7 @@ final class CameraPreviewMetalView: MTKView {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
+        if configuredPreviewScale == nil, let window { configuredPreviewScale = min(window.screen.scale, 2) }
         sceneActive = window?.windowScene.map { $0.activationState == .foregroundActive } ?? (window != nil)
         updateRenderingAvailability(reason: window == nil ? "detached" : "attached")
     }
@@ -110,9 +126,14 @@ final class CameraPreviewMetalView: MTKView {
 
     private func updateRenderingAvailability(reason: String) {
         let active = !dismantled && applicationActive && sceneActive && window != nil
-        guard isPaused == active else { return }
-        isPaused = !active
-        onRenderingAvailabilityChanged?(active, reason)
+        if !active { resizeTask?.cancel(); resizeTask = nil }
+        if isPaused == active {
+            isPaused = !active
+            onRenderingAvailabilityChanged?(active, reason)
+            if active { updateDrawableSize(force: true) }
+        } else if active, reason == "attached" {
+            updateDrawableSize(force: true)
+        }
     }
 
     func stopRendering() {
@@ -123,8 +144,48 @@ final class CameraPreviewMetalView: MTKView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let size = CameraPerformancePolicy.drawableSize(bounds: bounds.size, scale: contentScaleFactor)
-        if size.width > 0, size.height > 0, drawableSize != size { drawableSize = size }
+        updateDrawableSize()
+    }
+
+    func configurePreviewScale(_ scale: CGFloat) {
+        let scale = min(max(1, scale), 2)
+        guard configuredPreviewScale != scale else { return }
+        configuredPreviewScale = scale
+        updateDrawableSize(force: true)
+    }
+
+    private var canResizeDrawable: Bool {
+        !dismantled && applicationActive && sceneActive && !isPaused && window != nil
+    }
+
+    private func updateDrawableSize(force: Bool = false) {
+        if force || !canResizeDrawable { resizeTask?.cancel(); resizeTask = nil }
+        let now = ProcessInfo.processInfo.systemUptime
+        let size = CameraPerformancePolicy.drawableSize(bounds: bounds.size, scale: configuredPreviewScale ?? contentScaleFactor)
+        guard size != .zero else { resizeTask?.cancel(); resizeTask = nil; return }
+        if let committed = resizePolicy.request(size, at: now, canRender: canResizeDrawable, force: force) {
+            resizeTask?.cancel()
+            resizeTask = nil
+            let scale = configuredPreviewScale ?? contentScaleFactor
+            if super.contentScaleFactor != scale { super.contentScaleFactor = scale }
+            if drawableSize != committed { drawableSize = committed }
+        }
+        guard canResizeDrawable, let deadline = resizePolicy.nextCommitTime else {
+            resizeTask?.cancel()
+            resizeTask = nil
+            return
+        }
+        // Layout only moves the policy's deadline. One timer checks the latest size;
+        // an ongoing animation can rearm it when it wakes, without one Task per sample.
+        guard resizeTask == nil else { return }
+        let delay = max(0, deadline - now)
+        resizeTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) }
+            catch { return }
+            guard !Task.isCancelled, let self, self.canResizeDrawable else { return }
+            self.resizeTask = nil
+            self.updateDrawableSize()
+        }
     }
 }
 
@@ -192,7 +253,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         //（aspect-fill），alpha 只做视图级合成，不影响 Metal 路径。
         view.isOpaque = false
         // 预览降分辨率：2x 而非 3x，减少 55% 像素量
-        view.contentScaleFactor = min(context.environment.displayScale, 2.0)
+        view.configurePreviewScale(min(context.environment.displayScale, 2.0))
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         view.autoResizeDrawable = false
         (view.layer as? CAMetalLayer)?.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
@@ -205,6 +266,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: MTKView, context: Context) {
+        (uiView as? CameraPreviewMetalView)?.configurePreviewScale(min(context.environment.displayScale, 2.0))
         context.coordinator.lutCacheKey = lutCacheKey
         context.coordinator.preparedLUT = preparedLUT
         context.coordinator.grain = grain
@@ -241,7 +303,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         private var commandQueue: (any MTLCommandQueue)?
         private var computePipeline: (any MTLComputePipelineState)?
         private var finishPipeline: (any MTLComputePipelineState)?
-        private var availableTargets: [PreviewTargets] = []
+        private let targetPool = PreviewTargetPool<PreviewTargets>(maximumCount: 3)
         private var halationBlur: MPSImageGaussianBlur?
         private var bloomBlur: MPSImageGaussianBlur?
         private var energyDownsampler: MPSImageBilinearScale?
@@ -255,8 +317,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         }
 
         private func targets(width: Int, height: Int) -> PreviewTargets? {
-            availableTargets.removeAll { $0.graded.width != width || $0.graded.height != height }
-            if let cached = availableTargets.popLast() { return cached }
+            if let cached = targetPool.take(width: width, height: height) { return cached }
             guard let metalDevice else { return nil }
             func texture(_ format: MTLPixelFormat, width: Int, height: Int) -> (any MTLTexture)? {
                 let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width, height: height, mipmapped: false)
@@ -277,20 +338,25 @@ struct RealtimePreviewView: UIViewRepresentable {
         // CVPixelBuffer → MTLTexture 零拷贝缓存
         private var textureCache: CVMetalTextureCache?
 
-        // 3D LUT 纹理缓存（每个预设一个，首次使用时创建）
-        // 一个 64³ LUT 在 rgba32Float 下约 4MB，胶片条划一圈会把所有用过的 LUT 都留在 GPU
-        // 内存里——旧实现永不淘汰。加 LRU 上限：只保留最近用过的 N 个，其余在创建新纹理时驱逐。
-        private var lutTextures: [String: any MTLTexture] = [:]
-        private var lutDimensions: [String: Int] = [:]
-        private var lutAccessOrder: [String] = []   // LRU：队首=最久未用
-        private static let maxCachedLUTs = 8
+        private struct LUTTexture {
+            let texture: any MTLTexture
+            let dimension: Int
+        }
+
+        // GPU residency is bounded by allocation bytes as well as entry count. The current
+        // command buffer retains its texture even if that texture is too large to cache.
+        private var lutTextures = ByteBudgetLRU<String, LUTTexture>(
+            maximumBytes: 32 * 1_024 * 1_024, maximumEntries: 8)
+        /// The active value is caller-owned: an uncached large table still uploads only once
+        /// per selection, rather than once per camera frame.
+        private var activeLUTTexture: (key: String, value: LUTTexture)?
 
         // Triple-buffer 信号量：限制 GPU 最多 3 帧 in-flight，防止命令堆积
         // nonisolated：`DispatchSemaphore` 线程安全，且 GPU completion handler 在后台线程触发
         nonisolated private let inflightSemaphore = DispatchSemaphore(value: 3)
 
         // 帧去重：避免同一相机帧被渲染两次
-        private var lastRenderedFrameId: UInt64 = 0
+        private var lastRenderedFrameId: UInt64?
 
         // 纹理缓存刷新计数器
         private var frameCount: UInt32 = 0
@@ -369,6 +435,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         }
 
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
+            lastRenderedFrameId = nil
             manager?.diagnostics.event("preview_drawable_changed", "width=\(Int(size.width)) height=\(Int(size.height)) scale=\(view.contentScaleFactor)")
         }
 
@@ -392,9 +459,10 @@ struct RealtimePreviewView: UIViewRepresentable {
         func draw(in view: MTKView) {
             // A queued draw can arrive after pause/detachment. Do not acquire a drawable then:
             // on device this blocked the main thread for 556 ms during app deactivation.
-            guard !view.isPaused, view.window != nil,
+            guard !view.isPaused, view.window != nil, view.bounds.width > 0, view.bounds.height > 0,
                   UIApplication.shared.applicationState == .active else { return }
             let flow = manager?.flowDiagnostics
+            guard preparedLUT != nil else { flow?.skipped(.lut); return }
             // 过渡计划（每 vsync 拉一次，即使没有新帧也要执行——淡出/淡回正发生在停顿窗口，
             // 那时恰无新帧）：crop = 扩展数字变焦倍率（帧对齐后的渲染侧上限作分母，见
             // PreviewCropCeilingSynchronizer）；metalOpacity = 停顿窗口内淡出本视图、露出
@@ -465,8 +533,6 @@ struct RealtimePreviewView: UIViewRepresentable {
                 }
                 return
             }
-
-            lastRenderedFrameId = frameId
 
             if !didLogFirstDraw {
                 didLogFirstDraw = true
@@ -585,9 +651,14 @@ struct RealtimePreviewView: UIViewRepresentable {
             )
 
             // 编码 compute 命令
-            guard let targets = targets(width: outW, height: outH),
-                  let encoder = commandBuffer.makeComputeCommandEncoder() else {
+            guard let targets = targets(width: outW, height: outH) else {
                 flow?.skipped(.encoder)
+                inflightSemaphore.signal()
+                return
+            }
+            guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
+                flow?.skipped(.encoder)
+                targetPool.recycle(targets, width: outW, height: outH)
                 inflightSemaphore.signal()
                 return
             }
@@ -626,7 +697,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             }
             guard let composite = commandBuffer.makeComputeCommandEncoder() else {
                 flow?.skipped(.encoder)
-                availableTargets.append(targets)
+                targetPool.recycle(targets, width: outW, height: outH)
                 inflightSemaphore.signal()
                 return
             }
@@ -661,6 +732,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             }
             #endif
             let semaphore = self.inflightSemaphore
+            let targetPool = self.targetPool
             let frameLease = PreviewFrameLease(texture: cvTex, buffer: pixelBuffer)
             commandBuffer.addCompletedHandler { [weak self] buffer in
                 let completedAt = ProcessInfo.processInfo.systemUptime
@@ -675,35 +747,40 @@ struct RealtimePreviewView: UIViewRepresentable {
                 if let flowStamp {
                     flow?.completed(flowStamp, gpuMS: gpuMS, elapsedMS: (completedAt - submittedAt) * 1_000, failed: buffer.status == .error)
                 }
+                targetPool.recycle(targets, width: outW, height: outH)
+                semaphore.signal()
+                if let flowStamp { flow?.recycled(flowStamp, waitMS: (ProcessInfo.processInfo.systemUptime - completedAt) * 1_000) }
                 Task { @MainActor in
-                    if let flowStamp { flow?.recycled(flowStamp, waitMS: (ProcessInfo.processInfo.systemUptime - completedAt) * 1_000) }
                     if let self, self.diagnosticCycle == generation, gpuMS > 0 {
                         self.gpuFrameCount += 1
                         self.gpuTotalMS += gpuMS
                         self.gpuMaxMS = max(self.gpuMaxMS, gpuMS)
                     }
-                    self?.availableTargets.append(targets)
-                    semaphore.signal()
                 }
             }
 
             commandBuffer.present(drawable)
             commandBuffer.commit()
+            lastRenderedFrameId = frameId
             submittedFrames += 1
         }
 
         // MARK: - 3D LUT 纹理管理
 
         private func getOrCreateLUTTexture(cacheKey: String) -> (texture: any MTLTexture, dim: Int)? {
-            if let cached = lutTextures[cacheKey], let dim = lutDimensions[cacheKey] {
-                touchLUT(cacheKey)
-                return (cached, dim)
+            if let active = activeLUTTexture, active.key == cacheKey {
+                return (active.value.texture, active.value.dimension)
+            }
+            if let cached = lutTextures.value(forKey: cacheKey) {
+                activeLUTTexture = (cacheKey, cached)
+                return (cached.texture, cached.dimension)
             }
 
             guard let device = metalDevice else { return nil }
 
-            // 从 FilmProcessor 缓存获取 LUT 数据
-            guard let lut = preparedLUT ?? FilmProcessor.shared.cachedLUT(cacheKey: cacheKey) else { return nil }
+            // Preparation owns disk I/O and composition on its background actor. Rendering
+            // only consumes its immutable result; a cold cache must never parse on MainActor.
+            guard let lut = preparedLUT else { return nil }
             let dim = lut.dimension
             let uploadStartedAt = ProcessInfo.processInfo.systemUptime
 
@@ -733,29 +810,12 @@ struct RealtimePreviewView: UIViewRepresentable {
                 )
             }
 
-            lutTextures[cacheKey] = texture
-            lutDimensions[cacheKey] = dim
-            touchLUT(cacheKey)
-            evictLUTsIfNeeded()
+            let value = LUTTexture(texture: texture, dimension: dim)
+            activeLUTTexture = (cacheKey, value)
+            lutTextures.insert(value, forKey: cacheKey,
+                cost: max(lut.data.count, texture.allocatedSize))
             manager?.diagnostics.event("preview_lut_uploaded", "dimension=\(dim) bytes=\(lut.data.count) duration_ms=\(Diagnostics.milliseconds(since: uploadStartedAt))")
             return (texture, dim)
-        }
-
-        /// 标记 cacheKey 为最近使用：从顺序表移除后追加到队尾。
-        private func touchLUT(_ cacheKey: String) {
-            if let idx = lutAccessOrder.firstIndex(of: cacheKey) {
-                lutAccessOrder.remove(at: idx)
-            }
-            lutAccessOrder.append(cacheKey)
-        }
-
-        /// 超过上限时从队首（最久未用）驱逐，texture/dimension 两表同步删除——二者始终一致。
-        private func evictLUTsIfNeeded() {
-            while lutAccessOrder.count > Self.maxCachedLUTs {
-                let oldest = lutAccessOrder.removeFirst()
-                lutTextures[oldest] = nil
-                lutDimensions[oldest] = nil
-            }
         }
 
         private func rotationFromAngle(_ angle: CGFloat) -> UInt32 {

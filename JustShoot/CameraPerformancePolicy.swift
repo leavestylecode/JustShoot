@@ -1,5 +1,6 @@
 import AVFoundation
 import CoreGraphics
+import Foundation
 
 /// Generation checks invalidate queued work after a navigation or background transition.
 struct CameraSessionIntent: Sendable {
@@ -43,6 +44,46 @@ enum CameraPerformancePolicy {
             let value = min(ceiling, range.upperBound)
             return value >= range.lowerBound && value > 0 ? value : nil
         }.max()
+    }
+}
+
+/// Navigation animations change bounds/scale every frame. Keep one drawable while its
+/// aspect is stable, then commit the last pixel size after a short quiet interval.
+struct PreviewDrawableResizePolicy: Sendable {
+    static let settleInterval: TimeInterval = 0.1
+    private(set) var currentSize: CGSize = .zero
+    private(set) var requestedSize: CGSize = .zero
+    private(set) var nextCommitTime: TimeInterval?
+
+    mutating func request(_ size: CGSize, at now: TimeInterval, canRender: Bool, force: Bool = false) -> CGSize? {
+        guard size.width.isFinite, size.height.isFinite, now.isFinite,
+              size.width > 0, size.height > 0 else { return nil }
+        if requestedSize != size {
+            requestedSize = size
+            nextCommitTime = now + Self.settleInterval
+        }
+        if size == currentSize {
+            nextCommitTime = nil
+            return force && canRender ? size : nil
+        }
+        guard canRender else { return nil }
+        let oldAspect = currentSize.width / max(1, currentSize.height)
+        let newAspect = size.width / size.height
+        // Do not stretch a portrait frame into a rotated or differently shaped viewport.
+        let aspectChanged = currentSize == .zero || abs(newAspect / oldAspect - 1) > 0.01
+        if force || aspectChanged { return commit() }
+        return settle(at: now, canRender: canRender)
+    }
+
+    mutating func settle(at now: TimeInterval, canRender: Bool) -> CGSize? {
+        guard canRender, let deadline = nextCommitTime, now >= deadline else { return nil }
+        return commit()
+    }
+
+    private mutating func commit() -> CGSize {
+        currentSize = requestedSize
+        nextCommitTime = nil
+        return currentSize
     }
 }
 
