@@ -54,6 +54,13 @@ struct PreviewUnderlayBlender: Sendable, Equatable {
     /// 主源当前透明度 [0,1]。1 = 纯主源（稳态），0 = 纯底衬（停顿窗口中段）。
     private(set) var metalOpacity: CGFloat = 1
 
+    /// 镜头切换过渡期的最小透明度(「染色层」)。底衬是系统进程合成的画面、拿不到
+    /// LUT——纯淡出会让分级↔未分级在切换窗口跳变两次(用户感知的「LUT 有无闪烁」)。
+    /// 过渡期把冻结的分级帧保留为半透明层叠在实时底衬上,色调全程连续;代价是过渡
+    /// 期轻微重影(运动中的变焦画面会掩盖大半)。0 = 纯底衬(旧行为);由
+    /// CameraManager 在切换进行中(遮罩窗口或 ramp 未 settle)时抬高,稳态归零。
+    var transitionFloor: CGFloat = 0
+
     private var lastUpdate: CFTimeInterval = 0
 
     static let staleThreshold: TimeInterval = 0.15
@@ -72,7 +79,7 @@ struct PreviewUnderlayBlender: Sendable, Equatable {
         }
         let target: CGFloat
         if mainFrameAge > Self.staleThreshold {
-            target = 0
+            target = transitionFloor
         } else if mainFrameAge < Self.resumeThreshold {
             target = 1
         } else {
@@ -88,5 +95,39 @@ struct PreviewUnderlayBlender: Sendable, Equatable {
         }
         lastUpdate = now
         return metalOpacity
+    }
+}
+
+// MARK: - 跨镜头预遮罩决策
+
+/// 主动跨镜头切换的底衬预遮罩决策(纯逻辑,可单测)。
+///
+/// 拉远方向的跨镜头切换必停帧(→超广实测 2.1–2.5s、长焦→主摄 0.5–0.7s),现状要等
+/// 主帧龄超过 `PreviewUnderlayBlender.staleThreshold` 才淡出——开头先冻结 150ms、再
+/// 120ms 双源重影,底衬才接管。`applyFocalLength` 在按下焦距键时已算出
+/// `crossesConstituent`,拉远可以**从第 0ms 把主源视作过期**(与静止期翻转遮罩共用
+/// `underlayFlipMaskUntil`),让系统底衬的 crossfade 直接接管切换开头。
+///
+/// 拉近方向**不预遮**:`.restricted` 策略下拉近切换可能无缝(帧流不断裂,
+/// `PreviewCropCeilingSynchronizer.seamlessAcceptTimeoutSeconds` 即为此设),预遮会给
+/// 无缝切换引入不必要的未分级闪现——保持帧龄驱动的现状。
+///
+/// 窗口只负责开头:停顿中段由帧龄阈值(>150ms)自然维持淡出,窗口过后衔接无缝;若切换
+/// 意外快速完成,窗口结束且帧流新鲜即淡回,代价被限制在窗口时长内。
+enum LensTransitionPremask {
+    /// 预遮罩窗口:覆盖主源淡出(120ms)与停顿早期;中段交还帧龄机制。
+    static let windowSeconds: CFTimeInterval = 0.6
+
+    /// 切换过渡染色层的透明度下限(`PreviewUnderlayBlender.transitionFloor` 的过渡值):
+    /// 底衬拿不到 LUT,切换窗口保留 35% 冻结分级帧压住「LUT 有无」的色调跳变,
+    /// 代价是过渡期轻微重影。0 = 退回纯底衬(旧行为);真机观感可调。
+    static let tintFloor: CGFloat = 0.35
+
+    /// - Parameters:
+    ///   - crossesConstituent: 本次切换是否跨越 constituent 边界(switchover)。
+    ///   - fromZoom: 设备当前 zoom(非乐观 UI 目标值)。
+    ///   - toZoom: 本次切换的目标 zoom。
+    static func shouldMask(crossesConstituent: Bool, fromZoom: CGFloat, toZoom: CGFloat) -> Bool {
+        crossesConstituent && toZoom < fromZoom
     }
 }

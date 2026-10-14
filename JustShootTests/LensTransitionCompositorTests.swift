@@ -60,4 +60,58 @@ final class LensTransitionCompositorTests: XCTestCase {
             XCTAssertEqual(opacity, 1, accuracy: 0.0001)
         }
     }
+
+    // MARK: - 切换过渡染色层
+
+    func testTransitionFloorSaturatesToTintInsteadOfPureUnderlay() {
+        // 切换过渡期(染色层):停顿淡出饱和到 floor 而非 0——底衬拿不到 LUT,
+        // 保留的分级帧压住「有 LUT↔无 LUT」的色调跳变
+        var blender = PreviewUnderlayBlender()
+        blender.transitionFloor = 0.35
+        XCTAssertEqual(blender.update(mainFrameAge: 0.02, underlayAvailable: true, now: 0), 1)
+        let tinted = blender.update(mainFrameAge: 0.6, underlayAvailable: true, now: 0.5)
+        XCTAssertEqual(tinted, 0.35, accuracy: 0.0001)
+        // 帧流恢复后仍回到纯主源(floor 不影响恢复);间隔取 0.1s(增量步进 0.5,
+        // 0.35+0.5 仍在过渡中,二进制精确值避开整比间隔)
+        let restored = blender.update(mainFrameAge: 0.03, underlayAvailable: true, now: 0.6)
+        XCTAssertGreaterThan(restored, 0.35)
+        XCTAssertLessThan(restored, 1)
+    }
+
+    func testTransitionFloorOfZeroReproducesLegacyBehavior() {
+        // floor=0(稳态)与旧版行为逐值一致——稳态停顿(拍照负载)仍走纯底衬
+        var blender = PreviewUnderlayBlender()
+        blender.transitionFloor = 0
+        _ = blender.update(mainFrameAge: 0.02, underlayAvailable: true, now: 0)
+        XCTAssertEqual(blender.update(mainFrameAge: 0.6, underlayAvailable: true, now: 0.5), 0, accuracy: 0.0001)
+    }
+
+    func testTransitionFloorInvalidatedWithoutUnderlay() {
+        // 底衬不可用时无视 floor:主源恒 1(无染色层可言)
+        var blender = PreviewUnderlayBlender()
+        blender.transitionFloor = 0.35
+        XCTAssertEqual(blender.update(mainFrameAge: 2.0, underlayAvailable: false, now: 1), 1)
+    }
+
+    // MARK: - 跨镜头预遮罩决策
+
+    func testPremaskFiresForZoomOutAcrossConstituent() {
+        // 35→13（主摄→超广,拉远必停帧 2.1–2.5s）与 200→50（长焦→主摄,停帧 0.5–0.7s）
+        XCTAssertTrue(LensTransitionPremask.shouldMask(crossesConstituent: true, fromZoom: 2.917, toZoom: 1.0))
+        XCTAssertTrue(LensTransitionPremask.shouldMask(crossesConstituent: true, fromZoom: 16.0, toZoom: 4.167))
+    }
+
+    func testPremaskSkipsZoomInAndSameConstituent() {
+        // 13→35 拉近可能无缝（.restricted 帧流不断裂）——预遮会引入不必要的未分级闪现
+        XCTAssertFalse(LensTransitionPremask.shouldMask(crossesConstituent: true, fromZoom: 1.0, toZoom: 2.917))
+        // 35→50 同 constituent（fastRamp 短跳）与 100→200 同长焦,都不该遮
+        XCTAssertFalse(LensTransitionPremask.shouldMask(crossesConstituent: false, fromZoom: 2.917, toZoom: 4.167))
+        XCTAssertFalse(LensTransitionPremask.shouldMask(crossesConstituent: false, fromZoom: 8.05, toZoom: 16.0))
+    }
+
+    func testPremaskWindowCoversFadeOutPlusEarlyStall() {
+        // 窗口须覆盖底衬淡出（120ms）并留停顿早期余量;中段交还帧龄阈值（150ms）维持。
+        XCTAssertGreaterThan(LensTransitionPremask.windowSeconds, PreviewUnderlayBlender.revealDuration)
+        XCTAssertGreaterThan(LensTransitionPremask.windowSeconds, PreviewUnderlayBlender.staleThreshold)
+    }
 }

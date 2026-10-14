@@ -1693,9 +1693,11 @@ class CameraManager: NSObject, ObservableObject {
                     self.activeConstituentName = logName
                     Log.session.info("constituent_active_changed name=\(logName, privacy: .public)")
                 }
-                // 静止期翻转（非 ramp 中）= 病理性双跳 → 底衬遮罩窗口（见 underlayFlipMaskUntil）
+                // 静止期翻转（非 ramp 中）= 病理性双跳 → 底衬遮罩窗口（见 underlayFlipMaskUntil）。
+                // 与跨镜头预遮罩共用遮罩窗口,只延长不缩短——两者触发条件互斥（翻转遮罩只打
+                // 非 ramp 状态,预遮罩只打 ramp 中的跨镜头拉远）,max 合并纯保险。
                 if !rampingAtFlip {
-                    self.underlayFlipMaskUntil = CFAbsoluteTimeGetCurrent() + 0.45
+                    self.underlayFlipMaskUntil = max(self.underlayFlipMaskUntil, CFAbsoluteTimeGetCurrent() + 0.45)
                     self.diagnostics.event("preview_flip_mask", "lens=\(logName) reason=flip_at_rest")
                 }
                 self.updateActiveConstituentZoomCeiling()
@@ -1756,6 +1758,13 @@ class CameraManager: NSObject, ObservableObject {
             mainFrameAge = .infinity
         }
         let underlayAvailable = previewUnderlayLayer != nil && sessionConfigured
+        // 切换过渡期(遮罩窗口或 ramp 未 settle)启用染色层下限:底衬是系统合成画面、
+        // 拿不到 LUT,纯淡出会让「有 LUT↔无 LUT」在切换窗口跳变两次(用户感知的
+        // 闪烁);保留 35% 冻结分级帧压住色调,代价是过渡期轻微重影。稳态归零——
+        // 拍照后处理饿死帧流的停顿仍走纯底衬(画面实时性优先,那时用户注意力不在取景上)。
+        underlayBlender.transitionFloor =
+            (CFAbsoluteTimeGetCurrent() < underlayFlipMaskUntil || lensTarget != nil)
+            ? LensTransitionPremask.tintFloor : 0
         let opacity = underlayBlender.update(
             mainFrameAge: mainFrameAge,
             underlayAvailable: underlayAvailable,
@@ -1794,8 +1803,9 @@ class CameraManager: NSObject, ObservableObject {
         let revealing = value > 0.5
         if revealing != underlayBlendLogged {
             underlayBlendLogged = revealing
+            // 帧龄可为 .infinity（无帧或翻转遮罩窗口强制过期）：Int() 会 fatal，按 watchdog 惯例记 -1。
             diagnostics.event("preview_underlay_blend",
-                "state=\(revealing ? "conceal" : "reveal") opacity=\(String(format: "%.2f", value)) main_frame_age_ms=\(Int(frameAge * 1000))")
+                "state=\(revealing ? "conceal" : "reveal") opacity=\(String(format: "%.2f", value)) main_frame_age_ms=\(frameAge.isFinite ? Int(frameAge * 1_000) : -1)")
         }
     }
 
@@ -2145,6 +2155,14 @@ class CameraManager: NSObject, ObservableObject {
         let hardwareNow = max(1, videoCaptureDevice.map { CGFloat($0.videoZoomFactor) } ?? currentZoomFactor)
         let crossesConstituent = focalInfo.crossesConstituentBoundary(fromZoom: hardwareNow, toZoom: finalZoom)
         beginLensSwitch(zoom: finalZoom, zslGraceMs: 150, maxWaitMs: crossesConstituent ? 2800 : 1200)
+        // 跨镜头拉远从第 0ms 预遮主源(见 LensTransitionPremask):消除停顿开头的冻结
+        // 窗口与淡出重影,底衬的系统 crossfade 直接接管切换;拉近可能无缝,不遮。
+        if LensTransitionPremask.shouldMask(crossesConstituent: crossesConstituent, fromZoom: hardwareNow, toZoom: finalZoom) {
+            let deadline = CFAbsoluteTimeGetCurrent() + LensTransitionPremask.windowSeconds
+            underlayFlipMaskUntil = max(underlayFlipMaskUntil, deadline)
+            diagnostics.event("preview_premask",
+                "focal_seq=\(focalSequence) to_mm=\(option.rawValue) from_zoom=\(String(format: "%.2f", hardwareNow)) to_zoom=\(String(format: "%.2f", finalZoom)) window_ms=\(Int(LensTransitionPremask.windowSeconds * 1_000))")
+        }
         // 同 constituent 内的短跳用**高速短 ramp**：立即设置（上一版）消除了 ramp 死启动的
         // 迟滞感，但真机观感反馈「跳变生硬」——离散跳切对连续取景的视觉冲击大于 ~200-300ms
         // 的连续运动（同镜头跳变 ≤1 档光变，高速率 32 下实际时长与此相当）。跨 switchover
