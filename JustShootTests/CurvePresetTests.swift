@@ -54,7 +54,17 @@ final class CurvePresetTests: XCTestCase {
         XCTAssertGreaterThan(gray(.matte, 0), 0.03)
         XCTAssertLessThan(gray(.matte, 0), 0.12)
         XCTAssertGreaterThan(gray(.matte, 1), 0.95)
-        XCTAssertLessThan(gray(.matte, 1), 1)
+        XCTAssertEqual(gray(.matte, 1), 1)
+    }
+
+    func testMatteCombinesALiftedBlackFloorWithShadowAndHighlightContrast() {
+        XCTAssertEqual(gray(.matte, 0), 0.075, accuracy: 0.00001)
+        // A lifted black floor can coexist with darker shadow midtones.
+        XCTAssertGreaterThan(gray(.matte, 0.05), 0.05)
+        XCTAssertLessThan(gray(.matte, 0.25), 0.20)
+        XCTAssertEqual(gray(.matte, 0.5), 0.5, accuracy: 0.0001)
+        XCTAssertGreaterThan(gray(.matte, 0.75), 0.84)
+        XCTAssertGreaterThan(gray(.matte, 0.75) - gray(.matte, 0.25), 0.65)
     }
 
     func testTonePresetsLeaveNeutralGraysNeutralWhileXProSplitsTheirColor() {

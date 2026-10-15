@@ -140,12 +140,12 @@ enum CurveMath {
 
 // MARK: - 内置曲线
 
-/// 内置曲线的稳定标识。raw value 保留旧版本名称，兼容已写入 `curvePreset` 的选择。
+/// 内置曲线的稳定标识；旧选择的兼容映射集中在 LegacyCurveMigration。
 enum CurvePreset: String, CaseIterable, Identifiable, Codable, Sendable {
     case none
     case filmSoft = "softShoulder"
     case punch = "highContrast"
-    case matte = "matteShadow"
+    case matte = "matteSCurve"
     case crossProcess
 
     var id: String { rawValue }
@@ -155,7 +155,7 @@ enum CurvePreset: String, CaseIterable, Identifiable, Codable, Sendable {
         case .none: return String(localized: "Neutral")
         case .filmSoft: return String(localized: "Soft Contrast")
         case .punch: return String(localized: "S-Curve")
-        case .matte: return String(localized: "Matte")
+        case .matte: return String(localized: "Matte S")
         case .crossProcess: return String(localized: "X-Pro")
         }
     }
@@ -169,7 +169,7 @@ enum CurvePreset: String, CaseIterable, Identifiable, Codable, Sendable {
         case .none: return String(localized: "Keep the film's original tones.")
         case .filmSoft: return String(localized: "Reduce midtone contrast.")
         case .punch: return String(localized: "Add midtone contrast with an S-curve.")
-        case .matte: return String(localized: "Lift blacks for a faded print look.")
+        case .matte: return String(localized: "Lift blacks with S-curve contrast.")
         case .crossProcess: return String(localized: "Cool shadows and warm highlights.")
         }
     }
@@ -195,9 +195,11 @@ enum CurvePreset: String, CaseIterable, Identifiable, Codable, Sendable {
             ])
             return (points, points, points)
         case .matte:
+            // Lift only the black endpoint, then dip the shadows and raise the lights.
+            // The S-shaped middle keeps separation instead of lifting the whole shadow range.
             let points = CurveMath.points([
-                (0, 0.06), (0.16, 0.18), (0.35, 0.36), (0.62, 0.66),
-                (0.84, 0.88), (1, 0.985)
+                (0, 0.075), (0.32, 0.22), (0.50, 0.50),
+                (0.72, 0.84), (0.88, 0.955), (1, 1)
             ])
             return (points, points, points)
         case .crossProcess:

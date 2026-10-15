@@ -40,9 +40,11 @@ final class FilmCurveLibrary: ObservableObject {
             .filter { seen.insert($0.id).inserted && !$0.name.isEmpty }
         let validBuiltIns = Set(CurvePreset.allCases.map(\.rawValue))
         let storedHidden = Set(payload?.hiddenBuiltInIDs ?? [])
-        let hidden = storedHidden.intersection(validBuiltIns).subtracting([CurvePreset.none.rawValue])
+        let mappedHidden = Set(storedHidden.map { $0 == "matteShadow" ? CurvePreset.matte.rawValue : $0 })
+        let hidden = mappedHidden.intersection(validBuiltIns).subtracting([CurvePreset.none.rawValue])
         var selection = payload?.selectedCurveID ?? defaults.string(forKey: Self.selectionKey) ?? CurvePreset.none.rawValue
-        if payload?.selectedCurveID == nil, !storedHidden.contains(selection),
+        let needsLegacyDefinition = payload?.selectedCurveID == nil || CurvePreset(rawValue: selection) == nil
+        if needsLegacyDefinition, !storedHidden.contains(selection),
            let migrated = LegacyCurveMigration.customCurve(for: selection) {
             curves.append(migrated)
             selection = Self.customID(migrated.id)

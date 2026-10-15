@@ -1860,6 +1860,22 @@
         }
       }
     },
+    "Lift blacks with S-curve contrast." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lift blacks with S-curve contrast."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "抬高黑位，同时保留 S 曲线反差。"
+          }
+        }
+      }
+    },
     "Live Photo" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1992,6 +2008,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "哑光"
+          }
+        }
+      }
+    },
+    "Matte S" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matte S"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哑光 S"
           }
         }
       }

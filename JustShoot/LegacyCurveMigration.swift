@@ -16,6 +16,9 @@ enum LegacyCurveMigration {
         case "softFaded":
             name = String(localized: "Fade")
             master = [(0, 0.075), (0.25, 0.29), (0.50, 0.51), (0.75, 0.72), (1, 0.93)]
+        case "matteShadow":
+            name = String(localized: "Matte")
+            master = [(0, 0.06), (0.16, 0.18), (0.35, 0.36), (0.62, 0.66), (0.84, 0.88), (1, 0.985)]
         case "warmRetro":
             var curve = CustomFilmCurve(name: String(localized: "Warm Print"))
             curve.redPoints = CurveMath.points([(0, 0.015), (0.15, 0.10), (0.38, 0.34), (0.62, 0.68), (0.85, 0.91), (1, 1)])

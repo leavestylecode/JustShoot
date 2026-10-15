@@ -201,4 +201,61 @@ final class FilmCurveLibraryTests: XCTestCase {
             XCTAssertFalse(restored.isBuiltInVisible(.punch))
         }
     }
+
+    func testOldMatteMigratesWithAndWithoutAnAtomicSelectionAndDoesNotDuplicateOnReload() throws {
+        for hasAtomicSelection in [false, true] {
+            try withDefaults { defaults in
+                let existing = CustomFilmCurve(name: "Already saved")
+                try store(StoredPayload(customCurves: [existing],
+                    selectedCurveID: hasAtomicSelection ? "matteShadow" : nil), in: defaults)
+                defaults.set(hasAtomicSelection ? "none" : "matteShadow", forKey: "curvePreset")
+                let library = FilmCurveLibrary(defaults: defaults)
+                XCTAssertEqual(library.customCurves.count, 2)
+                let migrated = try XCTUnwrap(library.customCurves.first { $0.id != existing.id })
+                XCTAssertEqual(library.selectedCurveID, migrated.filmCurve.id)
+                XCTAssertEqual(migrated.masterPoints, CurveMath.points([
+                    (0, 0.06), (0.16, 0.18), (0.35, 0.36), (0.62, 0.66), (0.84, 0.88), (1, 0.985)
+                ]))
+                XCTAssertEqual(migrated.filmCurve.sampleGray(0).red, 0.06, accuracy: 0.000001)
+                XCTAssertEqual(migrated.filmCurve.sampleGray(1).red, 0.985, accuracy: 0.000001)
+                let restored = FilmCurveLibrary(defaults: defaults)
+                XCTAssertEqual(restored.customCurves, library.customCurves)
+                XCTAssertEqual(restored.selectedCurveID, library.selectedCurveID)
+                XCTAssertEqual(try load(defaults).selectedCurveID, library.selectedCurveID)
+            }
+        }
+    }
+
+    func testNewMatteSelectionIsNotMistakenForThePreviousMatteDefinition() throws {
+        try withDefaults { defaults in
+            let library = FilmCurveLibrary(defaults: defaults)
+            XCTAssertEqual(CurvePreset.matte.rawValue, "matteSCurve")
+            XCTAssertTrue(library.select(.builtIn(.matte)))
+            defaults.set("matteShadow", forKey: "curvePreset")
+            let restored = FilmCurveLibrary(defaults: defaults)
+            XCTAssertTrue(restored.customCurves.isEmpty)
+            XCTAssertEqual(restored.selectedCurveID, "matteSCurve")
+        }
+    }
+
+    func testOldMatteHiddenPreferenceMapsToTheCurrentMatteWithoutRevivingTheHiddenSelection() throws {
+        for hasAtomicSelection in [false, true] {
+            try withDefaults { defaults in
+                try store(StoredPayload(hiddenBuiltInIDs: ["none", "matteShadow"],
+                    selectedCurveID: hasAtomicSelection ? "matteShadow" : nil), in: defaults)
+                defaults.set("matteShadow", forKey: "curvePreset")
+                let library = FilmCurveLibrary(defaults: defaults)
+                XCTAssertEqual(library.selectedCurveID, "none")
+                XCTAssertTrue(library.customCurves.isEmpty)
+                XCTAssertFalse(library.isBuiltInVisible(.matte))
+                XCTAssertTrue(library.isBuiltInVisible(.none))
+                XCTAssertEqual(library.hiddenBuiltInIDs, ["matteSCurve"])
+                XCTAssertEqual(try load(defaults).hiddenBuiltInIDs, ["matteSCurve"])
+                let restored = FilmCurveLibrary(defaults: defaults)
+                XCTAssertEqual(restored.selectedCurveID, "none")
+                XCTAssertTrue(restored.customCurves.isEmpty)
+                XCTAssertFalse(restored.isBuiltInVisible(.matte))
+            }
+        }
+    }
 }
