@@ -40,6 +40,8 @@ struct CameraView: View {
     @ObservedObject private var capturePipeline = CapturePipeline.shared
     @State private var preparedLUT: (key: String, lut: CubeLUT, profile: FilmRenderProfile)?
     @State private var lutPreparationCadence = CameraLUTPreparationCadence()
+    @State private var entryRetryRevision: UInt64 = 0
+    @State private var preparedPickerCovers: [FilmPreset: UIImage] = [:]
     @State private var whiteBalanceSelection: CameraWhiteBalanceSelection = .automatic
     @State private var tintSelection: CameraTintSelection = .automatic
     @State private var shutterPressed = false
@@ -90,10 +92,8 @@ struct CameraView: View {
                 // 预览区
                 GeometryReader { geometry in
                     ZStack(alignment: .bottom) {
-                        // 入场门控：帧流稳定（首帧后驻留 300ms，CameraManager.previewRevealReady）
-                        // 且当前胶片的 LUT 已就绪才淡入预览——开头的热身抖动帧/未分级帧不
-                        // 展示给用户（用户可感的「进相机开头卡顿」主诉）。底衬与主源同门控，
-                        // 避免未分级系统画面从门控缝隙漏出。
+                        // Keep the preview mounted and opaque while the independent entry
+                        // cover is visible, so Metal can obtain and render its first drawable.
                         Group {
                             // 镜头切换过渡底衬：系统合成预览层（Apple 官方推荐的预览显示路径），
                             // 切镜头时拿到系统 crossfade 而非停帧。常态完全被上层 Metal 预览盖住
@@ -114,12 +114,11 @@ struct CameraView: View {
                                 optics: preparedLUT?.profile.optics ?? source.renderProfile.optics,
                                 chromatic: preparedLUT?.profile.effectiveChromatic ?? source.renderProfile.effectiveChromatic
                             )
+                                .id(entryRetryRevision)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 .contentShape(Rectangle())
                                 .gesture(unifiedPreviewGesture(viewportSize: geometry.size))
                         }
-                        .opacity(isPreviewRevealed ? 1 : 0)
-                        .animation(.easeOut(duration: 0.35), value: isPreviewRevealed)
 
                         if showFocusIndicator, let point = focusPoint {
                             FocusIndicatorView()
@@ -207,7 +206,8 @@ struct CameraView: View {
                         current: source,
                         customLUTs: customLUTs,
                         contentRotation: controlRotationAngle,
-                        orientation: cameraManager.currentDeviceOrientation
+                        orientation: cameraManager.currentDeviceOrientation,
+                        preparedCovers: preparedPickerCovers
                     ) { newSource in
                         if newSource.id != source.id {
                             cameraManager.hapticSoft.impactOccurred()
@@ -230,53 +230,6 @@ struct CameraView: View {
             .disabled(cameraManager.readiness != .ready || isShutterBusy)
             .allowsHitTesting(cameraManager.readiness == .ready && !isShutterBusy)
             .accessibilityHidden(cameraManager.readiness != .ready)
-
-            // 准备期间直接展示相机布局，不额外覆盖 loading UI；底层控件仍由 readiness 禁用，
-            // 避免 device 尚未绑定时产生 focus_set_skip / 无效控制操作。
-            if cameraManager.readiness == .failed && !cameraManager.cameraPermissionDenied {
-                ZStack {
-                    Color.black.opacity(0.88)
-                    VStack(spacing: 14) {
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 38))
-                            .foregroundStyle(.secondary)
-                        Text("Camera unavailable")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                        Button("Try Again") {
-                            cameraManager.requestCameraPermission()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.white)
-                        .foregroundStyle(.black)
-                    }
-                }
-                .ignoresSafeArea()
-                .transition(.opacity)
-                .zIndex(20)
-            }
-
-            // 权限被拒绝时的引导
-            if cameraManager.cameraPermissionDenied {
-                VStack(spacing: 16) {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 48))
-                        .foregroundColor(.gray)
-                    Text("Camera access required")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                    Text("Allow camera access for JustShoot in Settings")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                    Button("Open Settings", action: openAppSettings)
-                    .buttonStyle(.borderedProminent)
-                    .tint(.white)
-                    .foregroundColor(.black)
-                }
-                .padding(40)
-                .zIndex(21)
-            }
 
             // 快门闪光效果——模拟柯达 / 富士即时相机的氙气闪光膜质感：
             // 1) 主层 0.78 不到纯白，给暖色 gradient 留出对比空间
@@ -457,16 +410,27 @@ struct CameraView: View {
             }
             .padding(.bottom, 10)
         }
+        .allowsHitTesting(!cameraManager.entryPreparation.coversContent)
+        .accessibilityHidden(cameraManager.entryPreparation.coversContent)
+        .overlay {
+            if cameraManager.entryPreparation.coversContent {
+                cameraPreparationScreen
+                    .ignoresSafeArea()
+                    .zIndex(100)
+            }
+        }
+        .toolbar(cameraManager.entryPreparation.coversContent ? .hidden : .visible, for: .navigationBar)
         .onAppear {
             Diagnostics.start()
             let manager = cameraManager
             DiagnosticWatchdog.shared.addCamera(id: manager.diagnostics.id, flow: manager.flowDiagnostics) { [weak manager] in manager?.previewHealth() }
             manager.diagnostics.event("camera_view_appear")
+            cameraManager.setEntrySceneActive(scenePhase == .active)
+            cameraManager.updateEntryPipelineReady(capturePipeline.isPrepared)
+            cameraManager.updateEntryLUT(expectedKey: previewLUTKey, preparedKey: preparedLUT?.key)
             cameraManager.requestCameraPermission()
             // 告知期望录音状态（live && sound）；session 配置完成后据此决定是否挂麦克风。
             cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
-            // 后台预热 picker 封面缩略图，消除「第一次展开 LUT 栏时 8 张封面同帧冷解码」的掉帧。
-            FilmSourcePickerStrip.preloadCovers(displayScale: displayScale)
         }
         // 顶栏 Live 开关 / 设置页声音开关变化时，实时增删麦克风输入（在相机页内切换即时生效）。
         .onChange(of: livePhotoEnabled) { _, _ in
@@ -488,9 +452,39 @@ struct CameraView: View {
         .onChange(of: previewGestureActive) { _, active in
             if !active { resetPreviewGesture() }
         }
+        .onChange(of: previewLUTKey) { _, key in
+            cameraManager.updateEntryLUT(expectedKey: key, preparedKey: preparedLUT?.key)
+        }
+        .onChange(of: capturePipeline.isPrepared) { _, ready in
+            cameraManager.updateEntryPipelineReady(ready)
+        }
+        .task(id: cameraManager.entryPreparation.generation) {
+            guard let generation = cameraManager.entryPreparation.generation,
+                  cameraManager.entryPreparation.isPreparing else { return }
+            let preparation = cameraManager.diagnostics.span("camera_entry_resources", "generation=\(generation)")
+            do {
+                async let preview: Void = PreviewMetalResources.warmUp()
+                async let processing: Void = FilmProcessor.shared.warmUpForCapture()
+                async let covers = FilmSourcePickerStrip.preloadCovers(displayScale: displayScale)
+                let (_, _, preparedCovers) = try await (preview, processing, covers)
+                try Task.checkCancellation()
+                guard cameraManager.entryPreparation.generation == generation else { return }
+                preparedPickerCovers = preparedCovers
+                cameraManager.entryResourcesPrepared(generation: generation)
+                preparation.end()
+            } catch is CancellationError {
+                preparation.end("cancelled")
+                return
+            } catch {
+                preparation.end("error", Diagnostics.errorFields(error))
+                guard !Task.isCancelled, cameraManager.entryPreparation.generation == generation else { return }
+                cameraManager.previewRendererUnavailable()
+            }
+        }
         // 编辑当前用户曲线时 ID 不变、内容指纹会变化；监听完整后缀可确保新 LUT 立即预热。
-        .task(id: previewLUTKey) {
+        .task(id: previewLUTKey + "#retry-\(entryRetryRevision)") {
             let key = previewLUTKey
+            cameraManager.updateEntryLUT(expectedKey: key, preparedKey: preparedLUT?.key)
             guard preparedLUT?.key != key else { return }
             let requestedSource = source
             let curve = selectedCurve
@@ -517,6 +511,7 @@ struct CameraView: View {
                 lutWait.end("ok", "cancelled=\(Task.isCancelled)")
                 guard !Task.isCancelled, key == previewLUTKey else { return }
                 preparedLUT = (key, lut, requestedSource.renderProfile)
+                cameraManager.updateEntryLUT(expectedKey: key, preparedKey: key)
                 cameraManager.diagnostics.event("camera_lut_ready", "dimension=\(lut.dimension) \(curveFields) \(colorAdjustmentDiagnosticFields)")
             } catch is CancellationError {
                 lutWait.end("cancelled")
@@ -528,7 +523,9 @@ struct CameraView: View {
                     tintSelection = .automatic
                     captureError = String(localized: "Color adjustments could not be applied. Auto has been restored.")
                 } else {
-                    captureError = String(localized: "This LUT is invalid or unsupported.")
+                    if !cameraManager.entryLUTPreparationFailed(key: key) {
+                        captureError = String(localized: "This LUT is invalid or unsupported.")
+                    }
                 }
             }
         }
@@ -546,6 +543,7 @@ struct CameraView: View {
         // 只调 pauseSessionForBackground 释放摄像头硬件，配置/observers 全部保留。
         // 没有这条监听，回前台只看到黑屏（pixelBuffer 是 stale 的）+ session 不再产帧。
         .onChange(of: scenePhase) { _, newPhase in
+            cameraManager.setEntrySceneActive(newPhase == .active)
             switch newPhase {
             case .background:
                 cameraManager.pauseSessionForBackground()
@@ -580,9 +578,49 @@ struct CameraView: View {
     }
 
     private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }
-    /// 入场门控：帧流稳定（首帧驻留 300ms）且当前胶片 LUT 已就绪才显示预览（淡入见预览区）。
-    private var isPreviewRevealed: Bool {
-        cameraManager.previewRevealReady && preparedLUT != nil
+
+    private var cameraPreparationScreen: some View {
+        let failure = cameraManager.entryPreparation.failure
+        return PreparationScreen(
+            title: failure == .permissionDenied ? "Camera access required" :
+                failure == nil ? "Preparing camera" : "Camera unavailable",
+            message: cameraPreparationMessage,
+            isLoading: failure == nil,
+            actionTitle: failure == .permissionDenied ? "Open Settings" : "Try Again",
+            onAction: failure.map { failure in
+                {
+                    if failure == .permissionDenied { openAppSettings() }
+                    else { retryCameraEntry() }
+                }
+            },
+            onClose: { dismiss() }
+        )
+    }
+
+    private var cameraPreparationMessage: String? {
+        switch cameraManager.entryPreparation.failure {
+        case .permissionDenied:
+            String(localized: "Allow camera access for JustShoot in Settings")
+        case .cameraUnavailable:
+            String(localized: "The camera could not be started. Please try again.")
+        case .filmUnavailable:
+            String(localized: "This film could not be prepared. Please try again.")
+        case .previewUnavailable:
+            String(localized: "The camera preview could not be prepared. Please try again.")
+        case .timedOut:
+            String(localized: "The camera is taking longer than expected. Please try again.")
+        case nil:
+            nil
+        }
+    }
+
+    private func retryCameraEntry() {
+        captureError = nil
+        preparedLUT = nil
+        entryRetryRevision &+= 1
+        cameraManager.updateEntryLUT(expectedKey: previewLUTKey, preparedKey: nil)
+        cameraManager.retryEntryPreparation()
+        cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
     }
     private var previewLUTKey: String {
         let baseKey = FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: selectedCurve)
@@ -609,7 +647,7 @@ struct CameraView: View {
     private func capturePhoto() async {
         // Reserve bounded storage before exposure. AVFoundation releases the shutter independently
         // of the application-wide durable processing queue.
-        guard cameraManager.readiness == .ready else {
+        guard cameraManager.entryPreparation.isRevealed, cameraManager.readiness == .ready else {
             cameraManager.diagnostics.event("shutter_ignored", "reason=camera_preparing")
             Log.capture.debug("shutter_ignored reason=camera_preparing")
             return

@@ -28,36 +28,59 @@ private final class PreviewFrameLease: @unchecked Sendable {
 final class PreviewMetalResources: @unchecked Sendable {
     static let shared = PreviewMetalResources()
 
-    let device: (any MTLDevice)?
-    let computePipeline: (any MTLComputePipelineState)?
-    let finishPipeline: (any MTLComputePipelineState)?
-
-    private init() {
-        guard let device = MTLCreateSystemDefaultDevice() else {
-            self.device = nil
-            self.computePipeline = nil
-            self.finishPipeline = nil
-            return
-        }
-        self.device = device
-        guard let library = device.makeDefaultLibrary(),
-              let function = library.makeFunction(name: "previewLUT"),
-              let pipeline = try? device.makeComputePipelineState(function: function),
-              let finishFunction = library.makeFunction(name: "previewFinish"),
-              let finishPipeline = try? device.makeComputePipelineState(function: finishFunction) else {
-            Log.session.error("metal_shader_load_failed")
-            self.computePipeline = nil
-            self.finishPipeline = nil
-            return
-        }
-        self.computePipeline = pipeline
-        self.finishPipeline = finishPipeline
+    enum PreparationError: Error, Sendable {
+        case metalUnavailable
+        case shaderUnavailable
     }
 
-    /// 由调用方安排在后台阶段执行，避免本类型再私自派生并发任务、与其它冷启动工作争抢资源。
-    /// 幂等：shared 是 lazy 单例，多次调用只会命中已构建实例。
-    static func prepare() {
-        _ = PreviewMetalResources.shared
+    private struct Ready: @unchecked Sendable {
+        let device: any MTLDevice
+        let computePipeline: any MTLComputePipelineState
+        let finishPipeline: any MTLComputePipelineState
+    }
+    private struct State {
+        var ready: Ready?
+    }
+    private let state = OSAllocatedUnfairLock(initialState: State())
+    private let preparationQueue = DispatchQueue(label: "com.justshoot.preview-prepare", qos: .utility)
+
+    /// Accessors only read a completed snapshot; UIKit construction cannot compile a PSO.
+    var device: (any MTLDevice)? { state.withLock { $0.ready?.device } }
+    var computePipeline: (any MTLComputePipelineState)? { state.withLock { $0.ready?.computePipeline } }
+    var finishPipeline: (any MTLComputePipelineState)? { state.withLock { $0.ready?.finishPipeline } }
+
+    private init() {}
+
+    /// Await actual pipeline creation without blocking MainActor or Swift's cooperative pool.
+    /// Only success is cached. A later call retries a failed driver/library initialization.
+    static func warmUp() async throws {
+        try Task.checkCancellation()
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+            shared.preparationQueue.async(qos: .utility, flags: [.enforceQoS, .detached]) {
+                do { try shared.initializeIfNeeded(); continuation.resume() }
+                catch { continuation.resume(throwing: error) }
+            }
+        }
+        try Task.checkCancellation()
+    }
+
+    private func initializeIfNeeded() throws {
+        if state.withLock({ $0.ready != nil }) { return }
+        do {
+            guard let device = MTLCreateSystemDefaultDevice() else { throw PreparationError.metalUnavailable }
+            guard let library = device.makeDefaultLibrary(),
+                  let function = library.makeFunction(name: "previewLUT"),
+                  let finishFunction = library.makeFunction(name: "previewFinish") else {
+                throw PreparationError.shaderUnavailable
+            }
+            let ready = try Ready(device: device,
+                computePipeline: device.makeComputePipelineState(function: function),
+                finishPipeline: device.makeComputePipelineState(function: finishFunction))
+            state.withLock { $0.ready = ready }
+        } catch {
+            Log.session.error("metal_prepare_failed")
+            throw error
+        }
     }
 }
 
@@ -231,13 +254,9 @@ struct RealtimePreviewView: UIViewRepresentable {
     let chromatic: FilmChromaticResponseParameters
 
     func makeUIView(context: Context) -> MTKView {
-        // 复用启动时预热好的共享 device，避免在转场期间于主线程实例化 GPU 设备。
-        guard let device = PreviewMetalResources.shared.device ?? MTLCreateSystemDefaultDevice() else {
-            let fallback = MTKView(frame: .zero)
-            fallback.backgroundColor = .black
-            return fallback
-        }
-        let view = CameraPreviewMetalView(frame: .zero, device: device)
+        // A loading overlay can mount this view before async preparation finishes.
+        // The next update installs its device/PSOs; no cold compilation occurs on MainActor.
+        let view = CameraPreviewMetalView(frame: .zero, device: PreviewMetalResources.shared.device)
         // CADisplayLink 驱动渲染：MTKView 内部以屏幕 vsync 节拍调 draw(in:)。
         // draw() 内部按 lastRenderedFrameId 去重，没有新相机帧时立刻 return（~零成本）。
         //
@@ -257,8 +276,10 @@ struct RealtimePreviewView: UIViewRepresentable {
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         view.autoResizeDrawable = false
         (view.layer as? CAMetalLayer)?.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
+        context.coordinator.manager = manager
         context.coordinator.setup(view: view)
         view.onRenderingAvailabilityChanged = { [weak coordinator = context.coordinator] active, reason in
+            coordinator?.renderingAvailabilityChanged(active)
             coordinator?.manager?.diagnostics.event("preview_rendering_changed", "active=\(active) reason=\(reason)")
         }
         manager.diagnostics.event("preview_renderer_setup", "target_fps=\(view.preferredFramesPerSecond) scale=\(view.contentScaleFactor) max_long_edge=\(CameraPerformancePolicy.maximumPreviewLongEdge) diffusion_scale=0.5")
@@ -273,6 +294,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         context.coordinator.optics = optics
         context.coordinator.chromatic = chromatic
         context.coordinator.manager = manager
+        context.coordinator.setup(view: uiView)
         manager.previewMTKView = uiView
     }
 
@@ -281,6 +303,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ uiView: MTKView, coordinator: Coordinator) {
+        coordinator.renderingAvailabilityChanged(false)
         (uiView as? CameraPreviewMetalView)?.stopRendering()
         uiView.isPaused = true
         uiView.delegate = nil
@@ -307,6 +330,9 @@ struct RealtimePreviewView: UIViewRepresentable {
         private var halationBlur: MPSImageGaussianBlur?
         private var bloomBlur: MPSImageGaussianBlur?
         private var energyDownsampler: MPSImageBilinearScale?
+        private var setupFailureReported = false
+        private let completionGate = PreviewRenderCompletionGate()
+        private let gpuStatistics = PreviewGPUStatistics()
 
         private struct PreviewTargets: @unchecked Sendable {
             let graded: any MTLTexture
@@ -403,35 +429,42 @@ struct RealtimePreviewView: UIViewRepresentable {
         }
 
         func setup(view: MTKView) {
-            guard let device = view.device else { return }
-            metalDevice = device
-            commandQueue = device.makeCommandQueue()
-            energyDownsampler = MPSImageBilinearScale(device: device)
-            // 设置最大 in-flight command buffers
-            commandQueue?.label = "com.justshoot.preview"
-            view.delegate = self
-
-            // 创建 CVMetalTextureCache（零拷贝访问相机像素缓冲区）
-            var cache: CVMetalTextureCache?
-            CVMetalTextureCacheCreate(nil, nil, device, nil, &cache)
-            textureCache = cache
-
-            // compute PSO 由进程级共享资源在启动时预编译，这里直接复用——makeUIView 不再于
-            // 转场期间同步编译 shader。兜底：极端情况下共享资源缺失（如 Metal 不可用回退路径
-            // 自建了 device）时本地构建一次，保证功能不退化。
-            if let shared = PreviewMetalResources.shared.computePipeline,
-               PreviewMetalResources.shared.device === device {
-                computePipeline = shared
-                finishPipeline = PreviewMetalResources.shared.finishPipeline
-            } else if let library = device.makeDefaultLibrary(),
-                      let function = library.makeFunction(name: "previewLUT") {
-                computePipeline = try? device.makeComputePipelineState(function: function)
-                if let finish = library.makeFunction(name: "previewFinish") {
-                    finishPipeline = try? device.makeComputePipelineState(function: finish)
-                }
-            } else {
-                Log.session.error("metal_shader_load_failed")
+            guard metalDevice == nil, !setupFailureReported else { return }
+            let resources = PreviewMetalResources.shared
+            // The camera entry task reports preparation failures. An absent snapshot here
+            // can also mean that the async preparation has not finished yet.
+            guard let device = resources.device,
+                  let pipeline = resources.computePipeline,
+                  let finish = resources.finishPipeline else { return }
+            guard let queue = device.makeCommandQueue() else {
+                setupFailureReported = true
+                manager?.previewRendererUnavailable()
+                return
             }
+            var cache: CVMetalTextureCache?
+            guard CVMetalTextureCacheCreate(nil, nil, device, nil, &cache) == kCVReturnSuccess,
+                  let cache else {
+                setupFailureReported = true
+                manager?.previewRendererUnavailable()
+                return
+            }
+            view.device = device
+            metalDevice = device
+            commandQueue = queue
+            commandQueue?.label = "com.justshoot.preview"
+            computePipeline = pipeline
+            finishPipeline = finish
+            textureCache = cache
+            energyDownsampler = MPSImageBilinearScale(device: device)
+            view.delegate = self
+            renderingAvailabilityChanged(!view.isPaused && view.window != nil)
+        }
+
+        func renderingAvailabilityChanged(_ active: Bool) {
+            completionGate.setActive(active)
+            // Reattaching may reuse the latest native frame. It still needs a fresh GPU
+            // completion in the new renderer epoch before the entry overlay can reveal.
+            lastRenderedFrameId = nil
         }
 
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
@@ -451,9 +484,6 @@ struct RealtimePreviewView: UIViewRepresentable {
         private var cpuFrameCount = 0
         private var cpuTotalMS = 0.0
         private var cpuMaxMS = 0.0
-        private var gpuFrameCount = 0
-        private var gpuTotalMS = 0.0
-        private var gpuMaxMS = 0.0
         private var backpressureDrops = 0
 
         func draw(in view: MTKView) {
@@ -468,7 +498,9 @@ struct RealtimePreviewView: UIViewRepresentable {
             // PreviewCropCeilingSynchronizer）；metalOpacity = 停顿窗口内淡出本视图、露出
             // 系统预览底衬，恢复后淡回（见 LensTransitionCompositor.swift 设计记录）。
             let transitionPlan = manager?.previewTransitionPlan() ?? (crop: 1, metalOpacity: 1)
-            view.alpha = transitionPlan.metalOpacity
+            // Entry readiness needs a real GPU frame behind its opaque loading overlay.
+            // UIKit must not suppress this view through the ordinary lens-transition fade.
+            view.alpha = manager?.entryPreparation.isRevealed == true ? transitionPlan.metalOpacity : 1
             // 帧去重：如果相机没有产生新帧，跳过渲染（crop 在稳态是常量，重复帧无需重绘）
             guard let (pixelBuffer, frameId, capturedAt) = manager?.getLatestFrame() else {
                 flow?.skipped(.noFrame)
@@ -484,7 +516,8 @@ struct RealtimePreviewView: UIViewRepresentable {
                 didLogFirstDraw = false
                 frameWindowStart = nil; submittedFrames = 0
                 cpuFrameCount = 0; cpuTotalMS = 0; cpuMaxMS = 0
-                gpuFrameCount = 0; gpuTotalMS = 0; gpuMaxMS = 0; backpressureDrops = 0
+                gpuStatistics.reset(generation: generation)
+                backpressureDrops = 0
             }
             let cpuStart = Log.now()
             var drawableWaitMS = 0.0
@@ -498,11 +531,12 @@ struct RealtimePreviewView: UIViewRepresentable {
                 let windowSeconds = max(0.001, Log.now() - (frameWindowStart ?? cpuStart))
                 if cpuFrameCount >= 120 || windowSeconds >= 2 {
                     let cpuAverage = cpuTotalMS / Double(cpuFrameCount)
-                    let gpuAverage = gpuTotalMS / Double(max(1, gpuFrameCount))
-                    trace?.event("preview_perf", "generation=\(generation) submitted_fps=\(String(format: "%.1f", Double(submittedFrames) / windowSeconds)) cpu_avg_ms=\(String(format: "%.2f", cpuAverage)) cpu_max_ms=\(String(format: "%.2f", cpuMaxMS)) gpu_avg_ms=\(String(format: "%.2f", gpuAverage)) gpu_max_ms=\(String(format: "%.2f", gpuMaxMS)) gpu_samples=\(gpuFrameCount) dropped=\(backpressureDrops) input=\(CVPixelBufferGetWidth(pixelBuffer))x\(CVPixelBufferGetHeight(pixelBuffer)) output=\(Int(view.drawableSize.width))x\(Int(view.drawableSize.height))")
+                    let gpu = gpuStatistics.take(generation: generation)
+                    let gpuAverage = gpu.totalMS / Double(max(1, gpu.count))
+                    trace?.event("preview_perf", "generation=\(generation) submitted_fps=\(String(format: "%.1f", Double(submittedFrames) / windowSeconds)) cpu_avg_ms=\(String(format: "%.2f", cpuAverage)) cpu_max_ms=\(String(format: "%.2f", cpuMaxMS)) gpu_avg_ms=\(String(format: "%.2f", gpuAverage)) gpu_max_ms=\(String(format: "%.2f", gpu.maximumMS)) gpu_samples=\(gpu.count) dropped=\(backpressureDrops) input=\(CVPixelBufferGetWidth(pixelBuffer))x\(CVPixelBufferGetHeight(pixelBuffer)) output=\(Int(view.drawableSize.width))x\(Int(view.drawableSize.height))")
                     frameWindowStart = Log.now(); submittedFrames = 0
                     cpuFrameCount = 0; cpuTotalMS = 0; cpuMaxMS = 0
-                    gpuFrameCount = 0; gpuTotalMS = 0; gpuMaxMS = 0; backpressureDrops = 0
+                    backpressureDrops = 0
                 }
             }
 
@@ -733,6 +767,12 @@ struct RealtimePreviewView: UIViewRepresentable {
             #endif
             let semaphore = self.inflightSemaphore
             let targetPool = self.targetPool
+            let gpuStatistics = self.gpuStatistics
+            let completionGate = self.completionGate
+            // Initial frames can precede native configuration warmup. Only a frame
+            // captured after that work can consume the entry's one-shot GPU ticket.
+            let readiness = manager?.needsEntryRender(lutKey: lutCacheKey, capturedAt: capturedAt) == true
+                ? completionGate.ticket(generation: generation, lutKey: lutCacheKey) : nil
             let frameLease = PreviewFrameLease(texture: cvTex, buffer: pixelBuffer)
             commandBuffer.addCompletedHandler { [weak self] buffer in
                 let completedAt = ProcessInfo.processInfo.systemUptime
@@ -744,17 +784,24 @@ struct RealtimePreviewView: UIViewRepresentable {
                     Log.session.error("preview_gpu_failed error=\(buffer.error?.localizedDescription ?? "unknown", privacy: .public)")
                 }
                 let gpuMS = max(0, buffer.gpuEndTime - buffer.gpuStartTime) * 1_000
+                gpuStatistics.record(generation: generation, milliseconds: gpuMS)
                 if let flowStamp {
                     flow?.completed(flowStamp, gpuMS: gpuMS, elapsedMS: (completedAt - submittedAt) * 1_000, failed: buffer.status == .error)
                 }
                 targetPool.recycle(targets, width: outW, height: outH)
                 semaphore.signal()
                 if let flowStamp { flow?.recycled(flowStamp, waitMS: (ProcessInfo.processInfo.systemUptime - completedAt) * 1_000) }
-                Task { @MainActor in
-                    if let self, self.diagnosticCycle == generation, gpuMS > 0 {
-                        self.gpuFrameCount += 1
-                        self.gpuTotalMS += gpuMS
-                        self.gpuMaxMS = max(self.gpuMaxMS, gpuMS)
+                let succeeded = buffer.status == .completed
+                if let readiness, completionGate.complete(readiness) {
+                    Task { @MainActor [weak self] in
+                        guard let self, completionGate.isCurrent(readiness),
+                              self.lutCacheKey == readiness.lutKey else { return }
+                        if succeeded {
+                            self.manager?.previewDidRender(generation: readiness.generation,
+                                lutKey: readiness.lutKey, capturedAt: capturedAt)
+                        } else {
+                            self.manager?.previewDidFail(generation: readiness.generation, lutKey: readiness.lutKey)
+                        }
                     }
                 }
             }

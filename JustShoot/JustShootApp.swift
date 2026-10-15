@@ -43,43 +43,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 }
 
-/// Storage failures preserve the store and expose a retryable UI instead of deleting user data.
-@MainActor
-final class AppStorageController: ObservableObject {
-    @Published private(set) var container: ModelContainer?
-    @Published private(set) var isLoading = false
-    @Published private(set) var hasFailed = false
-
-    func open() async {
-        Diagnostics.start()
-        guard container == nil, !isLoading else { return }
-        let trace = DiagnosticTrace(id: "storage")
-        let opening = trace.span("storage_open")
-        isLoading = true
-        hasFailed = false
-        defer { isLoading = false }
-        do {
-            container = try await Task.detached(priority: .userInitiated) {
-                let schema = Schema(versionedSchema: SchemaV1.self)
-                let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-                try FileManager.default.createDirectory(at: configuration.url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                return try ModelContainer(for: schema, migrationPlan: JustShootMigrationPlan.self,
-                                          configurations: [configuration])
-            }.value
-            opening.end()
-        } catch {
-            opening.end("error", Diagnostics.errorFields(error))
-            hasFailed = true
-            Log.save.error("model_container_open_failed error=\(error.localizedDescription, privacy: .public)")
-        }
-    }
-}
-
 @main
 struct JustShootApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var curveLibrary = FilmCurveLibrary()
-    @StateObject private var storage = AppStorageController()
+    @StateObject private var startup = AppStartupPreparation()
+    @Environment(\.scenePhase) private var scenePhase
 
     private var isRunningUnitTests: Bool {
         #if DEBUG
@@ -91,26 +60,33 @@ struct JustShootApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if isRunningUnitTests {
-                    Color.clear
-                } else if let container = storage.container {
-                    MainTabView()
-                        .environmentObject(curveLibrary)
-                        .modelContainer(container)
-                } else if storage.isLoading || !storage.hasFailed {
-                    ProgressView("Opening your library…")
-                } else {
-                    ContentUnavailableView {
-                        Label("Your library could not be opened", systemImage: "externaldrive.badge.exclamationmark")
-                    } description: {
-                        Text("Your photos and filters have been kept. Please try again.")
-                    } actions: {
-                        Button("Try Again") { Task { await storage.open() } }
-                    }
-                }
-            }
-            .task { if !isRunningUnitTests { await storage.open() } }
+            AppStartupContent(startup: startup, curveLibrary: curveLibrary, isRunningUnitTests: isRunningUnitTests)
+            .onChange(of: scenePhase, initial: true) { _, phase in startup.setActive(phase == .active) }
         }
+    }
+}
+
+private struct AppStartupContent: View {
+    @ObservedObject var startup: AppStartupPreparation
+    let curveLibrary: FilmCurveLibrary
+    let isRunningUnitTests: Bool
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        Group {
+            if isRunningUnitTests {
+                Color.clear
+            } else if let ready = startup.ready {
+                MainTabView(home: ready.home)
+                    .environmentObject(curveLibrary)
+                    .modelContainer(ready.container)
+            } else if !startup.hasFailed {
+                PreparationScreen(title: "Preparing your library…")
+            } else {
+                PreparationScreen(title: "Your library could not be prepared", message: startup.failureMessage,
+                    isLoading: false, onAction: { Task { await startup.retry(displayScale: displayScale) } })
+            }
+        }
+        .task { if !isRunningUnitTests { await startup.prepare(displayScale: displayScale) } }
     }
 }

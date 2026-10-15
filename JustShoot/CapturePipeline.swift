@@ -46,6 +46,9 @@ final class CapturePipeline: ObservableObject {
         isReady && worker != nil && queueState.occupiedCount < CaptureJournal.maximumJobs
     }
 
+    /// Entry preparation needs a configured worker, independently of queue capacity.
+    var isPrepared: Bool { isReady && worker != nil }
+
     func configure(container: ModelContainer) async {
         guard worker == nil else { return }
         let worker = CaptureWorker(container: container, deletionGate: deletionGate)

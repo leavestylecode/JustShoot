@@ -57,7 +57,7 @@ final class FilmCardImageCache: @unchecked Sendable {
     }
 
     /// Async downsampled load. Returns the cached image on hit; otherwise
-    /// produces a CGImageSource thumbnail on the bounded blocking-image queue.
+    /// produces a display-prepared thumbnail on the bounded blocking-image queue.
     func loadImage(card: FilmCard, maxPixel: Int) async -> UIImage? {
         await loadImage(imageName: card.image, cacheKey: card.id, maxPixel: maxPixel)
     }
@@ -94,10 +94,13 @@ final class FilmCardImageCache: @unchecked Sendable {
             let down: [CFString: Any] = [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
                 kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 96),
-                kCGImageSourceCreateThumbnailWithTransform: true
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true
             ]
             guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, down as CFDictionary) else { return nil }
-            let image = UIImage(cgImage: cg)
+            // This synchronous UIKit decode runs only on the bounded image worker, never
+            // MainActor. Return the prepared object itself, not its lazily decoded original.
+            guard let image = UIImage(cgImage: cg).preparingForDisplay() else { return nil }
             self.cache.setObject(image, forKey: key as NSString, cost: self.memoryCost(of: image))
             return image
         }

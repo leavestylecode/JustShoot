@@ -16,6 +16,7 @@ import SwiftData
 //
 // 选中态用 @SceneStorage 持久化——场景恢复后回到上次停留的 tab。
 struct MainTabView: View {
+    let home: HomePreparationSnapshot
     @SceneStorage("selectedTab") private var selectedTab = 0
     @Environment(\.modelContext) private var modelContext
     @ObservedObject private var capturePipeline = CapturePipeline.shared
@@ -24,7 +25,7 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab(value: 0) {
-                ContentView()
+                ContentView(preparedHome: home)
             } label: {
                 // 图标-only：label 只放 Image（不含 Text）→ tab 栏不显示文案；
                 // 各页面顶部仍保留自己的 navigationTitle 提供上下文。accessibilityLabel 补回语义。
@@ -80,7 +81,6 @@ struct MainTabView: View {
             }
         }
         .task {
-            PhotoLibrarySync.shared.start(container: modelContext.container)
             await CapturePipeline.shared.configure(container: modelContext.container)
             await PhotoLibrarySync.shared.bootstrap(container: modelContext.container)
         }

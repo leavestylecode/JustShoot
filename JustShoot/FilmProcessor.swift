@@ -109,6 +109,19 @@ final class FilmProcessor: Sendable {
         timer.end()
     }
 
+    /// Initializes the real still-render CIContext before capture admission. This performs
+    /// no synthetic exposure, HEIF encode, Live Photo transcode, or permission request.
+    func warmUpForCapture() async throws {
+        try Task.checkCancellation()
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async(qos: .utility, flags: [.enforceQoS, .detached]) {
+                self.prepareRendering()
+                continuation.resume()
+            }
+        }
+        try Task.checkCancellation()
+    }
+
     // MARK: - 逐阶段诊断对照图
     //
     // 设置页开启「保留处理阶段对照图」（默认关）后，每次静态成片在

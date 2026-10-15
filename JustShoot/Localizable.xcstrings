@@ -640,7 +640,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "相机暂不可用"
+            "value" : "相机不可用"
           }
         }
       }
@@ -2658,6 +2658,38 @@
         }
       }
     },
+    "Preparing camera" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing camera"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在准备相机…"
+          }
+        }
+      }
+    },
+    "Preparing your library…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing your library…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在准备主页…"
+          }
+        }
+      }
+    },
     "Process" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3295,6 +3327,54 @@
         }
       }
     },
+    "The camera could not be started. Please try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera could not be started. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法启动相机，请重试。"
+          }
+        }
+      }
+    },
+    "The camera is taking longer than expected. Please try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera is taking longer than expected. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相机准备超时，请重试。"
+          }
+        }
+      }
+    },
+    "The camera preview could not be prepared. Please try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera preview could not be prepared. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法准备相机预览，请重试。"
+          }
+        }
+      }
+    },
     "The original photo is not available to export." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3381,6 +3461,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此 LUT 的输入范围暂不受支持。"
+          }
+        }
+      }
+    },
+    "This film could not be prepared. Please try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This film could not be prepared. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法载入当前胶片，请重试。"
           }
         }
       }
@@ -3784,6 +3880,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法打开图库"
+          }
+        }
+      }
+    },
+    "Your library could not be prepared" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your library could not be prepared"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主页准备失败"
+          }
+        }
+      }
+    },
+    "Your library is taking longer than expected. Please try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your library is taking longer than expected. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主页准备超时，请重试。"
           }
         }
       }

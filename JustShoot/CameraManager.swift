@@ -212,6 +212,7 @@ class CameraManager: NSObject, ObservableObject {
     /// CameraView 告知的期望录音状态（live && sound）。session 配置完成后据此 reconcile。
     private var livePhotoAudioDesired: Bool = false
     private var audioReconciliationPending = false
+    private var audioPermissionRequestPending = false
     /// 麦克风权限被拒——设置页据此提示用户去开。声音开关仍可开，只是降级为静音。
     @Published var microphonePermissionDenied: Bool = false
 
@@ -308,6 +309,13 @@ class CameraManager: NSObject, ObservableObject {
 
     // 权限状态
     @Published private(set) var readiness: CameraReadiness = .idle
+    @Published private(set) var entryPreparation = CameraEntryPreparation()
+    private var entryPreparationTask: Task<Void, Never>?
+    private var entryTimer = CameraEntryPreparation.ActiveTimer()
+    private var entrySceneIsActive = true
+    private var entryPipelineIsReady = false
+    private var previewRendererIsUnavailable = false
+    private var entryFailedLUTKey: String?
     @Published var cameraPermissionDenied: Bool = false
     /// 定位权限被拒绝或受限时，UI 显示「位置已关闭」提示
     @Published var locationPermissionDenied: Bool = false
@@ -427,10 +435,12 @@ class CameraManager: NSObject, ObservableObject {
             return true
         }
         if shouldLog {
-            diagnostics.event("preview_first_buffer", "generation=\(diagnosticGeneration) w=\(width) h=\(height)")
+            let generation = diagnosticGeneration
+            diagnostics.event("preview_first_buffer", "generation=\(generation) w=\(width) h=\(height)")
             Log.session.info("preview_first_frame w=\(width) h=\(height)")
             Task { @MainActor [weak self] in
-                self?.didReceiveFirstPreviewFrame()
+                guard let self, self.sessionIntent.withLock({ $0.permitsStart(generation) }) else { return }
+                self.didReceiveFirstPreviewFrame()
             }
         }
     }
@@ -441,6 +451,12 @@ class CameraManager: NSObject, ObservableObject {
             readiness = value
             diagnostics.event("camera_state", "state=\(value.logValue) generation=\(diagnosticGeneration)")
             Log.session.info("camera_readiness state=\(value.logValue, privacy: .public)")
+        }
+        updateEntryClock()
+        if value == .failed {
+            failEntry(cameraPermissionDenied ? .permissionDenied : .cameraUnavailable)
+        } else {
+            refreshEntryReadiness()
         }
         updateCaptureControls()
     }
@@ -476,6 +492,7 @@ class CameraManager: NSObject, ObservableObject {
                   self.sessionIntent.withLock({ $0.permitsStart(generation) }),
                   self.sessionConfigured, self.hasReceivedPreviewFrame else { return }
             self.previewRevealReady = true
+            self.refreshEntryReadiness()
             self.diagnostics.event("preview_reveal_ready", "generation=\(generation)")
         }
     }
@@ -499,6 +516,163 @@ class CameraManager: NSObject, ObservableObject {
     }
     private func setLocationDenied(_ denied: Bool) {
         if locationPermissionDenied != denied { locationPermissionDenied = denied }
+    }
+
+    // MARK: - Entry preparation
+
+    func updateEntryLUT(expectedKey: String, preparedKey: String?) {
+        if preparedKey == expectedKey || entryFailedLUTKey != expectedKey { entryFailedLUTKey = nil }
+        var next = entryPreparation
+        next.updateLUT(expectedKey: expectedKey, preparedKey: preparedKey)
+        publishEntry(next)
+        refreshEntryReadiness()
+    }
+
+    func updateEntryPipelineReady(_ ready: Bool) {
+        entryPipelineIsReady = ready
+        refreshEntryReadiness()
+    }
+
+    func entryResourcesPrepared(generation: UInt64) {
+        guard sessionIntent.withLock({ $0.permitsStart(generation) }) else { return }
+        var next = entryPreparation
+        next.preparedResources(generation: generation)
+        publishEntry(next)
+        refreshEntryReadiness()
+    }
+
+    func setEntrySceneActive(_ active: Bool) {
+        entrySceneIsActive = active
+        updateEntryClock()
+    }
+
+    func needsEntryRender(lutKey: String, capturedAt: TimeInterval) -> Bool {
+        guard let generation = entryPreparation.generation, isCameraVisible,
+              sessionIntent.withLock({ $0.permitsStart(generation) }) else { return false }
+        return entryPreparation.needsRender(generation: generation, lutKey: lutKey, capturedAt: capturedAt)
+    }
+
+    func previewDidRender(generation: UInt64, lutKey: String, capturedAt: TimeInterval) {
+        guard isCameraVisible, sessionIntent.withLock({ $0.permitsStart(generation) }),
+              entryPreparation.needsRender(generation: generation, lutKey: lutKey, capturedAt: capturedAt) else { return }
+        previewRendererIsUnavailable = false
+        var next = entryPreparation
+        next.rendered(generation: generation, lutKey: lutKey, capturedAt: capturedAt)
+        publishEntry(next)
+        refreshEntryReadiness()
+    }
+
+    private func entryDeviceConfigurationFinished(generation: UInt64, completedAt: TimeInterval, status: String) {
+        guard sessionIntent.withLock({ $0.permitsStart(generation) }) else { return }
+        diagnostics.event("camera_entry_device_settled", "generation=\(generation) status=\(status)")
+        var next = entryPreparation
+        next.preparedDevice(generation: generation, completedAt: completedAt)
+        publishEntry(next)
+        refreshEntryReadiness()
+    }
+
+    /// Synchronous renderer setup failures can precede the view's onAppear/session request.
+    func previewRendererUnavailable() {
+        previewRendererIsUnavailable = true
+        failEntry(.previewUnavailable)
+    }
+
+    func previewDidFail(generation: UInt64, lutKey: String) {
+        guard sessionIntent.withLock({ $0.permitsStart(generation) }),
+              entryPreparation.expectedLUTKey == lutKey else { return }
+        previewRendererIsUnavailable = true
+        failEntry(.previewUnavailable)
+    }
+
+    @discardableResult
+    func entryLUTPreparationFailed(key: String) -> Bool {
+        guard entryPreparation.expectedLUTKey == key else { return false }
+        entryFailedLUTKey = key
+        failEntry(.filmUnavailable)
+        return !entryPreparation.isRevealed
+    }
+
+    func retryEntryPreparation() {
+        stopSession()
+        previewRendererIsUnavailable = false
+        entryFailedLUTKey = nil
+        requestCameraPermission()
+    }
+
+    private var countsEntryTime: Bool {
+        entrySceneIsActive && UIApplication.shared.applicationState == .active &&
+            readiness != .requestingPermission && !audioPermissionRequestPending
+    }
+
+    private func updateEntryClock() {
+        guard entryPreparation.isPreparing else { return }
+        entryTimer.update(at: ProcessInfo.processInfo.systemUptime, counting: countsEntryTime)
+    }
+
+    private func beginEntryPreparation(generation: UInt64) {
+        entryPreparationTask?.cancel()
+        var next = entryPreparation
+        next.begin(generation: generation)
+        publishEntry(next)
+        entryTimer.reset(at: ProcessInfo.processInfo.systemUptime, counting: countsEntryTime)
+        if previewRendererIsUnavailable { failEntry(.previewUnavailable); return }
+        if entryFailedLUTKey == entryPreparation.expectedLUTKey, entryFailedLUTKey != nil {
+            failEntry(.filmUnavailable)
+            return
+        }
+        entryPreparationTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                guard let self, self.entryPreparation.generation == generation,
+                      self.entryPreparation.isPreparing,
+                      self.sessionIntent.withLock({ $0.permitsStart(generation) }) else { return }
+                self.refreshEntryReadiness()
+                guard self.entryPreparation.isPreparing else { return }
+                self.updateEntryClock()
+                if self.entryTimer.elapsed >= 12 {
+                    self.failEntry(.timedOut)
+                    return
+                }
+                do { try await Task.sleep(for: .milliseconds(50)) } catch { return }
+            }
+        }
+    }
+
+    private func refreshEntryReadiness() {
+        guard entryPreparation.isPreparing, let generation = entryPreparation.generation,
+              sessionIntent.withLock({ $0.permitsStart(generation) }) else { return }
+        var next = entryPreparation
+        next.updateReadiness(generation: generation, session: readiness == .ready,
+            preview: previewRevealReady, capture: isReadyToCapture, pipeline: entryPipelineIsReady)
+        publishEntry(next)
+    }
+
+    private func failEntry(_ failure: CameraEntryPreparation.Failure) {
+        guard let generation = entryPreparation.generation else { return }
+        var next = entryPreparation
+        next.fail(failure, generation: generation)
+        publishEntry(next)
+    }
+
+    private func cancelEntryPreparation() {
+        entryPreparationTask?.cancel()
+        entryPreparationTask = nil
+        var next = entryPreparation
+        next.cancel()
+        publishEntry(next)
+    }
+
+    private func publishEntry(_ next: CameraEntryPreparation) {
+        guard next != entryPreparation else { return }
+        entryPreparation = next
+        let phase: String
+        switch next.phase {
+        case .inactive: phase = "inactive"
+        case .preparing: phase = "preparing"
+        case .revealed: phase = "revealed"
+        case .failed: phase = "failed"
+        }
+        diagnostics.event("camera_entry_state", "phase=\(phase) generation=\(next.generation.map(String.init) ?? "none") reason=\(next.failure?.rawValue ?? "none") waiting=\(next.pendingRequirements.isEmpty ? "none" : next.pendingRequirements)")
+        updateCaptureControls()
     }
 
     // MARK: - 3. 方向监控（CoreMotion 直读重力向量，绕过系统旋转锁）
@@ -619,14 +793,14 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     private func updateCaptureControls() {
-        let enabled = readiness == .ready && !isExposing
+        let enabled = entryPreparation.isRevealed && readiness == .ready && !isExposing
         focalLengthPicker?.isEnabled = enabled
         exposureBiasSlider?.isEnabled = enabled
     }
 
     /// Freeze hardware settings before the view awaits storage reservation.
     func beginCaptureAdmission() -> CameraCaptureAdmission.Token? {
-        guard readiness == .ready, isCaptureAvailable, !isExposing,
+        guard entryPreparation.isRevealed, readiness == .ready, isCaptureAvailable, !isExposing,
               sessionIntent.withLock({ $0.wantsRunning }) else { return nil }
         let generation = diagnosticGeneration
         let focalSequence = applyFocalToken
@@ -825,6 +999,7 @@ class CameraManager: NSObject, ObservableObject {
             return
         }
         let token = sessionIntent.withLock { $0.request(running: true) }
+        beginEntryPreparation(generation: token)
         startupTask?.cancel()
         startupTask = Task { [weak self] in
             guard let self else { return }
@@ -890,9 +1065,14 @@ class CameraManager: NSObject, ObservableObject {
             microphonePermissionDenied = false
             applyAudioInput(enabled: true)
         case .notDetermined:
+            guard !audioPermissionRequestPending else { return }
+            audioPermissionRequestPending = true
+            updateEntryClock()
             Task { @MainActor [weak self] in
                 let granted = await AVCaptureDevice.requestAccess(for: .audio)
                 guard let self else { return }
+                self.audioPermissionRequestPending = false
+                self.updateEntryClock()
                 self.microphonePermissionDenied = !granted
                 Log.session.info("permission_mic_result granted=\(granted)")
                 // Permission can finish after navigation/backgrounding or during a capture.
@@ -905,7 +1085,7 @@ class CameraManager: NSObject, ObservableObject {
             applyAudioInput(enabled: false)
             Log.session.info("permission_mic_denied → silent_live_photo")
         @unknown default:
-            break
+            applyAudioInput(enabled: false)
         }
     }
 
@@ -919,11 +1099,21 @@ class CameraManager: NSObject, ObservableObject {
         let queuedAt = ProcessInfo.processInfo.systemUptime
         // 设备解析放在主线程（与现有 video input 一致），再带进 sessionQueue。
         let mic = enabled ? AVCaptureDevice.default(for: .audio) : nil
-        if enabled && mic == nil { Log.session.error("audio_input_no_device"); return }
-        sessionQueue.async {
-            guard intent.withLock({ $0.permitsStart(generation) }) else { return }
+        if enabled && mic == nil {
+            Log.session.error("audio_input_no_device")
+            entryAudioConfigurationFinished(generation: generation, requested: enabled, attached: false)
+            return
+        }
+        sessionQueue.async { [weak self] in
+            guard let manager = self, intent.withLock({ $0.permitsStart(generation) }) else { return }
             let applying = trace.span("audio_input_apply", "enabled=\(enabled) queue_wait_ms=\(Diagnostics.milliseconds(since: queuedAt))")
-            defer { applying.end("finished", "attached=\(Self.audioInput(in: captureSession) != nil)") }
+            defer {
+                let attached = Self.audioInput(in: captureSession) != nil
+                applying.end("finished", "attached=\(attached)")
+                Task { @MainActor in
+                    manager.entryAudioConfigurationFinished(generation: generation, requested: enabled, attached: attached)
+                }
+            }
             let existing = Self.audioInput(in: captureSession)
             if enabled {
                 guard let mic else { return }
@@ -949,6 +1139,17 @@ class CameraManager: NSObject, ObservableObject {
                 Log.session.info("audio_input_removed inputs=\(captureSession.inputs.count)")
             }
         }
+    }
+
+    private func entryAudioConfigurationFinished(generation: UInt64, requested: Bool, attached: Bool) {
+        guard !audioPermissionRequestPending, sessionIntent.withLock({ $0.permitsStart(generation) }) else { return }
+        let desired = livePhotoAudioDesired && AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+        guard desired == requested else { return }
+        diagnostics.event("camera_entry_audio_settled", "generation=\(generation) requested=\(requested) attached=\(attached) silent_fallback=\(requested && !attached)")
+        var next = entryPreparation
+        next.preparedAudio(generation: generation)
+        publishEntry(next)
+        refreshEntryReadiness()
     }
 
     /// 当前 session 里已挂的麦克风输入（无则 nil）。nonisolated：供 sessionQueue 闭包做真值判断。
@@ -1254,6 +1455,7 @@ class CameraManager: NSObject, ObservableObject {
                 self.diagnostics.event("session_interrupted", "reason=\(reason)")
                 self.sessionInterrupted = true
                 self.sessionIntent.withLock { _ = $0.request(running: false) }
+                self.cancelEntryPreparation()
                 self.cancelUnexposedCapture()
                 self.lensSettleTask?.cancel()
                 self.lensSettleTask = nil
@@ -1324,10 +1526,27 @@ class CameraManager: NSObject, ObservableObject {
         // ZSL ring 不会流出脏帧。
         if let device = videoCaptureDevice {
             let warmTrace = diagnostics
-            sessionQueue.async {
+            let warmIntent = sessionIntent
+            sessionQueue.async { [weak self] in
+                guard let manager = self, warmIntent.withLock({ $0.permitsStart(token) }) else { return }
                 let warming = warmTrace.span("device_config_warmup", "")
+                var status = "fallback"
+                defer {
+                    let completedAt = ProcessInfo.processInfo.systemUptime
+                    let completedStatus = status
+                    Task { @MainActor in
+                        manager.entryDeviceConfigurationFinished(generation: token,
+                            completedAt: completedAt, status: completedStatus)
+                    }
+                }
                 do {
                     try device.lockForConfiguration()
+                    guard warmIntent.withLock({ $0.permitsStart(token) }) else {
+                        device.unlockForConfiguration()
+                        status = "superseded"
+                        warming.end("superseded")
+                        return
+                    }
                     _ = Self.applyConstituentSwitchingPolicy(to: device)
                     let base = device.videoZoomFactor
                     let maxZoom = device.activeFormat.videoMaxZoomFactor
@@ -1337,11 +1556,15 @@ class CameraManager: NSObject, ObservableObject {
                     try device.lockForConfiguration()
                     device.videoZoomFactor = base
                     device.unlockForConfiguration()
+                    status = "ok"
                     warming.end("ok", "zoom=\(device.videoZoomFactor)")
                 } catch {
                     warming.end("failed", Diagnostics.errorFields(error))
                 }
             }
+        } else {
+            entryDeviceConfigurationFinished(generation: token,
+                completedAt: ProcessInfo.processInfo.systemUptime, status: "missing_device_fallback")
         }
         promoteReadinessIfPossible()
     }
@@ -1363,24 +1586,32 @@ class CameraManager: NSObject, ObservableObject {
             }
             return s
         }
-        // 预热 flash off + on 两套模板：用户开着闪光灯拍的第一张也能命中热路径。
-        // 否则首张闪光照仍会触发 Smart HDR / ZSL pipeline 冷启动（实测 ~2-3s）。
-        // settings 字段必须与真实 capture 一致，否则系统按"模板未命中"重走冷路径。
-        let templates: [AVCapturePhotoSettings] = {
-            var t = [makeWarmSettings(flash: .off)]
-            if let device = videoCaptureDevice, device.hasFlash {
-                t.append(makeWarmSettings(flash: .on))
-            }
-            return t
-        }()
+        // Entry waits for the current flash mode, rather than allocating every mode. Live
+        // capture support and its audio graph are prepared separately with the session.
+        let selectedFlash: AVCaptureDevice.FlashMode = flashMode == .on ? .on : .off
+        let templates = [makeWarmSettings(flash: selectedFlash)]
 
         let output = photoOutput
-        sessionQueue.async {
+        let generation = diagnosticGeneration
+        let intent = sessionIntent
+        let trace = diagnostics
+        sessionQueue.async { [weak self] in
+            guard intent.withLock({ $0.permitsStart(generation) }) else { return }
             output.setPreparedPhotoSettingsArray(templates) { prepared, error in
+                trace.event("camera_entry_photo_template", "generation=\(generation) prepared=\(prepared) fallback_to_system_ready=\(error != nil || !prepared)")
                 if let error {
                     Log.session.error("photo_pipeline_prepare_failed error=\(error.localizedDescription, privacy: .public)")
                 } else {
                     Log.session.info("photo_pipeline_prepared ready=\(prepared) templates=\(templates.count)")
+                }
+                Task { @MainActor in
+                    guard let self, intent.withLock({ $0.permitsStart(generation) }) else { return }
+                    var next = self.entryPreparation
+                    // Preallocation is an optimization; failure can still use the normal
+                    // capture path, whose native readiness is an independent requirement.
+                    next.preparedPhotoTemplate(generation: generation)
+                    self.publishEntry(next)
+                    self.refreshEntryReadiness()
                 }
             }
         }
@@ -2625,6 +2856,7 @@ class CameraManager: NSObject, ObservableObject {
         flowDiagnostics.flush(reason: "camera_pause", force: true)
         diagnostics.event("camera_pause_requested")
         sessionIntent.withLock { _ = $0.request(running: false) }
+        cancelEntryPreparation()
         cancelUnexposedCapture()
         startupTask?.cancel()
         lensSettleTask?.cancel()
@@ -2652,6 +2884,7 @@ class CameraManager: NSObject, ObservableObject {
         lensSettleTask?.cancel()
         lensSettleTask = nil
         let token = sessionIntent.withLock { $0.request(running: true) }
+        beginEntryPreparation(generation: token)
         let intent = sessionIntent
         beginCameraPreparation()
         let captureSession = session
@@ -2664,9 +2897,13 @@ class CameraManager: NSObject, ObservableObject {
             if !captureSession.isRunning { captureSession.startRunning() }
             let running = captureSession.isRunning
             timer.end()
+            let completedAt = ProcessInfo.processInfo.systemUptime
+            let manager = self
             Task { @MainActor in
-                guard let self, self.sessionConfigured,
+                guard let self = manager, self.sessionConfigured,
                       intent.withLock({ $0.permitsStart(token) }) else { return }
+                self.entryDeviceConfigurationFinished(generation: token,
+                    completedAt: completedAt, status: running ? "resumed" : "resume_failed")
                 self.setReadiness(running ? .waitingForFirstFrame : .failed)
                 if running, let pendingFocal {
                     // A hardware callback from the previous generation is deliberately ignored.
@@ -2678,6 +2915,7 @@ class CameraManager: NSObject, ObservableObject {
                 }
                 self.promoteReadinessIfPossible()
                 self.reconcileAudioInput()
+                if running { self.prepareForFirstCapture() }
                 self.startLocationServices()
             }
         }
@@ -2689,6 +2927,7 @@ class CameraManager: NSObject, ObservableObject {
         diagnostics.event("camera_close_requested")
         isCameraVisible = false
         sessionIntent.withLock { _ = $0.request(running: false) }
+        cancelEntryPreparation()
         cancelUnexposedCapture()
         // 取消可能仍在 await configureAndStartSession 的启动任务,
         // 避免它在 sessionQueue 上把 startRunning 跑完后我们又得排队 stopRunning。

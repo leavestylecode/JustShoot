@@ -4,6 +4,7 @@ import AVFoundation
 import UniformTypeIdentifiers
 
 struct ContentView: View {
+    let preparedHome: HomePreparationSnapshot
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @State private var showFileImporter = false
@@ -16,6 +17,8 @@ struct ContentView: View {
     @State private var showImportError = false
     @State private var operationErrorTitle: LocalizedStringKey = "Import failed"
     @State private var importTask: Task<Void, Never>?
+    @State private var initialCustomFilters: [HomeCustomFilter]
+    @State private var usesLiveCustomFilters = false
     /// 命名空间用于把列表 tile 的封面与拍摄页通过 zoom 过渡关联。
     /// 每个 tile 用 source.id 作为匹配键；拍摄页 destination 同 id 应用 navigationTransition(.zoom)。
     @Namespace private var coverZoom
@@ -27,6 +30,15 @@ struct ContentView: View {
         GridItem(.adaptive(minimum: 100), spacing: 10)
     ]
 
+    init(preparedHome: HomePreparationSnapshot) {
+        self.preparedHome = preparedHome
+        _initialCustomFilters = State(initialValue: preparedHome.customFilters)
+    }
+
+    private var visibleCustomFilters: [HomeCustomFilter] {
+        usesLiveCustomFilters ? customLUTs.filter { !$0.isDeleted }.map(HomeCustomFilter.init) : initialCustomFilters
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
@@ -35,14 +47,14 @@ struct ContentView: View {
                         ForEach(FilmPreset.allCases) { preset in
                             let source = FilmSource.preset(preset)
                             NavigationLink(value: source) {
-                                FilmPresetTile(preset: preset)
+                                FilmPresetTile(preset: preset, image: preparedHome.presetCovers[preset])
                             }
                             .buttonStyle(.plain)
                             .matchedTransitionSource(id: source.id, in: coverZoom)
                         }
                     }
 
-                    if !customLUTs.isEmpty {
+                    if !visibleCustomFilters.isEmpty {
                         Text("Custom filters")
                             .font(.caption.weight(.medium))
                             .foregroundColor(.white.opacity(0.4))
@@ -50,10 +62,10 @@ struct ContentView: View {
                             .padding(.top, 4)
 
                         LazyVGrid(columns: gridColumns, spacing: 12) {
-                            ForEach(customLUTs) { lut in
-                                let source = FilmSource.from(lut)
+                            ForEach(visibleCustomFilters) { lut in
+                                let source = lut.source
                                 NavigationLink(value: source) {
-                                    CustomLUTTile(lut: lut)
+                                    CustomLUTTile(lut: lut, image: preparedHome.customCover)
                                 }
                                 .buttonStyle(.plain)
                                 .matchedTransitionSource(id: source.id, in: coverZoom)
@@ -116,7 +128,16 @@ struct ContentView: View {
         }
         .preferredColorScheme(.dark)
         .task {
-            await preloadResources()
+            // Keep the prepared rows until the live query actually has a result. An initial
+            // empty delivery must not flash away already prepared custom filters.
+            if !customLUTs.isEmpty || initialCustomFilters.isEmpty { usesLiveCustomFilters = true }
+            else if let current = try? modelContext.fetch(FetchDescriptor<CustomLUT>(sortBy: [SortDescriptor(\CustomLUT.createdAt, order: .reverse)])) {
+                initialCustomFilters = current.filter { !$0.isDeleted }.map(HomeCustomFilter.init)
+                if initialCustomFilters.isEmpty { usesLiveCustomFilters = true }
+            }
+        }
+        .onChange(of: customLUTs.filter { !$0.isDeleted }.map(\.id)) { oldIDs, newIDs in
+            if !newIDs.isEmpty || !oldIDs.isEmpty || initialCustomFilters.isEmpty { usesLiveCustomFilters = true }
         }
     }
 
@@ -185,6 +206,7 @@ struct ContentView: View {
             customLUT.id = id
             modelContext.insert(customLUT)
             try modelContext.save()
+            initialCustomFilters.insert(HomeCustomFilter(customLUT), at: 0)
 
             // Load the table when selected; importing an unused LUT needs no second parse or cache entry.
         } catch {
@@ -207,9 +229,10 @@ struct ContentView: View {
         importedCube = nil
     }
 
-    private func deleteCustomLUT(_ lut: CustomLUT) {
+    private func deleteCustomLUT(_ snapshot: HomeCustomFilter) {
         do {
-            try CustomLUTPersistence.delete(lut, in: modelContext)
+            _ = try Self.deletePreparedCustomFilter(id: snapshot.id, queried: customLUTs, in: modelContext)
+            initialCustomFilters.removeAll { $0.id == snapshot.id }
         } catch {
             operationErrorTitle = "Could not delete filter"
             importError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
@@ -217,18 +240,19 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Preload
-
-    private func preloadResources() async {
-        // Only prepare the small preview pipelines. LUTs load on selection; photo encoding and
-        // Live Photo transcoding initialize on the durable worker after a real capture.
-        await Task.detached(priority: .utility) {
-            let preparation = DiagnosticTrace(id: "startup").span("startup_preview_prepare")
-            let timer = Log.perf("startup_preview_prepare", logger: Log.lut)
-            PreviewMetalResources.prepare()
-            timer.end()
-            preparation.end()
-        }.value
+    /// A prepared tile can be actionable before @Query delivers its first model array.
+    /// Missing records only retire the tile; their former file is left for normal maintenance.
+    static func deletePreparedCustomFilter(id: UUID, queried: [CustomLUT], in context: ModelContext) throws -> Bool {
+        let model: CustomLUT?
+        if let cached = queried.first(where: { !$0.isDeleted && $0.id == id }) { model = cached }
+        else {
+            var descriptor = FetchDescriptor<CustomLUT>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            model = try context.fetch(descriptor).first { !$0.isDeleted }
+        }
+        guard let model else { return false }
+        try CustomLUTPersistence.delete(model, in: context)
+        return true
     }
 
 }
@@ -272,8 +296,7 @@ struct ImportLUTSheet: View {
 /// bundled film-card library via `FilmPreset.libraryCardImage`.
 struct FilmPresetTile: View {
     let preset: FilmPreset
-    @State private var image: UIImage?
-    @Environment(\.displayScale) private var displayScale
+    let image: UIImage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -292,17 +315,6 @@ struct FilmPresetTile: View {
                     .foregroundColor(.white.opacity(0.5))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .task(id: preset.rawValue) {
-            // Adaptive grid → tiles range from ~100pt (iPad) up to ~170pt
-            // (iPhone Pro Max with 2 cols). Size at the upper bound × scale,
-            // floored at 300 to satisfy the thumbnail API's minimum.
-            let pixel = max(Int(180.0 * displayScale), 300)
-            image = await FilmCardImageCache.shared.loadImage(
-                imageName: preset.libraryCardImage,
-                cacheKey: "preset_\(preset.rawValue)",
-                maxPixel: pixel
-            )
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text("\(preset.displayName), ISO \(Int(preset.iso))"))
@@ -330,7 +342,8 @@ struct FilmPresetTile: View {
 /// Cover-art tile for a custom LUT. No matching catalog image, so we
 /// render an accent-tinted icon in the same square cell shape.
 struct CustomLUTTile: View {
-    let lut: CustomLUT
+    let lut: HomeCustomFilter
+    let image: UIImage?
 
     private static let accent = Color(red: 0.6, green: 0.5, blue: 0.8)
 
@@ -361,9 +374,14 @@ struct CustomLUTTile: View {
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         return ZStack {
             Self.accent.opacity(0.18)
-            Image(systemName: "slider.horizontal.3")
-                .font(.system(size: 26, weight: .medium))
-                .foregroundColor(Self.accent)
+            if let image {
+                Image(uiImage: image).renderingMode(.template)
+                    .foregroundColor(Self.accent)
+            } else {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 26, weight: .medium))
+                    .foregroundColor(Self.accent)
+            }
         }
         .clipShape(shape)
     }

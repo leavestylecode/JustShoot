@@ -202,24 +202,13 @@ struct FilmSourcePickerStrip: View {
     let customLUTs: [CustomLUT]
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
+    var preparedCovers: [FilmPreset: UIImage] = [:]
     let onSelect: (FilmSource) -> Void
 
-    /// 预热全部内置预设的封面缩略图缓存。第一次展开 picker 时 8 个 cell 会同帧从磁盘冷解码封面，
-    /// 叠上展开动画 → 掉帧。进入拍摄页时调用本方法在后台先把这些封面解码进 NSCache，
-    /// 真正展开时全部命中、零解码。cacheKey / maxPixel 必须与 `FilmSourcePickerCell.task` 一致，
-    /// 否则缓存 key 对不上、预热作废。custom LUT 用占位图标渲染、无需预热。
-    @MainActor
-    static func preloadCovers(displayScale: CGFloat) {
-        let pixel = FilmSourcePickerCell.coverPixel(displayScale: displayScale)
-        for preset in FilmPreset.allCases {
-            Task.detached(priority: .utility) {
-                _ = await FilmCardImageCache.shared.loadImage(
-                    imageName: preset.libraryCardImage,
-                    cacheKey: "picker_\(preset.rawValue)",
-                    maxPixel: pixel
-                )
-            }
-        }
+    /// Completion means the bounded worker finished preparing all eight images for display.
+    /// A caller that needs eviction-proof first paint can retain the returned snapshot.
+    static func preloadCovers(displayScale: CGFloat) async throws -> [FilmPreset: UIImage] {
+        try await FilmPresetCoverPreparation.preparePicker(displayScale: displayScale)
     }
 
     var body: some View {
@@ -232,7 +221,8 @@ struct FilmSourcePickerStrip: View {
                             source: s,
                             isSelected: s.id == current.id,
                             contentRotation: contentRotation,
-                            orientation: orientation
+                            orientation: orientation,
+                            preparedImage: preparedCovers[preset]
                         ) { onSelect(s) }
                         .id(s.id)
                     }
@@ -570,6 +560,7 @@ struct FilmSourcePickerCell: View {
     let isSelected: Bool
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
+    var preparedImage: UIImage? = nil
     let onTap: () -> Void
 
     @State private var image: UIImage?
@@ -585,7 +576,7 @@ struct FilmSourcePickerCell: View {
     /// 封面解码像素：52pt × scale × 1.5 余量，下限 100。供 cell 的 .task 与
     /// `FilmSourcePickerStrip.preloadCovers` 共用，确保预热与实际加载的 maxPixel 一致。
     static func coverPixel(displayScale: CGFloat) -> Int {
-        max(Int(coverSize * displayScale * 1.5), 100)
+        FilmPresetCoverPreparation.pickerPixel(displayScale: displayScale)
     }
 
     var body: some View {
@@ -607,6 +598,7 @@ struct FilmSourcePickerCell: View {
         .accessibilityLabel(Text(source.displayName))
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
         .task(id: source.id) {
+            if let preparedImage { image = preparedImage; return }
             // 仅 preset 有 catalog 封面；custom LUT 用占位图标渲染。
             guard case .preset(let preset) = source else {
                 image = nil
@@ -627,7 +619,7 @@ struct FilmSourcePickerCell: View {
             switch source {
             case .preset:
                 Color.white.opacity(0.05)
-                if let image {
+                if let image = preparedImage ?? image {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
