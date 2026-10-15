@@ -11,6 +11,12 @@ Follow `AGENTS.md` for repository conventions and build/test workflows. `README.
 - `PhotoLibrary` writes finished media into Photos. `PhotoSaver` stores the lightweight asset/film index; internal image data is a fallback for failed exports and older versions.
 - `PhotoImage` selects PhotoKit or internal storage. Image decoding uses bounded blocking work; image requests and view lifetimes propagate cancellation.
 
+## Entry preparation
+
+Use `PreparationScreen` for app and camera entry, with the matching static launch screen. Await actual initialization instead of delaying for a logo. Home needs its store, lightweight custom-filter snapshot, decoded cover snapshot and preview pipelines; retain the prepared images through first display. Keep historical-photo maintenance and pending-save processing outside this gate.
+
+Camera preparation owns a session-generation state machine. Keep Metal mounted and opaque under the loading overlay so it can draw. Reveal only after the current LUT, native session and capture configuration, rendering resources and post-configuration GPU frame are ready. Pause timeout accounting for inactive permission sheets/backgrounding. Reject stale native/GPU results and preserve retry/back paths. Normal filter and focal adjustments do not restart the entry cover. Entry checks pipeline initialization independently of queue capacity so retained jobs cannot trap users behind a loader.
+
 ## Capture boundaries
 
 Admission must cover storage reservation and native preparation, including hardware Camera Control input. Recheck the admission/session token after every await before issuing exposure. Cancel requests that have not exposed when leaving the camera or entering the background; retain and checkpoint already captured resources.
