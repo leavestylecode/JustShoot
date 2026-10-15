@@ -38,10 +38,10 @@ The built-in catalog has five distinct roles:
 | Neutral | Keep the film LUT's original tones. |
 | Soft Contrast | Inverse S: reduce midtone contrast while keeping black/white endpoints. |
 | S-Curve | Increase midtone contrast with a controlled shadow toe. |
-| Matte | Lift the black point for a faded print response. |
+| Matte S | Lift the black floor, dip shadows and raise highlights with an S-shaped middle. |
 | X-Pro | Separate RGB responses: cool shadows and warm highlights. |
 
-Open Shadows, Fade and Warm Print are retired from the catalog. The old Film Soft was another contrast-increasing S; Soft Contrast now has the opposite role. On upgrade, an active retired or changed preset is copied into My Curves with its original control points. Unselected retired entries are removed; existing custom curves and already journaled LUT bytes are preserved.
+Open Shadows, Fade and Warm Print are retired from the catalog. The old Film Soft was another contrast-increasing S; Soft Contrast now has the opposite role. Matte S replaces the former near-linear Matte with a lifted-black S response (black 0.075, shadow 0.32→0.22, middle 0.5→0.5, light 0.72→0.84, white 1). Its shallow toe raises the deepest blacks while its steeper middle keeps shadow/highlight separation. Older active Matte selections are preserved as custom curves, including selections already stored in the atomic payload. On upgrade, an active retired or changed preset is copied into My Curves with its original control points. Unselected retired entries are removed; existing custom curves and already journaled LUT bytes are preserved.
 
 ```mermaid
 flowchart LR
@@ -73,6 +73,8 @@ The camera remains on automatic white balance. A manual axis is corrected in sof
 `JustShootTests` covers LUT validation, capture-journal recovery and backpressure, timestamp-preserving index updates, color-space behavior, photo metadata, and Live Photo frame/metadata integrity and cancellation.
 
 The October 15, 2026 tone-curve simplification adds 38 regressions for curve roles and continuity, identity/HDR preservation, low-dimensional LUT composition, RGB order, immutable capture snapshots, legacy-selection migration and unreadable-library protection. XcodeBuildMCP validation on iPhone 18 Pro / iOS 27.0 Simulator passed 286/287 Debug tests with zero failures and one Photos-authorization integration skip; Release built successfully without Swift compilation warnings. UI inspection verified five manager entries, five template options and the S-Curve editor. The existing full-suite Core Image QoS warning remains recorded below. Real-device image comparisons are still required for subjective grading and preview/export appearance.
+
+The Matte S follow-up adds four regressions for a lifted black floor together with darker shadow midtones, brighter lights and a preserved white point, plus migration from both legacy and atomic old-Matte selections. Its natural spline is strictly increasing (continuous derivative 0.10165–1.76173); the low-end toe is shallow and the middle retains contrast. Full Debug validation passed 290/291 tests, zero failed and one Photos-authorization test skipped, on the same iPhone 18 Pro / iOS 27.0 Simulator. Release built successfully without Swift compilation warnings. The existing Core Image QoS diagnostic remains unchanged.
 
 The October 14, 2026 refactor adds 40 regression tests for shutter admission and stale session tokens, Live downgrade reporting, queue capacity after deletion, recovery inventories and original export, historical row/capture aliases, limited-access deletion policy, cache byte budgets and reconstruction, render cancellation, and encoded Live color tags. XcodeBuildMCP validation with `JustShoot.xcodeproj` / `JustShoot`, iPhone 18 Pro (iOS 27.0 Simulator): Debug tests passed 212/213 with one Photos-authorization integration test skipped; Release build passed. Both configurations produced no Swift compilation warnings; Xcode emitted its existing AppIntents metadata-extraction warning because the app has no AppIntents dependency. Existing lens, journal, metadata and hosted UI tests remain included. Hosted UI tests wait for the foreground window scene before constructing test windows.
 
