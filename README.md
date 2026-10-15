@@ -31,15 +31,15 @@ The queue accepts at most 16 outstanding captures with a 1 GiB soft disk budget 
 
 ## Tone curves
 
-The built-in catalog has five distinct roles:
+The built-in catalog has five distinct roles. Chinese display names use two characters consistently; descriptions state the actual tonal adjustment:
 
-| Curve | Adjustment |
-| --- | --- |
-| Original | Keep the film LUT's original tones. |
-| Soft | Inverse S: reduce midtone contrast while keeping black/white endpoints. |
-| Classic | Increase midtone contrast with a controlled shadow toe. |
-| Faded | Lift the black floor, dip shadows and raise highlights with an S-shaped middle. |
-| X-Pro | Separate RGB responses: cool shadows and warm highlights. |
+| Curve | Chinese name | Adjustment |
+| --- | --- | --- |
+| Original | 原调 | Keep the film LUT's original tones. |
+| Soft | 柔和 | Inverse S: reduce midtone contrast while keeping black/white endpoints. |
+| Contrast | 鲜明 | Increase midtone contrast with a controlled shadow toe. |
+| Faded | 褪色 | Lift the black floor, dip shadows and raise highlights with an S-shaped middle. |
+| X-Pro | 负冲 | Cross-processed look with cool shadows and warm highlights. |
 
 Open Shadows, Fade and Warm Print are retired from the catalog. The old Film Soft was another contrast-increasing S; Soft now has the opposite role. Faded (previously labeled Matte S) replaces the former near-linear Matte with a lifted-black S response (black 0.075, shadow 0.32→0.22, middle 0.5→0.5, light 0.72→0.84, white 1). Its shallow toe raises the deepest blacks while its steeper middle keeps shadow/highlight separation. Older active Matte selections are preserved as custom curves, including selections already stored in the atomic payload. On upgrade, an active retired or changed preset is copied into My Curves with its original control points. Unselected retired entries are removed; existing custom curves and already journaled LUT bytes are preserved.
 
@@ -60,7 +60,7 @@ Curve adjustments work on the developed sRGB output, after the film LUT. Control
 
 Custom curve tables are prepared once and reused by selection, graphs, gray samples and LUT composition. Effective identity curves return the original LUT bytes, preserving finite imported HDR values outside the curve's unit domain. Render cache keys include the custom UUID and channel-separated control-point fingerprint; names, visibility and dates do not change the rendered pixels. Curve data and selection share one payload, with a mirrored legacy preference for compatibility. Unsupported or unreadable payloads stay intact and make curve management read-only. `camera_lut_prepare`, `camera_lut_ready` and `shutter_tap` record the curve identity without logging its custom name.
 
-Non-neutral compositions use at least a 33³ cube. A 2³ or 3³ identity import otherwise samples only the endpoints or midpoint, where Classic and Soft are unchanged, and silently loses the requested curve. Low-dimensional sources are interpolated before curve baking; original source data stays intact, and the resulting roughly 562 KiB table remains inside the existing byte-budget caches. Higher-dimensional sources keep their resolution.
+Non-neutral compositions use at least a 33³ cube. A 2³ or 3³ identity import otherwise samples only the endpoints or midpoint, where Contrast and Soft are unchanged, and silently loses the requested curve. Low-dimensional sources are interpolated before curve baking; original source data stays intact, and the resulting roughly 562 KiB table remains inside the existing byte-budget caches. Higher-dimensional sources keep their resolution.
 
 ## Validation
 

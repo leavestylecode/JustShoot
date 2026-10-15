@@ -45,7 +45,7 @@ struct FilmCurveLibraryView: View {
             } header: {
                 Text("Built-in Curves")
             } footer: {
-                Text("Curves adjust the film's tones. Original keeps the film's own response.")
+                Text("Curves adjust tone and color.")
             }
             .disabled(!library.canEdit)
 

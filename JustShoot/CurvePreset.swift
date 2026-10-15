@@ -154,7 +154,7 @@ enum CurvePreset: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .none: return String(localized: "Original")
         case .filmSoft: return String(localized: "Soft")
-        case .punch: return String(localized: "Classic")
+        case .punch: return String(localized: "Contrast")
         case .matte: return String(localized: "Faded")
         case .crossProcess: return String(localized: "X-Pro")
         }

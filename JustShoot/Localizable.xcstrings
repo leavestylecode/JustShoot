@@ -854,6 +854,22 @@
         }
       }
     },
+    "Contrast" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contrast"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "鲜明"
+          }
+        }
+      }
+    },
     "Cool shadows and warm highlights." : {
       "localizations" : {
         "en" : {
@@ -865,7 +881,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "冷色暗部，暖色亮部。"
+            "value" : "暗部偏冷，亮部偏暖。"
           }
         }
       }
@@ -1036,6 +1052,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "曲线调整胶片影调，原调保留胶片原有响应。"
+          }
+        }
+      }
+    },
+    "Curves adjust tone and color." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Curves adjust tone and color."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲线用于调整影调与色彩。"
           }
         }
       }
@@ -1874,7 +1906,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保留胶片原有的影调。"
+            "value" : "保留胶片原有影调。"
           }
         }
       }
@@ -3723,7 +3755,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "交叉冲洗"
+            "value" : "负冲"
           }
         }
       }
