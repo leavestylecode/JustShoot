@@ -39,13 +39,13 @@ struct FilmCurveLibraryView: View {
                     .tint(.green)
                     .disabled(preset == .none)
                     .accessibilityHint(preset == .none
-                        ? Text("Neutral is always available")
+                        ? Text("Original is always available")
                         : Text("Show or hide this curve in the camera"))
                 }
             } header: {
                 Text("Built-in Curves")
             } footer: {
-                Text("Curves adjust the film's tones. Neutral keeps its original response.")
+                Text("Curves adjust the film's tones. Original keeps the film's own response.")
             }
             .disabled(!library.canEdit)
 

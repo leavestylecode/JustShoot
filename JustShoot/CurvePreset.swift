@@ -152,10 +152,10 @@ enum CurvePreset: String, CaseIterable, Identifiable, Codable, Sendable {
 
     var displayName: String {
         switch self {
-        case .none: return String(localized: "Neutral")
-        case .filmSoft: return String(localized: "Soft Contrast")
-        case .punch: return String(localized: "S-Curve")
-        case .matte: return String(localized: "Matte S")
+        case .none: return String(localized: "Original")
+        case .filmSoft: return String(localized: "Soft")
+        case .punch: return String(localized: "Classic")
+        case .matte: return String(localized: "Faded")
         case .crossProcess: return String(localized: "X-Pro")
         }
     }
@@ -168,8 +168,8 @@ enum CurvePreset: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .none: return String(localized: "Keep the film's original tones.")
         case .filmSoft: return String(localized: "Reduce midtone contrast.")
-        case .punch: return String(localized: "Add midtone contrast with an S-curve.")
-        case .matte: return String(localized: "Lift blacks with S-curve contrast.")
+        case .punch: return String(localized: "Add contrast through the midtones.")
+        case .matte: return String(localized: "Lift blacks while keeping midtone contrast.")
         case .crossProcess: return String(localized: "Cool shadows and warm highlights.")
         }
     }

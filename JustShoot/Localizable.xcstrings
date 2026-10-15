@@ -222,6 +222,22 @@
         }
       }
     },
+    "Add contrast through the midtones." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add contrast through the midtones."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "增强中间调反差。"
+          }
+        }
+      }
+    },
     "Add midtone contrast with an S-curve." : {
       "localizations" : {
         "en" : {
@@ -755,6 +771,22 @@
         }
       }
     },
+    "Classic" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "经典"
+          }
+        }
+      }
+    },
     "Color" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -988,6 +1020,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "曲线调整胶片输出的影调，中性保留原有响应。"
+          }
+        }
+      }
+    },
+    "Curves adjust the film's tones. Original keeps the film's own response." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Curves adjust the film's tones. Original keeps the film's own response."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲线调整胶片影调，原调保留胶片原有响应。"
           }
         }
       }
@@ -1300,6 +1348,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fade"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "褪色"
+          }
+        }
+      }
+    },
+    "Faded" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faded"
           }
         },
         "zh-Hans" : {
@@ -1860,6 +1924,22 @@
         }
       }
     },
+    "Lift blacks while keeping midtone contrast." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lift blacks while keeping midtone contrast."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "抬高黑位，保留中间调反差。"
+          }
+        }
+      }
+    },
     "Lift blacks with S-curve contrast." : {
       "localizations" : {
         "en" : {
@@ -2343,6 +2423,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "橙"
+          }
+        }
+      }
+    },
+    "Original" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原调"
+          }
+        }
+      }
+    },
+    "Original is always available" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original is always available"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原调始终可用"
           }
         }
       }
@@ -2949,6 +3061,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "小"
+          }
+        }
+      }
+    },
+    "Soft" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soft"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "柔和"
           }
         }
       }

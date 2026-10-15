@@ -35,13 +35,13 @@ The built-in catalog has five distinct roles:
 
 | Curve | Adjustment |
 | --- | --- |
-| Neutral | Keep the film LUT's original tones. |
-| Soft Contrast | Inverse S: reduce midtone contrast while keeping black/white endpoints. |
-| S-Curve | Increase midtone contrast with a controlled shadow toe. |
-| Matte S | Lift the black floor, dip shadows and raise highlights with an S-shaped middle. |
+| Original | Keep the film LUT's original tones. |
+| Soft | Inverse S: reduce midtone contrast while keeping black/white endpoints. |
+| Classic | Increase midtone contrast with a controlled shadow toe. |
+| Faded | Lift the black floor, dip shadows and raise highlights with an S-shaped middle. |
 | X-Pro | Separate RGB responses: cool shadows and warm highlights. |
 
-Open Shadows, Fade and Warm Print are retired from the catalog. The old Film Soft was another contrast-increasing S; Soft Contrast now has the opposite role. Matte S replaces the former near-linear Matte with a lifted-black S response (black 0.075, shadow 0.32→0.22, middle 0.5→0.5, light 0.72→0.84, white 1). Its shallow toe raises the deepest blacks while its steeper middle keeps shadow/highlight separation. Older active Matte selections are preserved as custom curves, including selections already stored in the atomic payload. On upgrade, an active retired or changed preset is copied into My Curves with its original control points. Unselected retired entries are removed; existing custom curves and already journaled LUT bytes are preserved.
+Open Shadows, Fade and Warm Print are retired from the catalog. The old Film Soft was another contrast-increasing S; Soft now has the opposite role. Faded (previously labeled Matte S) replaces the former near-linear Matte with a lifted-black S response (black 0.075, shadow 0.32→0.22, middle 0.5→0.5, light 0.72→0.84, white 1). Its shallow toe raises the deepest blacks while its steeper middle keeps shadow/highlight separation. Older active Matte selections are preserved as custom curves, including selections already stored in the atomic payload. On upgrade, an active retired or changed preset is copied into My Curves with its original control points. Unselected retired entries are removed; existing custom curves and already journaled LUT bytes are preserved.
 
 ```mermaid
 flowchart LR
@@ -56,11 +56,11 @@ flowchart LR
     end
 ```
 
-Curve adjustments work on the developed sRGB output, after the film LUT. Control points use the same natural cubic spline in the editor, graph and LUT composition, sampled at 256 positions. Individual RGB curves follow the master. The graph displays this additional adjustment; the viewfinder shows it together with the film, optics and grain. These are artistic print/grading controls, and Soft Contrast adjusts existing tones rather than recovering clipped capture detail. Adobe's [tone-curve documentation](https://helpx.adobe.com/lightroom-classic/desktop/process-and-develop-photos/image-tone-color.html) describes the same input/output and combined/individual-channel model; the five-preset selection is this app's design choice.
+Curve adjustments work on the developed sRGB output, after the film LUT. Control points use the same natural cubic spline in the editor, graph and LUT composition, sampled at 256 positions. Individual RGB curves follow the master. The graph displays this additional adjustment; the viewfinder shows it together with the film, optics and grain. These are artistic print/grading controls, and Soft adjusts existing tones rather than recovering clipped capture detail. Adobe's [tone-curve documentation](https://helpx.adobe.com/lightroom-classic/desktop/process-and-develop-photos/image-tone-color.html) describes the same input/output and combined/individual-channel model; the five-preset selection is this app's design choice.
 
 Custom curve tables are prepared once and reused by selection, graphs, gray samples and LUT composition. Effective identity curves return the original LUT bytes, preserving finite imported HDR values outside the curve's unit domain. Render cache keys include the custom UUID and channel-separated control-point fingerprint; names, visibility and dates do not change the rendered pixels. Curve data and selection share one payload, with a mirrored legacy preference for compatibility. Unsupported or unreadable payloads stay intact and make curve management read-only. `camera_lut_prepare`, `camera_lut_ready` and `shutter_tap` record the curve identity without logging its custom name.
 
-Non-neutral compositions use at least a 33³ cube. A 2³ or 3³ identity import otherwise samples only the endpoints or midpoint, where S-Curve and Soft Contrast are unchanged, and silently loses the requested curve. Low-dimensional sources are interpolated before curve baking; original source data stays intact, and the resulting roughly 562 KiB table remains inside the existing byte-budget caches. Higher-dimensional sources keep their resolution.
+Non-neutral compositions use at least a 33³ cube. A 2³ or 3³ identity import otherwise samples only the endpoints or midpoint, where Classic and Soft are unchanged, and silently loses the requested curve. Low-dimensional sources are interpolated before curve baking; original source data stays intact, and the resulting roughly 562 KiB table remains inside the existing byte-budget caches. Higher-dimensional sources keep their resolution.
 
 ## Validation
 
