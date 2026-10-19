@@ -196,8 +196,8 @@ final class CapturePipeline: ObservableObject {
     private func updateCounts() {
         let previousPending = pendingCount
         let previousRetained = retainedCount
-        pendingCount = queueState.pendingCount
-        retainedCount = queueState.retainedCount
+        if pendingCount != queueState.pendingCount { pendingCount = queueState.pendingCount }
+        if retainedCount != queueState.retainedCount { retainedCount = queueState.retainedCount }
         if pendingCount != previousPending || retainedCount != previousRetained {
             Diagnostics.emit("capture_queue_state", fields: "active=\(pendingCount) retained=\(retainedCount) reserved=\(queueState.reservationCount) recovery_issues=\(recoveryIssues.count)")
         }
@@ -407,6 +407,7 @@ private actor CaptureWorker {
         let saver = PhotoSaver(modelContainer: container)
         try checkPending(job.id)
 
+        let image: Data
         if !job.rendered {
             let lut = try journal.lut(for: job)
             var contentID: String?
@@ -453,14 +454,17 @@ private actor CaptureWorker {
                 }
             }
             try checkPending(job.id)
-            let image = try await renderStill(job, lut: lut, contentID: contentID, seed: stillSeed)
+            image = try await renderStill(job, lut: lut, contentID: contentID, seed: stillSeed)
             try checkPending(job.id)
             try trace.measure("capture_render_checkpoint") { try journal.writeRenderedImage(image, for: job.id) }
             job.rendered = true
             try journal.update(job)
+        } else {
+            image = try trace.measure("capture_rendered_read") {
+                try Data(contentsOf: journal.file("rendered.image", for: job.id))
+            }
         }
 
-        let image = try Data(contentsOf: journal.file("rendered.image", for: job.id))
         if job.assetIdentifier == nil {
             job.assetIdentifier = trace.measure("photos_retry_lookup") { PhotoLibrary.findCapture(id: job.id, creationDate: recipe.captureDate) }
         }

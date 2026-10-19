@@ -585,17 +585,18 @@ struct FilmSourceCoverThumbnail: View {
         // glass 的高光描边会让旋转中途的方块对角线特别显眼（看起来像突然放大），左角标没有这层描边，
         // 所以整块旋转也不刺眼。去掉 glass 后两边外观与旋转手感完全统一。
         .task(id: source.id) {
-            // 46pt × scale ≈ 138 px；预留余量取 200，与列表缓存的 cacheKey 解耦避免反复解码。
+            // Leave headroom for rotation; the shared cache groups nearby display sizes.
             guard case .preset(let preset) = source else {
                 image = nil
                 return
             }
             let pixel = max(Int(46.0 * displayScale * 1.5), 100)
-            image = await FilmCardImageCache.shared.loadImage(
+            let loaded = await FilmCardImageCache.shared.loadImage(
                 imageName: preset.libraryCardImage,
-                cacheKey: "thumb_\(preset.rawValue)",
                 maxPixel: pixel
             )
+            guard !Task.isCancelled else { return }
+            image = loaded
         }
         .accessibilityLabel(Text("Current film: \(source.displayName)"))
     }

@@ -1,4 +1,9 @@
+import Foundation
 import os
+
+private enum PreviewTargetPreparation {
+    static let queue = DispatchQueue(label: "com.justshoot.preview-targets", qos: .userInitiated)
+}
 
 /// GPU completion returns a reusable target before releasing its in-flight permit.
 /// A single lock coordinates resize invalidation and late completions at the old size.
@@ -10,6 +15,15 @@ final class PreviewTargetPool<Value: Sendable>: Sendable {
     private struct State: Sendable {
         var size: Size?
         var available: [Value] = []
+        var revision: UInt64 = 0
+        var isAllocating = false
+
+        mutating func select(_ size: Size) {
+            guard self.size != size else { return }
+            self.size = size
+            revision &+= 1
+            available.removeAll()
+        }
     }
     private let state = OSAllocatedUnfairLock(initialState: State())
     private let maximumCount: Int
@@ -17,16 +31,42 @@ final class PreviewTargetPool<Value: Sendable>: Sendable {
     init(maximumCount: Int = 3) { self.maximumCount = max(0, maximumCount) }
 
     var availableCount: Int { state.withLock { $0.available.count } }
+    var isPreparing: Bool { state.withLock { $0.isAllocating } }
 
     func take(width: Int, height: Int) -> Value? {
         let size = Size(width: width, height: height)
         return state.withLock {
-            if $0.size != size {
-                $0.size = size
-                $0.available.removeAll()
-            }
+            $0.select(size)
             return $0.available.popLast()
         }
+    }
+
+    /// A miss schedules at most one allocation. Drawing keeps its previous frame instead of
+    /// waiting on the driver. Resizes invalidate both queued work and completed stale results.
+    func request(width: Int, height: Int, allocate: @escaping @Sendable () -> Value?) -> Value? {
+        guard width > 0, height > 0 else { return nil }
+        let size = Size(width: width, height: height)
+        let (value, revision): (Value?, UInt64?) = state.withLock {
+            $0.select(size)
+            if let value = $0.available.popLast() { return (value, nil) }
+            guard maximumCount > 0, !$0.isAllocating else { return (nil, nil) }
+            $0.isAllocating = true
+            return (nil, $0.revision)
+        }
+        if let revision {
+            PreviewTargetPreparation.queue.async { [weak self] in
+                guard let self else { return }
+                let isCurrent = state.withLock { $0.revision == revision }
+                let prepared = isCurrent ? autoreleasepool(invoking: allocate) : nil
+                state.withLock {
+                    $0.isAllocating = false
+                    guard $0.revision == revision, let prepared,
+                          $0.available.count < maximumCount else { return }
+                    $0.available.append(prepared)
+                }
+            }
+        }
+        return value
     }
 
     func recycle(_ value: Value, width: Int, height: Int) {

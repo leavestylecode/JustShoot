@@ -14,7 +14,7 @@ struct PreparationScreen: View {
         GeometryReader { geometry in
             ScrollView {
                 VStack(spacing: 0) {
-                    Image(systemName: "camera.aperture")
+                    Image(systemName: isLoading ? "camera.aperture" : "exclamationmark.circle")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 72, height: 72)
@@ -31,10 +31,12 @@ struct PreparationScreen: View {
                                 .tint(.white)
                                 .accessibilityLabel(title)
                         }
-                        Text(title)
-                            .font(.subheadline.weight(.medium))
-                            .multilineTextAlignment(.center)
-                            .accessibilityAddTraits(.isHeader)
+                        if !isLoading {
+                            Text(title)
+                                .font(.subheadline.weight(.medium))
+                                .multilineTextAlignment(.center)
+                                .accessibilityAddTraits(.isHeader)
+                        }
 
                         if let message {
                             Text(message)

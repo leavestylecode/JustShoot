@@ -34,6 +34,7 @@ private final class PipelineBox: @unchecked Sendable {
     let metadataAdaptor: AVAssetWriterInputMetadataAdaptor
     let stillGroup: AVTimedMetadataGroup
     let lut: CubeLUT?
+    let lutFilter: FilmImagePipeline.LUTFilter?
     let grain: FilmGrainParameters
     let optics: FilmOpticsParameters
     let chromaticGain: SIMD3<Float>
@@ -58,6 +59,7 @@ private final class PipelineBox: @unchecked Sendable {
         self.metadataAdaptor = metadataAdaptor
         self.stillGroup = stillGroup
         self.lut = lut
+        lutFilter = lut.flatMap(FilmImagePipeline.LUTFilter.init)
         self.grain = grain
         self.optics = optics
         self.chromaticGain = chromaticGain
@@ -326,10 +328,11 @@ enum LivePhotoProcessor {
     // srcPixel(BGRA) → CIImage → 色温响应(线性域增益) → CIColorCubeWithColorSpace →
     // FilmOptics → FilmGrain → 输出 pixel buffer。链序与静态图/预览一致
     //（chromatic → LUT → headroom → halation/bloom → grain）。
-    // 每帧新建一个 CIFilter（与 FilmProcessor 一致——避免跨帧/跨线程复用同一 filter 实例的竞争）。
+    // 每次转码复用一个 LUT filter，只在其串行 video 队列更新输入；不同转码不共享可变 filter。
     static func renderFrame(
         _ srcPixel: CVPixelBuffer,
         lut: CubeLUT?,
+        lutFilter: FilmImagePipeline.LUTFilter? = nil,
         grain: FilmGrainParameters,
         optics: FilmOpticsParameters,
         chromaticGain: SIMD3<Float>,
@@ -338,7 +341,7 @@ enum LivePhotoProcessor {
         pool: CVPixelBufferPool?
     ) -> CVPixelBuffer? {
         let srcImage = CIImage(cvPixelBuffer: srcPixel)
-        guard let stages = FilmImagePipeline.stages(for: srcImage, lut: lut,
+        guard let stages = FilmImagePipeline.stages(for: srcImage, lut: lut, lutFilter: lutFilter,
             chromaticGain: chromaticGain, protectChromaticHighlights: protectChromaticHighlights,
             optics: optics, grain: grain,
             grainSeed: grainSeed) else { return nil }
@@ -456,7 +459,7 @@ private final class LivePhotoTranscode: @unchecked Sendable {
                 }
                 let timestamp = CMSampleBufferGetPresentationTimeStamp(sample)
                 let seed = FilmGrainRenderer.temporalSeed(base: box.grainBaseSeed, seconds: timestamp.seconds)
-                guard let output = LivePhotoProcessor.renderFrame(source, lut: box.lut, grain: box.grain,
+                guard let output = LivePhotoProcessor.renderFrame(source, lut: box.lut, lutFilter: box.lutFilter, grain: box.grain,
                     optics: box.optics, chromaticGain: box.chromaticGain,
                     protectChromaticHighlights: box.protectChromaticHighlights,
                     grainSeed: seed, pool: box.pixelAdaptor.pixelBufferPool) else {

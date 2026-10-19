@@ -283,7 +283,7 @@ enum PhotoLibrary {
     private static func ensureAlbumIdentifier() async throws -> String {
         let task: Task<String, any Error> = await MainActor.run {
             if let existing = albumIdentifierTask { return existing }
-            let t = Task<String, any Error> {
+            let t = Task<String, any Error>.detached(priority: .utility) {
                 if let album = findAlbum() { return album.localIdentifier }
                 let idBox = Box<String?>(nil)
                 try await PHPhotoLibrary.shared().performChanges {
@@ -686,6 +686,24 @@ final class AssetImageLoader: @unchecked Sendable {
         manager.startCachingImages(for: assets, targetSize: CGSize(width: maxPixel, height: maxPixel),
                                    contentMode: .aspectFill, options: opts)
     }
+
+    func stopCaching(ids: [String], maxPixel: Int) {
+        guard !ids.isEmpty else { return }
+        let fetch = PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil)
+        var assets: [PHAsset] = []
+        fetch.enumerateObjects { asset, _, _ in assets.append(asset) }
+        let opts = PHImageRequestOptions()
+        opts.deliveryMode = .highQualityFormat
+        opts.resizeMode = .fast
+        opts.isNetworkAccessAllowed = true
+        manager.stopCachingImages(for: assets, targetSize: CGSize(width: maxPixel, height: maxPixel),
+                                  contentMode: .aspectFill, options: opts)
+    }
+
+    func clearCache() {
+        cache.removeAllObjects()
+        manager.stopCachingImagesForAllAssets()
+    }
 }
 
 // MARK: - 统一取图门面
@@ -695,25 +713,44 @@ final class AssetImageLoader: @unchecked Sendable {
 // 才进入 PhotoKit 异步路径。
 enum PhotoImage {
     @MainActor
-    static func thumbnail(for photo: Photo, maxPixel: Int, trace: DiagnosticTrace? = nil) async -> UIImage? {
+    static func thumbnail(for photo: Photo, maxPixel: Int, trace: DiagnosticTrace? = nil,
+                          loader: ImageLoader = .shared) async -> UIImage? {
         guard !Task.isCancelled, !photo.isDeleted else { return nil }
         if let aid = photo.assetLocalIdentifier {
             return await AssetImageLoader.shared.thumbnail(id: aid, maxPixel: maxPixel, trace: trace)
         }
+        let id = photo.id
+        if let cached = loader.cachedThumbnail(for: id, maxPixel: maxPixel) { return cached }
+        let disk = await loader.cachedOrDiskThumbnail(photoId: id, maxPixel: maxPixel)
+        guard !Task.isCancelled, !photo.isDeleted else { return nil }
+        // Migration may have completed while the disk request was suspended.
+        if let aid = photo.assetLocalIdentifier {
+            return await AssetImageLoader.shared.thumbnail(id: aid, maxPixel: maxPixel, trace: trace)
+        }
+        if let disk { return disk }
         if let data = photo.imageData {
-            return await ImageLoader.shared.loadThumbnail(imageData: data, photoId: photo.id, maxPixel: maxPixel)
+            return await loader.loadThumbnail(imageData: data, photoId: id, maxPixel: maxPixel)
         }
         return nil
     }
 
     @MainActor
-    static func preview(for photo: Photo, maxPixel: Int, trace: DiagnosticTrace? = nil) async -> UIImage? {
+    static func preview(for photo: Photo, maxPixel: Int, trace: DiagnosticTrace? = nil,
+                        loader: ImageLoader = .shared) async -> UIImage? {
         guard !Task.isCancelled, !photo.isDeleted else { return nil }
         if let aid = photo.assetLocalIdentifier {
             return await AssetImageLoader.shared.preview(id: aid, maxPixel: maxPixel, trace: trace)
         }
+        let id = photo.id
+        if let cached = loader.cachedPreview(for: id, maxPixel: maxPixel) { return cached }
+        let disk = await loader.cachedOrDiskPreview(photoId: id, maxPixel: maxPixel)
+        guard !Task.isCancelled, !photo.isDeleted else { return nil }
+        if let aid = photo.assetLocalIdentifier {
+            return await AssetImageLoader.shared.preview(id: aid, maxPixel: maxPixel, trace: trace)
+        }
+        if let disk { return disk }
         if let data = photo.imageData {
-            return await ImageLoader.shared.loadPreview(imageData: data, photoId: photo.id, maxPixel: maxPixel)
+            return await loader.loadPreview(imageData: data, photoId: id, maxPixel: maxPixel)
         }
         return nil
     }

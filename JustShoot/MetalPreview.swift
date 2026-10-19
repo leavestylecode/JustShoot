@@ -90,6 +90,7 @@ final class CameraPreviewMetalView: MTKView {
     private var applicationActive = UIApplication.shared.applicationState == .active
     private var sceneActive = false
     private var dismantled = false
+    private var contentVisible = true
     private var configuredPreviewScale: CGFloat?
     private var resizePolicy = PreviewDrawableResizePolicy()
     private var resizeTask: Task<Void, Never>?
@@ -148,7 +149,7 @@ final class CameraPreviewMetalView: MTKView {
     }
 
     private func updateRenderingAvailability(reason: String) {
-        let active = !dismantled && applicationActive && sceneActive && window != nil
+        let active = !dismantled && contentVisible && applicationActive && sceneActive && window != nil
         if !active { resizeTask?.cancel(); resizeTask = nil }
         if isPaused == active {
             isPaused = !active
@@ -165,6 +166,12 @@ final class CameraPreviewMetalView: MTKView {
         NotificationCenter.default.removeObserver(self)
     }
 
+    func setContentVisible(_ visible: Bool) {
+        guard contentVisible != visible else { return }
+        contentVisible = visible
+        updateRenderingAvailability(reason: visible ? "photo_review_closed" : "photo_review_opened")
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         updateDrawableSize()
@@ -178,7 +185,7 @@ final class CameraPreviewMetalView: MTKView {
     }
 
     private var canResizeDrawable: Bool {
-        !dismantled && applicationActive && sceneActive && !isPaused && window != nil
+        !dismantled && contentVisible && applicationActive && sceneActive && !isPaused && window != nil
     }
 
     private func updateDrawableSize(force: Bool = false) {
@@ -248,15 +255,17 @@ final class PreviewUnderlayUIView: UIView {
 struct RealtimePreviewView: UIViewRepresentable {
     let manager: CameraManager
     let lutCacheKey: String
-    let preparedLUT: CubeLUT?
+    let preparedLUT: PreviewLUTTexture?
     let grain: FilmGrainParameters
     let optics: FilmOpticsParameters
     let chromatic: FilmChromaticResponseParameters
+    var isContentVisible = true
 
     func makeUIView(context: Context) -> MTKView {
         // A loading overlay can mount this view before async preparation finishes.
         // The next update installs its device/PSOs; no cold compilation occurs on MainActor.
         let view = CameraPreviewMetalView(frame: .zero, device: PreviewMetalResources.shared.device)
+        view.setContentVisible(isContentVisible)
         // CADisplayLink 驱动渲染：MTKView 内部以屏幕 vsync 节拍调 draw(in:)。
         // draw() 内部按 lastRenderedFrameId 去重，没有新相机帧时立刻 return（~零成本）。
         //
@@ -287,6 +296,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: MTKView, context: Context) {
+        (uiView as? CameraPreviewMetalView)?.setContentVisible(isContentVisible)
         (uiView as? CameraPreviewMetalView)?.configurePreviewScale(min(context.environment.displayScale, 2.0))
         context.coordinator.lutCacheKey = lutCacheKey
         context.coordinator.preparedLUT = preparedLUT
@@ -315,7 +325,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, MTKViewDelegate {
         var lutCacheKey: String = ""
-        var preparedLUT: CubeLUT?
+        var preparedLUT: PreviewLUTTexture?
         var grain: FilmGrainParameters = .disabled
         var optics: FilmOpticsParameters = .disabled
         var chromatic: FilmChromaticResponseParameters = .neutral
@@ -343,8 +353,17 @@ struct RealtimePreviewView: UIViewRepresentable {
         }
 
         private func targets(width: Int, height: Int) -> PreviewTargets? {
-            if let cached = targetPool.take(width: width, height: height) { return cached }
-            guard let metalDevice else { return nil }
+            let flow = manager?.flowDiagnostics
+            return targetPool.request(width: width, height: height) {
+                let targets = Self.allocateTargets(width: width, height: height)
+                if targets != nil { flow?.allocatedTargets() }
+                return targets
+            }
+        }
+
+        nonisolated private static func allocateTargets(width: Int, height: Int) -> PreviewTargets? {
+            guard let metalDevice = PreviewMetalResources.shared.device else { return nil }
+            let startedAt = ProcessInfo.processInfo.systemUptime
             func texture(_ format: MTLPixelFormat, width: Int, height: Int) -> (any MTLTexture)? {
                 let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width, height: height, mipmapped: false)
                 descriptor.storageMode = .private
@@ -357,25 +376,12 @@ struct RealtimePreviewView: UIViewRepresentable {
                   let smallEnergy = texture(.r16Float, width: small.width, height: small.height),
                   let halation = texture(.r16Float, width: small.width, height: small.height),
                   let bloom = texture(.r16Float, width: small.width, height: small.height) else { return nil }
-            manager?.flowDiagnostics.allocatedTargets()
+            Diagnostics.emit("preview_targets_prepared", fields: "width=\(width) height=\(height) duration_ms=\(Diagnostics.milliseconds(since: startedAt))")
             return PreviewTargets(graded: graded, energy: energy, smallEnergy: smallEnergy, halation: halation, bloom: bloom)
         }
 
         // CVPixelBuffer → MTLTexture 零拷贝缓存
         private var textureCache: CVMetalTextureCache?
-
-        private struct LUTTexture {
-            let texture: any MTLTexture
-            let dimension: Int
-        }
-
-        // GPU residency is bounded by allocation bytes as well as entry count. The current
-        // command buffer retains its texture even if that texture is too large to cache.
-        private var lutTextures = ByteBudgetLRU<String, LUTTexture>(
-            maximumBytes: 32 * 1_024 * 1_024, maximumEntries: 8)
-        /// The active value is caller-owned: an uncached large table still uploads only once
-        /// per selection, rather than once per camera frame.
-        private var activeLUTTexture: (key: String, value: LUTTexture)?
 
         // Triple-buffer 信号量：限制 GPU 最多 3 帧 in-flight，防止命令堆积
         // nonisolated：`DispatchSemaphore` 线程安全，且 GPU completion handler 在后台线程触发
@@ -494,7 +500,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             guard !view.isPaused, view.window != nil, view.bounds.width > 0, view.bounds.height > 0,
                   UIApplication.shared.applicationState == .active else { return }
             let flow = manager?.flowDiagnostics
-            guard preparedLUT != nil else { flow?.skipped(.lut); return }
+            guard let preparedLUT, preparedLUT.key == lutCacheKey else { flow?.skipped(.lut); return }
             // 过渡计划（每 vsync 拉一次，即使没有新帧也要执行——淡出/淡回正发生在停顿窗口，
             // 那时恰无新帧）：crop = 扩展数字变焦倍率（帧对齐后的渲染侧上限作分母，见
             // PreviewCropCeilingSynchronizer）；metalOpacity = 停顿窗口内淡出本视图、露出
@@ -549,6 +555,20 @@ struct RealtimePreviewView: UIViewRepresentable {
                 return
             }
 
+            // Prepare intermediate textures before acquiring a scarce drawable. A cold pool
+            // returns immediately while its serial worker allocates away from MainActor.
+            let requestedWidth = Int(view.drawableSize.width)
+            let requestedHeight = Int(view.drawableSize.height)
+            guard let targets = targets(width: requestedWidth, height: requestedHeight) else {
+                flow?.skipped(.targets)
+                inflightSemaphore.signal()
+                return
+            }
+            var didSubmit = false
+            defer {
+                if !didSubmit { targetPool.recycle(targets, width: requestedWidth, height: requestedHeight) }
+            }
+
             let drawableStartedAt = ProcessInfo.processInfo.systemUptime
             let currentDrawable = view.currentDrawable
             drawableWaitMS = (ProcessInfo.processInfo.systemUptime - drawableStartedAt) * 1_000
@@ -599,15 +619,17 @@ struct RealtimePreviewView: UIViewRepresentable {
                 return
             }
 
-            // 获取或创建 3D LUT 纹理（纹理与维度一起返回，二者永不可能不同步）
-            guard let (lutTexture, lutDim) = getOrCreateLUTTexture(cacheKey: lutCacheKey) else {
-                flow?.skipped(.lut)
-                inflightSemaphore.signal()
-                return
-            }
+            // The immutable texture was allocated and uploaded before this selection was published.
+            let lutTexture = preparedLUT.texture
+            let lutDim = preparedLUT.dimension
 
             let outW = drawable.texture.width
             let outH = drawable.texture.height
+            guard outW == requestedWidth, outH == requestedHeight else {
+                flow?.skipped(.targets)
+                inflightSemaphore.signal()
+                return
+            }
 
             // 计算旋转参数
             let isLandscape = inW > inH
@@ -689,14 +711,8 @@ struct RealtimePreviewView: UIViewRepresentable {
             )
 
             // 编码 compute 命令
-            guard let targets = targets(width: outW, height: outH) else {
-                flow?.skipped(.encoder)
-                inflightSemaphore.signal()
-                return
-            }
             guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
                 flow?.skipped(.encoder)
-                targetPool.recycle(targets, width: outW, height: outH)
                 inflightSemaphore.signal()
                 return
             }
@@ -735,7 +751,6 @@ struct RealtimePreviewView: UIViewRepresentable {
             }
             guard let composite = commandBuffer.makeComputeCommandEncoder() else {
                 flow?.skipped(.encoder)
-                targetPool.recycle(targets, width: outW, height: outH)
                 inflightSemaphore.signal()
                 return
             }
@@ -811,62 +826,10 @@ struct RealtimePreviewView: UIViewRepresentable {
             }
 
             commandBuffer.present(drawable)
+            didSubmit = true
             commandBuffer.commit()
             lastRenderedFrameId = frameId
             submittedFrames += 1
-        }
-
-        // MARK: - 3D LUT 纹理管理
-
-        private func getOrCreateLUTTexture(cacheKey: String) -> (texture: any MTLTexture, dim: Int)? {
-            if let active = activeLUTTexture, active.key == cacheKey {
-                return (active.value.texture, active.value.dimension)
-            }
-            if let cached = lutTextures.value(forKey: cacheKey) {
-                activeLUTTexture = (cacheKey, cached)
-                return (cached.texture, cached.dimension)
-            }
-
-            guard let device = metalDevice else { return nil }
-
-            // Preparation owns disk I/O and composition on its background actor. Rendering
-            // only consumes its immutable result; a cold cache must never parse on MainActor.
-            guard let lut = preparedLUT else { return nil }
-            let dim = lut.dimension
-            let uploadStartedAt = ProcessInfo.processInfo.systemUptime
-
-            // 创建 3D 纹理（硬件三线性插值采样）
-            let desc = MTLTextureDescriptor()
-            desc.textureType = .type3D
-            desc.pixelFormat = .rgba32Float
-            desc.width = dim
-            desc.height = dim
-            desc.depth = dim
-            desc.usage = [.shaderRead]
-            desc.storageMode = .shared
-
-            guard let texture = device.makeTexture(descriptor: desc) else { return nil }
-
-            lut.data.withUnsafeBytes { ptr in
-                texture.replace(
-                    region: MTLRegion(
-                        origin: MTLOrigin(x: 0, y: 0, z: 0),
-                        size: MTLSize(width: dim, height: dim, depth: dim)
-                    ),
-                    mipmapLevel: 0,
-                    slice: 0,
-                    withBytes: ptr.baseAddress!,
-                    bytesPerRow: dim * 4 * MemoryLayout<Float>.size,
-                    bytesPerImage: dim * dim * 4 * MemoryLayout<Float>.size
-                )
-            }
-
-            let value = LUTTexture(texture: texture, dimension: dim)
-            activeLUTTexture = (cacheKey, value)
-            lutTextures.insert(value, forKey: cacheKey,
-                cost: max(lut.data.count, texture.allocatedSize))
-            manager?.diagnostics.event("preview_lut_uploaded", "dimension=\(dim) bytes=\(lut.data.count) duration_ms=\(Diagnostics.milliseconds(since: uploadStartedAt))")
-            return (texture, dim)
         }
 
         private func rotationFromAngle(_ angle: CGFloat) -> UInt32 {

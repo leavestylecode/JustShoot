@@ -14,29 +14,39 @@ enum FilmPresetCoverPreparation {
     }
 
     static func prepareHome(displayScale: CGFloat) async throws -> [FilmPreset: UIImage] {
-        try await prepare(prefix: "preset", maxPixel: homePixel(displayScale: displayScale))
+        try await prepare(maxPixel: homePixel(displayScale: displayScale))
     }
 
     static func preparePicker(displayScale: CGFloat) async throws -> [FilmPreset: UIImage] {
-        try await prepare(prefix: "picker", maxPixel: pickerPixel(displayScale: displayScale))
+        try await prepare(maxPixel: pickerPixel(displayScale: displayScale))
     }
 
     private static func scale(_ value: CGFloat) -> CGFloat {
         value.isFinite ? min(max(value, 1), 4) : 1
     }
 
-    private static func prepare(prefix: String, maxPixel: Int) async throws -> [FilmPreset: UIImage] {
-        var images: [FilmPreset: UIImage] = [:]
-        for preset in FilmPreset.allCases {
-            try Task.checkCancellation()
-            guard let image = await FilmCardImageCache.shared.loadImage(imageName: preset.libraryCardImage,
-                cacheKey: "\(prefix)_\(preset.rawValue)", maxPixel: maxPixel) else {
-                try Task.checkCancellation()
-                throw PreparationError.missingCover(preset)
-            }
-            images[preset] = image
-        }
+    private static func prepare(maxPixel: Int) async throws -> [FilmPreset: UIImage] {
         try Task.checkCancellation()
-        return images
+        return try await withThrowingTaskGroup(of: (FilmPreset, UIImage).self) { group in
+            for preset in FilmPreset.allCases {
+                group.addTask {
+                    guard let image = await FilmCardImageCache.shared.loadImage(imageName: preset.libraryCardImage,
+                        maxPixel: maxPixel) else {
+                        try Task.checkCancellation()
+                        throw PreparationError.missingCover(preset)
+                    }
+                    try Task.checkCancellation()
+                    return (preset, image)
+                }
+            }
+            // The shared worker still limits decoding to two images at a time.
+            var images: [FilmPreset: UIImage] = [:]
+            for try await (preset, image) in group {
+                try Task.checkCancellation()
+                images[preset] = image
+            }
+            try Task.checkCancellation()
+            return images
+        }
     }
 }

@@ -24,28 +24,17 @@ struct FilmCurveLibraryView: View {
             Section {
                 ForEach(CurvePreset.allCases) { preset in
                     Toggle(isOn: builtInVisibilityBinding(preset)) {
-                        HStack(spacing: 12) {
-                            FilmCurvePreviewCard(
-                                curve: .builtIn(preset),
-                                isSelected: false,
-                                cardSize: CGSize(width: 108, height: 76),
-                                graphSize: CGSize(width: 94, height: 40)
-                            )
-                            Text(preset.summary)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        CurveLibraryPreview(curve: .builtIn(preset))
                     }
                     .tint(.green)
                     .disabled(preset == .none)
-                    .accessibilityHint(preset == .none
-                        ? Text("Original is always available")
-                        : Text("Show or hide this curve in the camera"))
+                    .accessibilityLabel(Text(preset.displayName))
+                    .accessibilityHint(Text(verbatim: preset.summary + " " + (preset == .none
+                        ? String(localized: "Original is always available")
+                        : String(localized: "Show or hide this curve in the camera"))))
                 }
             } header: {
                 Text("Built-in Curves")
-            } footer: {
-                Text("Curves adjust tone and color.")
             }
             .disabled(!library.canEdit)
 
@@ -62,12 +51,7 @@ struct FilmCurveLibraryView: View {
                             NavigationLink {
                                 FilmCurveEditorView(curve: custom)
                             } label: {
-                                FilmCurvePreviewCard(
-                                    curve: custom.filmCurve,
-                                    isSelected: false,
-                                    cardSize: CGSize(width: 108, height: 76),
-                                    graphSize: CGSize(width: 94, height: 40)
-                                )
+                                CurveLibraryPreview(curve: custom.filmCurve)
                             }
                             .buttonStyle(.plain)
 
@@ -139,6 +123,28 @@ struct FilmCurveLibraryView: View {
             get: { library.customCurves.first(where: { $0.id == id })?.isVisible ?? false },
             set: { library.setCustomVisibility(id: id, isVisible: $0) }
         )
+    }
+}
+
+private struct CurveLibraryPreview: View {
+    let curve: FilmCurve
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(curve.displayName)
+                .font(.body)
+                .foregroundStyle(.primary)
+            CurveGraphView(curve: curve, accent: .white)
+                .frame(maxWidth: 220)
+                .frame(height: 60)
+            CurveOutputStrip(curve: curve)
+                .frame(maxWidth: 220)
+                .frame(height: 5)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.trailing, 12)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(curve.displayName))
     }
 }
 

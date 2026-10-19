@@ -1,5 +1,15 @@
 # Repository Guidelines
 
+## Product Priorities
+
+Performance and fluid interaction are the primary goals. Keep disk access, image decoding,
+and repeated catalog work out of UI updates; bound background work and cancel unused requests.
+Prefer previews, graphs, icons, and visible state over explanatory paragraphs. Keep labels short,
+move secondary guidance behind an explicit help control, and preserve accessibility labels,
+permission guidance, error recovery, and destructive-action explanations. Validate improvements
+with focused regression tests and simulator inspection; claim device performance gains only
+after measuring them on a physical device.
+
 ## Project Structure & Module Organization
 
 `JustShoot/` contains the SwiftUI application. `JustShootApp.swift` is the entry point; camera and capture code lives in `CameraView.swift`, `CameraManager.swift`, and related camera files. Photo processing and persistence are centered in `FilmProcessor.swift`, `LivePhotoProcessor.swift`, `PhotoLibrary.swift`, and `Models.swift`. Gallery, film-card, and settings views are grouped by feature through descriptive filenames.

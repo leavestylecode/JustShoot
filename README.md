@@ -2,6 +2,53 @@
 
 SwiftUI film camera for iOS 26 and later. Build with Xcode 27 using the `JustShoot` scheme.
 
+## Interaction priorities
+
+Performance and fluid interaction take priority. Use visual previews and concise labels;
+secondary explanations belong behind help controls. Permission guidance, recovery actions,
+destructive confirmations and VoiceOver descriptions remain explicit.
+
+Card covers share a filename-based cache across the home grid, camera picker and library.
+Nearby sizes use 128/256/384/640/1024-pixel buckets, with a 50 MiB cache budget. Concurrent
+consumers share one decode; cancelling a consumer releases it immediately and cancels queued
+work when no consumers remain. Home and picker preparation use the existing two-worker image
+queue concurrently. Cached covers appear before asynchronous display updates, including on
+entry to card details. Catalog filter counts and buckets are built off MainActor once; only
+selection changes filter the cards again.
+
+Curve management displays larger response graphs and output strips. Loading screens use the
+brand and a progress indicator, with status available to VoiceOver. Settings keeps shutter
+guidance behind its info button and diagnostics collapsed until opened. These changes do not
+establish a measured improvement in device frame rate, shutter latency or thermal behavior.
+
+Camera LUT texture allocation and CPU upload run on a dedicated serial queue before a new
+selection becomes available to preview or capture. The draw callback consumes an immutable
+texture; the previous selection keeps rendering until the replacement is ready. The shared
+texture cache retains at most 32 MiB / eight entries, and active renderers keep their own
+references through eviction. Cancelled queued selections skip uploading. `preview_lut_uploaded`
+records upload duration, and `camera_lut_prepare` now includes upload preparation.
+
+Preview intermediate textures also allocate on a dedicated serial queue. A cold draw keeps the
+last presented frame and retries on the next display tick instead of waiting for allocation on
+MainActor. Each renderer allows one pending allocation and caches at most three completed
+target sets. Resize revisions reject stale results, and target readiness is checked before
+acquiring a drawable. `preview_targets_prepared` reports allocation time; `preview_flow` records
+these skipped ticks as `targets`.
+
+Each Live Photo transcode configures its LUT filter once and reuses it on that transcode's
+serial video queue. Independent transcodes own independent mutable filters. Every output graph
+captures its own input, and the filter releases its input after producing the graph. Pixel
+regressions cover deferred rendering, separate LUTs and changing frames with the full effect
+chain.
+
+Shutter touch feedback is immediate, and `shutter_acknowledged` records acknowledgement before
+storage checks. A progress indicator shows film preparation or native capture; an hourglass
+indicates a full save queue. VoiceOver names each state. Safe admission, still checkpointing
+and the real exposure flash timing remain enforced. The recent-photo badge observes only the
+newest indexed photo for its film, loading the full browsing snapshot when opened. Queue counts
+publish only when they change. Camera entry failures use a short state title and recovery
+actions; permission guidance remains explicit.
+
 ## Capture architecture
 
 - `CameraManager` owns capture session configuration, device controls and per-request capture delivery. Hardware configuration and teardown share a process-wide serial queue; generation checks discard starts superseded by navigation or background transitions. Preview buffer dimensions use AVFoundation's automatic negotiation; the app no longer forces the preview proxy. Metal drawable dimensions remain independently bounded.
@@ -15,7 +62,7 @@ SwiftUI film camera for iOS 26 and later. Build with Xcode 27 using the `JustSho
 - Photos exports use stable capture filenames for retry lookup. SwiftData stores an idempotent index using the original capture timestamp. Both original and processed Live Photo files remain until export and indexing succeed.
 - `PhotoLibrarySync` coalesces reconciliation across its entire async operation. Retained capture jobs are excluded from legacy-photo migration and orphan backfill. Storage initialization failures preserve the existing database and show a retry action.
 - `FilmImagePipeline` builds the shared static/Live Core Image graph. All render paths use sRGB, and Live writer settings and output buffers explicitly declare matching color primaries, transfer function and conversion matrix. Preview and export apply LUT, highlight processing, Gaussian light diffusion and grain in the same order. Preview drawables are capped at a 1280-pixel long edge, with diffusion computed at half resolution; export keeps full-resolution processing. Final photos include metadata in a single encoding pass. New shots use automatic efficient HEIC compression instead of quality 1.0; pending legacy jobs retain their frozen encoding quality.
-- LUT caches share a reusable byte-budget LRU (these limits cover cached data, excluding currently used capture bytes and in-flight GPU resources): raw/composed tables retain at most 64 MiB, color-adjusted tables 16 MiB and Metal textures 32 MiB. Evicted tables reload during background preparation; the Metal draw path consumes prepared bytes and never reads LUT files. Importing an unused LUT does not preload a second copy.
+- LUT caches share a reusable byte-budget LRU (these limits cover cached data, excluding currently used capture bytes and in-flight GPU resources): raw/composed tables retain at most 64 MiB, color-adjusted tables 16 MiB and Metal textures 32 MiB. Evicted tables reload during background preparation; the Metal draw path consumes uploaded textures and never reads LUT files. Importing an unused LUT does not preload a second copy.
 - `CaptureJournal` returns a recovery inventory that includes unreadable, unsupported and incomplete entries. Settings exposes their reasons, exact-copy original export and confirmed recovery-file deletion. Limited Photos access rejects deletion batches containing inaccessible assets, preserving their indexes.
 - Startup waits for its storage, home snapshot, decoded covers and preview pipelines. Camera entry also awaits its real rendering context and current capture configuration. LUT loading remains demand-driven; synthetic Live Photo/HEVC warm-up is disabled. Postprocessing uses low-priority Core Image requests to leave GPU capacity for the viewfinder.
 
@@ -37,6 +84,37 @@ Physical-source changes rearm the capture grace even after zoom has settled. The
 
 The queue accepts at most 16 outstanding captures with a 1 GiB soft disk budget and conservative pre-exposure disk reservations. Accepted captures are persisted even if the soft budget changes during exposure. Filesystem failures are surfaced; original files are never intentionally discarded to satisfy a queue budget. Future journal formats must be migrated explicitly; unreadable jobs are retained and visible. Successful journal cleanup removes originals and full recipes; finished media cannot currently be reprocessed nondestructively with another film.
 
+Saving reuses freshly rendered image bytes after committing its journal checkpoint; only a
+recovered rendered job reads those bytes from disk. Album discovery runs off MainActor while
+concurrent saves still share one album-creation task. `capture_rendered_read` identifies a
+recovered-file read, and the run header reports `capture_pipeline=rendered_data_reuse_v1`.
+
+Photo detail starts thumbnail and full-preview requests together, displays either as it arrives,
+and cancels an unnecessary thumbnail when the preview is ready. Legacy/fallback photos check
+memory and display-prepared disk caches before accessing SwiftData image bytes; neighbour
+thumbnail warmup reads one fallback at a time. Photo and film-card decoding share the same
+consumer-aware request implementation, with independent caches. Cancelling one view keeps
+other consumers alive; cancelling the final consumer skips queued work. Grid prefetch has at
+most 24 pending requests and cancels them on scroll cancellation, index/density changes and
+teardown. Cell reuse cancels its outstanding load. Gallery uses icons for selection, a spinner
+and count for active saves, and one short empty-state label. The queue observer is confined to
+its small indicator. These changes require device measurements to establish burst throughput
+or time to first visible photo.
+
+Gallery cells cancel requests and drop their image when they leave the viewport, then
+resume on redisplay even without reuse. Hidden gallery tabs and the covered grid suspend
+prefetch and visible-cell work. Detail high-resolution demand is restricted to the current
+page and its immediate neighbours; previews use native screen pixels rather than a 2556px
+minimum. The legacy preview cache is configured for three entries / min(96 MiB, RAM/32), is
+cleared when detail closes, and rejects late cache writes from the previous generation.
+Scrubber thumbnails use 160px with a ±4 preheat window; PhotoKit preheat is stopped when
+the window changes or detail closes. Live resources are released when their page is no
+longer current. While recent photos cover the camera, Metal drawing pauses and resumes
+on dismissal without rebuilding the capture session or interrupting accepted Live captures.
+Loading uses a spinner, failure uses an accessible retry icon, and the Live badge is an icon.
+These lifecycle and allocation bounds are regression-tested; device frame times and resident
+memory still need measurement under rapid scrolling, paging and camera return.
+
 ## Entry preparation
 
 The system launch screen and the in-app preparation screen share a black background, an aperture icon and the JustShoot name. The system screen bridges process launch; asynchronous preparation runs in the app, and completion determines when the destination appears. There is no fixed branding delay. This follows Apple's distinction between [launching](https://developer.apple.com/design/human-interface-guidelines/launching) and [loading content](https://developer.apple.com/design/human-interface-guidelines/loading).
@@ -47,7 +125,7 @@ Camera preparation keeps the session and Metal view mounted behind an opaque scr
 
 Preparation has retryable error states. Camera errors also provide Back, and denied permission provides Open Settings. The home timeout is 20 seconds per foreground attempt; the camera timeout counts 12 seconds of active preparation, excluding permission sheets. Background suspension does not exhaust these timers. Native operations that cannot be interrupted may finish later, but their stale results cannot replace the current attempt. Startup never deletes the store to recover from an error.
 
-Diagnostics include `app_startup_prepare`, `startup_photos_observer`, `camera_entry_state`, renderer preparation and existing session/LUT/GPU stages. The run header identifies this implementation with `camera_revision=2026-10-15-prepared-entry` and `startup_pipeline=prepared_entry_v1`. Simulator tests cover state ordering and error/cancellation behavior; physical-device runs are still required to measure camera entry latency and sustained preview performance.
+Diagnostics include `app_startup_prepare`, `startup_photos_observer`, `camera_entry_state`, renderer preparation and existing session/LUT/GPU stages. The run header identifies this implementation with `camera_revision=2026-10-19-async-preview`, `startup_pipeline=prepared_entry_v1` and `live_pipeline=reused_lut_v1`. Simulator tests cover state ordering and error/cancellation behavior; physical-device runs are still required to measure camera entry latency and sustained preview performance.
 
 ## Tone curves
 
@@ -123,7 +201,7 @@ Color controls keep temperature and tint side by side in two separate capsules, 
 
 Diagnostics are enabled in Debug and Release. Filter the Xcode console for `diag `; every event carries a process `run`, a camera/capture `id`, and monotonic timing. The logging subsystem follows the app bundle identifier, with category `diagnostics`. Set the scheme environment variable `JUSTSHOOT_DIAGNOSTICS=0` to disable the additional monitoring.
 
-On a device, reproduce the issue and use **Settings → Export Diagnostic Log** to share a `.txt` file. No debugger is required. Diagnostic events are also written on a utility queue to three rotating 2 MiB files in Caches; pending file writes are capped at 256 KiB. Export includes retained sessions in chronological order. `diagnostic_log_overflow` and the export header's `file_write_failures` disclose missing records; this is a bounded recent history, not an unlimited crash recorder. Caches can be purged by iOS, so export promptly after reproducing the issue. Exported copies in the temporary directory are limited to the three most recent files.
+On a device, reproduce the issue and use **Settings → Diagnostics → Export Diagnostic Log** to share a `.txt` file. No debugger is required. Diagnostic events are also written on a utility queue to three rotating 2 MiB files in Caches; pending file writes are capped at 256 KiB. Export includes retained sessions in chronological order. `diagnostic_log_overflow` and the export header's `file_write_failures` disclose missing records; this is a bounded recent history, not an unlimited crash recorder. Caches can be purged by iOS, so export promptly after reproducing the issue. Exported copies in the temporary directory are limited to the three most recent files.
 
 - `run_begin`: device model, iOS version, build configuration, memory footprint, thermal state and Low Power Mode. Schema 3 adds `camera_revision`, `color_pipeline` and `lut_max_hz` to distinguish implementations when the app's marketing/build versions are unchanged. Older runs in an export do not validate the current implementation.
 - `camera_view_appear`, `device_discovery_*`, `session_*`, `main_*`, `camera_state`: permission wait, hardware queue wait, input/format/output configuration, start/stop, and the delay returning to the main actor.
@@ -138,7 +216,7 @@ On a device, reproduce the issue and use **Settings → Export Diagnostic Log** 
 - `zoom_samples` contains up to 24 `milliseconds_since_window_start:zoom:ramping` observations (first 23 plus latest); `zoom_n` reports the full observation count. These are KVO observations, not a promise that every sensor step was observed. No pixel buffers are copied or retained for diagnostics.
 - `main_queue_stall` / `main_queue_recovered`: main-queue response delays of at least 250 ms. Only one probe can be outstanding; ongoing reports are limited to once every two seconds. Monitoring pauses while inactive. `watchdog_gap` identifies process-wide scheduling/suspension/debugger gaps instead of labeling them as a main-thread stall.
 - `shutter_*`, `capture_*`, `live_*`, `still_*`, `photos_*`: one capture ID follows reservation, native callbacks, journaling, queue wait, processing, Photos export, indexing and thumbnail delivery.
-- `recent_photos_open_*`, `photo_detail_open`, `photo_detail_selection`, `photo_page_load_*`, `photo_asset_request_*`: follow a saved capture into the viewer. The recent-photo button reads a committed index snapshot on tap instead of requiring `@Query` to refresh first. Thumbnail hints include photo identity, and cancelled older loads cannot replace a newer hint. PhotoKit loads distinguish missing/inaccessible assets, errors, cancellation and empty results; page logs distinguish a full preview from a thumbnail-only fallback. Failed empty pages offer Retry. `run_begin.gallery_pipeline=committed_snapshot_v2` also includes cancellable Live Photo/original-data requests and refreshes grid cells when an existing photo gains an asset identifier or Live Photo resources.
+- `recent_photos_open_*`, `photo_detail_open`, `photo_detail_selection`, `photo_page_load_*`, `photo_asset_request_*`: follow a saved capture into the viewer. The recent-photo button reads a committed index snapshot on tap instead of requiring `@Query` to refresh first. Thumbnail hints include photo identity, and cancelled older loads cannot replace a newer hint. PhotoKit loads distinguish missing/inaccessible assets, errors, cancellation and empty results; page logs distinguish a full preview from a thumbnail-only fallback. Failed empty pages offer Retry. `run_begin.gallery_pipeline=bounded_pages_v4` also includes cancellable Live Photo/original-data requests and refreshes grid cells when an existing photo gains an asset identifier or Live Photo resources.
 - `photo_delete_begin` / `photo_delete_end`: delimit a deletion transaction. Active captures cannot enter deletion; recovery cannot start a job protected by an open deletion transaction. Admission is published before the worker's drain queue can see a job. Failure to commit the index deletion rolls back its journal discard markers, preserving retryable originals.
 - `live_photo_prepare_*`, `live_photo_state`, `live_photo_preference_changed`: distinguish native support, session enablement and user intent. `shutter_tap.requested_live` records intent; `session_output_ready.live_supported` and `.live` record native state, along with the final session preset. Always separate runs by `run`; exports can contain earlier test sessions.
 
@@ -156,4 +234,14 @@ The source audit covers storage startup, permissions and lifecycle, preview/zoom
 
 The simulator cross-page test also reproduced cooperative-pool starvation: ten detached cover-loading tasks waited inside the HEIF decoder, while camera discovery had already returned but startup/LUT tasks could not resume. Covers, legacy photo thumbnails/previews, cover color extraction and share conversion now use a dedicated operation queue with at most two concurrent blocking jobs. Cancelled queued work is skipped and cancelled waiters are released immediately. Resource/heartbeat logs include `image_work_active` and `image_work_queued`. Regression tests cover the concurrency bound, cancellation behind a blocked decoder, and a real bundled HEIF cover. Repeating Library → Films → Camera after the fix completed the LUT preparation and displayed the simulator's camera-unavailable state. This does not replace a device performance comparison.
 
-Device checks still required: rapid focal reversals and actual framing; flash/EV/automatic color readings; still and Live Photo capture with microphone allowed/denied; immediate gallery entry; deletion while a saved fallback is being retried; cancellation of the system delete confirmation; background/foreground during saving; restricted Photos/iCloud access; low storage; and delivery to a receiving share extension. Export the complete run with `camera_revision=2026-10-15-prepared-entry` after reproducing an issue.
+Device checks still required: rapid focal reversals and actual framing; flash/EV/automatic color readings; still and Live Photo capture with microphone allowed/denied; immediate gallery entry; deletion while a saved fallback is being retried; cancellation of the system delete confirmation; background/foreground during saving; restricted Photos/iCloud access; low storage; and delivery to a receiving share extension. Export the complete run with `camera_revision=2026-10-19-async-preview` after reproducing an issue.
+
+### Performance review (2026-10-20)
+
+Pre-commit review covered shared-request cancellation, cache invalidation, GPU resource ownership,
+Live filter isolation, durable save checkpoints, grid redisplay and camera-review lifecycle.
+Debug build/run and the full XCTest suite passed on iPhone SE (3rd generation), iOS 26.5:
+382 passed, zero failed, one Photos-permission integration test skipped. An unsigned Release
+build for generic iOS also passed. Both configurations treated Swift warnings as errors and
+reported no warnings. No temporary gallery fixtures are included. Device frame times, peak
+resident memory and hardware capture/Photos behavior remain subject to the device checks above.

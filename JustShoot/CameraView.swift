@@ -38,7 +38,7 @@ struct CameraView: View {
     /// 放开后用户即可按下一张；在途的多张拍照由 CameraManager 按 uniqueID 分桶、互不覆盖。
     @State private var isShutterBusy = false
     @ObservedObject private var capturePipeline = CapturePipeline.shared
-    @State private var preparedLUT: (key: String, lut: CubeLUT, profile: FilmRenderProfile)?
+    @State private var preparedLUT: (key: String, lut: CubeLUT, texture: PreviewLUTTexture, profile: FilmRenderProfile)?
     @State private var lutPreparationCadence = CameraLUTPreparationCadence()
     @State private var entryRetryRevision: UInt64 = 0
     @State private var preparedPickerCovers: [FilmPreset: UIImage] = [:]
@@ -49,6 +49,7 @@ struct CameraView: View {
     /// RecentPhotosBadge 通过 @Binding 读写：source 切换时它会清空 hint 并从新 source 的 @Query
     /// 重新 bootstrap。
     @State private var lastPhotoThumbnail: RecentPhotoThumbnail?
+    @State private var isReviewingPhotos = false
     @State private var focusPoint: CGPoint? = nil
     @State private var showFocusIndicator = false
     /// tap+drag 手势状态：值为 nil 表示当前没有进行中的手势——onEnded 时清空。
@@ -109,10 +110,11 @@ struct CameraView: View {
                             RealtimePreviewView(
                                 manager: cameraManager,
                                 lutCacheKey: preparedLUT?.key ?? previewLUTKey,
-                                preparedLUT: preparedLUT?.lut,
+                                preparedLUT: preparedLUT?.texture,
                                 grain: preparedLUT?.profile.grain ?? source.renderProfile.grain,
                                 optics: preparedLUT?.profile.optics ?? source.renderProfile.optics,
-                                chromatic: preparedLUT?.profile.effectiveChromatic ?? source.renderProfile.effectiveChromatic
+                                chromatic: preparedLUT?.profile.effectiveChromatic ?? source.renderProfile.effectiveChromatic,
+                                isContentVisible: !isReviewingPhotos
                             )
                                 .id(entryRetryRevision)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -353,28 +355,20 @@ struct CameraView: View {
                         isShutterBusy: isShutterBusy,
                         isProcessing: capturePipeline.pendingCount > 0,
                         controlRotationAngle: controlRotationAngle,
-                        orientation: cameraManager.currentDeviceOrientation
+                        orientation: cameraManager.currentDeviceOrientation,
+                        onPresentationChanged: { isReviewingPhotos = $0 }
                     )
 
                     Spacer()
 
-                    // 中：快门按钮
-                    Button { Task { await capturePhoto() } } label: {
-                        ZStack {
-                            Circle()
-                                .stroke(.white, lineWidth: 4)
-                                .frame(width: 72, height: 72)
-                            Circle()
-                                .fill(.white)
-                                .frame(width: 60, height: 60)
-                                .scaleEffect(shutterPressed ? 0.85 : 1.0)
-                                .animation(.easeInOut(duration: 0.1), value: shutterPressed)
-                        }
+                    CameraShutterButton(
+                        isCapturing: isShutterBusy,
+                        isPreparingFilm: preparedLUT?.key != previewLUTKey,
+                        canCapture: capturePipeline.canCapture,
+                        isPressed: shutterPressed
+                    ) {
+                        Task { await capturePhoto() }
                     }
-                    .buttonStyle(CaptureShutterButtonStyle())
-                    .accessibilityLabel("Capture")
-                    .accessibilityHint("Take a photo")
-                    .disabled(preparedLUT?.key != previewLUTKey)
 
                     Spacer()
 
@@ -510,13 +504,23 @@ struct CameraView: View {
                 "\(curveFields) \(colorAdjustmentDiagnosticFields) cadence_wait_ms=\(Diagnostics.milliseconds(since: requestedAt))")
             do {
                 let lut = try await ColorTemperatureLUT.shared.prepare(source: requestedSource, curve: curve, selection: selection, tint: tint, reference: reference)
+                try Task.checkCancellation()
+                let texture = try await PreviewLUTTextureCache.shared.prepare(key: key, lut: lut)
                 lutWait.end("ok", "cancelled=\(Task.isCancelled)")
                 guard !Task.isCancelled, key == previewLUTKey else { return }
-                preparedLUT = (key, lut, requestedSource.renderProfile)
+                preparedLUT = (key, lut, texture, requestedSource.renderProfile)
                 cameraManager.updateEntryLUT(expectedKey: key, preparedKey: key)
                 cameraManager.diagnostics.event("camera_lut_ready", "dimension=\(lut.dimension) \(curveFields) \(colorAdjustmentDiagnosticFields)")
             } catch is CancellationError {
                 lutWait.end("cancelled")
+            } catch let error as PreviewLUTTextureCache.PreparationError {
+                lutWait.end("error", Diagnostics.errorFields(error))
+                guard !Task.isCancelled, key == previewLUTKey else { return }
+                if cameraManager.entryPreparation.isRevealed {
+                    captureError = String(localized: "The camera preview could not be prepared. Please try again.")
+                } else {
+                    cameraManager.previewRendererUnavailable()
+                }
             } catch {
                 lutWait.end("error", Diagnostics.errorFields(error))
                 guard !Task.isCancelled, key == previewLUTKey else { return }
@@ -567,6 +571,9 @@ struct CameraView: View {
             get: { captureError != nil },
             set: { if !$0 { captureError = nil } }
         )) {
+            if preparedLUT?.key != previewLUTKey {
+                Button("Try Again") { retryCameraEntry() }
+            }
             Button("OK", role: .cancel) { captureError = nil }
         } message: {
             Text(captureError ?? "")
@@ -584,9 +591,9 @@ struct CameraView: View {
     private var cameraPreparationScreen: some View {
         let failure = cameraManager.entryPreparation.failure
         return PreparationScreen(
-            title: failure == .permissionDenied ? "Camera access required" :
-                failure == nil ? "Preparing camera" : "Camera unavailable",
-            message: cameraPreparationMessage,
+            title: cameraPreparationTitle,
+            message: failure == .permissionDenied
+                ? String(localized: "Allow camera access for JustShoot in Settings") : nil,
             isLoading: failure == nil,
             actionTitle: failure == .permissionDenied ? "Open Settings" : "Try Again",
             onAction: failure.map { failure in
@@ -599,20 +606,14 @@ struct CameraView: View {
         )
     }
 
-    private var cameraPreparationMessage: String? {
+    private var cameraPreparationTitle: LocalizedStringKey {
         switch cameraManager.entryPreparation.failure {
-        case .permissionDenied:
-            String(localized: "Allow camera access for JustShoot in Settings")
-        case .cameraUnavailable:
-            String(localized: "The camera could not be started. Please try again.")
-        case .filmUnavailable:
-            String(localized: "This film could not be prepared. Please try again.")
-        case .previewUnavailable:
-            String(localized: "The camera preview could not be prepared. Please try again.")
-        case .timedOut:
-            String(localized: "The camera is taking longer than expected. Please try again.")
-        case nil:
-            nil
+        case .permissionDenied: "Camera access required"
+        case .cameraUnavailable: "Camera unavailable"
+        case .filmUnavailable: "Film unavailable"
+        case .previewUnavailable: "Preview unavailable"
+        case .timedOut: "Camera timed out"
+        case nil: "Preparing camera"
         }
     }
 
@@ -708,6 +709,14 @@ struct CameraView: View {
             return
         }
         isShutterBusy = true
+        // Acknowledge the accepted press before any storage or hardware wait.
+        shutterPressed = true
+        cameraManager.hapticMedium.impactOccurred()
+        captureTrace.event("shutter_acknowledged", "tap_to_ack_ms=\(Log.ms(since: tapTime))")
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
+            shutterPressed = false
+        }
         guard let captureID = await capturePipeline.reserve(lutBytes: capturedLUT.data.count, id: requestedID) else {
             cameraManager.cancelCaptureAdmission(admission)
             isShutterBusy = false
@@ -729,18 +738,6 @@ struct CameraView: View {
             displayLabel: displayLabel, focalLength: focalMm, outputQuality: nil,
             profile: renderProfile, grainSeed: grainBaseSeed, location: location,
             lutDimension: capturedLUT.dimension, chromaticSceneCCT: chromaticSceneCCT, photoDisplayTime: nil)
-        // tap 即 +1：spinner 覆盖「曝光 + 等 live 视频 + 排队 + 后处理」全程，后台 task 跑完才 -1。
-        shutterPressed = true
-        cameraManager.hapticMedium.impactOccurred()
-
-        // 按钮按压回弹：tap 即时确认，独立于 AVF 时序。100ms 接近物理按键按压时长。
-        // 白屏覆盖层不再挂在这里——它跟随 AVF 的 willCapturePhotoFor 回调，与真实
-        // 闪光灯主脉冲物理同帧。详见下方 onWillCapture 注释。
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 100_000_000)
-            shutterPressed = false
-        }
-
         cameraManager.capturePhoto(admission: admission, live: wantsLive, trace: captureTrace, onWillCapture: {
             // AVF 主曝光起始帧——开闪光灯时即氙气主脉冲发射的瞬间，关闪光灯时 ZSL/responsive
             // 让这一刻在 tap 后 50–150ms 内 fire。在这里驱动白屏，UI 与真实光线同帧。
@@ -1090,13 +1087,5 @@ struct CameraView: View {
             let x = pref + edgePad > viewport.width ? focus.x - offset : pref
             return CGPoint(x: x, y: focus.y)
         }
-    }
-}
-
-/// LUT preparation may temporarily gate capture without changing the shutter's appearance.
-/// Keep the existing press animation in the label; omit disabled-state dimming here.
-private struct CaptureShutterButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
     }
 }

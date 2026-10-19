@@ -74,6 +74,35 @@ final class CameraPreviewLifecycleTests: XCTestCase {
         XCTAssertTrue(view.isPaused)
     }
 
+    func testPhotoReviewPausesDrawingUntilDismissedAndForegroundCannotRestartIt() async throws {
+        let window = try await makeWindow()
+        let view = CameraPreviewMetalView(frame: window.bounds, device: nil)
+        defer { view.removeFromSuperview() }
+        window.addSubview(view)
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        XCTAssertFalse(view.isPaused)
+        view.setContentVisible(false)
+        XCTAssertTrue(view.isPaused)
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        view.layoutSubviews()
+        XCTAssertTrue(view.isPaused)
+        view.setContentVisible(true)
+        XCTAssertFalse(view.isPaused)
+    }
+
+    func testDismissingPhotoReviewWhileInactiveWaitsForForegroundBeforeDrawing() async throws {
+        let window = try await makeWindow()
+        let view = CameraPreviewMetalView(frame: window.bounds, device: nil)
+        defer { view.removeFromSuperview() }
+        window.addSubview(view)
+        view.setContentVisible(false)
+        NotificationCenter.default.post(name: UIApplication.willResignActiveNotification, object: nil)
+        view.setContentVisible(true)
+        XCTAssertTrue(view.isPaused)
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        XCTAssertFalse(view.isPaused)
+    }
+
     func testAnimatedRasterScaleCannotBypassControlledDrawableSizing() async throws {
         let window = try await makeWindow()
         let view = CameraPreviewMetalView(frame: CGRect(x: 0, y: 0, width: 408, height: 544), device: nil)

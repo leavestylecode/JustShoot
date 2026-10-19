@@ -37,7 +37,7 @@ final class CameraFlowDiagnostics: Sendable {
     }
 
     enum Skip: String, Sendable {
-        case noFrame = "no_frame", duplicate, backpressure, drawable, pipeline, texture, lut, encoder
+        case noFrame = "no_frame", duplicate, backpressure, drawable, pipeline, texture, lut, encoder, targets
     }
 
     private struct Window: Sendable {

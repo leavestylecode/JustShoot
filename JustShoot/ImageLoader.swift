@@ -15,9 +15,9 @@ final class BlockingImageWork: @unchecked Sendable {
         return "image_work_active=\(running) image_work_queued=\(max(0, queue.operationCount - running))"
     }
 
-    init(maximumConcurrentOperations: Int = 2) {
+    init(maximumConcurrentOperations: Int = 2, label: String = "com.justshoot.image-work") {
         queue = OperationQueue()
-        queue.name = "com.justshoot.image-work"
+        queue.name = label
         queue.qualityOfService = .userInitiated
         queue.maxConcurrentOperationCount = max(1, maximumConcurrentOperations)
     }
@@ -63,6 +63,9 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     /// 隔离后预览只和预览竞争，预加载环稳稳命中内存。
     private let previewCache = NSCache<NSString, UIImage>()
     private let fileManager = FileManager.default
+    private let requests: SharedImageRequests
+    private let cacheDirectory: URL?
+    private let previewGeneration = OSAllocatedUnfairLock(initialState: UInt64(0))
 
     /// 缩略图缓存上限：min(128MB, RAM/32)。低端 2GB≈64MB，高端 8GB 封顶 128MB。
     private static func defaultCostLimit() -> Int {
@@ -70,44 +73,23 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         return min(128 * 1024 * 1024, mem / 32)
     }
 
-    /// 预览缓存上限：min(200MB, RAM/16)。要装得下「当前页 + ±1 预加载环 + 余量」（~6-8 张大图）。
-    /// 8GB→200MB(~8张)，4GB→200MB，2GB→128MB(~5张，仍够环不抖)。
+    /// Keep only the current/adjacent preview window alongside the thumbnail cache.
     private static func previewCostLimit() -> Int {
         let mem = Int(ProcessInfo.processInfo.physicalMemory)
-        return min(200 * 1024 * 1024, mem / 16)
+        return min(96 * 1024 * 1024, mem / 32)
     }
 
-    private init() {
+    init(worker: BlockingImageWork = .shared, cacheDirectory: URL? = nil) {
+        requests = SharedImageRequests(worker: worker)
+        self.cacheDirectory = cacheDirectory
         cache.countLimit = 50
         cache.totalCostLimit = Self.defaultCostLimit()
-        previewCache.countLimit = 10
+        previewCache.countLimit = 3
         previewCache.totalCostLimit = Self.previewCostLimit()
     }
 
-    // MARK: - In-flight dedup
-    //
-    // 同一张图（同 key）被并发请求时——常见场景：handleTap 起一个 loadPreview，detail
-    // mount 后 PagerImage.task 又起一个；schedulePreheat 跟 ThumbnailStripCell.task 撞同一
-    // 张 600px thumb——旧实现会启动多个 Task.detached 并行 decode 同一帧，互相抢 CPU
-    // cores，每个 decode 慢 ~2x，首张照片要等近 1 秒才出现。
-    //
-    // 新实现：每个 key 维护一个 in-flight Task，后续 caller 直接 await 已存在的 Task，
-    // 同 key 同一份 decode。NSCache 命中走快路径不动；只有 miss 时才进 lock。
-    //
-    // 用 `OSAllocatedUnfairLock` 而不是 `NSLock`：NSLock 的 `lock()` / `unlock()` 在
-    // Swift 6 完整并发模式下被标记为"unavailable from asynchronous contexts"（async 函数里
-    // 调用会阻塞 cooperative thread pool 的 worker，破坏调度）。`OSAllocatedUnfairLock` 提供
-    // 闭包式 `withLock` API，async 安全；持锁极短时间（dict 读写）足够快，不会影响调度。
-    /// Dict 用 `String` key（不是 NSString）：String 是 Sendable，可以安全在 @Sendable 闭包里
-    /// 捕获；NSString 不是，会触发"capture of 'key' with non-Sendable type"警告。
-    /// NSCache 仍要 NSString，调用点用 `key as NSString` 临时转换即可。
-    private struct InflightTasks {
-        var previews: [String: Task<UIImage?, Never>] = [:]
-        var thumbs: [String: Task<UIImage?, Never>] = [:]
-    }
-    /// `uncheckedState` 跳过 State: Sendable 约束——访问由锁串行化，State 内的 Task 实际不会
-    /// 被并发触碰；Sendable 检查由我们用法担保，不交给类型系统强制。
-    private let inflight = OSAllocatedUnfairLock(uncheckedState: InflightTasks())
+    // Each photo/size has one decode. Consumers can cancel independently; the last
+    // cancellation removes queued work without waiting for a running ImageIO codec.
 
     /// UIImage 的近似内存占用（字节）：解码后按 RGBA8 估算，未解码也安全
     private func memoryCost(of image: UIImage) -> Int {
@@ -122,8 +104,12 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         cache.setObject(image, forKey: key, cost: memoryCost(of: image))
     }
 
-    private func cachePreview(_ image: UIImage, forKey key: NSString) {
-        previewCache.setObject(image, forKey: key, cost: memoryCost(of: image))
+    private func cachePreview(_ image: UIImage, forKey key: NSString, generation: UInt64) {
+        let key = key as String
+        previewGeneration.withLock {
+            guard $0 == generation else { return }
+            previewCache.setObject(image, forKey: key as NSString, cost: memoryCost(of: image))
+        }
     }
 
     /// 把带 alpha channel 的 CGImage 重绘成 opaque RGB，去掉无意义的 alpha 字节。
@@ -162,17 +148,17 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
         return cache.object(forKey: "thumb_\(photoId.uuidString)_\(maxPixel)" as NSString)
     }
 
-    /// 探测常见 thumb 尺寸（按高分辨率优先）找任意一份可用的——大屏 detail 页用 600，gallery
+    /// 探测常见 thumb 尺寸（按高分辨率优先）找任意一份可用的——详情占位用 160，gallery
     /// 4 列网格用 264，列表头像用 88……不同来源算出的 maxPixel 不一样，cache key 也不一样，
     /// 旧实现单 key 查找会错过其他地方解码好的同一张图。
     ///
     /// 关键作用：用户从 gallery 点入 detail 那一帧——gallery 的 264 已在内存里，PagerImage
-    /// 的占位 fallback 直接用它（虽然偏糊但**立刻有图**），后续 600 / preview 解码完再 soft-swap
+    /// 的占位 fallback 直接用它（虽然偏糊但**立刻有图**），后续 preview 解码完再 soft-swap
     /// 升清，黑屏占位窗口被消除。
     @MainActor
     func anyCachedThumbnail(for photoId: UUID) -> UIImage? {
         // 高分→低分顺序遍历：找到第一个 hit 就用，保证拿到当前内存里"最好"的那份。
-        let commonSizes = [1500, 1200, 800, 600, 400, 300, 264, 256, 200, 150, 120, 96, 88]
+        let commonSizes = [1500, 1200, 800, 600, 400, 300, 264, 256, 200, 160, 150, 120, 96, 88]
         let prefix = "thumb_\(photoId.uuidString)_"
         for size in commonSizes {
             if let img = cache.object(forKey: "\(prefix)\(size)" as NSString) {
@@ -186,142 +172,126 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     /// blob、不解码原图**。相册网格 cell / 预取优先走这条：已生成过缩略图的照片滚动时不再把整张大图
     /// blob fault 进主线程（SwiftData externalStorage 读必须在主 actor，是滚动卡顿的主因）。
     func cachedOrDiskThumbnail(photoId: UUID, maxPixel: Int) async -> UIImage? {
-        let maxPixel = max(maxPixel, 96)
-        let key = "thumb_\(photoId.uuidString)_\(maxPixel)"
-        if let cached = cache.object(forKey: key as NSString) { return cached }
-        guard let url = thumbnailURL(for: photoId, maxPixel: maxPixel) else { return nil }
-        return await BlockingImageWork.shared.run { [weak self] in
-            guard let self,
-                  self.fileManager.fileExists(atPath: url.path),
+        await cachedOrDiskImage(photoId: photoId, maxPixel: maxPixel, preview: false)
+    }
+
+    func cachedOrDiskPreview(photoId: UUID, maxPixel: Int) async -> UIImage? {
+        await cachedOrDiskImage(photoId: photoId, maxPixel: maxPixel, preview: true)
+    }
+
+    private func cachedOrDiskImage(photoId: UUID, maxPixel: Int, preview: Bool) async -> UIImage? {
+        guard !Task.isCancelled else { return nil }
+        let maxPixel = max(maxPixel, preview ? 256 : 96)
+        let key = "\(preview ? "preview" : "thumb")_\(photoId.uuidString)_\(maxPixel)"
+        let imageCache = preview ? previewCache : cache
+        let generation = previewGeneration.withLock { $0 }
+        if let cached = imageCache.object(forKey: key as NSString) { return cached }
+        guard let url = preview ? previewURL(for: photoId, maxPixel: maxPixel)
+            : thumbnailURL(for: photoId, maxPixel: maxPixel) else { return nil }
+        return await requests.image(for: "disk_\(key)") { [weak self] in
+            guard let self else { return nil }
+            let imageCache = preview ? self.previewCache : self.cache
+            if let cached = imageCache.object(forKey: key as NSString) { return cached }
+            guard self.fileManager.fileExists(atPath: url.path),
                   let data = try? Data(contentsOf: url),
-                  let img = UIImage(data: data) else { return nil }
-            self.cacheImage(img, forKey: key as NSString)
+                  let img = UIImage(data: data)?.preparingForDisplay() else { return nil }
+            if preview { self.cachePreview(img, forKey: key as NSString, generation: generation) }
+            else { self.cacheImage(img, forKey: key as NSString) }
             return img
         }
     }
 
     /// 加载大图预览。imageData/photoId 必须在调用者所在的 actor 上预取，避免跨 actor 传递非 Sendable 的 `Photo`。
-    /// 同 key 并发请求会被 in-flight dedup 合并成一份异步解码任务——见 `inflight` 注释。
+    /// Concurrent consumers share a decode; cancellation stops waiting immediately.
     func loadPreview(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
+        guard !Task.isCancelled else { return nil }
         // 钳到解码下限后再算 key/URL/解码尺寸：三者用同一有效值，避免 maxPixel=100 与 256
         // 解出同样像素却存成两份（重复 decode + 重复落盘）。cachedPreview 同步快路径同样钳值。
         let maxPixel = max(maxPixel, 256)
         let key = "preview_\(photoId.uuidString)_\(maxPixel)"
+        let generation = previewGeneration.withLock { $0 }
         if let cached = previewCache.object(forKey: key as NSString) { return cached }
 
-        // Atomic check-and-register：同 key 已有 in-flight Task 就复用，否则注册新 Task。
-        // 临界区只做 dict 读写（< 1µs），符合 OSAllocatedUnfairLock 的"持锁极短"用例。
-        let task: Task<UIImage?, Never> = inflight.withLock { state in
-            if let existing = state.previews[key] { return existing }
-            let new = Task<UIImage?, Never>(priority: .userInitiated) { [weak self] in
-                await BlockingImageWork.shared.run { [weak self] in
-                    guard let self else { return nil }
-                    // disk hit 也走专用队列：避免 caller 在 main actor 上同步读 17MB JPEG。
-                    if let url = self.previewURL(for: photoId, maxPixel: maxPixel),
-                       self.fileManager.fileExists(atPath: url.path),
-                       let data = try? Data(contentsOf: url),
-                       let img = UIImage(data: data) {
-                        self.cachePreview(img, forKey: key as NSString)
-                        Log.gallery.debug("preview_disk_hit id=\(photoId.uuidString, privacy: .public) max=\(maxPixel)")
-                        return img
-                    }
-                    let timer = Log.perf("preview_decode", logger: Log.gallery)
-                    let options: [CFString: Any] = [
-                        kCGImageSourceShouldCache: false,
-                        kCGImageSourceShouldCacheImmediately: false
-                    ]
-                    guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
-                    let downOptions: [CFString: Any] = [
-                        kCGImageSourceCreateThumbnailFromImageAlways: true,
-                        kCGImageSourceThumbnailMaxPixelSize: maxPixel,
-                        kCGImageSourceCreateThumbnailWithTransform: true
-                    ]
-                    guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
-                    let opaque = ImageLoader.makeOpaque(cgThumb)
-                    let image = UIImage(cgImage: opaque)
-                    self.cachePreview(image, forKey: key as NSString)
-                    if let url = self.previewURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
-                        try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                        try? jpeg.write(to: url, options: .atomic)
-                    }
-                    timer.end("id=\(photoId.uuidString) max=\(maxPixel) px=\(cgThumb.width)x\(cgThumb.height)")
-                    return image
-                }
+        return await requests.image(for: key) { [weak self] in
+            guard let self else { return nil }
+            if let cached = self.previewCache.object(forKey: key as NSString) { return cached }
+            // disk hit 也走专用队列：避免 caller 在 main actor 上同步读 17MB JPEG。
+            if let url = self.previewURL(for: photoId, maxPixel: maxPixel),
+               self.fileManager.fileExists(atPath: url.path),
+               let data = try? Data(contentsOf: url),
+               let img = UIImage(data: data)?.preparingForDisplay() {
+                self.cachePreview(img, forKey: key as NSString, generation: generation)
+                Log.gallery.debug("preview_disk_hit id=\(photoId.uuidString, privacy: .public) max=\(maxPixel)")
+                return img
             }
-            state.previews[key] = new
-            return new
+            let timer = Log.perf("preview_decode", logger: Log.gallery)
+            let options: [CFString: Any] = [
+                kCGImageSourceShouldCache: false,
+                kCGImageSourceShouldCacheImmediately: false
+            ]
+            guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
+            let downOptions: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+                kCGImageSourceCreateThumbnailWithTransform: true
+            ]
+            guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
+            let opaque = ImageLoader.makeOpaque(cgThumb)
+            let image = UIImage(cgImage: opaque)
+            self.cachePreview(image, forKey: key as NSString, generation: generation)
+            if let url = self.previewURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.9) {
+                try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try? jpeg.write(to: url, options: .atomic)
+            }
+            timer.end("id=\(photoId.uuidString) max=\(maxPixel) px=\(cgThumb.width)x\(cgThumb.height)")
+            return image
         }
-
-        let result = await task.value
-
-        // 只在 dict 里存的还是「我 await 的这个 Task」时才清除：两个并发 caller 都跑到这里时，
-        // 若期间已有第三个 caller 为同 key 注册了新 Task，盲目清 nil 会把那个 fresh Task 从去重表
-        // 里删掉，导致后续 caller 错过去重、重复 decode。Task 是 Hashable，== 即身份比较。
-        inflight.withLock { state in
-            if state.previews[key] == task { state.previews[key] = nil }
-        }
-
-        return result
     }
 
     /// 加载缩略图。调用者须在 actor 上预取 imageData/photoId，避免跨 actor 传递 SwiftData `Photo` 模型。
     /// 同 key 并发请求会被 in-flight dedup 合并——常见场景：schedulePreheat 与 ThumbnailStripCell.task
     /// 同时请求同一张 600px thumb，旧实现会双重 decode 抢 CPU。
     func loadThumbnail(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
+        guard !Task.isCancelled else { return nil }
         // 同 loadPreview：钳到解码下限再算 key/URL/解码尺寸，避免 88 与 96 解出同像素存两份。
         let maxPixel = max(maxPixel, 96)
         let key = "thumb_\(photoId.uuidString)_\(maxPixel)"
         if let cached = cache.object(forKey: key as NSString) { return cached }
 
-        let task: Task<UIImage?, Never> = inflight.withLock { state in
-            if let existing = state.thumbs[key] { return existing }
-            let new = Task<UIImage?, Never>(priority: .userInitiated) { [weak self] in
-                await BlockingImageWork.shared.run { [weak self] in
-                    guard let self else { return nil }
-                    if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel),
-                       self.fileManager.fileExists(atPath: url.path),
-                       let data = try? Data(contentsOf: url),
-                       let img = UIImage(data: data) {
-                        self.cacheImage(img, forKey: key as NSString)
-                        return img
-                    }
-                    let options: [CFString: Any] = [
-                        kCGImageSourceShouldCache: false,
-                        kCGImageSourceShouldCacheImmediately: false
-                    ]
-                    guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
-                    let thumbOptions: [CFString: Any] = [
-                        kCGImageSourceCreateThumbnailFromImageAlways: true,
-                        kCGImageSourceThumbnailMaxPixelSize: maxPixel,
-                        kCGImageSourceCreateThumbnailWithTransform: true
-                    ]
-                    guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
-                    let opaque = ImageLoader.makeOpaque(cgThumb)
-                    let image = UIImage(cgImage: opaque)
-                    self.cacheImage(image, forKey: key as NSString)
-                    if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.85) {
-                        try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                        try? jpeg.write(to: url, options: .atomic)
-                    }
-                    return image
-                }
+        return await requests.image(for: key) { [weak self] in
+            guard let self else { return nil }
+            if let cached = self.cache.object(forKey: key as NSString) { return cached }
+            if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel),
+               self.fileManager.fileExists(atPath: url.path),
+               let data = try? Data(contentsOf: url),
+               let img = UIImage(data: data)?.preparingForDisplay() {
+                self.cacheImage(img, forKey: key as NSString)
+                return img
             }
-            state.thumbs[key] = new
-            return new
+            let options: [CFString: Any] = [
+                kCGImageSourceShouldCache: false,
+                kCGImageSourceShouldCacheImmediately: false
+            ]
+            guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
+            let thumbOptions: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+                kCGImageSourceCreateThumbnailWithTransform: true
+            ]
+            guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
+            let opaque = ImageLoader.makeOpaque(cgThumb)
+            let image = UIImage(cgImage: opaque)
+            self.cacheImage(image, forKey: key as NSString)
+            if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel), let jpeg = image.jpegData(compressionQuality: 0.85) {
+                try? self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try? jpeg.write(to: url, options: .atomic)
+            }
+            return image
         }
-
-        let result = await task.value
-
-        // 同 loadPreview：仅当存的还是自己 await 的那个 Task 时才清，避免误删后注册的 fresh Task。
-        inflight.withLock { state in
-            if state.thumbs[key] == task { state.thumbs[key] = nil }
-        }
-
-        return result
     }
 
     private func thumbsDirectory() -> URL? {
-        guard let cacheDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
+        guard let cacheDir = cacheDirectory ?? fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
         return cacheDir.appendingPathComponent("Thumbs", isDirectory: true)
     }
 
@@ -331,7 +301,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     }
 
     private func previewDirectory() -> URL? {
-        guard let cacheDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
+        guard let cacheDir = cacheDirectory ?? fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
         return cacheDir.appendingPathComponent("Previews", isDirectory: true)
     }
 
@@ -342,7 +312,14 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
 
     func clearCache() {
         cache.removeAllObjects()
-        previewCache.removeAllObjects()
+        clearPreviewCache()
+    }
+
+    func clearPreviewCache() {
+        previewGeneration.withLock {
+            $0 &+= 1
+            previewCache.removeAllObjects()
+        }
     }
 
     /// 删除指定照片的磁盘缓存文件。

@@ -6,24 +6,24 @@ final class FilmPresetCoverPreparationTests: XCTestCase {
     func testAwaitedHomePreparationReturnsEveryBundledCoverAtDisplaySize() async throws {
         let covers = try await FilmPresetCoverPreparation.prepareHome(displayScale: 2)
         XCTAssertEqual(Set(covers.keys), Set(FilmPreset.allCases))
-        let maximum = FilmPresetCoverPreparation.homePixel(displayScale: 2)
+        let maximum = FilmCardImageCache.pixelSize(for: FilmPresetCoverPreparation.homePixel(displayScale: 2))
         for preset in FilmPreset.allCases {
             let image = try XCTUnwrap(covers[preset])
             let cg = try XCTUnwrap(image.cgImage)
             XCTAssertGreaterThan(cg.width, 0)
             XCTAssertGreaterThan(cg.height, 0)
             XCTAssertLessThanOrEqual(max(cg.width, cg.height), maximum)
-            XCTAssertTrue(FilmCardImageCache.shared.cachedImage(cardId: "preset_\(preset.rawValue)", maxPixel: maximum) === image)
+            XCTAssertTrue(FilmCardImageCache.shared.cachedImage(imageName: preset.libraryCardImage, maxPixel: maximum) === image)
         }
     }
 
     func testPickerPreparationReturnsItsActualDisplayImages() async throws {
         let covers = try await FilmPresetCoverPreparation.preparePicker(displayScale: 3)
         XCTAssertEqual(Set(covers.keys), Set(FilmPreset.allCases))
-        let maximum = FilmPresetCoverPreparation.pickerPixel(displayScale: 3)
+        let maximum = FilmCardImageCache.pixelSize(for: FilmPresetCoverPreparation.pickerPixel(displayScale: 3))
         for preset in FilmPreset.allCases {
             let image = try XCTUnwrap(covers[preset])
-            XCTAssertTrue(FilmCardImageCache.shared.cachedImage(cardId: "picker_\(preset.rawValue)", maxPixel: maximum) === image)
+            XCTAssertTrue(FilmCardImageCache.shared.cachedImage(imageName: preset.libraryCardImage, maxPixel: maximum) === image)
             let cg = try XCTUnwrap(image.cgImage)
             XCTAssertLessThanOrEqual(max(cg.width, cg.height), maximum)
         }

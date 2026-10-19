@@ -53,6 +53,7 @@ struct PhotoGridView: UIViewRepresentable {
     @Binding var isSelecting: Bool
     @Binding var selectedPhotos: Set<UUID>
     let onOpen: (Photo) -> Void
+    var isActive = true
 
     static let spacing: CGFloat = 6
     static let sectionInsets = UIEdgeInsets(top: 8, left: 14, bottom: 20, right: 14)
@@ -63,6 +64,7 @@ struct PhotoGridView: UIViewRepresentable {
         let layout = SquareGridLayout()
         layout.columns = CGFloat(columns)
         let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        cv.accessibilityIdentifier = "gallery.grid"
         cv.backgroundColor = .black
         cv.alwaysBounceVertical = true
         cv.allowsSelection = true
@@ -81,6 +83,7 @@ struct PhotoGridView: UIViewRepresentable {
         let coord = context.coordinator
         coord.parent = self
         coord.apply(photos: photos, animating: true)
+        coord.setActive(isActive, in: cv)
         // 形状切换：动画更新可见 cell 圆角
         if coord.cornerRadius != cornerRadius {
             coord.cornerRadius = cornerRadius
@@ -100,6 +103,13 @@ struct PhotoGridView: UIViewRepresentable {
         coord.syncSelection(cv, to: selectedPhotos)
     }
 
+    static func dismantleUIView(_ cv: UICollectionView, coordinator: Coordinator) {
+        coordinator.cancelPrefetches()
+        for case let cell as PhotoCell in cv.visibleCells { cell.suspendLoading() }
+        cv.prefetchDataSource = nil
+        cv.delegate = nil
+    }
+
     // MARK: - Coordinator
     final class Coordinator: NSObject, UICollectionViewDelegate, UICollectionViewDataSourcePrefetching {
         var parent: PhotoGridView
@@ -108,8 +118,13 @@ struct PhotoGridView: UIViewRepresentable {
         private var photoByID: [UUID: Photo] = [:]
         private var lastIDs: [UUID] = []
         private var lastRevisions: [UUID: PhotoGridItemRevision] = [:]
+        private var prefetches: [UUID: (token: UUID, task: Task<Void, Never>)] = [:]
+        private var isActive: Bool
 
-        init(_ parent: PhotoGridView) { self.parent = parent }
+        init(_ parent: PhotoGridView) {
+            self.parent = parent
+            isActive = parent.isActive
+        }
 
         func makeDataSource(for cv: UICollectionView) {
             dataSource = UICollectionViewDiffableDataSource<Int, UUID>(collectionView: cv) {
@@ -117,7 +132,8 @@ struct PhotoGridView: UIViewRepresentable {
                 let cell = cv.dequeueReusableCell(withReuseIdentifier: PhotoCell.reuseID, for: indexPath) as! PhotoCell
                 guard let self, let photo = self.photoByID[id] else { return cell }
                 cell.configure(photo: photo, editing: cv.isEditing,
-                               maxPixel: self.thumbPixel(for: cv), cornerRadius: self.cornerRadius)
+                               maxPixel: self.thumbPixel(for: cv), cornerRadius: self.cornerRadius,
+                               isActive: self.parent.isActive)
                 return cell
             }
         }
@@ -131,6 +147,7 @@ struct PhotoGridView: UIViewRepresentable {
             // A retry/migration can change content without changing identity. Selection-only
             // updates still avoid a snapshot, but a newly saved asset must refresh its cell.
             guard ids != lastIDs || !changedIDs.isEmpty else { return }
+            cancelPrefetches()
             lastIDs = ids
             lastRevisions = revisions
             var snapshot = NSDiffableDataSourceSnapshot<Int, UUID>()
@@ -173,6 +190,7 @@ struct PhotoGridView: UIViewRepresentable {
 
         /// 密度切换：invalidate 触发平滑 reflow，完成后按新尺寸 reconfigure 可见缩略图（放大不糊）。
         func animateColumnChange(_ cv: UICollectionView) {
+            cancelPrefetches()
             cv.performBatchUpdates({
                 cv.collectionViewLayout.invalidateLayout()
             }, completion: { [weak self] _ in
@@ -192,6 +210,26 @@ struct PhotoGridView: UIViewRepresentable {
             let side = (cv.collectionViewLayout as? SquareGridLayout)?.itemSize.width ?? 96
             let scale = cv.traitCollection.displayScale > 0 ? cv.traitCollection.displayScale : 2
             return max(96, Int(side * scale))
+        }
+
+        func setActive(_ active: Bool, in cv: UICollectionView) {
+            guard isActive != active else { return }
+            isActive = active
+            if !active { cancelPrefetches() }
+            for case let cell as PhotoCell in cv.visibleCells {
+                if active { cell.resumeLoading() }
+                else { cell.suspendLoading() }
+            }
+        }
+
+        func collectionView(_ cv: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+            guard let cell = cell as? PhotoCell else { return }
+            if isActive { cell.resumeLoading() }
+            else { cell.suspendLoading() }
+        }
+
+        func collectionView(_ cv: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+            (cell as? PhotoCell)?.suspendLoading()
         }
 
         // MARK: Tap / selection
@@ -221,18 +259,32 @@ struct PhotoGridView: UIViewRepresentable {
 
         // MARK: Prefetch
         func collectionView(_ cv: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
+            guard isActive else { return }
             let px = thumbPixel(for: cv)
-            // 资产照片批量交给 PHCachingImageManager 预取；遗留内部照片走 ImageLoader 解码预取。
-            var assetIDs: [String] = []
-            for ip in indexPaths {
+            // Bound speculative requests. Visible cells keep their own independent demand.
+            for ip in indexPaths.prefix(max(0, 24 - prefetches.count)) {
                 guard let id = dataSource.itemIdentifier(for: ip), let photo = photoByID[id] else { continue }
-                if let aid = photo.assetLocalIdentifier {
-                    assetIDs.append(aid)
-                } else {
-                    PhotoCell.prefetch(photo: photo, maxPixel: px)
+                guard prefetches[id] == nil else { continue }
+                let token = UUID()
+                let task = Task { @MainActor [weak self] in
+                    _ = await PhotoImage.thumbnail(for: photo, maxPixel: px)
+                    guard self?.prefetches[id]?.token == token else { return }
+                    self?.prefetches[id] = nil
                 }
+                prefetches[id] = (token, task)
             }
-            if !assetIDs.isEmpty { AssetImageLoader.shared.startCaching(ids: assetIDs, maxPixel: px) }
+        }
+
+        func collectionView(_ cv: UICollectionView, cancelPrefetchingForItemsAt indexPaths: [IndexPath]) {
+            for ip in indexPaths {
+                guard let id = dataSource.itemIdentifier(for: ip) else { continue }
+                prefetches.removeValue(forKey: id)?.task.cancel()
+            }
+        }
+
+        func cancelPrefetches() {
+            for request in prefetches.values { request.task.cancel() }
+            prefetches.removeAll()
         }
     }
 }
@@ -271,12 +323,18 @@ final class PhotoCell: UICollectionViewCell {
     private var isLive = false
     private var loadToken = UUID()
     private var assetRequestID: PHImageRequestID = PHInvalidImageRequestID
+    private var loadTask: Task<Void, Never>?
+    private var configuredPhoto: Photo?
+    private var maxPixel = 96
+    private var isSuspended = true
 
     var isEditingMode = false { didSet { updateSelectionVisual() } }
     override var isSelected: Bool { didSet { updateSelectionVisual() } }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
+        isAccessibilityElement = true
+        accessibilityTraits = .button
         contentView.clipsToBounds = true
         contentView.layer.cornerCurve = .continuous   // 圆角值由 configure(cornerRadius:) 设置
         contentView.backgroundColor = UIColor.white.withAlphaComponent(0.08)
@@ -330,21 +388,50 @@ final class PhotoCell: UICollectionViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
-        if assetRequestID != PHInvalidImageRequestID {
-            AssetImageLoader.shared.cancel(assetRequestID)
-            assetRequestID = PHInvalidImageRequestID
-        }
-        loadToken = UUID()
+        cancelLoading()
+        configuredPhoto = nil
+        isSuspended = true
         imageView.image = nil
         isLive = false
         liveBadge.isHidden = true
         isEditingMode = false
     }
 
-    func configure(photo: Photo, editing: Bool, maxPixel: Int, cornerRadius: CGFloat) {
+    func cancelLoading() {
+        loadTask?.cancel()
+        loadTask = nil
+        AssetImageLoader.shared.cancel(assetRequestID)
+        assetRequestID = PHInvalidImageRequestID
+        loadToken = UUID()
+    }
+
+    func configure(photo: Photo, editing: Bool, maxPixel: Int, cornerRadius: CGFloat, isActive: Bool = true) {
+        if configuredPhoto?.id != photo.id { imageView.image = nil }
+        configuredPhoto = photo
+        self.maxPixel = maxPixel
+        accessibilityIdentifier = "photo.\(photo.id.uuidString)"
+        accessibilityLabel = photo.timestamp.formatted(date: .abbreviated, time: .shortened)
+        accessibilityValue = photo.isLivePhoto ? String(localized: "Live Photo") : nil
         contentView.layer.cornerRadius = cornerRadius
         isLive = photo.isLivePhoto
         isEditingMode = editing
+        if isActive {
+            isSuspended = false
+            loadThumbnail(photo: photo, maxPixel: maxPixel)
+        } else {
+            suspendLoading()
+        }
+    }
+
+    func suspendLoading() {
+        isSuspended = true
+        cancelLoading()
+        imageView.image = nil
+    }
+
+    func resumeLoading() {
+        guard isSuspended, let photo = configuredPhoto, !photo.isDeleted else { return }
+        isSuspended = false
         loadThumbnail(photo: photo, maxPixel: maxPixel)
     }
 
@@ -352,10 +439,8 @@ final class PhotoCell: UICollectionViewCell {
     private func loadThumbnail(photo: Photo, maxPixel: Int) {
         // reconfigureItems does not call prepareForReuse. Invalidate even on cache hits,
         // otherwise a callback for the previous configuration can overwrite the new image.
-        let token = UUID()
-        loadToken = token
-        AssetImageLoader.shared.cancel(assetRequestID)
-        assetRequestID = PHInvalidImageRequestID
+        cancelLoading()
+        let token = loadToken
         guard !photo.isDeleted else { imageView.image = nil; return }
         let id = photo.id
 
@@ -379,31 +464,17 @@ final class PhotoCell: UICollectionViewCell {
             imageView.image = img
             return
         }
-        guard let data = photo.imageData else { return }
-        Task { @MainActor in
-            if let img = await ImageLoader.shared.cachedOrDiskThumbnail(photoId: id, maxPixel: maxPixel) {
-                if self.loadToken == token { self.imageView.image = img }
-                return
-            }
-            if let img = await ImageLoader.shared.loadThumbnail(imageData: data, photoId: id, maxPixel: maxPixel) {
-                if self.loadToken == token { self.imageView.image = img }
-            }
-        }
-    }
-
-    /// 遗留内部照片预取（资产照片由 Coordinator 批量 PHCachingImageManager 预取）。
-    static func prefetch(photo: Photo, maxPixel: Int) {
-        let id = photo.id
-        if ImageLoader.shared.cachedThumbnail(for: id, maxPixel: maxPixel) != nil { return }
-        guard let data = photo.imageData else { return }
-        Task { @MainActor in
-            if await ImageLoader.shared.cachedOrDiskThumbnail(photoId: id, maxPixel: maxPixel) != nil { return }
-            _ = await ImageLoader.shared.loadThumbnail(imageData: data, photoId: id, maxPixel: maxPixel)
+        loadTask = Task { @MainActor [weak self] in
+            let img = await PhotoImage.thumbnail(for: photo, maxPixel: maxPixel)
+            guard !Task.isCancelled, let self, self.loadToken == token, let img else { return }
+            self.imageView.image = img
         }
     }
 
     // MARK: 选中视觉（Photos.app 一致：仅角标 + 暗化，不画边框/不缩放）
     private func updateSelectionVisual() {
+        if isSelected { accessibilityTraits.insert(.selected) }
+        else { accessibilityTraits.remove(.selected) }
         badge.isHidden = !isEditingMode
         // Live 角标只在非编辑态显示——编辑态让位给选择角标 + 暗化，保持与系统相册一致的简洁。
         liveBadge.isHidden = !isLive || isEditingMode

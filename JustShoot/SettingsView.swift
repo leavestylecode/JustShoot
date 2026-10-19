@@ -30,6 +30,8 @@ struct SettingsView: View {
     @State private var recoveryToDiscard: CaptureRecoveryIssue?
     @State private var recoveryExport: RecoveryOriginalExport?
     @State private var isManagingRecovery = false
+    @State private var showsDiagnostics = false
+    @State private var showsCaptureHelp = false
 
     // TODO: 上架后填入真实 App Store 数字 ID（apps.apple.com/app/id<这里>）。
     private let appStoreId = "0000000000"
@@ -46,7 +48,13 @@ struct SettingsView: View {
                     filmCurveSection
                     captureSection
                     livePhotoSection
-                    diagnosticsSection
+                    DisclosureGroup(isExpanded: $showsDiagnostics) {
+                        diagnosticsSection
+                            .padding(.top, 8)
+                    } label: {
+                        SettingRow(icon: "waveform.path.ecg", iconColor: .orange, title: "Diagnostics")
+                    }
+                    .tint(.secondary)
                     feedbackSection
                     Spacer(minLength: 16)
                     versionFooter
@@ -261,17 +269,33 @@ struct SettingsView: View {
     // 暗光下系统可用更慢快门——阴影信噪比更好，代价是运动模糊风险。两种取舍留给用户。
     private var captureSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Capture", systemImage: "camera")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.leading, 4)
+            HStack {
+                Label("Capture", systemImage: "camera")
+                Spacer()
+                Button {
+                    showsCaptureHelp = true
+                } label: {
+                    Image(systemName: "info.circle")
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                .accessibilityLabel("About Safe Shutter Limit")
+                .popover(isPresented: $showsCaptureHelp) {
+                    Text("Caps shutter speed at 1/focal length to keep handheld shots sharp. Turn it off to allow slower shutters in low light — better shadow detail, but more motion blur.")
+                        .font(.callout)
+                        .padding()
+                        .presentationCompactAdaptation(.popover)
+                }
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.leading, 4)
 
             sectionCard {
                 Toggle(isOn: $safeShutterLimitEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Safe Shutter Limit")
+                        Label("Safe Shutter Limit", systemImage: "timer")
                             .foregroundStyle(.white)
-                        Text("Caps shutter speed at 1/focal length to keep handheld shots sharp. Turn it off to allow slower shutters in low light — better shadow detail, but more motion blur.")
+                        Text("Keep handheld shots sharp.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -294,15 +318,11 @@ struct SettingsView: View {
 
             sectionCard {
                 Toggle(isOn: $livePhotoSoundEnabled) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Sound")
-                            .foregroundStyle(.white)
-                        Text("Record sound with your Live Photos.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Label("Sound", systemImage: livePhotoSoundEnabled ? "speaker.wave.2" : "speaker.slash")
+                        .foregroundStyle(.white)
                 }
                 .tint(.green)
+                .accessibilityHint("Record sound with your Live Photos.")
 
                 // 开了声音但麦克风被拒：提示并提供「去设置开启」入口（否则 Live Photo 会静音）。
                 if livePhotoSoundEnabled && microphoneDenied {

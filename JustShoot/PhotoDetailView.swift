@@ -74,21 +74,19 @@ struct PhotoDetailView: View {
     @State private var showingInfo = false
     @State private var isPreparingShare = false
     @State private var thumbWarmupTask: Task<Void, Never>?
-    @State private var previewPreloadTask: Task<Void, Never>?
+    @State private var preheatedAssetIDs: [String] = []
+    @State private var isVisible = false
+    @State private var limitsPreviewsToCurrent = false
 
-    /// 占位缩略图目标像素——大约屏幕长边的 1/3，`PagerImage` 占位 + `PhotoScrubber` cell 共享同一份
-    /// NSCache 解码（两边都用这个 key）。单张 ~80KB，100 张 ~8MB 落 NSCache，受 totalCostLimit 自然
-    /// 淘汰。值不再用于"区间预热"，所以删掉了之前的 placeholderRange 常量。
-    static let placeholderMaxPixel = 600
+    /// The strip's 40pt cells and the pager share one small, display-ready placeholder.
+    static let placeholderMaxPixel = PhotoDetailImagePolicy.thumbnailMaxPixel
 
     /// 翻页/scrubber 触发的预热任务统一 debounce 这么久——快速连翻时只有最后一次落定才真正预热，
     /// 中间所有 cancel 掉的 Task 在 sleep 里就退出，省掉 TaskGroup 重建/调度开销。
     private static let preloadDebounceMs: UInt64 = 70
 
-    /// thumb warmup 只预热当前页 ±N 张，不是整册。原实现 orderedByDistance 走 0..<count——
-    /// 即便有 cap=4 节流，仍会逐张在 MainActor 上 fault 整个 externalStorage blob（5000 张 =
-    /// 5000 次磁盘读 + 瞬时内存）。thumb 用 50 项共享 NSCache，预热整册只会自相淘汰，纯浪费。
-    private static let preheatThumbnailRadius = 12
+    /// Warm only the nearby strip, and release PhotoKit's previous preheat window.
+    private static let preheatThumbnailRadius = PhotoDetailImagePolicy.thumbnailRadius
 
     init(photo: Photo, allPhotos: [Photo]) {
         _photos = State(initialValue: allPhotos)
@@ -98,8 +96,7 @@ struct PhotoDetailView: View {
         let screen = currentScreen()
         let bounds = screen?.bounds ?? .zero
         let scale = screen?.scale ?? 3.0
-        let computed = Int(max(bounds.width, bounds.height) * scale)
-        _previewMaxPixel = State(initialValue: max(computed, 2556))
+        _previewMaxPixel = State(initialValue: PhotoDetailImagePolicy.previewMaxPixel(bounds: bounds, scale: scale))
     }
 
     private var currentIndex: Int {
@@ -118,6 +115,8 @@ struct PhotoDetailView: View {
     }
 
     var body: some View {
+        let previewRange = PhotoDetailImagePolicy.previewRange(count: photos.count, currentIndex: currentIndex)
+        let previewIDs = limitsPreviewsToCurrent ? Set(currentPhotoID.map { [$0] } ?? []) : Set(photos[previewRange].map(\.id))
         ZStack {
             // 背景随下拉渐暗（关闭时透出底层相册的过渡感）。
             Color.black.opacity(1 - dismissProgress * 0.6).ignoresSafeArea()
@@ -146,6 +145,7 @@ struct PhotoDetailView: View {
                                 PagerImage(
                                     photo: photoItem,
                                     isCurrent: photoItem.id == currentPhotoID,
+                                    loadsPreview: isVisible && previewIDs.contains(photoItem.id),
                                     previewMaxPixel: previewMaxPixel,
                                     dismisser: dismisser
                                 )
@@ -204,6 +204,7 @@ struct PhotoDetailView: View {
         .toolbar { navigationToolbar }
         .toolbar { bottomToolbar }
         .onAppear {
+            isVisible = true
             Diagnostics.emit("photo_detail_open", id: currentPhotoID?.uuidString ?? "photo-detail",
                 fields: "count=\(photos.count) photos_auth=\(PHPhotoLibrary.authorizationStatus(for: .readWrite).rawValue)")
             dismisser.onDismiss = { dismiss() }
@@ -211,21 +212,21 @@ struct PhotoDetailView: View {
             schedulePreheat()
         }
         .onChange(of: currentPhotoID) { _, _ in
+            limitsPreviewsToCurrent = false
             Diagnostics.emit("photo_detail_selection", id: currentPhotoID?.uuidString ?? "photo-detail")
-            // 翻页/scrubber tap/删除都走这里。统一 debounce ~70ms：快速连翻时只在用户停下后才真正
-            // 启动 thumb warmup + ±2 preview 预解，中间所有 cancel 掉的 Task 在 sleep 里就退出，
-            // 不会重建 TaskGroup / 不会触发并行 decode。
-            // zoom 重置由 ZoomablePhotoView 根据 isCurrent 处理；图片缓存由 NSCache 自然淘汰。
+            // Debounce strip preheat; page identity changes independently cancel obsolete previews.
             schedulePreheat()
         }
         .onDisappear {
-            thumbWarmupTask?.cancel()
-            previewPreloadTask?.cancel()
-            thumbWarmupTask = nil
-            previewPreloadTask = nil
+            isVisible = false
+            cancelPreheat()
+            ImageLoader.shared.clearPreviewCache()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            limitsPreviewsToCurrent = true
+            cancelPreheat()
             ImageLoader.shared.clearCache()
+            AssetImageLoader.shared.clearCache()
         }
         // 视图存活期间的实时对账：reconcilePhotos 原本只在 onAppear 跑一次，详情页打开期间用户在
         // 「照片」app 删掉当前资产 → PhotoLibrarySync 剪掉索引行 → 快照数组里留下已删 @Model，
@@ -244,14 +245,11 @@ struct PhotoDetailView: View {
 
     // MARK: - Loading
 
-    /// 入口：currentPhotoID 变化时调一次，~70ms debounce 后真正启动 thumb warmup + ±2 preview
-    /// 预解。debounce 的存在让快速连翻 5–6 张时只有最后一次落定真正启动预热，中间的 cancel 在
-    /// `Task.sleep` 里直接退出，不再重建 TaskGroup / 不再 fire-and-forget 5×N 个 Task。
+    /// Debounce strip preheat so rapid paging cancels work before it reaches a decoder.
     /// 不收 index 入参——sleep 唤醒后总是用最新的 `currentIndex`，避免捕获过期快照。
     private func schedulePreheat() {
-        thumbWarmupTask?.cancel()
-        previewPreloadTask?.cancel()
-        let pixel = previewMaxPixel
+        cancelPreheat()
+        guard isVisible else { return }
         let placeholder = Self.placeholderMaxPixel
 
         thumbWarmupTask = Task { @MainActor in
@@ -260,44 +258,32 @@ struct PhotoDetailView: View {
             let ordered = orderedByDistance(from: currentIndex, radius: Self.preheatThumbnailRadius)
             // 资产路径：批量 PHCachingImageManager 预取（idle 后台预解码）；遗留路径：节流解码。
             var assetIDs: [String] = []
-            var legacy: [(UUID, Data)] = []
+            var legacy: [Photo] = []
             for photo in ordered where !photo.isDeleted {
                 if let aid = photo.assetLocalIdentifier { assetIDs.append(aid) }
-                else if let data = photo.imageData { legacy.append((photo.id, data)) }
+                else { legacy.append(photo) }
             }
             if !assetIDs.isEmpty {
+                preheatedAssetIDs = assetIDs
                 AssetImageLoader.shared.startCaching(ids: assetIDs, maxPixel: placeholder)
             }
-            if !legacy.isEmpty {
-                await withTaskGroup(of: Void.self) { group in
-                    var inflight = 0
-                    let cap = 4
-                    for (id, data) in legacy {
-                        if Task.isCancelled { break }
-                        if inflight >= cap {
-                            _ = await group.next()
-                            inflight -= 1
-                        }
-                        group.addTask {
-                            _ = await ImageLoader.shared.loadThumbnail(imageData: data, photoId: id, maxPixel: placeholder)
-                        }
-                        inflight += 1
-                    }
-                }
+            // Read a legacy blob only after its cached thumbnail misses, one neighbour
+            // at a time. Keep speculative decoding behind the visible page's requests.
+            for photo in legacy {
+                if Task.isCancelled { break }
+                _ = await PhotoImage.thumbnail(for: photo, maxPixel: placeholder)
             }
         }
 
-        // ±2 高分预览预热：资产走 PHImageManager（自带缓存），遗留走 ImageLoader。PhotoImage 在
-        // @MainActor 上分流后进入异步取图；顺序 await 即可（命中后立即返回）。
-        previewPreloadTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: Self.preloadDebounceMs * 1_000_000)
-            if Task.isCancelled { return }
-            let center = currentIndex
-            for i in (center - 2)...(center + 2) where photos.indices.contains(i) {
-                if Task.isCancelled { break }
-                _ = await PhotoImage.preview(for: photos[i], maxPixel: pixel)
-            }
-        }
+        // PagerImage owns the current/adjacent preview demand. A second preloader
+        // would duplicate PhotoKit's high-resolution requests for those same pages.
+    }
+
+    private func cancelPreheat() {
+        thumbWarmupTask?.cancel()
+        thumbWarmupTask = nil
+        AssetImageLoader.shared.stopCaching(ids: preheatedAssetIDs, maxPixel: Self.placeholderMaxPixel)
+        preheatedAssetIDs.removeAll()
     }
 
     /// 当前页向两侧交替展开的 Photo 列表，最多到 ±radius——预热只关心邻近页，不走整册。
@@ -451,10 +437,8 @@ struct PhotoDetailView: View {
 // MARK: - 详情页单张图项（PagerImage）
 //
 // 把"加载占位 / 加载预览 / 显示交互式 zoom view"打包成自包含 sub-view。
-// 内存语义：每个 PagerImage 的 @State preview/asyncThumb 跟随 LazyHStack 页面挂载-卸载自然
-// scope；翻到远处的页面被 LazyHStack 卸载后，本地 UIImage 引用一并释放，剩下的全靠 ImageLoader
-// 的 NSCache（受 totalCostLimit 自动淘汰）。**详情页层级再不持有任何 [UUID:UIImage] 字典**，
-// 大相册不会因为详情页停留而内存爆涨。
+// Explicitly release images outside the current/adjacent window and on disappearance.
+// Lazy containers may retain view state after their content scrolls off screen.
 //
 // 黑屏防护：body 第一次评估就同步查 NSCache（cachedThumbnail / cachedPreview），命中即零延迟
 // 显示——不依赖 .task 启动那一帧的时序。aggressive 预热（PhotoDetailView.schedulePreheat）保证缓存
@@ -462,6 +446,7 @@ struct PhotoDetailView: View {
 private struct PagerImage: View {
     let photo: Photo
     let isCurrent: Bool
+    let loadsPreview: Bool
     let previewMaxPixel: Int
     let dismisser: DragDismissController
 
@@ -474,6 +459,7 @@ private struct PagerImage: View {
         let photoID: UUID
         let assetID: String?
         let attempt: Int
+        let loadsPreview: Bool
     }
 
     /// 取图优先级（按分辨率从高到低）：
@@ -481,14 +467,13 @@ private struct PagerImage: View {
     ///
     /// 两个关键点：
     /// 1) `cachedPreview` 必须排在 `asyncThumb` 之前——`handleTap` 已把 preview 预热到 NSCache
-    ///    的情况下，首帧显示 cachedPreview（高分），随后 `.task` 把 600px 缩略图写进 `asyncThumb`
+    ///    的情况下，首帧显示 cachedPreview（高分），随后 `.task` 把缩略图写进 `asyncThumb`
     ///    时不能降级，否则主图肉眼可见 高→低→高 闪烁。
     /// 2) **末位用 `anyCachedThumbnail`**（探测多尺寸），而不是只查 `placeholderMaxPixel` 单一尺寸。
     ///    用户从 gallery 点入 detail 那一帧——gallery 的 264 已在内存里——fallback 直接复用，
-    ///    立刻有图（虽糊），等 600 / preview 解码完再 soft-swap 升清。**消除黑屏占位窗口**。
+    ///    立刻有图（虽糊），等 preview 解码完再升清。
     private var displayImage: UIImage? {
-        preview
-            ?? ImageLoader.shared.cachedPreview(for: photo.id, maxPixel: previewMaxPixel)
+        (loadsPreview ? preview ?? ImageLoader.shared.cachedPreview(for: photo.id, maxPixel: previewMaxPixel) : nil)
             ?? asyncThumb
             ?? assetCachedThumb
             ?? ImageLoader.shared.anyCachedThumbnail(for: photo.id)
@@ -512,7 +497,7 @@ private struct PagerImage: View {
                 // live 资源加载前的占位静图。
                 LivePhotoPage(
                     photo: photo,
-                    isCurrent: isCurrent,
+                    isCurrent: isCurrent && loadsPreview,
                     fallback: displayImage,
                     targetMaxPixel: previewMaxPixel,
                     dismisser: dismisser,
@@ -525,35 +510,38 @@ private struct PagerImage: View {
                 ZStack {
                     Color.black
                     VStack(spacing: 12) {
-                        if loadFailed {
-                            Text("Unable to load photo").foregroundStyle(.secondary)
-                        } else {
+                        if !loadFailed {
                             ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .accessibilityLabel("Loading photo…")
+                        } else {
+                            PhotoLoadRetry(label: "Unable to load photo") { loadAttempt += 1 }
                         }
-                        Button("Retry") { loadAttempt += 1 }
-                            .tint(.white)
                     }
                 }
             }
         }
-        .task(id: LoadRequest(photoID: photo.id, assetID: photo.isDeleted ? nil : photo.assetLocalIdentifier, attempt: loadAttempt)) {
-            guard !photo.isDeleted else { return }
+        .onDisappear { preview = nil; asyncThumb = nil }
+        .task(id: LoadRequest(photoID: photo.id, assetID: photo.isDeleted ? nil : photo.assetLocalIdentifier,
+            attempt: loadAttempt, loadsPreview: loadsPreview)) {
+            guard loadsPreview, !photo.isDeleted else {
+                preview = nil
+                asyncThumb = nil
+                return
+            }
             let trace = DiagnosticTrace(id: photo.id.uuidString)
             let load = trace.span("photo_page_load", "attempt=\(loadAttempt) asset_backed=\(photo.assetLocalIdentifier != nil)")
             loadFailed = false
             // 已经有任何可显示的图（State 或 NSCache）就不再付低分缩略图的解码——
             // 避免高分 preview 已在 cache 里时还白白解一张 thumb，body 重渲染顺序不当时
             // 还会触发主图降级闪烁。
-            if displayImage == nil {
-                let thumbnail = await PhotoImage.thumbnail(for: photo, maxPixel: PhotoDetailView.placeholderMaxPixel, trace: trace)
-                guard !Task.isCancelled else { load.end("cancelled"); return }
-                asyncThumb = thumbnail
-            }
-            if preview == nil {
-                let image = await PhotoImage.preview(for: photo, maxPixel: previewMaxPixel, trace: trace)
-                guard !Task.isCancelled else { load.end("cancelled"); return }
-                preview = image
-            }
+            await PhotoPageImageLoader.load(thumbnail: {
+                guard displayImage == nil else { return nil }
+                return await PhotoImage.thumbnail(for: photo, maxPixel: PhotoDetailView.placeholderMaxPixel, trace: trace)
+            }, preview: {
+                if let preview { return preview }
+                return await PhotoImage.preview(for: photo, maxPixel: previewMaxPixel, trace: trace)
+            }, onThumbnail: { asyncThumb = $0 }, onPreview: { preview = $0 })
+            guard !Task.isCancelled else { load.end("cancelled"); return }
             loadFailed = displayImage == nil
             load.end(preview != nil ? "ok" : loadFailed ? "missing" : "thumbnail_only")
         }
@@ -858,10 +846,7 @@ private struct LivePhotoPage: View {
                     .scaledToFit()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 if isCurrent, liveLoadFailed {
-                    VStack(spacing: 8) {
-                        Text("Unable to load Live Photo").font(.caption)
-                        Button("Retry") { loadAttempt += 1 }
-                    }
+                    PhotoLoadRetry(label: "Unable to load Live Photo") { loadAttempt += 1 }
                     .padding(12)
                     .background(.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 12))
                     .frame(maxHeight: .infinity, alignment: .bottom)
@@ -870,11 +855,11 @@ private struct LivePhotoPage: View {
             } else {
                 VStack(spacing: 12) {
                     if stillLoadFailed {
-                        Text("Unable to load photo").foregroundStyle(.secondary)
+                        PhotoLoadRetry(label: "Unable to load photo") { loadAttempt += 1 }
                     } else {
                         ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .accessibilityLabel("Loading photo…")
                     }
-                    Button("Retry") { loadAttempt += 1 }.tint(.white)
                 }
             }
         }
@@ -883,7 +868,12 @@ private struct LivePhotoPage: View {
         // photo.id + isCurrent 任一变化都重评估：翻到该页（isCurrent 变 true）即异步加载 live 资源。
         .task(id: LoadRequest(photoID: photo.id, assetID: photo.isDeleted ? nil : photo.assetLocalIdentifier,
             isCurrent: isCurrent, maxPixel: targetMaxPixel, attempt: loadAttempt)) {
-            guard !photo.isDeleted, isCurrent, let aid = photo.assetLocalIdentifier,
+            guard !photo.isDeleted, isCurrent else {
+                livePhoto = nil
+                loadedAssetID = nil
+                return
+            }
+            guard let aid = photo.assetLocalIdentifier,
                   livePhoto == nil || loadedAssetID != aid else { return }
             if loadedAssetID != aid { livePhoto = nil }
             liveLoadFailed = false
@@ -895,6 +885,24 @@ private struct LivePhotoPage: View {
             loadedAssetID = aid
             liveLoadFailed = result == nil
         }
+        .onDisappear { livePhoto = nil; loadedAssetID = nil }
+    }
+}
+
+private struct PhotoLoadRetry: View {
+    let label: LocalizedStringKey
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "arrow.clockwise")
+                .font(.title2)
+                .frame(width: 44, height: 44)
+                .background(.white.opacity(0.12), in: Circle())
+        }
+        .tint(.white)
+        .accessibilityLabel(label)
+        .accessibilityHint("Retry")
     }
 }
 
@@ -922,9 +930,16 @@ private struct ZoomableLivePhotoView: UIViewRepresentable {
             view.updateNaturalSize(naturalSize)
         }
         // 切走当前页时还原 zoom（与静图一致）。
+        if !isCurrent { context.coordinator.liveView?.stopPlayback() }
         if !isCurrent && view.zoomScale > view.minimumZoomScale + 0.01 {
             view.setZoomScale(view.minimumZoomScale, animated: false)
         }
+    }
+
+    static func dismantleUIView(_ view: ZoomingScrollView, coordinator: Coordinator) {
+        coordinator.liveView?.stopPlayback()
+        coordinator.liveView?.livePhoto = nil
+        coordinator.liveView = nil
     }
 
     final class Coordinator { var liveView: PHLivePhotoView? }
@@ -935,8 +950,8 @@ private struct LiveBadge: View {
     var body: some View {
         HStack(spacing: 3) {
             Image(systemName: "livephoto")
-            Text("LIVE")
         }
+        .accessibilityLabel("Live Photo")
         .font(.system(size: 12, weight: .semibold))
         .foregroundStyle(.white)
         .padding(.horizontal, 8)
@@ -1063,9 +1078,7 @@ private struct PhotoScrubber: View {
 // **关键**：旧实现切换 frame size，LazyHStack 重排，跟外层 ScrollPosition 互相干扰，
 // 滑动时整条 strip 抖动；改成 scaleEffect 后布局完全静止，只有渲染层做仿射变换。
 //
-// 缩略图统一按 600px 解码（与 PhotoDetailView.placeholderMaxPixel 对齐）——scrubber 与详
-// 情页占位共享同一份 NSCache 命中，PhotoDetailView.schedulePreheat 预热完后，scrubber 滚到哪
-// 都瞬间有图。
+// The 160px strip image is shared with the pager placeholder and released off screen.
 private struct ThumbnailStripCell: View {
     let photo: Photo
     let isSelected: Bool
@@ -1074,7 +1087,7 @@ private struct ThumbnailStripCell: View {
 
     private static let itemSize: CGFloat = 40
     /// 与 PhotoDetailView.placeholderMaxPixel 同值——共享 NSCache 命中
-    private static let loadMaxPixel = 600
+    private static let loadMaxPixel = PhotoDetailImagePolicy.thumbnailMaxPixel
 
     var body: some View {
         Group {
@@ -1098,9 +1111,12 @@ private struct ThumbnailStripCell: View {
         .task {
             // isDeleted 防护：外部删除后 reconcile 剪枝前，读已删模型的属性会 trap。
             if thumb == nil, !photo.isDeleted {
-                thumb = await PhotoImage.thumbnail(for: photo, maxPixel: Self.loadMaxPixel)
+                let image = await PhotoImage.thumbnail(for: photo, maxPixel: Self.loadMaxPixel)
+                guard !Task.isCancelled else { return }
+                thumb = image
             }
         }
+        .onDisappear { thumb = nil }
     }
 }
 

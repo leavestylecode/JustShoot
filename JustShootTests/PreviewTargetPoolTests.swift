@@ -1,7 +1,88 @@
 import XCTest
+import os
 @testable import JustShoot
 
 final class PreviewTargetPoolTests: XCTestCase {
+    @MainActor
+    func testColdDrawDoesNotWaitForAllocationAndRepeatedMissesShareOneRequest() async throws {
+        let pool = PreviewTargetPool<Int>()
+        let started = expectation(description: "Background allocation started")
+        let released = OSAllocatedUnfairLock(initialState: false)
+        defer { released.withLock { $0 = true } }
+        XCTAssertNil(pool.request(width: 816, height: 1088) {
+            XCTAssertFalse(Thread.isMainThread)
+            started.fulfill()
+            for _ in 0..<600 {
+                if released.withLock({ $0 }) { break }
+                Thread.sleep(forTimeInterval: 0.005)
+            }
+            return 42
+        })
+        await fulfillment(of: [started], timeout: 2)
+        for _ in 0..<120 {
+            XCTAssertNil(pool.request(width: 816, height: 1088) {
+                XCTFail("A cold draw must not queue a second allocation")
+                return 99
+            })
+        }
+        released.withLock { $0 = true }
+        try await Self.waitForPreparation(pool)
+        XCTAssertEqual(pool.take(width: 816, height: 1088), 42)
+    }
+
+    func testResizeAwayAndBackDiscardsTheOldAllocationRevision() async throws {
+        let pool = PreviewTargetPool<Int>()
+        let started = expectation(description: "Old allocation started")
+        let released = OSAllocatedUnfairLock(initialState: false)
+        defer { released.withLock { $0 = true } }
+        _ = pool.request(width: 816, height: 1088) {
+            started.fulfill()
+            for _ in 0..<600 {
+                if released.withLock({ $0 }) { break }
+                Thread.sleep(forTimeInterval: 0.005)
+            }
+            return 1
+        }
+        await fulfillment(of: [started], timeout: 2)
+        _ = pool.take(width: 744, height: 992)
+        _ = pool.take(width: 816, height: 1088)
+        released.withLock { $0 = true }
+        try await Self.waitForPreparation(pool)
+        XCTAssertEqual(pool.availableCount, 0)
+        XCTAssertNil(pool.request(width: 816, height: 1088) { 2 })
+        try await Self.waitForPreparation(pool)
+        XCTAssertEqual(pool.take(width: 816, height: 1088), 2)
+    }
+
+    func testFailedAllocationCanRetryWithoutBlockingLaterDraws() async throws {
+        let pool = PreviewTargetPool<Int>()
+        XCTAssertNil(pool.request(width: 816, height: 1088) { nil })
+        try await Self.waitForPreparation(pool)
+        XCTAssertEqual(pool.availableCount, 0)
+        XCTAssertNil(pool.request(width: 816, height: 1088) { 7 })
+        try await Self.waitForPreparation(pool)
+        XCTAssertEqual(pool.take(width: 816, height: 1088), 7)
+    }
+
+    func testInvalidOrDisabledRequestsNeverAllocate() {
+        let pool = PreviewTargetPool<Int>()
+        let disabled = PreviewTargetPool<Int>(maximumCount: 0)
+        let unexpected: @Sendable () -> Int? = { XCTFail("Invalid request allocated a target"); return 1 }
+        XCTAssertNil(pool.request(width: 0, height: 1088, allocate: unexpected))
+        XCTAssertNil(pool.request(width: 816, height: -1, allocate: unexpected))
+        XCTAssertNil(disabled.request(width: 816, height: 1088, allocate: unexpected))
+        XCTAssertFalse(pool.isPreparing)
+        XCTAssertFalse(disabled.isPreparing)
+    }
+
+    private static func waitForPreparation(_ pool: PreviewTargetPool<Int>) async throws {
+        for _ in 0..<400 {
+            if !pool.isPreparing { return }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        XCTFail("Target allocation did not finish")
+    }
+
     func testCompletedTargetsAreAvailableForTheNextFrameWithoutAMainActorHop() async {
         let pool = PreviewTargetPool<Int>()
         XCTAssertNil(pool.take(width: 816, height: 1088))

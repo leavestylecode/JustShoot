@@ -45,6 +45,21 @@ final class RecentPhotoPresentationTests: XCTestCase {
         XCTAssertEqual(second.photos.map(\.id), [old, newest])
     }
 
+    func testCameraObservationFetchesOnlyTheNewestPhotoForItsFilm() async throws {
+        let container = try makeContainer()
+        let saver = await Task.detached { PhotoSaver(modelContainer: container) }.value
+        let newest = UUID()
+        try await save(UUID(), at: 100, using: saver)
+        try await save(newest, at: 200, using: saver)
+        try await save(UUID(), at: 300, filter: "other", using: saver)
+        let descriptor = RecentPhotoPresentation.latestDescriptor(filterName: "film")
+        XCTAssertEqual(descriptor.fetchLimit, 1)
+        let observed = try container.mainContext.fetch(descriptor)
+        XCTAssertEqual(observed.map(\.id), [newest])
+        let presentation = try XCTUnwrap(RecentPhotoPresentation.load(in: container.mainContext, filterName: "film"))
+        XCTAssertEqual(presentation.photos.count, 2)
+    }
+
     func testDeletedLastPhotoDoesNotProduceAnEmptySheet() async throws {
         let container = try makeContainer()
         let saver = await Task.detached { PhotoSaver(modelContainer: container) }.value

@@ -156,16 +156,14 @@ struct FilmCardLibraryView: View {
         [GridItem(.adaptive(minimum: density.minItemWidth), spacing: density.itemSpacing)]
     }
 
-    /// Brand / format threshold: count > 10 gets its own chip, the rest go into "Other".
-    private static let majorBrandThreshold = 10
-    private static let majorFormatThreshold = 10
-    /// Main ISO list (covers ~73%). Other ISOs and missing ISOs all go into "Other".
-    static let mainISOs: [Int] = [50, 100, 200, 400, 800, 1600]
-    /// Color threshold: only render chips with count >= 30. Rare buckets (purple / brown)
-    /// don't make it into the filter UI.
-    private static let majorColorThreshold = 30
-    /// Sentinel string used as the "Other" bucket key. No real brand / format / ISO collides with this.
-    static let otherKey = "__OTHER__"
+    static let mainISOs = FilmCardCatalogIndex.mainISOs
+    static let otherKey = FilmCardCatalogIndex.otherKey
+    @State private var filteredCards: [FilmCard] = []
+
+    private var selection: FilmCardSelection {
+        FilmCardSelection(brands: selectedBrands, formats: selectedFormats,
+                          colors: selectedColors, isos: selectedISOs)
+    }
 
     var body: some View {
         ScrollView {
@@ -208,10 +206,10 @@ struct FilmCardLibraryView: View {
         }
         .sheet(isPresented: $showFilterSheet) {
             FilmCardFilterSheet(
-                brandChips: brandChips,
-                formatChips: formatChips,
-                availableColors: availableColors,
-                isoChips: isoChips,
+                brandChips: library.catalog.brandChips,
+                formatChips: library.catalog.formatChips,
+                availableColors: library.catalog.availableColors,
+                isoChips: library.catalog.isoChips,
                 resultCount: filteredCards.count,
                 selectedBrands: $selectedBrands,
                 selectedFormats: $selectedFormats,
@@ -227,6 +225,12 @@ struct FilmCardLibraryView: View {
         .task {
             await library.loadIfNeeded()
         }
+        .onChange(of: library.isLoaded, initial: true) { _, _ in
+            filteredCards = library.catalog.filtered(using: selection)
+        }
+        .onChange(of: selection) { _, selection in
+            filteredCards = library.catalog.filtered(using: selection)
+        }
         .overlay {
             if !library.isLoaded {
                 ProgressView()
@@ -235,8 +239,13 @@ struct FilmCardLibraryView: View {
             } else if filteredCards.isEmpty {
                 ContentUnavailableView {
                     Label("No matches", systemImage: "line.3.horizontal.decrease")
-                } description: {
-                    Text("Try adjusting the filters")
+                } actions: {
+                    Button("Reset") {
+                        selectedBrands = []
+                        selectedFormats = []
+                        selectedColors = []
+                        selectedISOs = []
+                    }
                 }
                 .foregroundColor(.white.opacity(0.6))
             }
@@ -269,155 +278,6 @@ struct FilmCardLibraryView: View {
         .accessibilityLabel("Grid layout options")
     }
 
-    // MARK: - Filter computation
-
-    private var filteredCards: [FilmCard] {
-        guard library.isLoaded else { return [] }
-        let brands = selectedBrands
-        let formats = selectedFormats
-        let colors = selectedColors
-        let isos = selectedISOs
-        let majorBrands = majorBrandSet
-        let majorFormats = majorFormatSet
-        let mainISOSet = Set(Self.mainISOs)
-
-        return library.all.filter { card in
-            if !brands.isEmpty {
-                if !brandMatches(card, selected: brands, majors: majorBrands) { return false }
-            }
-            if !formats.isEmpty {
-                if !formatMatches(card, selected: formats, majors: majorFormats) { return false }
-            }
-            if !colors.isEmpty {
-                guard let c = card.color, colors.contains(c) else { return false }
-            }
-            if !isos.isEmpty {
-                if !isoMatches(card, selected: isos, mainISOSet: mainISOSet) { return false }
-            }
-            return true
-        }
-    }
-
-    private func brandMatches(_ card: FilmCard, selected: Set<String>, majors: Set<String>) -> Bool {
-        if let b = card.brand, majors.contains(b) {
-            return selected.contains(b)
-        }
-        // Small brand or no brand → check if "Other" is selected
-        return selected.contains(Self.otherKey)
-    }
-
-    private func formatMatches(_ card: FilmCard, selected: Set<String>, majors: Set<String>) -> Bool {
-        if let f = card.format, majors.contains(f) {
-            return selected.contains(f)
-        }
-        // Non-major or missing format → check if "Other" is selected
-        return selected.contains(Self.otherKey)
-    }
-
-    private func isoMatches(_ card: FilmCard, selected: Set<String>, mainISOSet: Set<Int>) -> Bool {
-        if let iso = card.iso, mainISOSet.contains(iso) {
-            return selected.contains(String(iso))
-        }
-        // Long-tail ISO or missing ISO → check if "Other" is selected
-        return selected.contains(Self.otherKey)
-    }
-
-    /// Major brand set (count > threshold)
-    private var majorBrandSet: Set<String> {
-        Set(library.sortedBrands.filter { (library.byBrand[$0]?.count ?? 0) > Self.majorBrandThreshold })
-    }
-
-    /// Major format set (count > threshold)
-    private var majorFormatSet: Set<String> {
-        var counts: [String: Int] = [:]
-        for c in library.all {
-            if let f = c.format { counts[f, default: 0] += 1 }
-        }
-        return Set(counts.filter { $0.value > Self.majorFormatThreshold }.keys)
-    }
-
-    /// Brand chip rendering data: majors descending by count, then a single "Other" rollup.
-    private var brandChips: [BrandChipEntry] {
-        var majors: [BrandChipEntry] = []
-        var otherTotal = 0
-        for brand in library.sortedBrands {
-            let count = library.byBrand[brand]?.count ?? 0
-            if count > Self.majorBrandThreshold {
-                majors.append(BrandChipEntry(key: brand, displayName: brand, count: count))
-            } else {
-                otherTotal += count
-            }
-        }
-        // Cards without a brand also fold into "Other"
-        let untagged = library.all.filter { $0.brand == nil }.count
-        otherTotal += untagged
-        if otherTotal > 0 {
-            let other = String(localized: "Other")
-            majors.append(BrandChipEntry(key: Self.otherKey, displayName: other, count: otherTotal))
-        }
-        return majors
-    }
-
-    /// ISO chip list: fixed main-ISO order followed by an "Other" rollup.
-    private var isoChips: [BrandChipEntry] {
-        guard library.isLoaded else { return [] }
-        var counts: [Int: Int] = [:]
-        var otherTotal = 0
-        let mainSet = Set(Self.mainISOs)
-        for card in library.all {
-            if let iso = card.iso, mainSet.contains(iso) {
-                counts[iso, default: 0] += 1
-            } else {
-                otherTotal += 1
-            }
-        }
-        var entries: [BrandChipEntry] = Self.mainISOs.compactMap { iso in
-            let n = counts[iso] ?? 0
-            // "ISO 100" is universal — leave verbatim regardless of locale.
-            return n > 0 ? BrandChipEntry(key: String(iso), displayName: "ISO \(iso)", count: n) : nil
-        }
-        if otherTotal > 0 {
-            let other = String(localized: "Other")
-            entries.append(BrandChipEntry(key: Self.otherKey, displayName: other, count: otherTotal))
-        }
-        return entries
-    }
-
-    /// Format chip rendering data: count > threshold descending by count, then "Other".
-    private var formatChips: [BrandChipEntry] {
-        var counts: [String: Int] = [:]
-        var untagged = 0
-        for card in library.all {
-            if let f = card.format { counts[f, default: 0] += 1 }
-            else { untagged += 1 }
-        }
-        let majors = counts
-            .filter { $0.value > Self.majorFormatThreshold }
-            .sorted { lhs, rhs in
-                if lhs.value != rhs.value { return lhs.value > rhs.value }
-                return lhs.key.localizedCaseInsensitiveCompare(rhs.key) == .orderedAscending
-            }
-            .map { BrandChipEntry(key: $0.key, displayName: $0.key, count: $0.value) }
-
-        let majorKeys = Set(majors.map { $0.key })
-        let otherTotal = counts.filter { !majorKeys.contains($0.key) }.values.reduce(0, +) + untagged
-        if otherTotal > 0 {
-            let other = String(localized: "Other")
-            return majors + [BrandChipEntry(key: Self.otherKey, displayName: other, count: otherTotal)]
-        }
-        return majors
-    }
-
-    /// Show only mainstream colors (count >= threshold), in palette order. Rare buckets
-    /// (purple / brown) are dropped.
-    private var availableColors: [String] {
-        var counts: [String: Int] = [:]
-        for card in library.all {
-            if let c = card.color { counts[c, default: 0] += 1 }
-        }
-        return CardColorPalette.order.filter { (counts[$0] ?? 0) >= Self.majorColorThreshold }
-    }
-
     private var hasActiveFilter: Bool {
         !selectedBrands.isEmpty
             || !selectedFormats.isEmpty
@@ -427,7 +287,7 @@ struct FilmCardLibraryView: View {
 }
 
 /// Data for a "name + count + Other" style chip used by brand / format / ISO sections.
-struct BrandChipEntry: Hashable {
+struct BrandChipEntry: Hashable, Sendable {
     let key: String
     let displayName: String
     let count: Int
@@ -445,12 +305,13 @@ struct FilmCardThumbnail: View {
 
     /// Captions center under circular covers (Artists-style), left-align otherwise.
     private var isCircle: Bool { coverShape == .circle }
+    private var thumbnailPixel: Int { max(Int(200 * displayScale), 300) }
 
     var body: some View {
         VStack(alignment: isCircle ? .center : .leading, spacing: 6) {
             ZStack {
                 Color.white.opacity(0.05)
-                if let image {
+                if let image = image ?? FilmCardImageCache.shared.cachedImage(imageName: card.image, maxPixel: thumbnailPixel) {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()
@@ -471,9 +332,13 @@ struct FilmCardThumbnail: View {
             // Stable pixel anchor (independent of density) so switching grid size is
             // a cache hit, not a re-decode. Sized for the largest cell × scale,
             // floored at 300 to satisfy the thumbnail API's minimum.
-            let pixel = max(Int(200.0 * displayScale), 300)
-            image = await FilmCardLibrary.shared.image(for: card, maxPixel: pixel)
+            let loaded = await FilmCardLibrary.shared.image(for: card, maxPixel: thumbnailPixel)
+            guard !Task.isCancelled else { return }
+            image = loaded
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: card.product ?? card.brand ?? String(localized: "Unknown")))
+        .accessibilityValue(Text(verbatim: [card.brand, card.iso.map { "ISO \($0)" }, card.format].compactMap { $0 }.joined(separator: ", ")))
     }
 
     @ViewBuilder
@@ -566,7 +431,9 @@ struct FilmCardDetailView: View {
         }
         .task(id: card.id) {
             colorManager.refresh(for: card)
-            image = await FilmCardLibrary.shared.image(for: card, maxPixel: 1024)
+            let loaded = await FilmCardLibrary.shared.image(for: card, maxPixel: 1024)
+            guard !Task.isCancelled else { return }
+            image = loaded
         }
     }
 
@@ -586,7 +453,10 @@ struct FilmCardDetailView: View {
     private var glassImageCard: some View {
         let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
         return Group {
-            if let image {
+            if let image = image
+                ?? FilmCardImageCache.shared.cachedImage(imageName: card.image, maxPixel: 1024)
+                ?? FilmCardImageCache.shared.cachedImage(imageName: card.image, maxPixel: 640)
+                ?? FilmCardImageCache.shared.cachedImage(imageName: card.image, maxPixel: 384) {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
@@ -811,7 +681,7 @@ struct BrandCountChipLabel: View {
                            ? Color.accentColor
                            : Color.secondary.opacity(0.15))
         )
-        .foregroundColor(selected ? .white : .primary)
+        .foregroundColor(selected ? .black : .primary)
         .fixedSize(horizontal: true, vertical: false)
     }
 }

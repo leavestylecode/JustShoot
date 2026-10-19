@@ -41,8 +41,13 @@ struct FilmCardBundle: Codable, Sendable {
 final class FilmCardImageCache: @unchecked Sendable {
     static let shared = FilmCardImageCache()
     private let cache = NSCache<NSString, UIImage>()
+    private let requests: SharedImageRequests
+    private let decode: @Sendable (String, Int) -> UIImage?
 
-    private init() {
+    init(worker: BlockingImageWork = .shared,
+         decode: @escaping @Sendable (String, Int) -> UIImage? = FilmCardImageCache.decodeImage) {
+        requests = SharedImageRequests(worker: worker)
+        self.decode = decode
         cache.countLimit = 50
         cache.totalCostLimit = 50 * 1024 * 1024
     }
@@ -52,58 +57,71 @@ final class FilmCardImageCache: @unchecked Sendable {
         return max(cg.bytesPerRow * cg.height, 4096)
     }
 
-    func cachedImage(cardId: String, maxPixel: Int) -> UIImage? {
-        cache.object(forKey: "\(cardId)_\(maxPixel)" as NSString)
+    /// Nearby layouts share decoded images; bundled cards have a 1024px long edge.
+    static func pixelSize(for requested: Int) -> Int {
+        for size in [128, 256, 384, 640] where requested <= size { return size }
+        return 1024
+    }
+
+    func cachedImage(imageName: String, maxPixel: Int) -> UIImage? {
+        cache.object(forKey: "\(imageName)_\(Self.pixelSize(for: maxPixel))" as NSString)
     }
 
     /// Async downsampled load. Returns the cached image on hit; otherwise
     /// produces a display-prepared thumbnail on the bounded blocking-image queue.
     func loadImage(card: FilmCard, maxPixel: Int) async -> UIImage? {
-        await loadImage(imageName: card.image, cacheKey: card.id, maxPixel: maxPixel)
+        await loadImage(imageName: card.image, maxPixel: maxPixel)
     }
 
     /// Same downsampling pipeline keyed by raw filename. Used by callers that
     /// don't have a `FilmCard` (e.g., the home grid mapping each preset to
     /// a hand-picked card image).
-    func loadImage(imageName: String, cacheKey: String, maxPixel: Int) async -> UIImage? {
-        let key = "\(cacheKey)_\(maxPixel)"
+    func loadImage(imageName: String, maxPixel: Int) async -> UIImage? {
+        guard !Task.isCancelled else { return nil }
+        let maxPixel = Self.pixelSize(for: maxPixel)
+        let key = "\(imageName)_\(maxPixel)"
         if let cached = cache.object(forKey: key as NSString) { return cached }
 
-        return await BlockingImageWork.shared.run { [weak self] in
+        return await requests.image(for: key) { [weak self] in
             guard let self else { return nil }
             if let cached = self.cache.object(forKey: key as NSString) { return cached }
 
-            let nameNoExt = (imageName as NSString).deletingPathExtension
-            let ext = (imageName as NSString).pathExtension
-            // Xcode 16 synchronized groups treat subfolders as logical groups by
-            // default, so resources end up flat at bundle root. If the catalog
-            // were ever flipped to folder-reference mode the lookup would need
-            // `subdirectory: "cards"` — try that as a fallback.
-            let url = Bundle.main.url(forResource: nameNoExt, withExtension: ext)
-                ?? Bundle.main.url(forResource: nameNoExt, withExtension: ext, subdirectory: "cards")
-            guard let url else {
-                Log.gallery.error("filmcard_image_missing key=\(cacheKey, privacy: .public) name=\(imageName, privacy: .public)")
-                return nil
-            }
-
-            let opts: [CFString: Any] = [
-                kCGImageSourceShouldCache: false,
-                kCGImageSourceShouldCacheImmediately: false
-            ]
-            guard let src = CGImageSourceCreateWithURL(url as CFURL, opts as CFDictionary) else { return nil }
-            let down: [CFString: Any] = [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 96),
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceShouldCacheImmediately: true
-            ]
-            guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, down as CFDictionary) else { return nil }
-            // This synchronous UIKit decode runs only on the bounded image worker, never
-            // MainActor. Return the prepared object itself, not its lazily decoded original.
-            guard let image = UIImage(cgImage: cg).preparingForDisplay() else { return nil }
+            guard let image = self.decode(imageName, maxPixel) else { return nil }
             self.cache.setObject(image, forKey: key as NSString, cost: self.memoryCost(of: image))
             return image
         }
+    }
+
+    private static func decodeImage(imageName: String, maxPixel: Int) -> UIImage? {
+        let nameNoExt = (imageName as NSString).deletingPathExtension
+        let ext = (imageName as NSString).pathExtension
+        // Xcode 16 synchronized groups treat subfolders as logical groups by
+        // default, so resources end up flat at bundle root. If the catalog
+        // were ever flipped to folder-reference mode the lookup would need
+        // `subdirectory: "cards"` — try that as a fallback.
+        let url = Bundle.main.url(forResource: nameNoExt, withExtension: ext)
+            ?? Bundle.main.url(forResource: nameNoExt, withExtension: ext, subdirectory: "cards")
+        guard let url else {
+            Log.gallery.error("filmcard_image_missing name=\(imageName, privacy: .public)")
+            return nil
+        }
+
+        let opts: [CFString: Any] = [
+            kCGImageSourceShouldCache: false,
+            kCGImageSourceShouldCacheImmediately: false
+        ]
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, opts as CFDictionary) else { return nil }
+        let down: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: max(maxPixel, 96),
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, down as CFDictionary) else { return nil }
+        // This synchronous UIKit decode runs only on the bounded image worker, never
+        // MainActor. Return the prepared object itself, not its lazily decoded original.
+        guard let image = UIImage(cgImage: cg).preparingForDisplay() else { return nil }
+        return image
     }
 }
 
@@ -112,56 +130,44 @@ final class FilmCardImageCache: @unchecked Sendable {
 final class FilmCardLibrary {
     static let shared = FilmCardLibrary()
 
-    private(set) var all: [FilmCard] = []
-    private(set) var byBrand: [String: [FilmCard]] = [:]
-    /// Brand names sorted by card count descending; ties broken alphabetically.
-    /// Cards with no brand are kept in `all` but excluded from `byBrand` /
-    /// `sortedBrands`, so callers must aggregate untagged cards separately.
-    private(set) var sortedBrands: [String] = []
+    private(set) var catalog = FilmCardCatalogIndex(cards: [])
     private(set) var isLoaded = false
+    private var loading: Task<FilmCardCatalogIndex?, Never>?
 
     private init() {}
 
-    /// Parses cards.json and builds the indexes (parse runs detached; the main
-    /// actor writes the resulting state).
+    /// Parsing and all filter indexes are prepared once, away from MainActor.
     func loadIfNeeded() async {
         guard !isLoaded else { return }
-
-        let timer = Log.perf("filmcard_load", logger: Log.gallery)
-        let parsed: FilmCardBundle? = await Task.detached(priority: .userInitiated) { () -> FilmCardBundle? in
-            let url = Bundle.main.url(forResource: "cards", withExtension: "json")
-                ?? Bundle.main.url(forResource: "cards", withExtension: "json", subdirectory: "cards")
-            guard let url, let data = try? Data(contentsOf: url) else { return nil }
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            return try? decoder.decode(FilmCardBundle.self, from: data)
-        }.value
-
-        guard let parsed else {
-            Log.gallery.error("filmcard_bundle_missing")
-            isLoaded = true
-            timer.end("missing")
-            return
-        }
-
-        // Cards with nil/empty brand are intentionally not grouped — chip rendering
-        // surfaces them via a separate "untagged" count under the "Other" bucket.
-        let grouped = Dictionary(grouping: parsed.cards.filter { ($0.brand ?? "").isEmpty == false }) {
-            $0.brand!
-        }
-        let brandOrder = grouped
-            .map { ($0.key, $0.value.count) }
-            .sorted { lhs, rhs in
-                if lhs.1 != rhs.1 { return lhs.1 > rhs.1 }
-                return lhs.0.localizedCaseInsensitiveCompare(rhs.0) == .orderedAscending
+        let task: Task<FilmCardCatalogIndex?, Never>
+        if let loading { task = loading }
+        else {
+            task = Task.detached(priority: .userInitiated) {
+                let timer = Log.perf("filmcard_load", logger: Log.gallery)
+                let url = Bundle.main.url(forResource: "cards", withExtension: "json")
+                    ?? Bundle.main.url(forResource: "cards", withExtension: "json", subdirectory: "cards")
+                guard let url, let data = try? Data(contentsOf: url) else {
+                    timer.end("missing")
+                    return nil
+                }
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                guard let bundle = try? decoder.decode(FilmCardBundle.self, from: data) else {
+                    timer.end("invalid")
+                    return nil
+                }
+                let index = FilmCardCatalogIndex(cards: bundle.cards)
+                timer.end("count=\(bundle.cards.count)")
+                return index
             }
-            .map { $0.0 }
-
-        self.all = parsed.cards
-        self.byBrand = grouped
-        self.sortedBrands = brandOrder
-        self.isLoaded = true
-        timer.end("count=\(parsed.cards.count) brands=\(brandOrder.count)")
+            loading = task
+        }
+        let prepared = await task.value
+        guard !isLoaded else { return }
+        if let prepared { catalog = prepared }
+        else { Log.gallery.error("filmcard_bundle_missing") }
+        isLoaded = true
+        loading = nil
     }
 
     /// Async downsampled card image load; cache hits return immediately.

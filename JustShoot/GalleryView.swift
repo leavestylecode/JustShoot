@@ -20,6 +20,7 @@ struct GalleryView: View {
     @State private var isSelecting = false
     @State private var selectedPhotos: Set<UUID> = []
     @State private var isPreparingShare = false
+    @State private var isVisible = false
 
     // 网格布局（左上角菜单切换，持久化）
     @AppStorage("gallery.density") private var density: GalleryDensity = .standard
@@ -39,7 +40,8 @@ struct GalleryView: View {
                     selectedPhotos: $selectedPhotos,
                     onOpen: { photo in
                         selectedDetail = DetailPayload(startPhoto: photo, photos: Array(photos))
-                    }
+                    },
+                    isActive: isVisible && selectedDetail == nil
                 )
                 // 忽略上下安全区：collection view 延伸到 nav 栏 / tab 栏之下，靠
                 // contentInsetAdjustmentBehavior=.automatic 把首/末行内边距顶到安全区内，
@@ -48,6 +50,8 @@ struct GalleryView: View {
             }
         }
         .navigationTitle(isSelecting ? Text("\(selectedPhotos.count) selected") : Text("Gallery"))
+        .onAppear { isVisible = true }
+        .onDisappear { isVisible = false }
         .navigationBarTitleDisplayMode(.inline)
         // 选择模式隐藏底部 tab 栏，让位给 Download / Delete 操作栏（Photos.app 一致）。
         .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
@@ -55,7 +59,11 @@ struct GalleryView: View {
             // 全选放左上、xmark 放右上——两端分置，不挤在一起。
             ToolbarItem(placement: .navigationBarLeading) {
                 if isSelecting {
-                    Button("Select All") { toggleSelectAll() }
+                    Button(action: toggleSelectAll) {
+                        Image(systemName: selectedPhotos.count == photos.count ? "checkmark.circle.fill" : "checkmark.circle")
+                    }
+                    .accessibilityLabel("Select All")
+                    .accessibilityValue(Text("\(selectedPhotos.count) selected"))
                 } else if !photos.isEmpty {
                     layoutMenu
                 }
@@ -67,10 +75,16 @@ struct GalleryView: View {
                     }
                     .accessibilityLabel("Done selecting")
                 } else if !photos.isEmpty {
-                    Button("Select") {
+                    Button {
                         withAnimation(.easeInOut(duration: 0.25)) { isSelecting = true }
+                    } label: {
+                        Image(systemName: "checkmark.circle")
                     }
+                    .accessibilityLabel("Select")
                 }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                GallerySaveIndicator()
             }
         }
         .toolbar(isSelecting ? .visible : .hidden, for: .bottomBar)
@@ -162,10 +176,6 @@ struct GalleryView: View {
                 .font(.title3)
                 .foregroundColor(.gray)
                 .padding(.top, 16)
-            Text("Head to the camera to start shooting")
-                .font(.caption)
-                .foregroundColor(.gray.opacity(0.6))
-                .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, minHeight: 400)
     }
@@ -241,6 +251,24 @@ struct GalleryView: View {
                 if photosError.domain != PHPhotosErrorDomain || photosError.code != PHPhotosError.Code.userCancelled.rawValue {
                     pipeline.lastError = error.localizedDescription
                 }
+            }
+        }
+    }
+}
+
+/// Queue updates invalidate only this small status view, rather than rebuilding the grid.
+private struct GallerySaveIndicator: View {
+    @ObservedObject private var pipeline = CapturePipeline.shared
+
+    var body: some View {
+        if pipeline.pendingCount > 0 {
+            HStack(spacing: 5) {
+                ProgressView().tint(.white).controlSize(.small)
+                    .accessibilityHidden(true)
+                Text(pipeline.pendingCount, format: .number)
+                    .font(.caption.monospacedDigit())
+                    .accessibilityLabel("Saving…")
+                    .accessibilityValue(Text(pipeline.pendingCount, format: .number))
             }
         }
     }

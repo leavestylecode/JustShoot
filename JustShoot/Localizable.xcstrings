@@ -40,16 +40,6 @@
         }
       }
     },
-    "%@, %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@, %2$@"
-          }
-        }
-      }
-    },
     "%@, ISO %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -202,6 +192,23 @@
         }
       }
     },
+    "About Safe Shutter Limit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About Safe Shutter Limit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关于安全快门"
+          }
+        }
+      }
+    },
     "Add Curve" : {
       "localizations" : {
         "zh-Hans" : {
@@ -239,6 +246,7 @@
       }
     },
     "Add midtone contrast with an S-curve." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -629,6 +637,23 @@
         }
       }
     },
+    "Camera timed out" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera timed out"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相机准备超时"
+          }
+        }
+      }
+    },
     "Camera unavailable" : {
       "localizations" : {
         "en" : {
@@ -740,6 +765,23 @@
         }
       }
     },
+    "Capturing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capturing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄中"
+          }
+        }
+      }
+    },
     "Channel" : {
       "localizations" : {
         "zh-Hans" : {
@@ -772,6 +814,7 @@
       }
     },
     "Classic" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1025,6 +1068,7 @@
       }
     },
     "Curves adjust the film's tones. Neutral keeps its original response." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1041,6 +1085,7 @@
       }
     },
     "Curves adjust the film's tones. Original keeps the film's own response." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1057,6 +1102,7 @@
       }
     },
     "Curves adjust tone and color." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1290,6 +1336,23 @@
         }
       }
     },
+    "Diagnostics" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagnostics"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "诊断"
+          }
+        }
+      }
+    },
     "Done" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1501,6 +1564,23 @@
       }
     },
     "Film picker" : {},
+    "Film unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Film unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶片不可用"
+          }
+        }
+      }
+    },
     "Films" : {},
     "Filter" : {
       "extractionState" : "manual",
@@ -1895,6 +1975,23 @@
         }
       }
     },
+    "Keep handheld shots sharp." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep handheld shots sharp."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "减少手持模糊。"
+          }
+        }
+      }
+    },
     "Keep the film's original tones." : {
       "localizations" : {
         "en" : {
@@ -1941,6 +2038,7 @@
     },
     "Library" : {},
     "Lift blacks for a faded print look." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1973,6 +2071,7 @@
       }
     },
     "Lift blacks with S-curve contrast." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2125,6 +2224,7 @@
       }
     },
     "Matte S" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2157,6 +2257,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更多曲线操作"
+          }
+        }
+      }
+    },
+    "Loading photo…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading photo…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在载入照片…"
           }
         }
       }
@@ -2233,6 +2350,7 @@
       }
     },
     "Neutral" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2249,6 +2367,7 @@
       }
     },
     "Neutral is always available" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -2674,6 +2793,23 @@
         }
       }
     },
+    "Preparing film" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing film"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶片准备中"
+          }
+        }
+      }
+    },
     "Preparing your library…" : {
       "localizations" : {
         "en" : {
@@ -2686,6 +2822,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在准备主页…"
+          }
+        }
+      }
+    },
+    "Preview unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预览不可用"
           }
         }
       }
@@ -2708,6 +2861,7 @@
       }
     },
     "Punch" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2741,6 +2895,23 @@
       }
     },
     "Rate on the App Store" : {},
+    "Ready" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "就绪"
+          }
+        }
+      }
+    },
     "Record sound with your Live Photos." : {
       "localizations" : {
         "zh-Hans" : {
@@ -2873,6 +3044,7 @@
       }
     },
     "S-Curve" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3146,6 +3318,7 @@
       }
     },
     "Soft Contrast" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

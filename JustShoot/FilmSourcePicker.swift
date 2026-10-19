@@ -26,17 +26,21 @@ struct RecentPhotoPresentation: Identifiable {
 
     @MainActor
     static func latest(in context: ModelContext, filterName: String) throws -> Photo? {
+        try context.fetch(latestDescriptor(filterName: filterName)).first
+    }
+
+    static func latestDescriptor(filterName: String) -> FetchDescriptor<Photo> {
         var descriptor = FetchDescriptor<Photo>(
             predicate: #Predicate { $0.filmPresetName == filterName },
             sortBy: [SortDescriptor(\Photo.timestamp, order: .reverse)])
         descriptor.fetchLimit = 1
-        return try context.fetch(descriptor).first
+        return descriptor
     }
 }
 
 // MARK: - 左下角最近照片 badge
 /// 拍摄页左下角"最近一张"缩略图。持有按当前 `source.photoFilterName` 过滤的 @Query——
-/// CameraView 切换 `source` 时此视图随 `init` 重建，predicate 自动更新到新胶片。
+/// CameraView 切换 `source` 时此视图随 `init` 重建，只观察该胶片最新一张的索引。
 ///
 /// Hint carries the committed photo ID as well as its thumbnail. @Query drives refreshes;
 /// tapping fetches a committed snapshot so a just-finished capture opens before @Query catches up.
@@ -47,6 +51,7 @@ struct RecentPhotosBadge: View {
     let isProcessing: Bool
     let controlRotationAngle: Angle
     let orientation: UIDeviceOrientation
+    var onPresentationChanged: (Bool) -> Void = { _ in }
 
     @Query private var photos: [Photo]
     @Environment(\.modelContext) private var modelContext
@@ -70,7 +75,8 @@ struct RecentPhotosBadge: View {
         isShutterBusy: Bool,
         isProcessing: Bool,
         controlRotationAngle: Angle,
-        orientation: UIDeviceOrientation
+        orientation: UIDeviceOrientation,
+        onPresentationChanged: @escaping (Bool) -> Void = { _ in }
     ) {
         self.source = source
         self._lastThumbnailHint = lastThumbnailHint
@@ -78,13 +84,9 @@ struct RecentPhotosBadge: View {
         self.isProcessing = isProcessing
         self.controlRotationAngle = controlRotationAngle
         self.orientation = orientation
+        self.onPresentationChanged = onPresentationChanged
         let filterName = source.photoFilterName
-        _photos = Query(
-            filter: #Predicate<Photo> { photo in
-                photo.filmPresetName == filterName
-            },
-            sort: \Photo.timestamp
-        )
+        _photos = Query(RecentPhotoPresentation.latestDescriptor(filterName: filterName))
     }
 
     var body: some View {
@@ -118,15 +120,19 @@ struct RecentPhotosBadge: View {
             .rotationEffect(controlRotationAngle)
             .animation(.spring(duration: 0.35, bounce: 0.15), value: orientation)
         }
-        .accessibilityLabel(photos.isEmpty ? Text("Most recent photo") : Text("Most recent photo — \(photos.count) total"))
-        .accessibilityHint(photos.isEmpty ? Text("No photos yet") : Text("Open larger view"))
+        .accessibilityLabel("Most recent photo")
+        .accessibilityValue(isShutterBusy ? Text("Capturing") : isProcessing ? Text("Saving…") : Text(""))
+        .accessibilityHint(photos.isEmpty && currentHint == nil ? Text("No photos yet") : Text("Open larger view"))
         // 仅在快门 race 窗口禁用，让详情页可以在后处理进行中正常打开历史照片。
         .disabled((photos.isEmpty && currentHint == nil) || isShutterBusy)
-        .task(id: ThumbnailRequest(sourceID: source.id, photoID: photos.last?.id)) {
+        .task(id: ThumbnailRequest(sourceID: source.id, photoID: photos.first?.id)) {
             if lastThumbnailHint?.filterName != source.photoFilterName { lastThumbnailHint = nil }
             await loadFromQuery()
         }
-        .sheet(item: $selectedDetail) { payload in
+        .onChange(of: selectedDetail?.id) { _, id in
+            if id != nil { onPresentationChanged(true) }
+        }
+        .sheet(item: $selectedDetail, onDismiss: { onPresentationChanged(false) }) { payload in
             NavigationStack {
                 PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos)
                     .toolbar {
@@ -154,7 +160,7 @@ struct RecentPhotosBadge: View {
     @MainActor
     private func openRecentPhotos() {
         let trace = DiagnosticTrace(id: currentHint?.id.uuidString ?? "recent-photos")
-        trace.event("recent_photos_open_requested", "query_count=\(photos.count) has_hint=\(currentHint != nil)")
+        trace.event("recent_photos_open_requested", "has_indexed_photo=\(!photos.isEmpty) has_hint=\(currentHint != nil)")
         do {
             // CaptureCompletion is emitted after the index commit, before @Query necessarily
             // observes it. Fetch on tap so the newly displayed thumbnail opens the new photo.
@@ -604,11 +610,12 @@ struct FilmSourcePickerCell: View {
                 image = nil
                 return
             }
-            image = await FilmCardImageCache.shared.loadImage(
+            let loaded = await FilmCardImageCache.shared.loadImage(
                 imageName: preset.libraryCardImage,
-                cacheKey: "picker_\(preset.rawValue)",
                 maxPixel: Self.coverPixel(displayScale: displayScale)
             )
+            guard !Task.isCancelled else { return }
+            image = loaded
         }
     }
 

@@ -53,7 +53,7 @@ final class BlockingImageWorkTests: XCTestCase {
         let done = expectation(description: "Bundled HEIF decoded")
         let task = Task {
             let image = await FilmCardImageCache.shared.loadImage(imageName: "00001_000.heic",
-                cacheKey: "heif-regression", maxPixel: 160)
+                maxPixel: 160)
             XCTAssertNotNil(image)
             done.fulfill()
         }
