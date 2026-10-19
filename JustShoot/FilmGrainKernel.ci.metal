@@ -9,6 +9,7 @@ using namespace metal;
     float grainSize,
     float chroma,
     float seed,
+    float response,
     coreimage::destination destination
 ) {
     // All three render paths use an explicitly configured sRGB working space.
@@ -19,7 +20,8 @@ using namespace metal;
         amount,
         grainSize,
         chroma,
-        uint(seed)
+        uint(seed),
+        response
     );
     return float4(textured, pixel.a);
 }

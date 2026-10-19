@@ -55,7 +55,8 @@ using namespace metal;
 /// Metal 预览在 LUTShader.metal 的 previewLUT 内联同一段数学（FilmOpticsMath.h 共享）。
 [[stitchable]] float4 justShootChromaticGain(
     coreimage::sample_t pixel,
-    float3 gain
+    float3 gain,
+    float protectHighlights
 ) {
-    return float4(justShootApplyChromaticGain(pixel.rgb, gain), pixel.a);
+    return float4(justShootApplyChromaticGain(pixel.rgb, gain, protectHighlights), pixel.a);
 }

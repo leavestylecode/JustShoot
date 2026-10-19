@@ -65,10 +65,19 @@ struct FilmChromaticResponseParameters: Sendable, Equatable, Codable {
     let nativeCCT: Float
     /// 0 = 完全校白（现状行为），1 = 完整原生响应。
     let strength: Float
+    /// Absent in older capture recipes: replay those with their original response.
+    let highlightProtection: Bool?
 
-    static let neutral = FilmChromaticResponseParameters(nativeCCT: 6_500, strength: 0)
+    init(nativeCCT: Float, strength: Float, highlightProtection: Bool = true) {
+        self.nativeCCT = nativeCCT
+        self.strength = strength
+        self.highlightProtection = highlightProtection
+    }
+
+    static let neutral = FilmChromaticResponseParameters(nativeCCT: 6_500, strength: 0, highlightProtection: false)
 
     var isNeutral: Bool { strength <= 0.0001 }
+    var protectsHighlights: Bool { highlightProtection ?? false }
 
     /// 场景色温 → 线性 RGB 域的每通道增益。读数缺失/无效时返回单位增益（不响应）。
     func responseGain(sceneCCT: Float?) -> SIMD3<Float> {
@@ -122,27 +131,47 @@ struct FilmChromaticResponseParameters: Sendable, Equatable, Codable {
 
 private enum AutomaticFilmProfile {
     /// 以 ISO 50 为基线、按曝光档数平滑增长，再由乳剂结构修正。避免为每种胶片散落魔法数。
-    static func grain(iso: Float, character: FilmGrainCharacter) -> FilmGrainParameters {
+    static func grain(
+        iso: Float,
+        character: FilmGrainCharacter,
+        response: FilmGrainParameters.Response? = nil
+    ) -> FilmGrainParameters {
         let clampedISO = min(max(iso, 50), 3200)
         let normalizedStops = log2(clampedISO / 50) / 6
         let baseAmount = 0.034 + normalizedStops * 0.032
         let baseSize = 0.95 + normalizedStops * 0.70
         return FilmGrainParameters(
-            amount: baseAmount * character.amountScale,
+            amount: baseAmount * character.amountScale * (response == .balanced ? 0.94 : 1),
             size: baseSize * character.sizeScale,
-            chroma: character.chroma
+            chroma: character.chroma,
+            response: response
         )
     }
 }
 
 struct FilmGrainParameters: Sendable, Equatable, Codable {
+    enum Response: String, Sendable, Codable {
+        case balanced = "balanced_v2"
+    }
+
     let amount: Float
     let size: Float
     let chroma: Float
+    /// Missing in older journals: keep their frozen, original grain rendering.
+    let response: Response?
+
+    init(amount: Float, size: Float, chroma: Float, response: Response? = nil) {
+        self.amount = amount
+        self.size = size
+        self.chroma = chroma
+        self.response = response
+    }
 
     static let disabled = FilmGrainParameters(amount: 0, size: 1, chroma: 0)
 
     var isEnabled: Bool { amount > 0.0001 }
+    var shaderResponse: Float { response == .balanced ? 1 : 0 }
+    var responseIdentifier: String { response?.rawValue ?? "legacy_v1" }
 
     /// 颗粒代表胶片画幅上的结构，而不是固定像素噪声。预览最小为 1px，完整照片随长边放大。
     func pixelSize(forLongEdge longEdge: CGFloat) -> Float {
@@ -151,6 +180,13 @@ struct FilmGrainParameters: Sendable, Equatable, Codable {
 }
 
 extension FilmPreset {
+    private var grainResponse: FilmGrainParameters.Response? {
+        switch self {
+        case .kodakPortra400, .fujiPro400H: return .balanced
+        default: return nil
+        }
+    }
+
     private var grainCharacter: FilmGrainCharacter {
         switch self {
         case .fujiProvia100F, .kodakVision5203:
@@ -181,7 +217,7 @@ extension FilmPreset {
 
     var renderProfile: FilmRenderProfile {
         FilmRenderProfile(
-            grain: AutomaticFilmProfile.grain(iso: iso, character: grainCharacter),
+            grain: AutomaticFilmProfile.grain(iso: iso, character: grainCharacter, response: grainResponse),
             optics: filmOptics,
             chromatic: chromaticResponse
         )
@@ -208,8 +244,8 @@ extension FilmSource {
 
 /// 静态图与 Live Photo 共用的确定性 Core Image kernel。
 ///
-/// 噪声不是简单覆盖：以共享亮度颗粒为主、混入少量独立 RGB 结构，并用当前像素到黑/白端点
-/// 的余量调制正负扰动，避免在纯黑/纯白处硬剪切。影调权重让中间调最明显、两端更克制。
+/// 以共享亮度颗粒为主、混入少量独立 RGB 结构。新的人像卷响应使用对称余量，
+/// 避免暗部正噪声比负噪声更强而抬灰；旧任务保留原有余量算法。
 enum FilmGrainRenderer {
     private static let kernel: CIColorKernel? = {
         do {
@@ -248,7 +284,8 @@ enum FilmGrainRenderer {
         let floatSeed = Float(seed & 0x00FF_FFFF)
         return kernel.apply(
             extent: image.extent,
-            arguments: [image, parameters.amount, pixelSize, parameters.chroma, floatSeed]
+            arguments: [image, parameters.amount, pixelSize, parameters.chroma, floatSeed,
+                        parameters.shaderResponse]
         ) ?? image
     }
 

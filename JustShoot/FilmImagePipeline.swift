@@ -15,13 +15,15 @@ enum FilmImagePipeline {
         for image: CIImage,
         lut: CubeLUT?,
         chromaticGain: SIMD3<Float>,
+        protectChromaticHighlights: Bool = false,
         optics: FilmOpticsParameters,
         grain: FilmGrainParameters,
         grainSeed: UInt32,
         cancellation: CaptureRenderCancellation? = nil
     ) -> Stages? {
         guard cancellation?.isCancelled != true else { return nil }
-        let responded = FilmChromaticRenderer.applying(to: image, gain: chromaticGain)
+        let responded = FilmChromaticRenderer.applying(to: image, gain: chromaticGain,
+                                                      protectHighlights: protectChromaticHighlights)
         let graded: CIImage
         if let lut {
             // Filter instances are local to this graph, never shared between render jobs.

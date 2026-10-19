@@ -4,6 +4,23 @@ import XCTest
 /// 胶片原生色温响应（未校白）的数学约定：T 卷在日光下偏蓝、日光卷在钨丝灯下偏橙、
 /// 完全校白（strength=0）保持现状、极端读数有钳制、旧 journal 缺字段解码为中性。
 final class FilmChromaticResponseTests: XCTestCase {
+    func testOldChromaticRecipeKeepsLegacyHighlightResponse() throws {
+        let data = Data(#"{"nativeCCT":5500,"strength":0.42}"#.utf8)
+        let legacy = try JSONDecoder().decode(FilmChromaticResponseParameters.self, from: data)
+        XCTAssertFalse(legacy.protectsHighlights)
+        XCTAssertEqual(legacy.responseGain(sceneCCT: 3_200),
+                       FilmPreset.kodakPortra400.chromaticResponse.responseGain(sceneCCT: 3_200))
+    }
+
+    func testNewChromaticRecipeFreezesHighlightProtection() throws {
+        let current = FilmPreset.kodakPortra400.chromaticResponse
+        XCTAssertTrue(current.protectsHighlights)
+        let restored = try JSONDecoder().decode(FilmChromaticResponseParameters.self,
+                                                from: JSONEncoder().encode(current))
+        XCTAssertEqual(restored, current)
+        XCTAssertTrue(restored.protectsHighlights)
+        XCTAssertFalse(FilmChromaticResponseParameters.neutral.protectsHighlights)
+    }
 
     func testNeutralStrengthReturnsUnitGain() {
         let neutral = FilmChromaticResponseParameters.neutral

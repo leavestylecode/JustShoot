@@ -228,8 +228,17 @@ enum FilmChromaticRenderer {
         return try? CIColorKernel(functionName: "justShootChromaticGain", fromMetalLibraryData: data)
     }()
 
-    static func applying(to image: CIImage, gain: SIMD3<Float>) -> CIImage {
-        let isUnit = abs(gain.x - 1) < 0.0005 && abs(gain.y - 1) < 0.0005 && abs(gain.z - 1) < 0.0005
+    static func applying(to image: CIImage, gain: SIMD3<Float>, protectHighlights: Bool = false) -> CIImage {
+        let isUnit: Bool
+        if protectHighlights {
+            // Match the shared Metal kernel's unit-gain interval exactly.
+            isUnit = gain.x >= 0.9999 && gain.x <= 1.0001
+                && gain.y >= 0.9999 && gain.y <= 1.0001
+                && gain.z >= 0.9999 && gain.z <= 1.0001
+        } else {
+            // Frozen legacy recipes retain their original Core Image bypass.
+            isUnit = abs(gain.x - 1) < 0.0005 && abs(gain.y - 1) < 0.0005 && abs(gain.z - 1) < 0.0005
+        }
         guard !isUnit,
               !image.extent.isEmpty,
               !image.extent.isInfinite,
@@ -238,7 +247,8 @@ enum FilmChromaticRenderer {
         }
         return kernel.apply(
             extent: image.extent,
-            arguments: [image, CIVector(x: CGFloat(gain.x), y: CGFloat(gain.y), z: CGFloat(gain.z))]
+            arguments: [image, CIVector(x: CGFloat(gain.x), y: CGFloat(gain.y), z: CGFloat(gain.z)),
+                        protectHighlights ? 1.0 : 0.0]
         ) ?? image
     }
 }

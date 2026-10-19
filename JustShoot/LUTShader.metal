@@ -29,6 +29,8 @@ struct PreviewParams {
     float chromaticGainR;
     float chromaticGainG;
     float chromaticGainB;
+    float chromaticHighlightProtection;
+    float grainResponse;
 };
 
 
@@ -62,7 +64,8 @@ kernel void previewLUT(
     // 胶片色温响应先于 LUT：真实胶片是"乳剂先响应、显影定色"，校白模拟必须在色彩映射之前。
     color = justShootApplyChromaticGain(
         color,
-        float3(params.chromaticGainR, params.chromaticGainG, params.chromaticGainB)
+        float3(params.chromaticGainR, params.chromaticGainG, params.chromaticGainB),
+        params.chromaticHighlightProtection
     );
     float dim = float(params.lutDimension);
     float3 coordinate = color * ((dim - 1.0) / dim) + 0.5 / dim;
@@ -90,6 +93,6 @@ kernel void previewFinish(
         float(halation.sample(energySampler, coordinate).r), float(bloom.sample(energySampler, coordinate).r),
         params.halationAmount, params.halationHue, params.bloomAmount);
     float3 textured = justShootApplyFilmGrain(display, float2(gid) + 0.5,
-        params.grainAmount, params.grainSize, params.grainChroma, params.grainSeed);
+        params.grainAmount, params.grainSize, params.grainChroma, params.grainSeed, params.grainResponse);
     output.write(half4(half3(textured), 1), gid);
 }

@@ -48,15 +48,43 @@ inline float3 justShootLinearToSrgb(float3 c)
     );
 }
 
+/// C1 shoulder with a rational tail: even strongly saturated highlights retain
+/// more precision than an exponential tail that rapidly rounds to its ceiling.
+inline float justShootInputShoulder(float x, float start)
+{
+    if (x <= start) return x;
+    float range = max(1.0 - start, 1e-6);
+    float excess = x - start;
+    return start + range * excess / (excess + range);
+}
+
 /// 胶片色温响应（未校白）：线性光域的每通道增益（von Kries 对角近似，Swift 侧
 /// FilmChromaticResponseParameters.responseGain 用同一数学算出增益传入）。
 /// 跨域边界在函数内部完成，调用方只见显示域像素。
-inline float3 justShootApplyChromaticGain(float3 display, float3 gain)
+inline float3 justShootApplyChromaticGain(float3 display, float3 gain, float protectHighlights)
 {
     if (gain.r >= 0.9999 && gain.r <= 1.0001
         && gain.g >= 0.9999 && gain.g <= 1.0001
         && gain.b >= 0.9999 && gain.b <= 1.0001) return display;
-    return justShootLinearToSrgb(justShootSrgbToLinear(display) * gain);
+    float3 linear = justShootSrgbToLinear(display) * gain;
+    float maximumGain = max(gain.r, max(gain.g, gain.b));
+    if (protectHighlights <= 0.5 || maximumGain <= 1.0) return justShootLinearToSrgb(linear);
+
+    // Protect the LUT's SDR input BEFORE its edge sampler can clip a channel.
+    // Map luminance and the largest channel through the SAME monotone shoulder.
+    // Interpolate the remaining channels around the neutral axis. This preserves
+    // hue direction and gives the boosted channel a real gradient in half-float
+    // intermediates too; an asymptote extremely close to 1 would quantize flat.
+    const float3 weights = float3(0.2126, 0.7152, 0.0722);
+    float luminance = dot(linear, weights);
+    float knee = 1.0 - min(maximumGain - 1.0, 0.5) * 0.4;
+    float maximum = max(linear.r, max(linear.g, linear.b));
+    float mapped = justShootInputShoulder(luminance, knee);
+    float mappedMaximum = justShootInputShoulder(maximum, knee);
+    float spread = maximum - luminance;
+    float chromaScale = spread > 1e-6 ? (mappedMaximum - mapped) / spread : 1.0;
+    float3 chroma = (linear - luminance) * chromaScale;
+    return justShootLinearToSrgb(mapped + chroma);
 }
 
 /// 高光能量提取：threshold 之上 0.18 的软肩内平滑爬升，只让"光源"而非"亮面"发光晕。

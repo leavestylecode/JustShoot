@@ -30,4 +30,22 @@ final class CaptureEncodingRecipeTests: XCTestCase {
             XCTAssertEqual(restored.withPhotoDisplayTime(0.5).outputQuality, quality)
         }
     }
+
+    func testPortraitGrainResponseSurvivesCheckpointRecoveryAndLateTiming() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let journal = CaptureJournal(root: root)
+        let lut = try CubeLUT.parse("LUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1")
+        for preset in [FilmPreset.kodakPortra400, .fujiPro400H] {
+            let original = CaptureRecipe(id: UUID(), captureDate: Date(), filterName: preset.lutResourceName,
+                displayLabel: nil, focalLength: 35, outputQuality: nil, profile: preset.renderProfile,
+                grainSeed: 123, location: nil, lutDimension: 2, chromaticSceneCCT: 6_000, photoDisplayTime: nil)
+            _ = try journal.stage(recipe: original, imageData: Data([1, 2]), movieURL: nil,
+                lut: lut, awaitingCaptureCompletion: true)
+            let recovered = try XCTUnwrap(journal.recover().first { $0.id == original.id })
+            XCTAssertEqual(recovered.recipe.profile.grain.response, .balanced)
+            XCTAssertEqual(recovered.recipe.withPhotoDisplayTime(0.75).profile, original.profile)
+            XCTAssertEqual(recovered.recipe.grainSeed, original.grainSeed)
+        }
+    }
 }

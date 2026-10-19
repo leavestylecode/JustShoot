@@ -388,7 +388,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         private var frameCount: UInt32 = 0
 
         // Shader 参数结构（必须与 LUTShader.metal 中的 PreviewParams 一致）
-        private struct PreviewParams {
+        struct PreviewParams {
             var scale: Float
             var offsetX: Float
             var offsetY: Float
@@ -411,6 +411,8 @@ struct RealtimePreviewView: UIViewRepresentable {
             var chromaticGainR: Float
             var chromaticGainG: Float
             var chromaticGainB: Float
+            var chromaticHighlightProtection: Float
+            var grainResponse: Float
         }
 
         /// 色温响应增益的低通平滑：WB 读数 0.5s 采样 + 100K 量化，直接跳变会在预览上
@@ -681,7 +683,9 @@ struct RealtimePreviewView: UIViewRepresentable {
                 headroomShoulder: optics.headroomShoulder,
                 chromaticGainR: chromaticGain.x,
                 chromaticGainG: chromaticGain.y,
-                chromaticGainB: chromaticGain.z
+                chromaticGainB: chromaticGain.z,
+                chromaticHighlightProtection: chromatic.protectsHighlights ? 1 : 0,
+                grainResponse: grain.shaderResponse
             )
 
             // 编码 compute 命令

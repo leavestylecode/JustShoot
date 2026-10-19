@@ -47,7 +47,7 @@ inline float4 justShootGrainValueNoise(float2 point, uint seed)
     return mix(mix(a, b, fraction.x), mix(c, d, fraction.x), fraction.y);
 }
 
-inline float4 justShootGrainPattern(float2 pixelPosition, float grainSize, uint seed)
+inline float4 justShootGrainPattern(float2 pixelPosition, float grainSize, uint seed, float response)
 {
     float2 point = pixelPosition / max(grainSize, 1.0);
     float4 broad = justShootGrainValueNoise(point, seed);
@@ -55,6 +55,7 @@ inline float4 justShootGrainPattern(float2 pixelPosition, float grainSize, uint 
     float4 fine = justShootGrainComponents(
         justShootGrainCoordinateHash(fineCell, seed ^ 0xA511E9B3u)
     );
+    if (response > 0.5) return broad * 0.82 + fine * 0.18;
     return broad * 0.72 + fine * 0.28;
 }
 
@@ -64,13 +65,23 @@ inline float justShootGrainChannel(float value, float noise, float amount, float
     return clamp(value + noise * amount * visibility * capacity, 0.0, 1.0);
 }
 
+inline float justShootBalancedGrainChannel(float value, float noise, float amplitude)
+{
+    float bounded = clamp(value, 0.0, 1.0);
+    // Equal positive/negative amplitude retains the expected channel value.
+    // The endpoint limit prevents clipping without adding a black floor.
+    float capacity = min(bounded, 1.0 - bounded);
+    return bounded + noise * min(amplitude, capacity);
+}
+
 inline float3 justShootApplyFilmGrain(
     float3 color,
     float2 pixelPosition,
     float amount,
     float grainSize,
     float chroma,
-    uint seedValue
+    uint seedValue,
+    float response
 ) {
     if (amount <= 0.0001) return color;
 
@@ -79,8 +90,18 @@ inline float3 justShootApplyFilmGrain(
     float visibility = 0.35 + 0.65 * sqrt(density);
 
     uint seed = seedValue & 0x00FFFFFFu;
-    float4 pattern = justShootGrainPattern(pixelPosition, grainSize, seed);
+    float4 pattern = justShootGrainPattern(pixelPosition, grainSize, seed, response);
     float3 noise = mix(float3(pattern.x), pattern.yzw, chroma);
+
+    if (response > 0.5) {
+        float shadowWeight = 0.80 + 0.20 * smoothstep(0.04, 0.22, luminance);
+        float amplitude = amount * visibility * shadowWeight * 0.5;
+        return float3(
+            justShootBalancedGrainChannel(color.r, noise.r, amplitude),
+            justShootBalancedGrainChannel(color.g, noise.g, amplitude),
+            justShootBalancedGrainChannel(color.b, noise.b, amplitude)
+        );
+    }
 
     return float3(
         justShootGrainChannel(color.r, noise.r, amount, visibility),

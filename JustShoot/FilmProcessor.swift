@@ -279,7 +279,8 @@ final class FilmProcessor: Sendable {
         if let compiledURL = Bundle.main.url(forResource: resourceName, withExtension: "jslut") {
             do {
                 let data = try Data(contentsOf: compiledURL, options: .mappedIfSafe)
-                let cube = Self.applyingShadowToe(to: try Self.decodeCompiledLUT(data))
+                let cube = FilmLUTCalibration.applying(
+                    to: Self.applyingShadowToe(to: try Self.decodeCompiledLUT(data)), resourceName: resourceName)
                 _ = lock.withLock { $0.luts.insert(cube, forKey: resourceName, cost: cube.data.count) }
                 totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=binary bytes=\(data.count) shadow_toe=on")
                 return cube
@@ -300,7 +301,8 @@ final class FilmProcessor: Sendable {
             let text = try Self.readCubeText(from: url)
             readTimer.end("name=\(resourceName) chars=\(text.count)")
             let parseTimer = Log.perf("lut_text_parse", logger: Log.lut)
-            let cube = Self.applyingShadowToe(to: try Self.parseCubeFile(text))
+            let cube = FilmLUTCalibration.applying(
+                to: Self.applyingShadowToe(to: try Self.parseCubeFile(text)), resourceName: resourceName)
             parseTimer.end("name=\(resourceName) dim=\(cube.dimension) shadow_toe=on")
             _ = lock.withLock { $0.luts.insert(cube, forKey: resourceName, cost: cube.data.count) }
             totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=text")
@@ -528,6 +530,7 @@ final class FilmProcessor: Sendable {
 
         guard let stages = FilmImagePipeline.stages(for: ciInput, lut: lut,
             chromaticGain: chromatic.responseGain(sceneCCT: chromaticSceneCCT),
+            protectChromaticHighlights: chromatic.protectsHighlights,
             optics: optics, grain: grain, grainSeed: grainSeed,
             cancellation: cancellation) else { return nil }
         let output = stages.final
@@ -629,7 +632,8 @@ final class FilmProcessor: Sendable {
             "mode=\(encoded.decision.mode.rawValue) scene=\(grain.isEnabled ? "film_grain" : "clean_render") " +
             "pixels=\(Int(outExtent.width * outExtent.height)) width=\(Int(outExtent.width)) height=\(Int(outExtent.height)) " +
             "codec=\(codec) source_bytes=\(imageData.count) output_bytes=\(rendered.count) " +
-            "selected_quality=\(String(format: "%.2f", Double(encoded.decision.quality))) grain_amount=\(String(format: "%.3f", grain.amount))")
+            "selected_quality=\(String(format: "%.2f", Double(encoded.decision.quality))) grain_amount=\(String(format: "%.3f", grain.amount)) " +
+            "grain_response=\(grain.responseIdentifier)")
 
         // 🔑 一击定位行：像素与 metadata 一次编码完成后。codec / 输出像素尺寸 / 百万像素 / 质量参数 /
         // 输入原始字节 / 编码后字节 全在一行。若 rendered_bytes 这里就只有几百 KB 而 out_dims 是完整
