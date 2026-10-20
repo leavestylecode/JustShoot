@@ -31,6 +31,7 @@ final class PreviewMetalResources: @unchecked Sendable {
     enum PreparationError: Error, Sendable {
         case metalUnavailable
         case shaderUnavailable
+        case rendererUnavailable
     }
 
     private struct Ready: @unchecked Sendable {
@@ -38,8 +39,19 @@ final class PreviewMetalResources: @unchecked Sendable {
         let computePipeline: any MTLComputePipelineState
         let finishPipeline: any MTLComputePipelineState
     }
+    /// Created once on the preparation queue. Texture-cache operations and MPS encoding
+    /// remain on MainActor; command buffers retain their own frame leases through completion.
+    struct RendererResources: @unchecked Sendable {
+        let device: any MTLDevice
+        let computePipeline: any MTLComputePipelineState
+        let finishPipeline: any MTLComputePipelineState
+        let commandQueue: any MTLCommandQueue
+        let textureCache: CVMetalTextureCache
+        let energyDownsampler: MPSImageBilinearScale
+    }
     private struct State {
         var ready: Ready?
+        var renderer: RendererResources?
     }
     private let state = OSAllocatedUnfairLock(initialState: State())
     private let preparationQueue = DispatchQueue(label: "com.justshoot.preview-prepare", qos: .utility)
@@ -48,20 +60,51 @@ final class PreviewMetalResources: @unchecked Sendable {
     var device: (any MTLDevice)? { state.withLock { $0.ready?.device } }
     var computePipeline: (any MTLComputePipelineState)? { state.withLock { $0.ready?.computePipeline } }
     var finishPipeline: (any MTLComputePipelineState)? { state.withLock { $0.ready?.finishPipeline } }
+    @MainActor var rendererResources: RendererResources? { state.withLock { $0.renderer } }
 
     private init() {}
 
     /// Await actual pipeline creation without blocking MainActor or Swift's cooperative pool.
     /// Only success is cached. A later call retries a failed driver/library initialization.
     static func warmUp() async throws {
+        try await shared.prepare(includeRenderer: false)
+    }
+
+    static func warmUpForRenderer() async throws {
+        try await shared.prepare(includeRenderer: true)
+    }
+
+    private func prepare(includeRenderer: Bool) async throws {
         try Task.checkCancellation()
+        if state.withLock({ includeRenderer ? $0.renderer != nil : $0.ready != nil }) { return }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-            shared.preparationQueue.async(qos: .utility, flags: [.enforceQoS, .detached]) {
-                do { try shared.initializeIfNeeded(); continuation.resume() }
+            preparationQueue.async(qos: includeRenderer ? .userInitiated : .utility, flags: [.enforceQoS, .detached]) { [self] in
+                do {
+                    try initializeIfNeeded()
+                    if includeRenderer { try initializeRendererIfNeeded() }
+                    continuation.resume()
+                }
                 catch { continuation.resume(throwing: error) }
             }
         }
         try Task.checkCancellation()
+    }
+
+    private func initializeRendererIfNeeded() throws {
+        if state.withLock({ $0.renderer != nil }) { return }
+        let startedAt = ProcessInfo.processInfo.systemUptime
+        guard let ready = state.withLock({ $0.ready }),
+              let queue = ready.device.makeCommandQueue() else { throw PreparationError.rendererUnavailable }
+        var cache: CVMetalTextureCache?
+        guard CVMetalTextureCacheCreate(nil, nil, ready.device, nil, &cache) == kCVReturnSuccess,
+              let cache else { throw PreparationError.rendererUnavailable }
+        queue.label = "com.justshoot.preview"
+        let renderer = RendererResources(device: ready.device, computePipeline: ready.computePipeline,
+            finishPipeline: ready.finishPipeline, commandQueue: queue, textureCache: cache,
+            energyDownsampler: MPSImageBilinearScale(device: ready.device))
+        state.withLock { $0.renderer = renderer }
+        Diagnostics.emit("preview_renderer_resources_prepared",
+            fields: "main_thread=\(Thread.isMainThread) duration_ms=\(Diagnostics.milliseconds(since: startedAt))")
     }
 
     private func initializeIfNeeded() throws {
@@ -317,6 +360,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         (uiView as? CameraPreviewMetalView)?.stopRendering()
         uiView.isPaused = true
         uiView.delegate = nil
+        coordinator.flushFrameCache()
     }
 
     // MARK: - Metal Preview Coordinator
@@ -340,7 +384,6 @@ struct RealtimePreviewView: UIViewRepresentable {
         private var halationBlur: MPSImageGaussianBlur?
         private var bloomBlur: MPSImageGaussianBlur?
         private var energyDownsampler: MPSImageBilinearScale?
-        private var setupFailureReported = false
         private let completionGate = PreviewRenderCompletionGate()
         private let gpuStatistics = PreviewGPUStatistics()
 
@@ -437,35 +480,25 @@ struct RealtimePreviewView: UIViewRepresentable {
         }
 
         func setup(view: MTKView) {
-            guard metalDevice == nil, !setupFailureReported else { return }
-            let resources = PreviewMetalResources.shared
+            guard metalDevice == nil else { return }
             // The camera entry task reports preparation failures. An absent snapshot here
             // can also mean that the async preparation has not finished yet.
-            guard let device = resources.device,
-                  let pipeline = resources.computePipeline,
-                  let finish = resources.finishPipeline else { return }
-            guard let queue = device.makeCommandQueue() else {
-                setupFailureReported = true
-                manager?.previewRendererUnavailable()
-                return
-            }
-            var cache: CVMetalTextureCache?
-            guard CVMetalTextureCacheCreate(nil, nil, device, nil, &cache) == kCVReturnSuccess,
-                  let cache else {
-                setupFailureReported = true
-                manager?.previewRendererUnavailable()
-                return
-            }
-            view.device = device
-            metalDevice = device
-            commandQueue = queue
-            commandQueue?.label = "com.justshoot.preview"
-            computePipeline = pipeline
-            finishPipeline = finish
-            textureCache = cache
-            energyDownsampler = MPSImageBilinearScale(device: device)
+            guard let resources = PreviewMetalResources.shared.rendererResources else { return }
+            view.device = resources.device
+            metalDevice = resources.device
+            commandQueue = resources.commandQueue
+            computePipeline = resources.computePipeline
+            finishPipeline = resources.finishPipeline
+            textureCache = resources.textureCache
+            energyDownsampler = resources.energyDownsampler
             view.delegate = self
             renderingAvailabilityChanged(!view.isPaused && view.window != nil)
+        }
+
+        func flushFrameCache() {
+            // Shared caches outlive the camera view. Release unused entries on exit;
+            // in-flight GPU work still owns its CVMetalTexture and CVPixelBuffer lease.
+            if let textureCache { CVMetalTextureCacheFlush(textureCache, 0) }
         }
 
         func renderingAvailabilityChanged(_ active: Bool) {

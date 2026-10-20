@@ -29,6 +29,18 @@ final class CameraEntryPreparationTests: XCTestCase {
         XCTAssertFalse(entry.coversContent)
     }
 
+    func testNativeReadinessRevealsImmediatelyAfterTheCurrentFrameWithoutAnotherTimer() {
+        var entry = preparing()
+        finishSessionWork(&entry)
+        entry.updateReadiness(generation: 1, session: true, preview: false, capture: true, pipeline: true)
+        entry.rendered(generation: 1, lutKey: "film", capturedAt: 10.01)
+        XCTAssertTrue(entry.isPreparing)
+        entry.updateReadiness(generation: 1, session: true, preview: true, capture: false, pipeline: true)
+        XCTAssertTrue(entry.isPreparing)
+        entry.updateReadiness(generation: 1, session: true, preview: true, capture: true, pipeline: true)
+        XCTAssertTrue(entry.isRevealed)
+    }
+
     func testDeviceWarmupCannotUseAnOlderGPUFrameToUnlockEntry() {
         var entry = preparing()
         entry.preparedResources(generation: 1)

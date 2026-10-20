@@ -88,5 +88,10 @@ struct MainTabView: View {
             await CapturePipeline.shared.configure(container: modelContext.container)
             await PhotoLibrarySync.shared.bootstrap(container: modelContext.container)
         }
+        .task {
+            // Start the shared CIContext after home appears, without extending launch readiness.
+            // A fast camera entry joins the same protected initialization in the background.
+            try? await FilmProcessor.shared.warmUpForCapture()
+        }
     }
 }

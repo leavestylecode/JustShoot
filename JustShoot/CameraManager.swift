@@ -300,10 +300,6 @@ class CameraManager: NSObject, ObservableObject {
     private var sessionConfigured: Bool = false
     /// 当前 session 周期是否已收到首帧。与 sessionConfigured + lensCaptureGate 共同决定 UI ready。
     private var hasReceivedPreviewFrame = false
-    /// 预览「入场淡入」门控：首帧到达并驻留一个短窗口（渲染管线热身、AE 开始收敛）后置位。
-    /// CameraView 叠加 LUT 就绪条件后淡入预览，避免把开头的热身抖动帧/风格切换帧展示给用户。
-    @Published private(set) var previewRevealReady = false
-    private var previewRevealTask: Task<Void, Never>?
     /// 系统中断仍在进行中（来电/控制中心/录屏），interruptionEnded 后 resume
     private var sessionInterrupted: Bool = false
 
@@ -311,6 +307,7 @@ class CameraManager: NSObject, ObservableObject {
     @Published private(set) var readiness: CameraReadiness = .idle
     @Published private(set) var entryPreparation = CameraEntryPreparation()
     private var entryPreparationTask: Task<Void, Never>?
+    private var entryResourcesTask: Task<Void, Never>?
     private var entryTimer = CameraEntryPreparation.ActiveTimer()
     private var entrySceneIsActive = true
     private var entryPipelineIsReady = false
@@ -465,9 +462,6 @@ class CameraManager: NSObject, ObservableObject {
     private func beginCameraPreparation(_ state: CameraReadiness = .configuring) {
         flowDiagnostics.reset(generation: diagnosticGeneration)
         hasReceivedPreviewFrame = false
-        previewRevealTask?.cancel()
-        previewRevealTask = nil
-        previewRevealReady = false
         firstFrameFlag.withLock { $0 = false }
         pixelBufferLock.withLockUnchecked { $0.buffer = nil }
         setReadiness(state)
@@ -476,25 +470,6 @@ class CameraManager: NSObject, ObservableObject {
     private func didReceiveFirstPreviewFrame() {
         hasReceivedPreviewFrame = true
         promoteReadinessIfPossible()
-        schedulePreviewReveal()
-    }
-
-    /// 首帧后驻留 300ms 再放行入场淡入：跳过渲染管线热身的头几个抖动帧与 AE 从初值
-    /// 收敛的第一拍。不等 AE 完全收敛——那要数百 ms 且系统相机同样边显示边收敛；
-    /// 300ms 只覆盖「明显不健康」的开头窗口。
-    private func schedulePreviewReveal() {
-        guard previewRevealTask == nil else { return }
-        let generation = diagnosticGeneration
-        previewRevealTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(300))
-            guard let self, !Task.isCancelled,
-                  self.diagnosticGeneration == generation,
-                  self.sessionIntent.withLock({ $0.permitsStart(generation) }),
-                  self.sessionConfigured, self.hasReceivedPreviewFrame else { return }
-            self.previewRevealReady = true
-            self.refreshEntryReadiness()
-            self.diagnostics.event("preview_reveal_ready", "generation=\(generation)")
-        }
     }
 
     /// UI ready 的单一判定点：session 配置完成、当前周期首帧已到、初始焦段与 ZSL grace 已稳定。
@@ -533,7 +508,7 @@ class CameraManager: NSObject, ObservableObject {
         refreshEntryReadiness()
     }
 
-    func entryResourcesPrepared(generation: UInt64) {
+    private func entryResourcesPrepared(generation: UInt64) {
         guard sessionIntent.withLock({ $0.permitsStart(generation) }) else { return }
         var next = entryPreparation
         next.preparedResources(generation: generation)
@@ -611,6 +586,7 @@ class CameraManager: NSObject, ObservableObject {
 
     private func beginEntryPreparation(generation: UInt64) {
         entryPreparationTask?.cancel()
+        entryResourcesTask?.cancel()
         var next = entryPreparation
         next.begin(generation: generation)
         publishEntry(next)
@@ -619,6 +595,28 @@ class CameraManager: NSObject, ObservableObject {
         if entryFailedLUTKey == entryPreparation.expectedLUTKey, entryFailedLUTKey != nil {
             failEntry(.filmUnavailable)
             return
+        }
+        // Session ownership keeps SwiftUI navigation/toolbar rebuilds from restarting work.
+        let preparation = diagnostics.span("camera_entry_resources", "generation=\(generation)")
+        entryResourcesTask = Task { @MainActor [weak self] in
+            do {
+                async let preview: Void = PreviewMetalResources.warmUpForRenderer()
+                async let processing: Void = FilmProcessor.shared.warmUpForCapture()
+                _ = try await (preview, processing)
+                try Task.checkCancellation()
+                guard let self, self.entryPreparation.generation == generation else {
+                    preparation.end("superseded")
+                    return
+                }
+                self.entryResourcesPrepared(generation: generation)
+                preparation.end()
+            } catch is CancellationError {
+                preparation.end("cancelled")
+            } catch {
+                preparation.end("error", Diagnostics.errorFields(error))
+                guard !Task.isCancelled, let self, self.entryPreparation.generation == generation else { return }
+                self.previewRendererUnavailable()
+            }
         }
         entryPreparationTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
@@ -642,7 +640,7 @@ class CameraManager: NSObject, ObservableObject {
               sessionIntent.withLock({ $0.permitsStart(generation) }) else { return }
         var next = entryPreparation
         next.updateReadiness(generation: generation, session: readiness == .ready,
-            preview: previewRevealReady, capture: isReadyToCapture, pipeline: entryPipelineIsReady)
+            preview: hasReceivedPreviewFrame, capture: isReadyToCapture, pipeline: entryPipelineIsReady)
         publishEntry(next)
     }
 
@@ -656,6 +654,8 @@ class CameraManager: NSObject, ObservableObject {
     private func cancelEntryPreparation() {
         entryPreparationTask?.cancel()
         entryPreparationTask = nil
+        entryResourcesTask?.cancel()
+        entryResourcesTask = nil
         var next = entryPreparation
         next.cancel()
         publishEntry(next)
@@ -1221,11 +1221,13 @@ class CameraManager: NSObject, ObservableObject {
         let queuedAt = Log.now()
         let hardwareCompletedAt = OSAllocatedUnfairLock<TimeInterval?>(initialState: nil)
 
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+        let configuredFocalInfo: DeviceFocalInfo? = await withCheckedContinuation { continuation in
             sessionQueue.async {
+                var preparedFocalInfo: DeviceFocalInfo?
+                var focalFormat: AVCaptureDevice.Format?
                 defer {
                     hardwareCompletedAt.withLock { $0 = ProcessInfo.processInfo.systemUptime }
-                    continuation.resume()
+                    continuation.resume(returning: preparedFocalInfo)
                 }
                 guard intent.withLock({ $0.permitsStart(token) }) else {
                     trace.event("session_start_discarded", "generation=\(token) reason=stale_intent")
@@ -1263,9 +1265,12 @@ class CameraManager: NSObject, ObservableObject {
                     }
 
                     trace.measure("session_format") { self.applyBestFormatAndModes(on: device) }
+                    let info = trace.measure("session_focal_info") { DeviceFocalInfo.from(virtualDevice: device) }
+                    preparedFocalInfo = info
+                    focalFormat = device.activeFormat
                     // 关键：在 startRunning 之前把 videoZoomFactor 设到目标焦段，让 ZSL ring 一开始就
                     // 只收正确 constituent 的帧——见 setInitialFocalLength 注释里的 race 根因 + 修复。
-                    trace.measure("session_initial_focal") { self.setInitialFocalLength(on: device, focal: initialFocal) }
+                    trace.measure("session_initial_focal") { self.setInitialFocalLength(on: device, focal: initialFocal, info: info) }
 
                     let photoSetup = trace.span("session_photo_output")
                     if captureSession.canAddOutput(output) {
@@ -1318,6 +1323,13 @@ class CameraManager: NSObject, ObservableObject {
                 let startTimer = Log.perf("session_start_running", logger: Log.session)
                 trace.measure("session_start_running") { captureSession.startRunning() }
                 startTimer.end()
+                // Reuse the initial-focal snapshot unless AVFoundation renegotiated its format.
+                // Device metadata reads stay on the hardware queue in either case.
+                if focalFormat !== device.activeFormat || preparedFocalInfo == nil {
+                    preparedFocalInfo = trace.measure("session_focal_info_refresh") {
+                        DeviceFocalInfo.from(virtualDevice: device)
+                    }
+                }
                 trace.event("session_output_ready", "running=\(captureSession.isRunning) inputs=\(captureSession.inputs.count) outputs=\(captureSession.outputs.count) photo=\(output.maxPhotoDimensions.width)x\(output.maxPhotoDimensions.height) live_supported=\(output.isLivePhotoCaptureSupported) live=\(output.isLivePhotoCaptureEnabled) preset=\(captureSession.sessionPreset.rawValue) preview_auto=\(videoOutput.automaticallyConfiguresOutputBufferDimensions) preview_proxy=\(videoOutput.deliversPreviewSizedOutputBuffers)")
                 trace.event("camera_configuration_snapshot", "generation=\(token) stabilization=\(videoOutput.connection(with: .video)?.activeVideoStabilizationMode.rawValue ?? -1) \(Self.deviceDiagnosticFields(device))")
                 Log.session.info("session_started running=\(captureSession.isRunning) inputs=\(captureSession.inputs.count) outputs=\(captureSession.outputs.count) max_dims=\(output.maxPhotoDimensions.width)x\(output.maxPhotoDimensions.height)")
@@ -1344,7 +1356,7 @@ class CameraManager: NSObject, ObservableObject {
             trace.event("session_configuration_discarded", "generation=\(token)")
             return
         }
-        guard captureSession.isRunning else {
+        guard captureSession.isRunning, let configuredFocalInfo else {
             setReadiness(.failed)
             return
         }
@@ -1361,8 +1373,7 @@ class CameraManager: NSObject, ObservableObject {
         updateLivePhotoCaptureState(reason: "session_ready")
         observeLivePhotoCaptureState()
 
-        // 虚拟设备：activeFormat / constituentDevices / virtualDeviceSwitchOverVideoZoomFactors 均已可用
-        focalInfo = trace.measure("main_focal_info") { DeviceFocalInfo.from(virtualDevice: device) }
+        focalInfo = configuredFocalInfo
         if !focalInfo.options.contains(currentFocalLength) {
             currentFocalLength = focalInfo.defaultOption
         }
@@ -1522,7 +1533,7 @@ class CameraManager: NSObject, ObservableObject {
         // 这条真正的大头（首次 focal_hardware_apply 735ms vs 之后 1-3ms，预览停帧 ~1.9s）
         // 只有真实的 zoom 变更才会走到——账单落在用户第一次切焦距上。这里做**出-回微
         // ramp**（±0.02 = 0.7% 视野，随即直接写回瞬时归位）：把首次变更的全套成本付在
-        // 入场门控（previewRevealReady）放行之前，用户不可见；快门在 ready 前被 gate，
+        // 入场门控（entryPreparation）放行之前，用户不可见；快门在 ready 前被 gate，
         // ZSL ring 不会流出脏帧。
         if let device = videoCaptureDevice {
             let warmTrace = diagnostics
@@ -1827,8 +1838,8 @@ class CameraManager: NSObject, ObservableObject {
     /// 用 `.restricted`（与 applyFocalLength 一致）：设 videoZoomFactor，硬件在
     /// startRunning 时按它选 constituent；固定 zoom 后系统不再做场景驱动的 fallback 换镜头。
     /// 走 nonisolated：从 sessionQueue.async 直接调用，不跨回 MainActor。
-    nonisolated private func setInitialFocalLength(on device: AVCaptureDevice, focal: FocalLengthOption) {
-        let info = DeviceFocalInfo.from(virtualDevice: device)
+    nonisolated private func setInitialFocalLength(on device: AVCaptureDevice, focal: FocalLengthOption,
+                                                 info: DeviceFocalInfo) {
         let resolved: FocalLengthOption = info.options.contains(focal) ? focal : info.defaultOption
         guard let target = info.constituent(for: resolved) else {
             Log.session.error("focal_init_lock_no_constituent option=\(resolved.rawValue)")

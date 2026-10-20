@@ -11,7 +11,7 @@ import os
 // 锚定**——在 constituent c 的活跃区间里 等效焦距 = c.nativeMm × (zoom / c.lowerBound)。
 // 例：主摄(24mm) 在 1x(zoom=lowerBound) = 24mm，2x = 48mm；长焦(100mm) 同理。正向(virtualZoomFactor)
 // 与反向(equivalentMm)共用这一个模型，保证 picker 标签 / EXIF / 实际视野三者一致。
-struct FocalLengthOption: Identifiable, Hashable {
+struct FocalLengthOption: Identifiable, Hashable, Sendable {
     /// 35mm 等效焦距（整数 mm，如 13 / 24 / 35 / 100）
     let value: Int
     /// 是否落在某颗物理镜头的原生焦距上（无数字裁切、画质最佳）。UI 可据此给原生档加标记。
@@ -35,7 +35,7 @@ struct FocalLengthOption: Identifiable, Hashable {
 // MARK: - 设备焦段信息（基于虚拟设备 constituent + switchOver 阈值）
 
 /// 单颗 constituent 物理镜头的元数据 + 在虚拟设备 zoom 坐标里的归属区间。
-struct ConstituentInfo {
+struct ConstituentInfo: Sendable {
     /// 物理镜头实例（KVO 比对：activePrimaryConstituentDevice === device 即代表已锁到此镜头）
     let device: AVCaptureDevice
     /// 35mm 等效焦距（Apple 标称 nominalFocalLengthIn35mmFilm，如 W=24mm、T=100mm）
@@ -48,7 +48,7 @@ struct ConstituentInfo {
     var isTele: Bool { nativeMm > DeviceFocalInfo.teleNativeMmFloor }
 }
 
-struct DeviceFocalInfo {
+struct DeviceFocalInfo: Sendable {
     /// 硬件镜头分类阈值（35mm 等效标称）：超广角 < 20mm（主摄 24–28mm 均在其上）；
     /// 长焦 > 50mm（主摄最高 28mm，长焦最低 77mm，50 为安全分界）。
     static let ultraWideNativeMmCeiling: Float = 20

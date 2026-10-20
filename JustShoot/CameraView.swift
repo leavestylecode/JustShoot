@@ -454,27 +454,17 @@ struct CameraView: View {
         .onChange(of: capturePipeline.isPrepared) { _, ready in
             cameraManager.updateEntryPipelineReady(ready)
         }
-        .task(id: cameraManager.entryPreparation.generation) {
-            guard let generation = cameraManager.entryPreparation.generation,
-                  cameraManager.entryPreparation.isPreparing else { return }
-            let preparation = cameraManager.diagnostics.span("camera_entry_resources", "generation=\(generation)")
+        .task(id: cameraManager.entryPreparation.isRevealed) {
+            // The hidden picker must not delay first preview or compete with entry preparation.
+            guard cameraManager.entryPreparation.isRevealed, preparedPickerCovers.isEmpty else { return }
             do {
-                async let preview: Void = PreviewMetalResources.warmUp()
-                async let processing: Void = FilmProcessor.shared.warmUpForCapture()
-                async let covers = FilmSourcePickerStrip.preloadCovers(displayScale: displayScale)
-                let (_, _, preparedCovers) = try await (preview, processing, covers)
+                let covers = try await FilmSourcePickerStrip.preloadCovers(displayScale: displayScale)
                 try Task.checkCancellation()
-                guard cameraManager.entryPreparation.generation == generation else { return }
-                preparedPickerCovers = preparedCovers
-                cameraManager.entryResourcesPrepared(generation: generation)
-                preparation.end()
+                preparedPickerCovers = covers
             } catch is CancellationError {
-                preparation.end("cancelled")
                 return
             } catch {
-                preparation.end("error", Diagnostics.errorFields(error))
-                guard !Task.isCancelled, cameraManager.entryPreparation.generation == generation else { return }
-                cameraManager.previewRendererUnavailable()
+                cameraManager.diagnostics.event("camera_picker_covers_failed", Diagnostics.errorFields(error))
             }
         }
         // 编辑当前用户曲线时 ID 不变、内容指纹会变化；监听完整后缀可确保新 LUT 立即预热。
@@ -588,22 +578,28 @@ struct CameraView: View {
 
     private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }
 
+    @ViewBuilder
     private var cameraPreparationScreen: some View {
-        let failure = cameraManager.entryPreparation.failure
-        return PreparationScreen(
-            title: cameraPreparationTitle,
-            message: failure == .permissionDenied
-                ? String(localized: "Allow camera access for JustShoot in Settings") : nil,
-            isLoading: failure == nil,
-            actionTitle: failure == .permissionDenied ? "Open Settings" : "Try Again",
-            onAction: failure.map { failure in
-                {
+        if let failure = cameraManager.entryPreparation.failure {
+            PreparationScreen(
+                title: cameraPreparationTitle,
+                message: failure == .permissionDenied
+                    ? String(localized: "Allow camera access for JustShoot in Settings") : nil,
+                isLoading: false,
+                actionTitle: failure == .permissionDenied ? "Open Settings" : "Try Again",
+                onAction: {
                     if failure == .permissionDenied { openAppSettings() }
                     else { retryCameraEntry() }
-                }
-            },
-            onClose: { dismiss() }
-        )
+                },
+                onClose: { dismiss() }
+            )
+        } else {
+            // Keep unprepared controls covered without adding a loading screen to camera entry.
+            Color.black
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Preparing camera")
+                .accessibilityIdentifier("preparation_screen")
+        }
     }
 
     private var cameraPreparationTitle: LocalizedStringKey {
