@@ -78,6 +78,13 @@ struct CameraLensCaptureGate: Sendable {
         !hasFailed && !isTransitioning && isOnTarget(zoom: zoom, isRamping: isRamping)
     }
 
+    /// Repeating the selected focal length must not reissue its ramp or restart ZSL grace.
+    /// Failed, stale and externally moved targets remain eligible for a real retry.
+    func canReuseSelection(generation: UInt64, zoom: CGFloat, isRamping: Bool) -> Bool {
+        requestStamp?.generation == generation && targetZoom != nil && !hasFailed &&
+            (isTransitioning || isOnTarget(zoom: zoom, isRamping: isRamping))
+    }
+
     /// Returns true once, when a transition completes its uninterrupted grace period.
     mutating func evaluate(zoom: CGFloat, isRamping: Bool, now: Double) -> Bool {
         guard isTransitioning else { return false }

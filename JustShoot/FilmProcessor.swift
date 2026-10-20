@@ -106,10 +106,11 @@ final class FilmProcessor: Sendable {
     func prepareRendering() {
         let timer = Log.perf("film_render_prepare", logger: Log.lut)
         _ = renderingContext()
+        _ = FilmImageKernels.shared
         timer.end()
     }
 
-    /// Initializes the real still-render CIContext before capture admission. This performs
+    /// Initializes the shared still-render CIContext and effect kernels before capture admission. This performs
     /// no synthetic exposure, HEIF encode, Live Photo transcode, or permission request.
     func warmUpForCapture() async throws {
         try Task.checkCancellation()

@@ -247,25 +247,7 @@ extension FilmSource {
 /// 以共享亮度颗粒为主、混入少量独立 RGB 结构。新的人像卷响应使用对称余量，
 /// 避免暗部正噪声比负噪声更强而抬灰；旧任务保留原有余量算法。
 enum FilmGrainRenderer {
-    private static let kernel: CIColorKernel? = {
-        do {
-            guard let url = Bundle.main.url(
-                forResource: "default",
-                withExtension: "metallib"
-            ) else {
-                Log.lut.error("film_grain_kernel_missing")
-                return nil
-            }
-            let libraryData = try Data(contentsOf: url)
-            return try CIColorKernel(
-                functionName: "justShootFilmGrain",
-                fromMetalLibraryData: libraryData
-            )
-        } catch {
-            Log.lut.error("film_grain_kernel_load_failed error=\(error.localizedDescription, privacy: .public)")
-            return nil
-        }
-    }()
+    private static var kernel: CIColorKernel? { FilmImageKernels.shared[.grain] }
 
     static func applying(
         to image: CIImage,

@@ -381,8 +381,6 @@ struct RealtimePreviewView: UIViewRepresentable {
         private var computePipeline: (any MTLComputePipelineState)?
         private var finishPipeline: (any MTLComputePipelineState)?
         private let targetPool = PreviewTargetPool<PreviewTargets>(maximumCount: 3)
-        private var halationBlur: MPSImageGaussianBlur?
-        private var bloomBlur: MPSImageGaussianBlur?
         private var energyDownsampler: MPSImageBilinearScale?
         private let completionGate = PreviewRenderCompletionGate()
         private let gpuStatistics = PreviewGPUStatistics()
@@ -602,6 +600,19 @@ struct RealtimePreviewView: UIViewRepresentable {
                 if !didSubmit { targetPool.recycle(targets, width: requestedWidth, height: requestedHeight) }
             }
 
+            // Never construct MPS kernels in the draw callback or show a partially prepared film.
+            var diffusion: PreviewDiffusionKernelCache.Kernels?
+            if optics.hasLightDiffusion {
+                guard let recipe = PreviewDiffusionKernelCache.Recipe(optics: optics,
+                          width: requestedWidth, height: requestedHeight),
+                      let kernels = PreviewDiffusionKernelCache.shared.request(recipe) else {
+                    flow?.skipped(.pipeline)
+                    inflightSemaphore.signal()
+                    return
+                }
+                diffusion = kernels
+            }
+
             let drawableStartedAt = ProcessInfo.processInfo.systemUptime
             let currentDrawable = view.currentDrawable
             drawableWaitMS = (ProcessInfo.processInfo.systemUptime - drawableStartedAt) * 1_000
@@ -762,25 +773,10 @@ struct RealtimePreviewView: UIViewRepresentable {
 
             encoder.endEncoding()
 
-            if let device = metalDevice, optics.hasLightDiffusion {
+            if let diffusion {
                 energyDownsampler?.encode(commandBuffer: commandBuffer, sourceTexture: targets.energy, destinationTexture: targets.smallEnergy)
-                let diffusionScale = Float(max(targets.smallEnergy.width, targets.smallEnergy.height)) / Float(max(outW, outH))
-                if optics.halationAmount > 0.0001 {
-                    let sigma = params.halationRadiusPx * 0.55 * diffusionScale
-                    if halationBlur?.sigma != sigma {
-                        halationBlur = MPSImageGaussianBlur(device: device, sigma: sigma)
-                        halationBlur?.edgeMode = .zero
-                    }
-                    halationBlur?.encode(commandBuffer: commandBuffer, sourceTexture: targets.smallEnergy, destinationTexture: targets.halation)
-                }
-                if optics.bloomAmount > 0.0001 {
-                    let sigma = params.bloomRadiusPx * 0.45 * diffusionScale
-                    if bloomBlur?.sigma != sigma {
-                        bloomBlur = MPSImageGaussianBlur(device: device, sigma: sigma)
-                        bloomBlur?.edgeMode = .zero
-                    }
-                    bloomBlur?.encode(commandBuffer: commandBuffer, sourceTexture: targets.smallEnergy, destinationTexture: targets.bloom)
-                }
+                diffusion.halation?.encode(commandBuffer: commandBuffer, sourceTexture: targets.smallEnergy, destinationTexture: targets.halation)
+                diffusion.bloom?.encode(commandBuffer: commandBuffer, sourceTexture: targets.smallEnergy, destinationTexture: targets.bloom)
             }
             guard let composite = commandBuffer.makeComputeCommandEncoder() else {
                 flow?.skipped(.encoder)

@@ -119,22 +119,9 @@ extension FilmPreset {
 /// → 高斯模糊 → 与底图做加色合成（自定义 composite kernel 染色），全 GPU、无自研
 /// 采样坐标换算，48MP 一次渲染下成本远小于 HEIF 编码本身。
 enum FilmOpticsRenderer {
-    private static let metalLibraryData: Data? = {
-        guard let url = Bundle.main.url(forResource: "default", withExtension: "metallib") else {
-            Log.lut.error("film_optics_kernel_missing")
-            return nil
-        }
-        return try? Data(contentsOf: url)
-    }()
-
-    private static func kernel(_ name: String) -> CIColorKernel? {
-        guard let data = metalLibraryData else { return nil }
-        return try? CIColorKernel(functionName: name, fromMetalLibraryData: data)
-    }
-
-    private static let headroomKernel = kernel("justShootHeadroom")
-    private static let highlightKernel = kernel("justShootHighlightEnergy")
-    private static let compositeKernel = kernel("justShootHaloComposite")
+    private static var headroomKernel: CIColorKernel? { FilmImageKernels.shared[.headroom] }
+    private static var highlightKernel: CIColorKernel? { FilmImageKernels.shared[.highlight] }
+    private static var compositeKernel: CIColorKernel? { FilmImageKernels.shared[.composite] }
 
     /// 肩部保护（去饱和 + 软压余量）：逐像素，可与 LUT 输出直接串接。
     static func applyingHeadroom(to image: CIImage, parameters: FilmOpticsParameters) -> CIImage {
@@ -218,15 +205,7 @@ enum FilmOpticsRenderer {
 /// （快门时刻的场景色温快照）在 CPU 算好传入；单位增益时 kernel 内部直接返回原值。
 /// 与 Metal 预览共享 FilmOpticsMath.h 的同一段数学。
 enum FilmChromaticRenderer {
-    private static let kernel: CIColorKernel? = {
-        guard let url = Bundle.main.url(forResource: "default", withExtension: "metallib") else {
-            Log.lut.error("film_chromatic_kernel_missing")
-            return nil
-        }
-        let data = try? Data(contentsOf: url)
-        guard let data else { return nil }
-        return try? CIColorKernel(functionName: "justShootChromaticGain", fromMetalLibraryData: data)
-    }()
+    private static var kernel: CIColorKernel? { FilmImageKernels.shared[.chromatic] }
 
     static func applying(to image: CIImage, gain: SIMD3<Float>, protectHighlights: Bool = false) -> CIImage {
         let isUnit: Bool

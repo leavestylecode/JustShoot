@@ -2,6 +2,34 @@ import XCTest
 @testable import JustShoot
 
 final class CameraLensCaptureGateTests: XCTestCase {
+    func testDuplicateSelectionKeepsItsHardwareRequestAndOriginalGrace() {
+        var gate = CameraLensCaptureGate()
+        let stamp = CameraLensCaptureGate.RequestStamp(generation: 1, focalSequence: 2)
+        gate.begin(zoom: 4, graceMs: 150, hardwarePending: true, stamp: stamp)
+        XCTAssertTrue(gate.canReuseSelection(generation: 1, zoom: 2, isRamping: true))
+        gate.hardwareApplied()
+        XCTAssertFalse(gate.evaluate(zoom: 4, isRamping: false, now: 10))
+        XCTAssertTrue(gate.canReuseSelection(generation: 1, zoom: 4, isRamping: false))
+        XCTAssertTrue(gate.evaluate(zoom: 4, isRamping: false, now: 10.151))
+        XCTAssertTrue(gate.isReady(zoom: 4, isRamping: false))
+        XCTAssertEqual(gate.requestStamp, stamp)
+    }
+
+    func testFailedStaleOrMovedSelectionsRemainEligibleForRetry() {
+        var gate = CameraLensCaptureGate()
+        XCTAssertFalse(gate.canReuseSelection(generation: 1, zoom: 4, isRamping: false))
+        gate.begin(zoom: 4, graceMs: 150, stamp: .init(generation: 1, focalSequence: 1))
+        XCTAssertFalse(gate.canReuseSelection(generation: 2, zoom: 4, isRamping: false))
+        gate.fail()
+        XCTAssertFalse(gate.canReuseSelection(generation: 1, zoom: 4, isRamping: false))
+        gate.begin(zoom: 4, graceMs: 0, stamp: .init(generation: 1, focalSequence: 2))
+        XCTAssertTrue(gate.evaluate(zoom: 4, isRamping: false, now: 10))
+        XCTAssertFalse(gate.canReuseSelection(generation: 1, zoom: 2, isRamping: false))
+        XCTAssertFalse(gate.canReuseSelection(generation: 1, zoom: 4, isRamping: true))
+        gate.reset()
+        XCTAssertFalse(gate.canReuseSelection(generation: 1, zoom: 4, isRamping: false))
+    }
+
     func testPhysicalSourceChangeAfterZoomSettlesRequiresANewFullGrace() {
         let stamp = CameraLensCaptureGate.RequestStamp(generation: 1, focalSequence: 11)
         var gate = CameraLensCaptureGate()
