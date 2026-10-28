@@ -15,7 +15,12 @@ final class ColorTemperatureLUTTests: XCTestCase {
     }
 
     private func sample(_ lut: CubeLUT, red: Int = 2, green: Int = 2, blue: Int = 2) -> [Float] {
-        let offset = (blue * lut.dimension * lut.dimension + green * lut.dimension + red) * 16
+        // Test coordinates refer to a five-point source grid, regardless of the
+        // finer grid used to bake a nonlinear white-balance adjustment.
+        let r = red * (lut.dimension - 1) / 4
+        let g = green * (lut.dimension - 1) / 4
+        let b = blue * (lut.dimension - 1) / 4
+        let offset = (b * lut.dimension * lut.dimension + g * lut.dimension + r) * 16
         return lut.data.withUnsafeBytes { bytes in
             (0..<4).map { bytes.loadUnaligned(fromByteOffset: offset + $0 * 4, as: Float.self) }
         }
@@ -26,8 +31,8 @@ final class ColorTemperatureLUTTests: XCTestCase {
         let builder = ColorTemperatureLUT()
         let base = try identity()
         let result = try await builder.prepare(base: base, baseKey: "identity", selection: .temperature(5_100))
-        XCTAssertEqual(result.dimension, base.dimension)
-        XCTAssertEqual(result.data.count, base.data.count)
+        XCTAssertEqual(result.dimension, 65)
+        XCTAssertEqual(result.data.count, 65 * 65 * 65 * 16)
         XCTAssertNotEqual(result.data, base.data)
         XCTAssertEqual(sample(result)[3], 1, accuracy: 0.001)
     }
@@ -74,14 +79,15 @@ final class ColorTemperatureLUTTests: XCTestCase {
 
     func testCacheHasByteAndEntryBounds() async throws {
         let base = try identity(dimension: 3)
-        let builder = ColorTemperatureLUT(maximumCacheBytes: base.data.count * 2)
+        let preparedBytes = 65 * 65 * 65 * 16
+        let builder = ColorTemperatureLUT(maximumCacheBytes: preparedBytes * 2)
         for kelvin: Float in [3_000, 4_000, 5_000, 6_000] {
             _ = try await builder.prepare(base: base, baseKey: "identity", selection: .temperature(kelvin))
         }
         let count = await builder.cachedCount
         let bytes = await builder.cachedBytes
         XCTAssertEqual(count, 2)
-        XCTAssertLessThanOrEqual(bytes, base.data.count * 2)
+        XCTAssertLessThanOrEqual(bytes, preparedBytes * 2)
     }
 
     func testInvalidTemperatureFailsWithoutTouchingHardware() async throws {
@@ -98,8 +104,8 @@ final class ColorTemperatureLUTTests: XCTestCase {
         let source = FilmSource.preset(.fujiC200)
         let base = try await builder.prepare(source: source, curve: .builtIn(.none), selection: .automatic)
         let adjusted = try await builder.prepare(source: source, curve: .builtIn(.none), selection: .temperature(5_100))
-        XCTAssertEqual(adjusted.dimension, base.dimension)
-        XCTAssertEqual(adjusted.data.count, base.data.count)
+        XCTAssertEqual(adjusted.dimension, max(65, base.dimension))
+        XCTAssertEqual(adjusted.data.count, adjusted.dimension * adjusted.dimension * adjusted.dimension * 16)
         XCTAssertNotEqual(adjusted.data, base.data)
     }
 

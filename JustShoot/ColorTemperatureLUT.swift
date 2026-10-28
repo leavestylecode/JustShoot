@@ -55,9 +55,9 @@ actor ColorTemperatureLUT {
     }
 
     private func bake(base: CubeLUT, adjustment recipe: ResolvedCameraColorAdjustment) throws -> CubeLUT {
-        let dimension = base.dimension
+        let dimension = max(65, base.dimension)
         guard (2...CubeLUT.maximumDimension).contains(dimension),
-              base.data.count == dimension * dimension * dimension * 4 * MemoryLayout<Float>.stride else {
+              base.data.count == base.dimension * base.dimension * base.dimension * 4 * MemoryLayout<Float>.stride else {
             throw CubeLUT.ParseError.malformed
         }
         let width = dimension * dimension
@@ -86,7 +86,7 @@ actor ColorTemperatureLUT {
         guard let adjusted = adjustment.outputImage,
               let cube = CIFilter(name: "CIColorCubeWithColorSpace") else { throw CubeLUT.ParseError.malformed }
         cube.setValue(adjusted, forKey: kCIInputImageKey)
-        cube.setValue(dimension, forKey: "inputCubeDimension")
+        cube.setValue(base.dimension, forKey: "inputCubeDimension")
         cube.setValue(base.data, forKey: "inputCubeData")
         cube.setValue(colorSpace, forKey: "inputColorSpace")
         guard let output = cube.outputImage else { throw CubeLUT.ParseError.malformed }

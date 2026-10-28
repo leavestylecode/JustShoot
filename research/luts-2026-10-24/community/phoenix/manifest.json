@@ -1,0 +1,64 @@
+{
+  "source_page": "https://bicyclelad.com/harman-phoenix-200-lightroom-preset-v2/",
+  "download": "https://bicyclelad.com/content/files/2024/01/phoenix-lut.zip",
+  "retrieved_at": "2026-10-24",
+  "sha256": "a364a85256fa368f5b75e482b0057c039183d95adbe82207b8e2ec0241f031ea",
+  "app_redistribution_cleared": false,
+  "files": [
+    {
+      "file": "lut/",
+      "bytes": 0
+    },
+    {
+      "file": "lut/phoenix200-punchy.cube",
+      "bytes": 7078015
+    },
+    {
+      "file": "__MACOSX/lut/._phoenix200-punchy.cube",
+      "bytes": 298
+    },
+    {
+      "file": "lut/Neutral_25.png",
+      "bytes": 1043
+    },
+    {
+      "file": "__MACOSX/lut/._Neutral_25.png",
+      "bytes": 176
+    },
+    {
+      "file": "lut/phoenix-flat.png",
+      "bytes": 1699333
+    },
+    {
+      "file": "lut/phonenix-punchy.png",
+      "bytes": 1668648
+    },
+    {
+      "file": "__MACOSX/lut/._phonenix-punchy.png",
+      "bytes": 233
+    },
+    {
+      "file": "lut/Neutral_64.png",
+      "bytes": 12825
+    },
+    {
+      "file": "__MACOSX/lut/._Neutral_64.png",
+      "bytes": 232
+    },
+    {
+      "file": "lut/phoenix200-flat.cube",
+      "bytes": 7078015
+    },
+    {
+      "file": "__MACOSX/lut/._phoenix200-flat.cube",
+      "bytes": 298
+    }
+  ],
+  "selection": {
+    "file": "lut/phoenix200-punchy.cube",
+    "variant": "Punchy & Crunchy v2",
+    "dimension": 64,
+    "sha256": "8bf88fdfec58d881fcf1569b1a766c4a36bb9a48d831750b16b1300b44ae546a",
+    "criterion": "Appearance and processed sRGB input; selected over Flat in diagnostic sample comparisons"
+  }
+}

@@ -14,12 +14,13 @@ enum PhotoImageEncoder {
         context: CIContext,
         colorSpace: CGColorSpace,
         legacyQuality: CGFloat? = nil,
+        mode: PhotoEncodingPolicy.Mode = .automatic,
         cancellation: CaptureRenderCancellation? = nil
     ) -> Output? {
         guard !image.extent.isEmpty, !image.extent.isInfinite else { return nil }
         for codec in PhotoEncodingPolicy.Codec.allCases {
             guard cancellation?.isCancelled != true else { return nil }
-            let decision = PhotoEncodingPolicy.decision(for: codec, legacyQuality: legacyQuality)
+            let decision = PhotoEncodingPolicy.decision(for: codec, legacyQuality: legacyQuality, mode: mode)
             let options = [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: decision.quality]
             let data: Data?
             switch codec {

@@ -21,6 +21,7 @@ enum FilmImagePipeline {
             filter.setValue(lut.dimension, forKey: "inputCubeDimension")
             filter.setValue(lut.data, forKey: "inputCubeData")
             filter.setValue(colorSpace, forKey: "inputColorSpace")
+            filter.setValue(false, forKey: "inputExtrapolate")
             self.filter = filter
         }
 

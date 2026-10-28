@@ -1,0 +1,62 @@
+{
+  "validated": true,
+  "installedCoverCount": 331,
+  "requestedCoverCount": 331,
+  "completedThisContinuation": 105,
+  "remainingToApprove": 0,
+  "simulator": {
+    "name": "iPhone 17",
+    "runtime": "iOS 26.4",
+    "id": "06CBF94A-F235-4319-A5F9-3548DDC86AD2"
+  },
+  "buildEvidence": "final-build-20261027.json",
+  "testEvidence": "final-focused-tests-20261027.json",
+  "packageResourceMatchFile": "final-bundle-resource-check.json",
+  "build": {
+    "status": "SUCCEEDED",
+    "durationMs": 7409,
+    "target": "simulator"
+  },
+  "test": {
+    "status": "SUCCEEDED",
+    "durationMs": 11463,
+    "counts": {
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0
+    },
+    "target": "simulator"
+  },
+  "uiInspected": [
+    "Library mixed brand grid; cover images visible without placeholders or clipping",
+    "ORWO brand filter, all 11 covers, including final UK18 and UT18",
+    "New OrwoChrome UT18 detail with full cover",
+    "Red color filter across multiple brands"
+  ],
+  "screenshots": [
+    {
+      "source": "/var/folders/7n/2347nkq95kx12xjm0d2vwn500000gn/T/screenshot_optimized_1786a642-5d12-4ebf-8b59-b5b6a6969b93.jpg",
+      "destination": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/runtime-mixed-grid-final.jpg"
+    },
+    {
+      "source": "/var/folders/7n/2347nkq95kx12xjm0d2vwn500000gn/T/screenshot_optimized_e56054b3-b574-456e-81b0-7e90af93d378.jpg",
+      "destination": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/runtime-orwo-grid-final.jpg"
+    },
+    {
+      "source": "/var/folders/7n/2347nkq95kx12xjm0d2vwn500000gn/T/screenshot_optimized_220cdacf-1c1e-44dc-a696-9323e49a693a.jpg",
+      "destination": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/runtime-ut18-detail-final.jpg"
+    },
+    {
+      "source": "/var/folders/7n/2347nkq95kx12xjm0d2vwn500000gn/T/screenshot_optimized_64e15944-2779-4119-b187-53b4e77f1c76.jpg",
+      "destination": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/runtime-red-filter-final.jpg"
+    }
+  ],
+  "finalVisualReview": {
+    "covers": 331,
+    "pages": 14,
+    "mixedAndBeforeAfter": true
+  },
+  "assetScopeAudit": "asset-validation.json",
+  "physicalCameraMatchingComplete": false,
+  "scope": "Library cover resource replacement and display validation; camera multi-scene calibration remains outside this task."
+}

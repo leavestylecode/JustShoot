@@ -1,0 +1,58 @@
+Portra 400：现成社区 LUT 与原作者购买渠道
+核对日期：2026-10-24
+
+1. Kodak 官方
+本次搜索未找到 Kodak 公开发布的 Portra 400 .cube 下载。
+官方产品资料是胶片数据表，不能作为官方 LUT 下载：
+https://imaging.kodakalaris.com/sites/default/files/files/resources/e4050_portra_400.pdf
+此结论仅表示本次未查到，不证明官方从未发布过。
+
+2. 已下载：G'MIC Film LUTs Collection / YahiaAngelo
+https://github.com/YahiaAngelo/Film-Luts
+固定提交：af957b631a304e6be94778b96cb3395de3438e9f
+本目录 gmic/ 内四份 .cube 为原始字节，没有重采样或修改：
+kodak_portra_400.cube
+kodak_portra_400_+.cube
+kodak_portra_400_++.cube
+kodak_portra_400_-.cube
+
+推荐来源是 NoFusion 社区的直接使用反馈，帖主特别列出 Portra 400，
+同时明确表示不能称其为 1:1 准确还原：
+https://www.reddit.com/r/nofusion/comments/1pamein/an_indispensable_resource_for_free_film_luts/
+
+四份文件均为 13^3，2197 个 RGB 节点，单位输入域，输出有限且在 0–1 内。
+中性灰节点的加权编码 RGB 无倒退；通过项目现有 compile_cube 的内存编译检查。
+这些检查仅验证文件结构和编译兼容性，不证明胶片准确度、网格充分性或 App 效果。
+没有 App 内导入、模拟器或真机验证。没有向 App 的 Resources 添加文件。
+没有找到这些文件明确的输入传递函数说明，不应仅凭 .cube 扩展名直接替换内置 LUT。
+不要把文件名的 + / ++ / - 自动解释为曝光 EV；当前来源没有给出该定义。
+
+原仓库 README.md 与 LICENSE 均按原始字节保存。
+仓库虽然带 MIT 文件，但 README 又声明维护者不拥有 LUT，并提示第三方权利。
+因此此下载不构成 App 内再分发授权已确认。来源、大小和 SHA-256 见 gmic/manifest.json；
+节点检查与内存编译结果见 validation.json。
+
+上游历史背景：Pat David 的 G'MIC 胶片模拟。
+作者自述这些是带有创作解释的近似，不能视为实测胶片标定：
+https://patdavid.net/2013/08/film-emulation-presets-in-gmic-gimp/
+该历史背景不替代对本次下载文件的具体授权核验。
+
+3. 付费优先试用候选：ANDP FilmStyles Kodak Portra 400
+https://www.andpfilmstyles.com/product/kodak-portra-400/
+本次页面显示 v1.3，7.50 EUR + VAT，含 33^3 与 65^3 .cube，标注 sRGB / Rec.709。
+这是基于项目输入适配、现成文件格式及社区推荐作出的试用优先级判断，
+不是独立测试得出的准确度排名，也不是 Kodak 官方产品。
+社区反馈：
+https://www.reddit.com/r/postprocessing/comments/1dxecfu/looking_for_that_kodak_portra_400_look/
+
+作者 2026-08 公告说明旧版偏暖并计划更新，旧外观将作为 Legacy 保留。
+旧社区评价不能直接证明当前新版的外观或质量：
+https://www.andpfilmstyles.com/august-2026-update/
+
+普通购买许可允许摄影作品用途，但明确排除软件/App 内嵌和再分发，
+作者提供单独的 application integration 授权询价渠道：
+https://www.andpfilmstyles.com/terms-and-conditions/
+没有购买、支付、发送询价消息或下载付费文件。
+
+没有找到足以认定“全社区最推荐”或“最准确”的统一测评。
+本次实际获取的是上面的免费现成文件，非上一轮根据光谱模型生成的候选。

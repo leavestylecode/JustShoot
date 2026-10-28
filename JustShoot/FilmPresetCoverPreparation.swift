@@ -1,6 +1,6 @@
 import UIKit
 
-/// Await only the eight bundled presets needed by the home grid or camera picker.
+/// Await the bundled presets needed by the home grid or camera picker.
 /// The returned snapshot owns its images even if NSCache evicts an entry before first display.
 enum FilmPresetCoverPreparation {
     enum PreparationError: Error { case missingCover(FilmPreset) }
@@ -29,8 +29,9 @@ enum FilmPresetCoverPreparation {
         try Task.checkCancellation()
         return try await withThrowingTaskGroup(of: (FilmPreset, UIImage).self) { group in
             for preset in FilmPreset.allCases {
+                guard let imageName = preset.libraryCardImage else { continue }
                 group.addTask {
-                    guard let image = await FilmCardImageCache.shared.loadImage(imageName: preset.libraryCardImage,
+                    guard let image = await FilmCardImageCache.shared.loadImage(imageName: imageName,
                         maxPixel: maxPixel) else {
                         try Task.checkCancellation()
                         throw PreparationError.missingCover(preset)

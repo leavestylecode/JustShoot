@@ -1,0 +1,28 @@
+{
+  "source": "https://rawtherapee.com/shared/HaldCLUT.zip",
+  "documentation": "https://rawpedia.pixls.us/film_simulation/",
+  "zipSHA256": "0ffca81f30c72d7bbb85adab0ed98bbdeb0e1034cd6f5986f9f993bb66999dc2",
+  "files": [
+    {
+      "resourceName": "KodakPortra400",
+      "originalPath": "HaldCLUT/Color/Kodak/Kodak Portra 400 2.png",
+      "file": "Kodak Portra 400 2.png",
+      "sha256": "5a89f5dd12753c4daddccbb9b19087a1c89472218fd7c3086e6eb37b2aac3bb1",
+      "dimension": 144
+    },
+    {
+      "resourceName": "FujiPro400H",
+      "originalPath": "HaldCLUT/Color/Fuji/Fuji 400H 2.png",
+      "file": "Fuji 400H 2.png",
+      "sha256": "6368343e1b72350d225418d391973949825c0ce15367446a4c6e371dc5b86141",
+      "dimension": 144
+    },
+    {
+      "resourceName": "FujiProvia100F",
+      "originalPath": "HaldCLUT/Color/Fuji/Fuji Provia 100F.png",
+      "file": "Fuji Provia 100F.png",
+      "sha256": "bcc61690ab5d41236e5d777d37ec75156659165d0889ca2448f5c04b0435deb4",
+      "dimension": 144
+    }
+  ]
+}

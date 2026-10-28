@@ -1,0 +1,513 @@
+{
+  "date": "2026-10-24",
+  "scope": "Unified quality-first sRGB LUT pipeline for all 17 bundled looks and custom imports; Apple ProRAW development, common preview/Live look, durable recovery and final encoding.",
+  "implementation": {
+    "plan": "PhotoCapturePlan version 2. Every new source uses displaySRGB. Quality prefers Apple ProRAW; processed HEIF/JPEG when unavailable. Live Photo is explicit. Bayer RAW is not an automatic substitute.",
+    "texture": "Retains per-look grain and optics. New plans disable the old additional illuminant-dependent chromatic gain. Existing journals replay their frozen profile.",
+    "output": "One final encoding, sRGB ICC, normalized orientation and dimensions. Prefer 10-bit HEIC at quality 0.95; fall back to HEIC8 then JPEG at 0.97 only if codec unavailable.",
+    "recovery": "Native source, composed cube, render profile and versioned RAW recipe are checkpointed before releasing the capture reservation. Version 2 plans require recipe 4 and matching RAW/input-space contracts. Legacy plans/recipes remain readable. Sources remain until Photos and index complete.",
+    "concurrency": "Decode/render/import normalization and cube composition run off MainActor. Bounded render reservations and caches, serial render worker, cancellation of unused preparations, atomic custom LUT writes and cleanup on save failure.",
+    "compatibility": "New captures use one sRGB contract. Historical plan version 1 and RAW recipes 1/2/3 replay their frozen behavior. Unversioned legacy encoding defaults and explicit quality settings remain readable. No SwiftData schema change.",
+    "covers": "Only matching catalog packaging bound. Missing artwork uses a film icon. Generation remains paused.",
+    "unifiedRAW": "DNG -> full-precision CIRAWFilter development preserving per-image baseline exposure, local tone/gain, global tone, gamut mapping and DNG neutral. SDR output. No intermediate 8-bit encode. RawCaptureRecipe version 4 -> the same frozen display-sRGB WB/look/user-curve cube used by the viewfinder -> grain/optics -> final sRGB file.",
+    "officialFujifilm": "Official-derived display interpretations (.jslut) are canonical across RAW, processed, preview and Live. Exact scene-linear tables (.jsraw) are retained only for frozen legacy jobs and regression checks. No new stock-specific RAW branch or runtime F-Log2 stage.",
+    "whiteBalance": "Manual temperature/tint is composed once relative to measured camera AWB, ahead of the stock look and user curve. New RAW recipes leave the decoder at the DNG neutral and do not reapply manual WB.",
+    "customImport": "A background actor validates 3D .cube files, requires a known complete SDR contract (sRGB or Rec.709 Gamma 2.4), normalizes both input and output into sRGB and atomically stores a compiled .jslut. Original sRGB samples are preserved. Gamma 2.4 conversion uses at least 65 cubed samples. Existing custom .cube imports retain their historical sRGB interpretation; no model migration.",
+    "customImportLimits": "Camera Log/HDR, mixed input/output spaces and 1D/shaper workflows require external color-managed conversion to sRGB-to-sRGB. Transfer functions cannot be inferred reliably from arbitrary 3D cube samples. The UI provides explicit color-space selection and compatibility help.",
+    "bundledLookRefinement": "skin-shadow-v1: bounded input-color skin hue/chroma and shadow-separation refinement baked off-main into the common prepared LUT for new built-in look captures and preview. Custom imports retain exact colors; original tables and historical frozen capture bytes remain intact. Same cache budget; no added per-frame pass."
+  },
+  "tests": {
+    "simulator": {
+      "name": "iPhone 17",
+      "os": "26.4.1",
+      "passed": 419,
+      "failed": 0,
+      "skipped": 3,
+      "resultBundle": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-24T15-45-28-440Z_pid9844_7bf71c6e.xcresult",
+      "importUI": "System picker -> Rec.709 Gamma 2.4 -> successful import. Compiled custom LUT reloaded at dimension 65 and custom filter appeared in the film list."
+    },
+    "device": {
+      "name": "iPhone Happy",
+      "model": "iPhone 17 Pro Max",
+      "os": "27.0.1",
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "resultBundle": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_device_2026-10-24T15-46-47-232Z_pid9844_cc865c6f.xcresult",
+      "flows": [
+        {
+          "look": "fujiProvia100F",
+          "format": "appleProRAW",
+          "inputSpace": "displaySRGB",
+          "dimensions": "3024x4032",
+          "deliveredToPhotosAndIndex": true,
+          "deliveryMs": 980,
+          "completeMsIncludingDiagnosticWork": 23844
+        },
+        {
+          "look": "kodakPortra400",
+          "format": "appleProRAW",
+          "inputSpace": "displaySRGB",
+          "dimensions": "3024x4032",
+          "deliveredToPhotosAndIndex": true,
+          "deliveryMs": 888,
+          "completeMsIncludingDiagnosticWork": 2955
+        },
+        {
+          "look": "custom Rec.709 Gamma 2.4 normalized import",
+          "format": "appleProRAW",
+          "inputSpace": "displaySRGB",
+          "dimensions": "3024x4032",
+          "deliveredToPhotosAndIndex": true,
+          "deliveryMs": 789,
+          "completeMsIncludingDiagnosticWork": 2642
+        },
+        {
+          "look": "custom Rec.709 Gamma 2.4 normalized import",
+          "format": "livePhoto",
+          "inputSpace": "displaySRGB",
+          "dimensions": "3024x4032",
+          "deliveredToPhotosAndIndex": true,
+          "deliveryMs": 2147,
+          "completeMsIncludingDiagnosticWork": 3903
+        }
+      ],
+      "sameSourceLooks": {
+        "count": 17,
+        "render": "One native ProRAW source; every bundled look passed through full-resolution CapturePhotoRenderer with its grain/optics and final encoding. Encoded files were decoded for inspection. No nearly-black output.",
+        "metricsSpace": "Encoded sRGB weighted luma; not linear luminance, EV or colorimetric accuracy.",
+        "results": [
+          {
+            "look": "fujiRawVelvia",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.51678216,
+            "encodedSRGBP90Luma": 0.59743494,
+            "outputBytes": 1898910
+          },
+          {
+            "look": "fujiRawASTIA",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.52418035,
+            "encodedSRGBP90Luma": 0.61233664,
+            "outputBytes": 1975890
+          },
+          {
+            "look": "fujiRawClassicChrome",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.5227706,
+            "encodedSRGBP90Luma": 0.6228438,
+            "outputBytes": 2135138
+          },
+          {
+            "look": "fujiRawRealaAce",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.51931,
+            "encodedSRGBP90Luma": 0.63384366,
+            "outputBytes": 2325183
+          },
+          {
+            "look": "fujiRawProNegStd",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.5129891,
+            "encodedSRGBP90Luma": 0.6030718,
+            "outputBytes": 1887608
+          },
+          {
+            "look": "fujiRawClassicNeg",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.5319512,
+            "encodedSRGBP90Luma": 0.6630975,
+            "outputBytes": 2828469
+          },
+          {
+            "look": "fujiRawETERNA",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.51274467,
+            "encodedSRGBP90Luma": 0.60340595,
+            "outputBytes": 1895739
+          },
+          {
+            "look": "fujiRawEternaBB",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.53270847,
+            "encodedSRGBP90Luma": 0.6658612,
+            "outputBytes": 2826302
+          },
+          {
+            "look": "fujiRawACROS",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.50562066,
+            "encodedSRGBP90Luma": 0.6021505,
+            "outputBytes": 1870352
+          },
+          {
+            "look": "fujiC200",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.5840378,
+            "encodedSRGBP90Luma": 0.6704185,
+            "outputBytes": 6363269
+          },
+          {
+            "look": "fujiPro400H",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.579658,
+            "encodedSRGBP90Luma": 0.6612346,
+            "outputBytes": 5976368
+          },
+          {
+            "look": "fujiProvia100F",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.5116329,
+            "encodedSRGBP90Luma": 0.60260624,
+            "outputBytes": 1981630
+          },
+          {
+            "look": "kodakPortra400",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.5622981,
+            "encodedSRGBP90Luma": 0.66785973,
+            "outputBytes": 6209653
+          },
+          {
+            "look": "kodakVision5219",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.5391441,
+            "encodedSRGBP90Luma": 0.62748605,
+            "outputBytes": 6482419
+          },
+          {
+            "look": "kodakVision5203",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.5374402,
+            "encodedSRGBP90Luma": 0.6222501,
+            "outputBytes": 4616167
+          },
+          {
+            "look": "kodak5207",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.53841776,
+            "encodedSRGBP90Luma": 0.62494236,
+            "outputBytes": 6299547
+          },
+          {
+            "look": "harmanPhoenix200",
+            "baselineExposureEV": 4.545633,
+            "encodedSRGBMedianLuma": 0.56171465,
+            "encodedSRGBP90Luma": 0.66054314,
+            "outputBytes": 6808960
+          }
+        ]
+      },
+      "rawCubeParity": "All 17 looks with manual temperature/tint agree with the reference raw development plus identical composed cube within max float error 0.0001.",
+      "metalCIParity": "All 17 look probe sets passed max RGB error tolerance 0.003 on this device. This is transform parity, not a pixel-match claim for different camera inputs."
+    },
+    "customImportRegression": "Five tests: sRGB byte preservation, bilateral gamma 2.4 normalization, compiled and legacy reload, cancellation cleanup, invalid shaper/domain rejection.",
+    "planRegression": "Four tests, including rejection of legacy RAW recipes by new plans while preserving old plan compatibility.",
+    "finalDeviceBuild": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_device_2026-10-24T15-48-41-833Z_pid9844_bb2461c5.log",
+    "finalApp": {
+      "installed": true,
+      "launched": true,
+      "processID": 5997
+    },
+    "localization": "All entries from /tmp/justshoot-localizable-before-raw.json preserved; new English and Simplified Chinese import/help strings added.",
+    "diffCheck": "passed",
+    "proofImages": {
+      "all17": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/unified-lut-pipeline/all-17-looks.jpg",
+      "previewVsRAW": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/unified-lut-pipeline/preview-vs-raw.jpg",
+      "importUI": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/unified-lut-pipeline/custom-lut-import.jpg"
+    }
+  },
+  "limits": [
+    "The viewfinder and captured RAW use the same LUT/white-balance/user-curve transform, but their camera inputs differ. Apple computational processing, local tone, denoise and capture timing can still change brightness/detail. Pixel-identical preview/final is not promised.",
+    "The same-source 17-look check used an indoor fabric/cable scene. It validates exposure, transforms, render and encoding; it does not establish that every look is subjectively best or colorimetrically accurate.",
+    "A controlled chart, skin, daylight, tungsten and night scene set is still needed to tune preview/final scene differences and assess each look aesthetically.",
+    "Device runs validate functionality, not a statistical performance improvement. First-flow completion includes all-17 diagnostic rendering and is not a normal shutter performance measurement.",
+    "No generated cover artwork has been installed. Existing matching packaging remains; absent covers use the film icon."
+  ],
+  "references": [
+    "https://developer.apple.com/videos/play/wwdc2021/10160/",
+    "https://developer.apple.com/documentation/avfoundation/capturing-photos-in-raw-and-apple-proraw-formats",
+    "https://developer.apple.com/documentation/avfoundation/avcapturephotosettings/photoqualityprioritization"
+  ],
+  "exposureIncident": {
+    "symptom": "User reported all ten new official-derived Fujifilm looks nearly black; old display LUTs exposed normally.",
+    "cause": "The original scene-linear renderer cleared per-image DNG baselineExposure without restoring the look exposure reference, and also disabled ProRAW local dynamic-range adaptation. The old display-LUT renderer retained both.",
+    "correction": "Keep the DNG exposure reference and per-image local gain map in RAW recipe version 3; disable Apple global tone curve separately and apply the official film curve once. No fixed arbitrary exposure lift or image-peak normalization.",
+    "tablesChanged": false,
+    "regression": "A synthetic DNG pair represents the same scene, one stored four stops lower with a compensating +4 EV DNG baseline. Before the fix all ten looks failed with maximum sRGB error 0.69–0.96. After the fix all ten match within the 0.01 tolerance.",
+    "priorValidationGap": "Numeric LUT tests and successful Photos saves did not validate real-photo exposure. Prior device PROVIA output was dark and was incorrectly accepted.",
+    "deviceStatus": "Validated on unlocked iPhone Happy (iPhone 17 Pro Max, iOS 27.0.1). All ten looks rendered from the same physical-camera DNG; final files have visible image data. Provia ProRAW, Portra ProRAW and Portra Live Photo passed durable queue, Photos save and metadata checks. Final app installed and launched.",
+    "deviceBuildLog": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_device_2026-10-24T15-19-41-802Z_pid9844_071b8b9f.log",
+    "comparison": "Same original physical-camera DNG from the first run, replayed through old and final renderers. Review thumbnails stored outside the repository under the task visualization directory.",
+    "currentPipeline": "New captures now use version 4 full Apple RAW development and the common display-sRGB LUT. Version 3 correction is retained for frozen legacy jobs. The current all-17 final encoded replay also passes at DNG baseline +4.545633 EV."
+  },
+  "previousValidation": {
+    "simulator": {
+      "name": "iPhone 17",
+      "os": "26.4.1",
+      "passed": 413,
+      "failed": 0,
+      "skipped": 2,
+      "resultBundle": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-24T15-18-14-680Z_pid9844_1c6bf298.xcresult"
+    },
+    "device": {
+      "name": "iPhone Happy",
+      "model": "iPhone 17 Pro Max",
+      "os": "27.0.1",
+      "flows": [
+        "PROVIA Apple ProRAW -> durable queue -> sRGB Photos + index",
+        "Portra 400 Apple ProRAW -> durable queue -> sRGB Photos + index",
+        "Portra 400 Live Photo -> graded still/video -> paired Photos asset + index"
+      ],
+      "deliveredDimensions": "3024x4032",
+      "requestedDimensions": "5712x4284; native system selected 12MP output",
+      "samples": [
+        {
+          "look": "PROVIA",
+          "format": "appleProRAW",
+          "deliveryMs": 999,
+          "completeMsIncludingDiagnosticWork": 16430
+        },
+        {
+          "look": "Portra 400",
+          "format": "appleProRAW",
+          "deliveryMs": 847,
+          "completeMs": 2905
+        },
+        {
+          "look": "Portra 400",
+          "format": "livePhoto",
+          "deliveryMs": 2118,
+          "completeMs": 4183
+        }
+      ],
+      "resultBundle": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_device_2026-10-24T15-16-29-118Z_pid9844_78e18b7f.xcresult",
+      "officialTableGPUReference": {
+        "looks": 10,
+        "samplesPerLook": 203,
+        "maxAbsoluteError": 8.106232e-06,
+        "resultBundle": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_device_2026-10-24T14-43-28-167Z_pid9844_c9803878.xcresult"
+      },
+      "passed": 13,
+      "failed": 0,
+      "skipped": 1,
+      "sameSourceOfficialLooks": {
+        "count": 10,
+        "render": "Full-resolution production renderer and encoding for every look; final encoded files decoded for brightness inspection; same native ProRAW input.",
+        "metricsSpace": "Encoded sRGB weighted luma (not linear luminance or an EV measurement).",
+        "baselineExposureEV": 4.5746,
+        "originalGlobalTone": 1,
+        "retainedLocalTone": 1,
+        "stages": {
+          "apple": {
+            "p10": 0.15232134,
+            "median": 0.49666107,
+            "p90": 0.673733,
+            "max": 0.7313027
+          },
+          "unscaled-linear": {
+            "p10": 0.019562071,
+            "median": 0.08295107,
+            "p90": 0.11443744,
+            "max": 0.12635255
+          },
+          "normalized-linear": {
+            "p10": 0.2520278,
+            "median": 0.5518344,
+            "p90": 0.69518495,
+            "max": 0.7408893
+          },
+          "before-PROVIA": {
+            "p10": 0.00011340074,
+            "median": 0.004111569,
+            "p90": 0.012148153,
+            "max": 0.017850908
+          },
+          "after-PROVIA": {
+            "p10": 0.14653781,
+            "median": 0.56056786,
+            "p90": 0.69067925,
+            "max": 0.721757
+          },
+          "before-Velvia": {
+            "p10": 0.0,
+            "median": 3.612439e-05,
+            "p90": 0.00025176303,
+            "max": 0.00066288555
+          },
+          "after-Velvia": {
+            "p10": 0.10533863,
+            "median": 0.5613837,
+            "p90": 0.6740978,
+            "max": 0.70424265
+          },
+          "before-ASTIA": {
+            "p10": 0.00010038828,
+            "median": 0.003033028,
+            "p90": 0.008807654,
+            "max": 0.012554553
+          },
+          "after-ASTIA": {
+            "p10": 0.13116868,
+            "median": 0.5730709,
+            "p90": 0.6899797,
+            "max": 0.71932787
+          },
+          "before-CLASSIC-CHROME": {
+            "p10": 1.4212624e-05,
+            "median": 0.00050346996,
+            "p90": 0.0022892824,
+            "max": 0.0037592254
+          },
+          "after-CLASSIC-CHROME": {
+            "p10": 0.11199355,
+            "median": 0.5780134,
+            "p90": 0.710188,
+            "max": 0.7412094
+          },
+          "before-REALA-ACE": {
+            "p10": 3.999177e-05,
+            "median": 0.0022999907,
+            "p90": 0.011000181,
+            "max": 0.019193606
+          },
+          "after-REALA-ACE": {
+            "p10": 0.15793236,
+            "median": 0.5800216,
+            "p90": 0.73154014,
+            "max": 0.7654577
+          },
+          "before-PRO-Neg.Std": {
+            "p10": 0.00026213436,
+            "median": 0.0068083764,
+            "p90": 0.018194593,
+            "max": 0.024569951
+          },
+          "after-PRO-Neg.Std": {
+            "p10": 0.1519632,
+            "median": 0.56188923,
+            "p90": 0.69058985,
+            "max": 0.7234229
+          },
+          "before-CLASSIC-Neg.": {
+            "p10": 1.4212624e-05,
+            "median": 0.0018763384,
+            "p90": 0.009433482,
+            "max": 0.014157166
+          },
+          "after-CLASSIC-Neg.": {
+            "p10": 0.115570456,
+            "median": 0.60449606,
+            "p90": 0.7669098,
+            "max": 0.7990416
+          },
+          "before-ETERNA": {
+            "p10": 0.0010233242,
+            "median": 0.01732628,
+            "p90": 0.04933511,
+            "max": 0.060504034
+          },
+          "after-ETERNA": {
+            "p10": 0.1819255,
+            "median": 0.56107545,
+            "p90": 0.6851342,
+            "max": 0.71378946
+          },
+          "before-ETERNA-BB": {
+            "p10": 9.615197e-05,
+            "median": 0.0065411776,
+            "p90": 0.020945411,
+            "max": 0.027195722
+          },
+          "after-ETERNA-BB": {
+            "p10": 0.11259247,
+            "median": 0.6056348,
+            "p90": 0.7725103,
+            "max": 0.804573
+          },
+          "before-ACROS": {
+            "p10": 4.5955887e-05,
+            "median": 0.0024203432,
+            "p90": 0.0071873087,
+            "max": 0.010983994
+          },
+          "after-ACROS": {
+            "p10": 0.12047898,
+            "median": 0.55742913,
+            "p90": 0.6898826,
+            "max": 0.72140765
+          }
+        },
+        "attachments": "Exported outside the repository to /tmp/justshoot-exposure-final. Raw user capture is not committed."
+      }
+    },
+    "finalDeviceBuild": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_device_2026-10-24T15-19-41-802Z_pid9844_071b8b9f.log",
+    "localization": "Every pre-existing string entry matches /tmp/justshoot-localizable-before-raw.json.",
+    "diffCheck": "passed"
+  },
+  "offlineSceneAudit": {
+    "date": "2026-10-25",
+    "report": "../../luts-2026-10-25/offline-scene-audit.md",
+    "validation": "../../luts-2026-10-25/offline-scene-validation.json",
+    "scope": "Offline SDR scenes and renderer regression only. No newly captured iPhone scenes or device performance measurement in this run.",
+    "simulator": {
+      "passed": 423,
+      "failed": 0,
+      "skipped": 3
+    },
+    "newCaptureTexture": "balanced_area_v3, area-matched preview amplitude; legacy journals retain frozen texture; stock LUT color tables unchanged."
+  },
+  "offlineLookRefinement": {
+    "date": "2026-10-25",
+    "revision": "skin-shadow-v1",
+    "report": "../../luts-2026-10-25/refinement/README.md",
+    "validation": "../../luts-2026-10-25/refinement/validation.json",
+    "scope": "Offline SDR scene refinement and simulator renderer tests. No new physical-device scene capture, RAW/preview pairs, or physical-device performance measurement.",
+    "simulator": {
+      "passed": 430,
+      "failed": 0,
+      "skipped": 3
+    },
+    "pairedSDRComparisons": 51
+  },
+  "activeCatalog": {
+    "date": "2026-10-25",
+    "count": 9,
+    "remaining": [
+      "fujiRawVelvia",
+      "fujiRawASTIA",
+      "fujiRawClassicChrome",
+      "fujiRawClassicNeg",
+      "fujiRawACROS",
+      "fujiC200",
+      "fujiPro400H",
+      "fujiProvia100F",
+      "kodakPortra400"
+    ],
+    "retirementReport": "../../luts-2026-10-25/catalog-removal.md",
+    "compatibility": "Pre-release catalog cleanup; no migration or retired-preset name mapping for existing photo/custom-LUT data. Custom import and current capture recovery remain product features.",
+    "covers": {
+      "report": "../../film-covers-2026-10-25/README.md",
+      "builtInCount": 9,
+      "complete": true,
+      "newGeneratedCovers": [
+        "ASTIA",
+        "CLASSIC CHROME",
+        "CLASSIC Neg.",
+        "PROVIA",
+        "Velvia",
+        "ACROS",
+        "C200",
+        "Pro 400H",
+        "Portra 400"
+      ],
+      "source": "Historical packaging and official Fujifilm simulation illustrations adapted into dedicated capture covers. Six Fujifilm covers refined for grid harmony; Portra 400 refined using photographed packaging references; Classic Neg. green brightness and title size refined for the final group. All 72 Fujifilm Library collection covers refreshed using their exact historical packaging references and the approved cover style: 67 newly generated and 5 matching approved covers reused; stock-specific palettes and edition differences preserved. Subsequently all 147 Kodak Library covers refreshed using exact edition packaging references and the approved app style: 145 newly generated and 2 exact Portra 400 matches reused; 22 local refinements reviewed. Kodak color filters updated. Other collection brands and the nine approved capture covers preserved during these Library refreshes.",
+      "refreshReport": "../../fujifilm-cover-refresh-2026-10-25/README.md",
+      "harmonyReport": "../../fujifilm-cover-harmony-2026-10-25/README.md",
+      "portraReport": "../../portra-cover-refresh-2026-10-25/README.md",
+      "classicNegHarmonyReport": "../../classic-neg-cover-harmony-2026-10-25/README.md",
+      "libraryRefreshReport": "../../fujifilm-library-refresh-2026-10-25/README.md",
+      "kodakLibraryRefreshReport": "../../kodak-library-refresh-2026-10-25/README.md"
+    }
+  }
+}

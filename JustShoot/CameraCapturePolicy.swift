@@ -17,7 +17,7 @@ struct CameraCapturePolicy: Sendable, Equatable {
     }
 
     var qualityPrioritization: AVCapturePhotoOutput.QualityPrioritization {
-        .balanced
+        .quality
     }
 
     /// Prefer the ordinary 24 MP class where the device exposes it, rather than HEIF Max.

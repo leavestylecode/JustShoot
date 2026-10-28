@@ -1,0 +1,27 @@
+[
+  {
+    "key": "provia",
+    "resource": "cover_fuji_provia_100f.heic",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-99c2e35d-6ec0-4c5d-a989-8cdc90880de1.png"
+  },
+  {
+    "key": "velvia",
+    "resource": "cover_fuji_velvia.heic",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-6d6baf42-fd4e-4576-a88d-b61feb64c704.png"
+  },
+  {
+    "key": "acros",
+    "resource": "cover_fuji_acros.heic",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-30b6de3e-9a3c-4bae-a350-d074749658fc.png"
+  },
+  {
+    "key": "c200",
+    "resource": "cover_fuji_c200.heic",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-449e119f-312e-42f4-b8da-beb1b3af21c7.png"
+  },
+  {
+    "key": "pro400h",
+    "resource": "cover_fuji_pro_400h.heic",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-53f3a6cb-c432-48b2-85f0-47b377ffac3b.png"
+  }
+]

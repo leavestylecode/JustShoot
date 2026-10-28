@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-25",
+  "mode": "built-in image_gen",
+  "assets": [
+    {
+      "key": "provia",
+      "resource": "JustShoot/Resources/cards/cover_fuji_provia_100f.heic",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-99c2e35d-6ec0-4c5d-a989-8cdc90880de1.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 121119,
+      "sha256": "105cbf1897719552a120c2206620bd98bc63140dcca8c94122a1d684446294d4",
+      "colorSpace": "sRGB",
+      "encodingQuality": 60
+    },
+    {
+      "key": "velvia",
+      "resource": "JustShoot/Resources/cards/cover_fuji_velvia.heic",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-6d6baf42-fd4e-4576-a88d-b61feb64c704.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 122682,
+      "sha256": "eb4a4da0b9901221e2d652955ef1de7c56124da1e494f62ad81bb9fbf7b3c166",
+      "colorSpace": "sRGB",
+      "encodingQuality": 60
+    },
+    {
+      "key": "acros",
+      "resource": "JustShoot/Resources/cards/cover_fuji_acros.heic",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-30b6de3e-9a3c-4bae-a350-d074749658fc.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 164313,
+      "sha256": "2bfaa33f6e1de6f31d3e18c7ddef5d7ebf4d3745fa7d6e625f18bdbe46f2b14a",
+      "colorSpace": "sRGB",
+      "encodingQuality": 60
+    },
+    {
+      "key": "c200",
+      "resource": "JustShoot/Resources/cards/cover_fuji_c200.heic",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-449e119f-312e-42f4-b8da-beb1b3af21c7.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 119777,
+      "sha256": "32d1d62f2aafccf629877f1beb902b15f3c2a10b428f7986d82b21d68b7cef23",
+      "colorSpace": "sRGB",
+      "encodingQuality": 60
+    },
+    {
+      "key": "pro400h",
+      "resource": "JustShoot/Resources/cards/cover_fuji_pro_400h.heic",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-53f3a6cb-c432-48b2-85f0-47b377ffac3b.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 123844,
+      "sha256": "78fd1bd10e8c5d69548ef967b955d4a2ff8f49c4a7844f2a0d34412b9a7ec1a2",
+      "colorSpace": "sRGB",
+      "encodingQuality": 60
+    }
+  ],
+  "totalBytes": 651735
+}

@@ -37,8 +37,11 @@ final class FilmInputProtectionTests: XCTestCase {
     func testProtectedHighlightsStayInsideLUTAndRetainChannelGradients() throws {
         let ramp: [Float] = [0.85, 0.90, 0.95, 1.0]
         let input = image(ramp.map { SIMD3<Float>(repeating: $0) })
-        for (preset, temperature) in [(FilmPreset.kodakVision5219, Float(5_500)), (.kodakPortra400, 3_200)] {
-            let gain = preset.chromaticResponse.responseGain(sceneCCT: temperature)
+        let gains = [
+            FilmChromaticResponseParameters(nativeCCT: 3_200, strength: 0.60).responseGain(sceneCCT: 5_500),
+            FilmPreset.kodakPortra400.chromaticResponse.responseGain(sceneCCT: 3_200)
+        ]
+        for gain in gains {
             let legacy = pixels(FilmChromaticRenderer.applying(to: input, gain: gain))
             XCTAssertTrue(legacy.contains { max($0.x, $0.y, $0.z) > 1.02 }, "Fixture must exercise the original overflow")
             let stages = try XCTUnwrap(FilmImagePipeline.stages(for: input, lut: identity(),
@@ -166,7 +169,7 @@ final class FilmInputProtectionTests: XCTestCase {
             withBytes: $0.baseAddress!, bytesPerRow: colors.count * 8) }
         descriptor.pixelFormat = .r16Float
         let energy = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
-        for preset in [FilmPreset.kodakPortra400, .fujiPro400H] {
+        for preset in FilmPreset.allCases {
             let lut = try FilmProcessor().loadCubeLUT(resourceName: preset.lutResourceName)
             let lutDescriptor = MTLTextureDescriptor()
             lutDescriptor.textureType = .type3D

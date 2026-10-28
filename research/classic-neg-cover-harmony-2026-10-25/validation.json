@@ -1,0 +1,160 @@
+{
+  "date": "2026-10-25",
+  "project": "JustShoot.xcodeproj",
+  "scheme": "JustShoot",
+  "configuration": "Debug",
+  "simulator": "iPhone 17",
+  "os": "iOS 26.4.1 Simulator",
+  "build": {
+    "summary": {
+      "status": "SUCCEEDED",
+      "durationMs": 9620,
+      "target": "simulator"
+    },
+    "artifacts": {
+      "appPath": "/tmp/justshoot-raw-derived/Build/Products/Debug-iphonesimulator/JustShoot.app",
+      "bundleId": "leavestylecode.JustShoot",
+      "processId": 75264,
+      "simulatorId": "06CBF94A-F235-4319-A5F9-3548DDC86AD2",
+      "buildLogPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-10-25T05-51-35-233Z_pid9844_e05ea501.log",
+      "runtimeLogPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/leavestylecode.JustShoot_2026-10-25T05-51-43-475Z_helperpid75255_ownerpid9844_b09547c8.log",
+      "osLogPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/leavestylecode.JustShoot_oslog_2026-10-25T05-51-44-838Z_helperpid75309_ownerpid9844_df1ef4c1.log"
+    },
+    "diagnostics": {
+      "warnings": [],
+      "errors": []
+    }
+  },
+  "tests": {
+    "summary": {
+      "status": "SUCCEEDED",
+      "durationMs": 10689,
+      "counts": {
+        "passed": 8,
+        "failed": 0,
+        "skipped": 0
+      },
+      "target": "simulator"
+    },
+    "artifacts": {
+      "buildLogPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-25T05-51-59-597Z_pid9844_b97459fe.log",
+      "xcresultPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-25T05-51-59-598Z_pid9844_449af365.xcresult",
+      "testProductsPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/test-products/test_sim_2026-10-25T05-51-59-598Z_pid9844_0a7aa37c.xctestproducts"
+    },
+    "tests": {
+      "selected": [
+        "JustShootTests/FilmPresetCatalogTests/testCatalogContainsOnlyTheNineRemainingLooks",
+        "JustShootTests/FilmPresetCatalogTests/testRetiredLooksHaveNoBundledTablesOrCapturePreset",
+        "JustShootTests/FilmPresetCoverPreparationTests/testAwaitedHomePreparationReturnsEveryBundledCoverAtDisplaySize",
+        "JustShootTests/FilmPresetCoverPreparationTests/testCancelledCaptureWarmUpCannotReportResourcesReady",
+        "JustShootTests/FilmPresetCoverPreparationTests/testCancelledPreparationDoesNotReportAnEmptyReadySnapshot",
+        "JustShootTests/FilmPresetCoverPreparationTests/testEveryPresetHasItsOwnCoverInsteadOfBorrowingAnotherLooksArtwork",
+        "JustShootTests/FilmPresetCoverPreparationTests/testInvalidDisplayScaleCannotOverflowThumbnailDimensions",
+        "JustShootTests/FilmPresetCoverPreparationTests/testPickerPreparationReturnsItsActualDisplayImages"
+      ],
+      "discovered": {
+        "total": 8,
+        "items": [
+          "JustShootTests/FilmPresetCatalogTests/testCatalogContainsOnlyTheNineRemainingLooks",
+          "JustShootTests/FilmPresetCatalogTests/testRetiredLooksHaveNoBundledTablesOrCapturePreset",
+          "JustShootTests/FilmPresetCoverPreparationTests/testAwaitedHomePreparationReturnsEveryBundledCoverAtDisplaySize",
+          "JustShootTests/FilmPresetCoverPreparationTests/testCancelledCaptureWarmUpCannotReportResourcesReady",
+          "JustShootTests/FilmPresetCoverPreparationTests/testCancelledPreparationDoesNotReportAnEmptyReadySnapshot",
+          "JustShootTests/FilmPresetCoverPreparationTests/testEveryPresetHasItsOwnCoverInsteadOfBorrowingAnotherLooksArtwork"
+        ]
+      }
+    },
+    "diagnostics": {
+      "warnings": [],
+      "errors": [],
+      "testFailures": []
+    },
+    "testCases": [
+      {
+        "suite": "FilmPresetCatalogTests",
+        "test": "testCatalogContainsOnlyTheNineRemainingLooks",
+        "status": "passed",
+        "durationMs": 5
+      },
+      {
+        "suite": "FilmPresetCatalogTests",
+        "test": "testRetiredLooksHaveNoBundledTablesOrCapturePreset",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testAwaitedHomePreparationReturnsEveryBundledCoverAtDisplaySize",
+        "status": "passed",
+        "durationMs": 196
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testCancelledCaptureWarmUpCannotReportResourcesReady",
+        "status": "passed",
+        "durationMs": 9
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testCancelledPreparationDoesNotReportAnEmptyReadySnapshot",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testEveryPresetHasItsOwnCoverInsteadOfBorrowingAnotherLooksArtwork",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testInvalidDisplayScaleCannotOverflowThumbnailDimensions",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testPickerPreparationReturnsItsActualDisplayImages",
+        "status": "passed",
+        "durationMs": 137
+      }
+    ]
+  },
+  "visualInspection": {
+    "screenshotSource": "/var/folders/7n/2347nkq95kx12xjm0d2vwn500000gn/T/screenshot_optimized_6a52f017-7e63-43f6-8589-dcc9005a2e78.jpg",
+    "homeScreenshot": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/classic-neg-cover-harmony-2026-10-25/home-simulator.jpg",
+    "comparison": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/classic-neg-cover-harmony-2026-10-25/classic-neg-before-after.jpg",
+    "groupPreview": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/classic-neg-cover-harmony-2026-10-25/after-grid.jpg",
+    "thumbnailPreview": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/classic-neg-cover-harmony-2026-10-25/thumbnail-grid.png",
+    "checks": [
+      "Reduced green brightness and smaller title reviewed against baseline",
+      "110px and 220px group previews reviewed",
+      "Simulator home displays the replacement with the existing Classic Neg. mapping",
+      "All nine names and stock identities remain legible"
+    ],
+    "limitation": "Cover asset refinement only; no camera or physical device performance measurements."
+  },
+  "asset": {
+    "path": "JustShoot/Resources/cards/cover_fuji_classic_neg.heic",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "format": "HEIC",
+    "quality": 60
+  },
+  "baselineCheck": {
+    "checked": 587,
+    "changed": [
+      "JustShoot/Resources/cards/cover_fuji_classic_neg.heic"
+    ],
+    "added": [],
+    "unchanged": 586,
+    "originalCollectionImagesUnchanged": 550,
+    "otherEightPresetCoversUnchanged": true,
+    "cardsJsonAndLutTablesUnchanged": true,
+    "modelsAndRawFilmLutSourceUnchanged": true
+  },
+  "gitDiffCheck": "passed"
+}

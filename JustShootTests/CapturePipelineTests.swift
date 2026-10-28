@@ -362,25 +362,6 @@ final class CapturePipelineTests: XCTestCase {
         XCTAssertLessThan(pixels[center + 2], pixels[center], "halation 应把红通道抬得比蓝通道高")
     }
 
-    /// 内置 LUT 加载时应用趾部抬升：黑端（输入 0.05 的中性灰）从 ≈0.003 抬到 ≥0.03 的可见区，
-    /// 而 0.16 以上的输出（如输入 0.30 ≈ 0.271）保持原样——影调风格不被改动。
-    func testBundledLUTAppliesShadowToe() throws {
-        let lut = try FilmProcessor.shared.loadCubeLUT(resourceName: "FujiProvia100F")
-        let dim = lut.dimension
-        func neutralLuma(_ x: Float) -> Float {
-            let index = Int(round(x * Float(dim - 1)))
-            return lut.data.withUnsafeBytes { raw -> Float in
-                let base = (index * dim * dim + index * dim + index) * 4
-                let r = raw.load(fromByteOffset: base * 4, as: Float.self)
-                let g = raw.load(fromByteOffset: (base + 1) * 4, as: Float.self)
-                let b = raw.load(fromByteOffset: (base + 2) * 4, as: Float.self)
-                return 0.2126 * r + 0.7152 * g + 0.0722 * b
-            }
-        }
-        XCTAssertGreaterThan(neutralLuma(0.05), 0.03, "暗部仍被压进 sRGB 底部不可见区")
-        XCTAssertEqual(neutralLuma(0.30), 0.2706, accuracy: 0.01, "趾部保护不应改动 0.16 以上的输出")
-    }
-
     private func recipe(lut: CubeLUT) -> CaptureRecipe {
         CaptureRecipe(id: UUID(), captureDate: Date(timeIntervalSince1970: 123456), filterName: "test",
                       displayLabel: nil, focalLength: 35, outputQuality: 0.8,

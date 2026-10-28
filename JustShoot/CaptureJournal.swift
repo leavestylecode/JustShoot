@@ -51,12 +51,16 @@ struct CaptureRecipe: Codable, Sendable {
     /// optional 兼容旧 journal——缺失时响应中性（增益 1），渲染结果与旧版一致。
     let chromaticSceneCCT: Float?
     let photoDisplayTime: Double?
+    var raw: RawCaptureRecipe? = nil
+    var plan: PhotoCapturePlan? = nil
+
+    var requiresRawLUT: Bool { raw?.requiresRawLUT == true }
 
     func withPhotoDisplayTime(_ time: Double?) -> Self {
         Self(id: id, captureDate: captureDate, filterName: filterName, displayLabel: displayLabel,
             focalLength: focalLength, outputQuality: outputQuality, profile: profile, grainSeed: grainSeed,
             location: location, lutDimension: lutDimension, chromaticSceneCCT: chromaticSceneCCT,
-            photoDisplayTime: time)
+            photoDisplayTime: time, raw: raw, plan: plan)
     }
 }
 
@@ -187,7 +191,8 @@ struct CaptureJournal: Sendable {
             guard job.id.uuidString == captureName else { issue(.unreadableManifest); continue }
             let required = job.rendered
                 ? ["rendered.image"] + (job.hasRenderedMovie ? ["rendered.mov"] : [])
-                : ["original.image", "lut.bin"] + (job.hasSourceMovie ? ["source.mov"] : [])
+                : ["original.image", "lut.bin"] + (job.recipe.requiresRawLUT ? ["raw-lut.bin"] : [])
+                    + (job.hasSourceMovie ? ["source.mov"] : [])
             guard required.allSatisfy({ fm.fileExists(atPath: directory.appendingPathComponent($0).path) }) else {
                 issue(.missingResources)
                 continue
@@ -218,6 +223,7 @@ struct CaptureJournal: Sendable {
                   staging.lastPathComponent == "staging-" + job.id.uuidString,
                   fm.fileExists(atPath: staging.appendingPathComponent("original.image").path),
                   fm.fileExists(atPath: staging.appendingPathComponent("lut.bin").path),
+                  !job.recipe.requiresRawLUT || fm.fileExists(atPath: staging.appendingPathComponent("raw-lut.bin").path),
                   !job.hasSourceMovie || fm.fileExists(atPath: staging.appendingPathComponent("source.mov").path),
                   !fm.fileExists(atPath: directory(for: job.id).path) else { continue }
             do { try fm.moveItem(at: staging, to: directory(for: job.id)) }
@@ -252,7 +258,8 @@ struct CaptureJournal: Sendable {
         let data = try Data(contentsOf: source, options: .mappedIfSafe)
         let imageSource = CGImageSourceCreateWithData(data as CFData, nil)
         let type = imageSource.flatMap { CGImageSourceGetType($0) }
-        let suffix = type.flatMap { UTType($0 as String)?.preferredFilenameExtension } ?? "image"
+        let suffix = imageSource.map { RawFilmRenderer.isDNG($0) } == true ? "dng"
+            : (type.flatMap { UTType($0 as String)?.preferredFilenameExtension } ?? "image")
         let exportDirectory = try ShareExportDirectory.application.create()
         let destination = exportDirectory.appendingPathComponent("JustShoot-Recovered-\(current.captureID.uuidString.prefix(8)).\(suffix)")
         do { try FileManager.default.copyItem(at: source, to: destination) }
@@ -299,9 +306,27 @@ struct CaptureJournal: Sendable {
         return available.map { $0 >= bytes + 128 * 1_024 * 1_024 } ?? true
     }
 
-    func stage(recipe: CaptureRecipe, imageData: Data, movieURL: URL?, lut: CubeLUT, reserved: Bool = false,
+    func stage(recipe: CaptureRecipe, imageData: Data, movieURL: URL?, lut: CubeLUT, rawLUT: RawFilmLUT? = nil, reserved: Bool = false,
         awaitingCaptureCompletion: Bool = false, pendingMovieURL: URL? = nil) throws -> CaptureJob {
         guard recipe.lutDimension == lut.dimension else { throw JournalError.invalidJob }
+        if let plan = recipe.plan {
+            guard plan.accepts(rawRecipe: recipe.raw),
+                  plan.capturesLivePhoto || (movieURL == nil && pendingMovieURL == nil) else {
+                throw JournalError.invalidJob
+            }
+        }
+        if let raw = recipe.raw {
+            guard movieURL == nil, pendingMovieURL == nil,
+                  let source = CGImageSourceCreateWithData(imageData as CFData, nil),
+                  RawFilmRenderer.isDNG(source) else { throw JournalError.invalidJob }
+            if raw.requiresRawLUT {
+                guard let rawLUT else { throw JournalError.invalidJob }
+                try raw.validate(lut: rawLUT)
+            } else {
+                guard rawLUT == nil else { throw JournalError.invalidJob }
+                try raw.validate(displayLUT: lut)
+            }
+        } else if rawLUT != nil { throw JournalError.invalidJob }
         let fm = FileManager.default
         try fm.createDirectory(at: root, withIntermediateDirectories: true)
         // Reservations are checked before exposure. Once accepted, persist the capture even if a
@@ -309,7 +334,7 @@ struct CaptureJournal: Sendable {
         if !reserved {
             let movieBytes = movieURL.flatMap { try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize } ?? 0
             guard try jobs().count < Self.maximumJobs,
-                  try hasRoom(for: Int64(imageData.count) + Int64(lut.data.count) + Int64(movieBytes)) else {
+                  try hasRoom(for: Int64(imageData.count) + Int64(lut.data.count) + Int64(rawLUT?.data.count ?? 0) + Int64(movieBytes)) else {
                 throw JournalError.full
             }
         }
@@ -318,6 +343,7 @@ struct CaptureJournal: Sendable {
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
         try write(imageData, to: staging.appendingPathComponent("original.image"))
         try write(lut.data, to: staging.appendingPathComponent("lut.bin"))
+        if let rawLUT { try write(rawLUT.data, to: staging.appendingPathComponent("raw-lut.bin")) }
         if let movieURL {
             let destination = staging.appendingPathComponent("source.mov")
             if !fm.fileExists(atPath: destination.path) { try fm.copyItem(at: movieURL, to: destination) }
@@ -368,6 +394,13 @@ struct CaptureJournal: Sendable {
 
     func lut(for job: CaptureJob) throws -> CubeLUT {
         try CubeLUT.validated(data: Data(contentsOf: file("lut.bin", for: job.id)), dimension: job.recipe.lutDimension)
+    }
+
+    func rawLUT(for job: CaptureJob) throws -> RawFilmLUT? {
+        guard let raw = job.recipe.raw, raw.requiresRawLUT else { return nil }
+        let lut = try RawFilmLUT(data: Data(contentsOf: file("raw-lut.bin", for: job.id), options: .mappedIfSafe))
+        try raw.validate(lut: lut)
+        return lut
     }
 
     func writeRenderedImage(_ data: Data, for id: UUID) throws {

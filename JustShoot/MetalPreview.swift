@@ -726,7 +726,7 @@ struct RealtimePreviewView: UIViewRepresentable {
                 inputHeight: UInt32(inH),
                 rotation: rotation,
                 lutDimension: UInt32(lutDim),
-                grainAmount: grain.amount,
+                grainAmount: grain.renderAmount(forLongEdge: CGFloat(max(outW, outH))),
                 grainSize: grain.pixelSize(forLongEdge: CGFloat(max(outW, outH))),
                 grainChroma: grain.chroma,
                 grainSeed: FilmGrainRenderer.mixedSeed(

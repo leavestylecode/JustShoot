@@ -1,0 +1,132 @@
+{
+  "date": "2026-10-24",
+  "scope": {
+    "catalogEntries": 550,
+    "catalogImages": 550,
+    "fujifilmImagesVisuallyReviewed": 72,
+    "missingCatalogImages": 0,
+    "uncataloguedImages": 0
+  },
+  "workflow": "Generation paused at user request. Proposed bindings are review only; no generated image installed.",
+  "style": {
+    "shape": "1024x1024 square, flat front face of film packaging",
+    "layout": "brand mark, series label, product name, strong packaging color blocks, geometric stripes and ample margins",
+    "texture": "subtle printed cardboard, clean readable type, limited shadows",
+    "preserve": "per-stock original branding, color and typography, rather than one generic template",
+    "exclude": [
+      "JustShoot",
+      "RAW to sRGB",
+      "RAW -> sRGB",
+      "poster-like oversized type",
+      "unrelated packaging used as another stock"
+    ]
+  },
+  "simulations": [
+    {
+      "mode": "PROVIA",
+      "status": "matching_family_present",
+      "images": [
+        "00055_000.heic",
+        "00167_000.heic",
+        "00281_000.heic"
+      ],
+      "action": "reuse_existing"
+    },
+    {
+      "mode": "Velvia",
+      "status": "matching_family_present",
+      "images": [
+        "00044_000.heic",
+        "00023_000.heic",
+        "00056_000.heic",
+        "00510_000.heic"
+      ],
+      "action": "reuse_existing"
+    },
+    {
+      "mode": "ACROS",
+      "status": "matching_family_present",
+      "images": [
+        "00524_000.heic",
+        "00556_000.heic"
+      ],
+      "action": "reuse_existing",
+      "note": "Existing stock is ACROS 100 II."
+    },
+    {
+      "mode": "ASTIA",
+      "status": "missing",
+      "images": [],
+      "action": "needs_dedicated_cover"
+    },
+    {
+      "mode": "CLASSIC CHROME",
+      "status": "missing",
+      "images": [],
+      "action": "needs_dedicated_cover"
+    },
+    {
+      "mode": "REALA ACE",
+      "status": "related_stock_only",
+      "images": [
+        "00087_000.heic",
+        "00230_000.heic"
+      ],
+      "action": "needs_dedicated_cover",
+      "note": "SUPERIA REALA artwork has no ACE label; reference only."
+    },
+    {
+      "mode": "PRO Neg. Std",
+      "status": "missing",
+      "images": [],
+      "referenceImages": [
+        "00022_000.heic",
+        "00053_000.heic"
+      ],
+      "action": "needs_dedicated_cover",
+      "note": "PRO 400H and NPS 160 are different stock names."
+    },
+    {
+      "mode": "CLASSIC Neg.",
+      "status": "missing",
+      "images": [],
+      "referenceImages": [
+        "00165_000.heic"
+      ],
+      "action": "needs_dedicated_cover",
+      "note": "SUPERIA artwork is reference only."
+    },
+    {
+      "mode": "ETERNA",
+      "status": "third_party_repack_only",
+      "images": [
+        "00322_000.heic"
+      ],
+      "action": "needs_dedicated_cover",
+      "note": "Mr. Negative Eterna 250D; not original Fujifilm packaging."
+    },
+    {
+      "mode": "ETERNA BLEACH BYPASS",
+      "status": "missing",
+      "images": [],
+      "action": "needs_dedicated_cover"
+    }
+  ],
+  "existingPresetCoverIssues": [
+    {
+      "preset": "Kodak Vision3 500T (5219)",
+      "image": "00185_000.heic",
+      "note": "Mutascan repack branding."
+    },
+    {
+      "preset": "Kodak 250D (5207)",
+      "image": "00001_000.heic",
+      "note": "Alien Film repack branding."
+    },
+    {
+      "preset": "Kodak Vision3 50D (5203)",
+      "image": "00254_000.heic",
+      "note": "CineStill 50D is a different product label, not a Kodak 5203 cover."
+    }
+  ]
+}

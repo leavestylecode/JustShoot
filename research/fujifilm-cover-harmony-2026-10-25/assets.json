@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-25",
+  "mode": "built-in image_gen",
+  "assets": [
+    {
+      "key": "provia",
+      "resource": "JustShoot/Resources/cards/cover_fuji_provia_100f.heic",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-133ac290-1c71-4383-adb5-28de5e2c3374.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 131599,
+      "sha256": "f220143e56261184aeb153e8946489bb447dbef2927262d2bdf5974ed4d4715e",
+      "colorSpace": "sRGB",
+      "encodingQuality": 60
+    },
+    {
+      "key": "velvia",
+      "resource": "JustShoot/Resources/cards/cover_fuji_velvia.heic",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-402530e4-697a-4d3a-b7bd-30001496c489.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 134186,
+      "sha256": "f6c222161b64575ba82fbb9ec3ab5807c240df651585896257876414e714e20f",
+      "colorSpace": "sRGB",
+      "encodingQuality": 60
+    },
+    {
+      "key": "astia",
+      "resource": "JustShoot/Resources/cards/cover_fuji_astia_100f.heic",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-fc98336f-d341-498a-b3b8-c04d25037f23.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 151052,
+      "sha256": "fa89799141ceda4dd702d5f61ae797e3614cda1449a862ab112858e4cdbb2383",
+      "colorSpace": "sRGB",
+      "encodingQuality": 60
+    },
+    {
+      "key": "acros",
+      "resource": "JustShoot/Resources/cards/cover_fuji_acros.heic",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-1c1fb248-439d-43a8-9d65-3cf62c3028fb.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 147068,
+      "sha256": "5b56be4e9bbbeefd3bc266c5e70e5ec5f42b51ec32fe7bee5e06ebc81e12593c",
+      "colorSpace": "sRGB",
+      "encodingQuality": 60
+    },
+    {
+      "key": "c200",
+      "resource": "JustShoot/Resources/cards/cover_fuji_c200.heic",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d8f523f7-c0e4-490c-be5e-9265f5d6a15e.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 117766,
+      "sha256": "9f9769184715bd892c498f1fe81a951c5f5e0f4e50d4760de26d769da9b4091f",
+      "colorSpace": "sRGB",
+      "encodingQuality": 60
+    },
+    {
+      "key": "pro400h",
+      "resource": "JustShoot/Resources/cards/cover_fuji_pro_400h.heic",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-08ca9ebc-8b40-4263-b9f2-3f0fe0fdb204.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 88737,
+      "sha256": "9999b889cf1d658c3de9834967857485247956cd7999786761e3438415faf791",
+      "colorSpace": "sRGB",
+      "encodingQuality": 60
+    }
+  ],
+  "totalBytes": 770408,
+  "retained": [
+    "cover_fuji_classic_chrome.heic",
+    "cover_fuji_classic_neg.heic",
+    "00200_000.heic"
+  ]
+}

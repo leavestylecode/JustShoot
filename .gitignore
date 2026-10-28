@@ -40,3 +40,7 @@ fastlane/readme.md
 .zcode/
 curve_preview.svg
 
+# Python maintenance caches
+__pycache__/
+*.py[cod]
+

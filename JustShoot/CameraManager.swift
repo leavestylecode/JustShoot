@@ -159,6 +159,7 @@ class CameraManager: NSObject, ObservableObject {
         /// 本次拍照是否要求 Live Photo（issue 阶段已设 livePhotoMovieFileURL）。true 时 onData 要等
         /// 静态图 + 动态视频两个交付物都到齐（或 didFinishCaptureFor 终结兜底）才回调一次。
         let expectsLiveMovie: Bool
+        let rawFormat: CameraRAWFormat?
         // —— 两个异步交付物的累积状态（仅 @MainActor 读写）——
         var stillArrived = false
         var stillData: Data?
@@ -183,6 +184,7 @@ class CameraManager: NSObject, ObservableObject {
         let trace: DiagnosticTrace
         let rotationAngle: CGFloat?
         let expectsLiveMovie: Bool
+        let rawFormat: CameraRAWFormat?
         let enqueuedAt: TimeInterval
         let deadline: TimeInterval
     }
@@ -197,6 +199,8 @@ class CameraManager: NSObject, ObservableObject {
     private let whiteBalanceReadingGate = OSAllocatedUnfairLock(initialState: WhiteBalanceReadingGate())
     /// Keep support and actual session enablement separate. Neither changes the saved user preference.
     @Published private(set) var livePhotoCaptureState = LivePhotoCaptureState(supported: false, enabled: false)
+    @Published private(set) var rawCaptureFormat: CameraRAWFormat?
+    private var rawFormatsObservation: NSKeyValueObservation?
     private var livePhotoSupportObservation: NSKeyValueObservation?
     private var livePhotoEnabledObservation: NSKeyValueObservation?
 
@@ -1276,7 +1280,7 @@ class CameraManager: NSObject, ObservableObject {
                     if captureSession.canAddOutput(output) {
                         captureSession.addOutput(output)
 
-                        // Ordinary capture uses balanced quality at both output and request.
+                        // Quality is preferred at both output and request.
                         // 预热与每次拍摄使用同一策略；具体计算摄影算法仍由系统按场景选择。
                         // 注意：不开 isAutoDeferredPhotoDeliveryEnabled——其 deferred 结果只交付
                         // PhotoKit，自定义 SwiftData 存储拿不到，开启反而只拿到早期低质版本。
@@ -1309,6 +1313,7 @@ class CameraManager: NSObject, ObservableObject {
                     // Opt in only after the final format, photo dimensions and preview output.
                     // Enabling earlier can be undone by the remaining graph changes.
                     Self.prepareLivePhotoOutput(output, trace: trace, stage: "outputs_configured")
+                    if output.isAppleProRAWSupported { output.isAppleProRAWEnabled = true }
                 } catch {
                     trace.event("session_configuration_error", Diagnostics.errorFields(error))
                     Log.session.error("session_setup_error error=\(error.localizedDescription, privacy: .public)")
@@ -1371,6 +1376,10 @@ class CameraManager: NSObject, ObservableObject {
         trace.measure("main_preview_delegate") { videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue) }
 
         updateLivePhotoCaptureState(reason: "session_ready")
+        updateRAWCaptureState()
+        rawFormatsObservation = photoOutput.observe(\.isAppleProRAWEnabled, options: [.new]) { [weak self] _, _ in
+            Task { @MainActor in self?.updateRAWCaptureState() }
+        }
         observeLivePhotoCaptureState()
 
         focalInfo = configuredFocalInfo
@@ -2188,6 +2197,11 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
+    private func updateRAWCaptureState() {
+        let format = CameraRAWCapturePolicy.format(output: photoOutput, zoom: videoCaptureDevice?.videoZoomFactor ?? 0)
+        if format != rawCaptureFormat { rawCaptureFormat = format }
+    }
+
     private func observeLivePhotoCaptureState() {
         livePhotoSupportObservation?.invalidate()
         livePhotoEnabledObservation?.invalidate()
@@ -2261,6 +2275,7 @@ class CameraManager: NSObject, ObservableObject {
 
     /// 标记一次镜头切换彻底结束（幂等）。on-target + grace 命中，或 maxWait 兜底超时调用。
     private func finishLensSwitch(reason: String, failed: Bool) {
+        updateRAWCaptureState()
         guard let targetZoom = lensCaptureGate.targetZoom else { return }
         lensSwitchFailed = failed
         if failed {
@@ -2561,6 +2576,8 @@ class CameraManager: NSObject, ObservableObject {
     func capturePhoto(
         admission suppliedAdmission: CameraCaptureAdmission.Token? = nil,
         live: Bool = false,
+        raw: Bool = false,
+        expectedRAWFormat: CameraRAWFormat? = nil,
         trace: DiagnosticTrace? = nil,
         onWillCapture: (() -> Void)? = nil,
         onExposureComplete: (() -> Void)? = nil,
@@ -2569,6 +2586,15 @@ class CameraManager: NSObject, ObservableObject {
         completion: @escaping (CaptureResult?) -> Void
     ) {
         let captureTrace = trace ?? DiagnosticTrace()
+        let rawFormat = raw ? CameraRAWCapturePolicy.format(output: photoOutput, zoom: videoCaptureDevice?.videoZoomFactor ?? 0) : nil
+        guard !raw || (rawFormat != nil && !live && (expectedRAWFormat == nil || expectedRAWFormat == rawFormat)) else {
+            if let suppliedAdmission { cancelCaptureAdmission(suppliedAdmission) }
+            updateRAWCaptureState()
+            captureTrace.event("raw_capture_unavailable")
+            onShutterReady()
+            completion(nil)
+            return
+        }
         // A requested Live Photo must not silently turn into a still when capability is lost.
         guard !live || LivePhotoCaptureState(photoOutput).canCapture else {
             if let suppliedAdmission { cancelCaptureAdmission(suppliedAdmission) }
@@ -2600,7 +2626,8 @@ class CameraManager: NSObject, ObservableObject {
             onWillCapture: onWillCapture,
             onExposureComplete: onExposureComplete,
             flashRestore: nil,
-            expectsLiveMovie: wantsLive
+            expectsLiveMovie: wantsLive,
+            rawFormat: rawFormat
         )
 
         // 唯一闸门：await 直到 isReadyToCapture（根本可用 + 镜头到位 + ZSL grace）再 issue 给 AVF。
@@ -2661,7 +2688,15 @@ class CameraManager: NSObject, ObservableObject {
         }
         // Prefer HEIF when supported, with JPEG as the system fallback.
         let settings: AVCapturePhotoSettings
-        if photoOutput.availablePhotoCodecTypes.contains(.hevc) {
+        if let rawFormat = request.rawFormat {
+            guard rawFormat == CameraRAWCapturePolicy.format(output: photoOutput, zoom: videoCaptureDevice?.videoZoomFactor ?? 0) else {
+                updateRAWCaptureState()
+                cancelCaptureAdmission(request.admission)
+                request.onShutterReady(); request.onData(nil)
+                return
+            }
+            settings = AVCapturePhotoSettings(rawPixelFormatType: rawFormat.pixelFormat, processedFormat: nil)
+        } else if photoOutput.availablePhotoCodecTypes.contains(.hevc) {
             settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
         } else {
             settings = AVCapturePhotoSettings()
@@ -2669,8 +2704,9 @@ class CameraManager: NSObject, ObservableObject {
         // Per-capture settings must explicitly use the ordinary dimensions selected for this
         // output; AVFoundation may still deliver a different final size for the current scene.
         settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
-        // Use automatic balanced capture, bounded by the output capability.
+        // Prioritize image quality, bounded by the output capability.
         settings.photoQualityPrioritization = CameraCapturePolicy.current.qualityPrioritization(supportedMax: photoOutput.maxPhotoQualityPrioritization)
+        if request.rawFormat?.kind == .bayerRAW { settings.photoQualityPrioritization = .speed }
 
         if let device = videoCaptureDevice, device.hasFlash {
             settings.flashMode = request.admission.flashEnabled ? .on : .off
@@ -2728,7 +2764,7 @@ class CameraManager: NSObject, ObservableObject {
 
         // 闪光灯下恒定色彩（Constant Color）减少白平衡偏移。Live Photo 与 Constant Color（内部走
         // bracketed capture）不兼容——live 时跳过，避免 AVF 拒绝 settings。
-        if photoOutput.isConstantColorSupported, request.admission.flashEnabled, !wantsLive {
+        if request.rawFormat == nil, photoOutput.isConstantColorSupported, request.admission.flashEnabled, !wantsLive {
             settings.isConstantColorEnabled = true
         }
 
@@ -2749,10 +2785,11 @@ class CameraManager: NSObject, ObservableObject {
         let nativeTrace = request.trace
         captureTraces.withLock { $0[nativeTraceID] = nativeTrace }
         request.trace.event("capture_registered", "av_id=\(settings.uniqueID) live=\(wantsLive)")
+        request.trace.event("capture_input_format", "format=\(request.rawFormat?.kind.rawValue ?? "processed")")
         request.trace.event("capture_configuration", "camera=\(diagnostics.id) focal_seq=\(request.admission.focalSequence) focal_mm=\(request.admission.focalLength) flash=\(request.admission.flashEnabled ? "on" : "off") live=\(wantsLive) prioritization=\(settings.photoQualityPrioritization.rawValue) max_prioritization=\(photoOutput.maxPhotoQualityPrioritization.rawValue) photo=\(settings.maxPhotoDimensions.width)x\(settings.maxPhotoDimensions.height)")
         let watchedID = settings.uniqueID
         captureWatchdogs[watchedID] = Task { @MainActor [weak self] in
-            do { try await Task.sleep(for: .seconds(15)) } catch { return }
+            do { try await Task.sleep(for: .seconds(request.rawFormat == nil ? 15 : 30)) } catch { return }
             Log.capture.error("capture_delivery_timeout id=\(watchedID)")
             self?.deliverCaptureIfReady(id: watchedID, terminal: true)
         }
@@ -2790,7 +2827,7 @@ class CameraManager: NSObject, ObservableObject {
         let enqueuedAt = ProcessInfo.processInfo.systemUptime
         let invocation = NativeCaptureInvocation(output: output, settings: settings,
             admission: request.admission, trace: request.trace, rotationAngle: rotationAngle,
-            expectsLiveMovie: wantsLive, enqueuedAt: enqueuedAt, deadline: enqueuedAt + 4)
+            expectsLiveMovie: wantsLive, rawFormat: request.rawFormat, enqueuedAt: enqueuedAt, deadline: enqueuedAt + 4)
         sessionQueue.asyncAfter(deadline: deadline) {
             delegate.invokeCapturePhoto(invocation)
         }
@@ -2814,6 +2851,14 @@ class CameraManager: NSObject, ObservableObject {
             invocation.trace.event("capture_skip", "reason=connection_inactive_at_invoke")
             finish()
             return
+        }
+        if let rawFormat = invocation.rawFormat {
+            let device = invocation.output.connection(with: .video)?.inputPorts.first?.input as? AVCaptureDeviceInput
+            guard rawFormat == CameraRAWCapturePolicy.format(output: invocation.output, zoom: device?.device.videoZoomFactor ?? 0) else {
+                invocation.trace.event("capture_skip", "reason=raw_capability_changed")
+                finish()
+                return
+            }
         }
         guard !invocation.expectsLiveMovie || LivePhotoCaptureState(invocation.output).canCapture else {
             invocation.trace.event("live_photo_request_unavailable", "stage=invoke")
@@ -3162,12 +3207,15 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
 
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: (any Error)?) {
         let id = resolvedSettings(of: photo)
+        let isRAW = photo.isRawPhoto
         let trace = captureTraces.withLock { $0[id] }
         trace?.event("photo_delegate_arrived", "av_id=\(id) error=\(error != nil)")
         if let error = error {
             Log.capture.error("delegate_process_error error=\(error.localizedDescription, privacy: .public)")
             // 静态图失败 = 无可保存内容，立即以终结方式释放（即便还等着 live 视频也不必再等）。
             DispatchQueue.main.async {
+                guard let request = self.inFlightCaptures[id],
+                      CameraRAWCapturePolicy.acceptsDelivery(expectsRAW: request.rawFormat != nil, isRAW: isRAW) else { return }
                 self.mutateCapture(id) { $0.stillArrived = true }
                 self.deliverCaptureIfReady(id: id, terminal: true)
             }
@@ -3178,6 +3226,8 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
             encoding?.end("missing_data")
             Log.capture.error("delegate_process_no_data")
             DispatchQueue.main.async {
+                guard let request = self.inFlightCaptures[id],
+                      CameraRAWCapturePolicy.acceptsDelivery(expectsRAW: request.rawFormat != nil, isRAW: isRAW) else { return }
                 self.mutateCapture(id) { $0.stillArrived = true }
                 self.deliverCaptureIfReady(id: id, terminal: true)
             }
@@ -3193,6 +3243,8 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         // 静态图到达：记下数据 + 标记到位，立即尝试交付。**非 live：onData 立即触发，启动后处理；
         // live：onShutterReady 在此触发放开快门，onData 等视频再触发**——deliverCaptureIfReady 内分流。
         DispatchQueue.main.async {
+            guard let request = self.inFlightCaptures[id],
+                  CameraRAWCapturePolicy.acceptsDelivery(expectsRAW: request.rawFormat != nil, isRAW: isRAW) else { return }
             self.mutateCapture(id) { $0.stillData = imageData; $0.stillArrived = true }
             self.deliverCaptureIfReady(id: id, terminal: false)
         }

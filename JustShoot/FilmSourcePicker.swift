@@ -606,12 +606,12 @@ struct FilmSourcePickerCell: View {
         .task(id: source.id) {
             if let preparedImage { image = preparedImage; return }
             // 仅 preset 有 catalog 封面；custom LUT 用占位图标渲染。
-            guard case .preset(let preset) = source else {
+            guard case .preset(let preset) = source, let imageName = preset.libraryCardImage else {
                 image = nil
                 return
             }
             let loaded = await FilmCardImageCache.shared.loadImage(
-                imageName: preset.libraryCardImage,
+                imageName: imageName,
                 maxPixel: Self.coverPixel(displayScale: displayScale)
             )
             guard !Task.isCancelled else { return }
@@ -630,6 +630,8 @@ struct FilmSourcePickerCell: View {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
+                } else {
+                    Image(systemName: "film").foregroundStyle(.secondary)
                 }
             case .custom:
                 Self.customAccent.opacity(0.18)

@@ -1,0 +1,1 @@
+每组左边为替换前，右边为替换后。旧版读取原始备份 .jslut，先按历史代码应用 shadow toe；Portra 400 与 Pro 400H 再重采样至 33³ 并应用旧人像校正。新版直接读取当前 LUT。两边都关闭曝光/白平衡调整、用户曲线、颗粒和光学效果；这比较的是加载后的 LUT 调色，不是完整相机成片。Python 按存档 Swift 代码复现旧数值处理；三线性插值使用编码 sRGB。同一组 scikit-image 示例图：Eileen Collins/NASA、Andreas Praefcke、SpaceX。manifest.json 记录基础提交、源代码与色表哈希。

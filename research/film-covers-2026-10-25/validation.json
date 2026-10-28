@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-25",
+  "scope": "Three missing covers only; no LUT color/table changes, no new device capture.",
+  "assets": {
+    "count": 3,
+    "totalBytes": 399242,
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "format": "HEIC",
+    "existingSixCoverHashesUnchanged": true
+  },
+  "simulator": {
+    "name": "iPhone 17",
+    "os": "26.4.1",
+    "project": "JustShoot.xcodeproj",
+    "scheme": "JustShoot",
+    "configuration": "Debug",
+    "passed": 16,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 0,
+    "log": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-25T03-40-24-131Z_pid9844_d3306a7a.log",
+    "resultBundle": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-25T03-40-24-131Z_pid9844_38fe9379.xcresult",
+    "buildRun": "passed without warnings",
+    "buildLog": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-10-25T03-40-57-864Z_pid9844_d9d7a414.log"
+  },
+  "visualInspection": {
+    "home": "All nine cover images visible; no placeholders for ASTIA/Classic Chrome/Classic Neg.; title text readable without clipping.",
+    "homeScreenshot": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/film-covers-2026-10-25/home-simulator.jpg",
+    "coverPreview": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/film-covers-2026-10-25/generated-covers.jpg",
+    "picker": "Production picker image preparation decoded all nine resources at its requested size in XCTest. Actual camera picker UI unavailable on the simulator because it has no camera.",
+    "devicePerformanceMeasured": false
+  },
+  "diffCheck": "passed"
+}

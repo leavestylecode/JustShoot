@@ -1,0 +1,71 @@
+{
+  "status": "needs_physical_device_validation",
+  "validationPassed": false,
+  "message": "-[JustShootTests.FilmCardImageCacheTests testBundledFilenameRequestsReuseTheSameDisplaySizeAcrossScreens] : [Internal] Thread running at User-interactive quality-of-service class waiting on a lower QoS thread running at Default quality-of-service class. Investigate ways to avoid priority inversions",
+  "systemSharedCacheFrames": [
+    "0x1800b641f libsystem_trace.dylib _os_log_invoke_callback",
+    "0x1800b56ff libsystem_trace.dylib _os_log_impl_flatten_and_send",
+    "0x1800b327f libsystem_trace.dylib _os_log",
+    "0x1800ba203 libsystem_trace.dylib _os_log_fault_impl",
+    "0x18018a913 libdispatch.dylib _dispatch_block_sync_invoke",
+    "0x18019fe97 libdispatch.dylib _dispatch_client_callout",
+    "0x180195a0f libdispatch.dylib _dispatch_lane_barrier_sync_invoke_and_complete",
+    "0x18018c127 libdispatch.dylib _dispatch_sync_block_with_privdata",
+    "0x1d802b497 CMPhoto ___lldb_unnamed_symbol_e1160",
+    "0x1d802a65f CMPhoto ___lldb_unnamed_symbol_dfa48",
+    "0x1d802b02f CMPhoto CMPhotoScaleAndRotateSessionTransformImage",
+    "0x1d7ff0d63 CMPhoto ___lldb_unnamed_symbol_a69bc",
+    "0x1d7fefc1b CMPhoto ___lldb_unnamed_symbol_a5a28",
+    "0x1d7fed8a7 CMPhoto ___lldb_unnamed_symbol_a35fc",
+    "0x1d802463f CMPhoto CMPhotoDecompressionContainerCreateImageForIndex",
+    "0x181b7f64f ImageIO HEIFReadPlugin::copyIOSurfaceImp(CGImageProvider*, __CFDictionary const*, __IOSurface**, __CFDictionary const**)",
+    "0x181b7e1cf ImageIO HEIFReadPlugin::decodeImageImp(IIODecodeParameter*, IIOImageType, __IOSurface**, __CVBuffer**, CGImageBlockSet**)",
+    "0x181ae7cf7 ImageIO IIOReadPlugin::callDecodeImage(IIODecodeParameter*, IIOImageType, __IOSurface**, __CVBuffer**, CGImageBlockSet**)",
+    "0x181aa2fe7 ImageIO IIO_Reader::CopyIOSurfaceProc(void*, CGImageProvider*, __CFDictionary const*)",
+    "0x181ab3577 ImageIO IIOImageProviderInfo::copyIOSurface(CGImageProvider*, __CFDictionary const*)",
+    "0x181ab0b8b ImageIO IIOImageProviderInfo::CopyIOSurface(void*, CGImageProvider*, __CFDictionary const*)",
+    "0x181a876af ImageIO IIOImageSource::createThumbnailAtIndex(unsigned long, IIODictionary*, int*, unsigned int*)",
+    "0x181a8c14b ImageIO CGImageSourceCreateThumbnailAtIndex",
+    "0x1810729cb Foundation __NSINDEXSET_IS_CALLING_OUT_TO_A_BOOL_BLOCK__",
+    "0x1810cea3b Foundation -[NSBlockOperation main]",
+    "0x1810d15f7 Foundation __NSOPERATION_IS_INVOKING_MAIN__",
+    "0x1810cdd93 Foundation -[NSOperation start]",
+    "0x1810d1dfb Foundation __NSOPERATIONQUEUE_IS_STARTING_AN_OPERATION__",
+    "0x1810d1a2b Foundation __NSOQSchedule_f",
+    "0x1801954db libdispatch.dylib _dispatch_block_async_invoke2",
+    "0x18019fe97 libdispatch.dylib _dispatch_client_callout",
+    "0x18018a067 libdispatch.dylib _dispatch_continuation_pop",
+    "0x18018927f libdispatch.dylib _dispatch_async_redirect_invoke",
+    "0x1801984d3 libdispatch.dylib _dispatch_root_queue_drain",
+    "0x180198eaf libdispatch.dylib _dispatch_worker_thread2"
+  ],
+  "scope": "Symbolication is limited to system shared-cache addresses. App addresses were not reused across ASLR launches.",
+  "observedDecodeContext": {
+    "mainThread": false,
+    "foundationQoSRawValue": 25,
+    "worker": "BlockingImageWork OperationQueue, maximum concurrent operations 2"
+  },
+  "isolatedCacheSuite": {
+    "status": "SUCCEEDED",
+    "durationMs": 5613,
+    "counts": {
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    "target": "simulator"
+  },
+  "isolatedWarnings": [],
+  "baseline": {
+    "status": "SUCCEEDED",
+    "durationMs": 36521,
+    "counts": {
+      "passed": 395,
+      "failed": 0,
+      "skipped": 1
+    },
+    "target": "simulator"
+  },
+  "baselineWarnings": [],
+  "resolution": "Unresolved SDK/internal decoder priority warning, not counted as a passed performance check. Temporary diagnostic instrumentation and alternate decode experiments were removed. Existing bounded background decoding, cached display preparation and image encodings are preserved. No physical-device performance claim."
+}

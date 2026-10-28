@@ -572,6 +572,8 @@ struct FilmSourceCoverThumbnail: View {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
+                } else {
+                    Image(systemName: "film").foregroundStyle(.secondary)
                 }
             case .custom:
                 Self.customAccent.opacity(0.18)
@@ -586,13 +588,13 @@ struct FilmSourceCoverThumbnail: View {
         // 所以整块旋转也不刺眼。去掉 glass 后两边外观与旋转手感完全统一。
         .task(id: source.id) {
             // Leave headroom for rotation; the shared cache groups nearby display sizes.
-            guard case .preset(let preset) = source else {
+            guard case .preset(let preset) = source, let imageName = preset.libraryCardImage else {
                 image = nil
                 return
             }
             let pixel = max(Int(46.0 * displayScale * 1.5), 100)
             let loaded = await FilmCardImageCache.shared.loadImage(
-                imageName: preset.libraryCardImage,
+                imageName: imageName,
                 maxPixel: pixel
             )
             guard !Task.isCancelled else { return }

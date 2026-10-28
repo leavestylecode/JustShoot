@@ -28,8 +28,8 @@ final class CaptureRenderCancellationTests: XCTestCase {
         signal.cancel()
         let input = CIImage(color: .white).cropped(to: CGRect(x: 0, y: 0, width: 4, height: 4))
         XCTAssertNil(FilmImagePipeline.stages(for: input, lut: nil, chromaticGain: .one,
-            optics: FilmPreset.kodakVision5219.filmOptics,
-            grain: FilmPreset.kodakVision5219.renderProfile.grain, grainSeed: 1,
+            optics: FilmPreset.kodakPortra400.filmOptics,
+            grain: FilmPreset.kodakPortra400.renderProfile.grain, grainSeed: 1,
             cancellation: signal))
     }
 }

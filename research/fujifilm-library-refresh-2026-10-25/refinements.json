@@ -1,0 +1,14 @@
+[
+  {
+    "id": "00171_000",
+    "prompt": "Use case: style-transfer. Edit Image 1, the newly made Fujichrome 64T cover. Keep its ivory paper, green FUJIFILM strip, cobalt footer and flat black serif historical typography. Correct the hierarchy only: make '64T' the large distinctive stock name in the middle, with small 'FUJICHROME' above it and 'TYPE II PROFESSIONAL' below it, all crisp flat black serif ink. The footer must be tiny, right-aligned two lines reading exactly '35mm · 100FT' and 'ISO 64 · E-6', maximum 3% of canvas height per line, with plenty of empty cobalt around it. No oversized specification headline. Header brand should be modest and aligned left. Fine uniform paper grain, no bevel or foil. Preserve all colors and square edge-to-edge format.",
+    "editTarget": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-29f54ef6-7569-48be-b70c-497358d1efec.png",
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-140f7a27-644a-4f54-b20b-fb953b4e8eb6.png"
+  },
+  {
+    "id": "00229_000",
+    "prompt": "Use case: precise-object-edit. Edit Image 1, the newly made raspberry FUJICOLOR SUPERIA cover. Keep the exact green header, brand wordmark, raspberry body, gold SUPERIA lettering, thin warm rainbow elliptical printed band, small technical footer and subtle flat paper texture. One change only: restore a prominent ivory italic '200' as part of the main product identity, at the right end of the existing warm horizontal band around y=70%, comparable in height to half the SUPERIA title. Preserve the rest of the composition, all text spelling, margins and flat printed style. Do not add other text, shadows, objects, bevel or foil.",
+    "editTarget": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-6501695f-cd0d-4200-9b17-bd436f3d799b.png",
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-4912e0f1-6e81-4e18-89b9-657a8e266833.png"
+  }
+]

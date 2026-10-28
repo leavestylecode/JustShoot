@@ -1,0 +1,22 @@
+{
+  "scope": "78 reviewed remaining-brand covers; the full 331-cover task is incomplete",
+  "project": "JustShoot.xcodeproj",
+  "scheme": "JustShoot",
+  "configuration": "Debug",
+  "simulator": "iPhone 17",
+  "iOS": "26.4.1",
+  "build": "passed; 9.5s; no warnings or errors",
+  "uiChecks": [
+    "mixed grid with approved Fujifilm covers",
+    "SFX 200 detail",
+    "Ilford brand filter: 31 cards",
+    "red cover filter: updated covers present"
+  ],
+  "screenshots": [
+    "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/runtime-mixed-grid.jpg",
+    "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/runtime-sfx-detail.jpg",
+    "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/runtime-red-filter.jpg"
+  ],
+  "focusedTests": "pending final resource set",
+  "physical_camera_matching_complete": false
+}

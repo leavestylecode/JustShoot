@@ -1,0 +1,118 @@
+{
+  "pilotReviewed": [
+    "00021_000",
+    "00028_000",
+    "00079_000",
+    "00081_000",
+    "00245_000",
+    "00459_000"
+  ],
+  "refine": [
+    {
+      "id": "00028_000",
+      "issue": "Duplicate Kodak at top and bottom; retain only compact top brand."
+    },
+    {
+      "id": "00081_000",
+      "issue": "Duplicate Kodak at top and bottom; retain only compact top brand."
+    },
+    {
+      "id": "00064_000",
+      "issue": "Format120 still oversized; make entire footer one small consistent text size."
+    },
+    {
+      "id": "00068_000",
+      "issue": "Format110 larger than other footer text; normalize footer hierarchy."
+    },
+    {
+      "id": "00094_000",
+      "issue": "ULTRA400 has white bevel-like edge; flatten title to plain cream and blue ink."
+    },
+    {
+      "id": "00104_000",
+      "issue": "Duplicate Kodak at top and bottom; retain a single compact top brand."
+    },
+    {
+      "id": "00160_000",
+      "issue": "Standalone format120 still too large; normalize to small footer with process/ISO."
+    },
+    {
+      "id": "00234_000",
+      "issue": "Multipack quantity3 dominates title; make3x24EXP a tiny footer and MAX400 the clear main title."
+    },
+    {
+      "id": "00243_000",
+      "issue": "Normalize standalone format120 to small technical footer."
+    },
+    {
+      "id": "00246_000",
+      "issue": "Duplicate Kodak at top and bottom; remove top mark, keep bottom Kodak Professional."
+    },
+    {
+      "id": "00251_000",
+      "issue": "Duplicate Kodak at top and bottom; remove top mark, keep bottom Kodak Professional."
+    },
+    {
+      "id": "00260_000",
+      "issue": "Duplicate Kodak at blue-header bottom and above title; retain one compact header mark."
+    },
+    {
+      "id": "00303_000",
+      "issue": "Normalize standalone format120 to small technical footer."
+    },
+    {
+      "id": "00331_000",
+      "issue": "Duplicate110 cartridge label at lower left competes with title; retain only small format in footer."
+    },
+    {
+      "id": "00338_000",
+      "issue": "Duplicate Kodak header and lower red emblem; keep header and remove lower emblem."
+    },
+    {
+      "id": "00365_000",
+      "issue": "Format120 oversized and PRO/400 lettering looks shiny; normalize footer and flatten printed type."
+    },
+    {
+      "id": "00381_000",
+      "issue": "Duplicate Kodak top wordmark and bottom red emblem; remove lower emblem."
+    },
+    {
+      "id": "00423_000",
+      "issue": "Duplicate Kodak plaque and title-band brand; keep one compact brand only."
+    },
+    {
+      "id": "00433_000",
+      "issue": "Duplicate Kodak upper plaque and inline title-band plaque; retain upper brand only, remove inline duplicate and give VERICHROME PAN breathing space."
+    },
+    {
+      "id": "00502_000",
+      "issue": "Duplicate Kodak upper red emblem and inline yellow mark; remove upper emblem and retain the compact inline Kodak only."
+    },
+    {
+      "id": "00299_000",
+      "issue": "Duplicate Kodak at upper left and Kodak Professional below title. Remove upper-left Kodak entirely; retain only the lower Kodak Professional as brand. Preserve PORTRA 400UC, magenta angular panel and yellow paper."
+    },
+    {
+      "id": "00410_000",
+      "issue": "Footer specifications are oversized and heavy. Shrink both footer lines to consistent 24px at 1024 canvas with generous margins. Keep TRI-X PAN as headline and existing small red Kodak emblem, yellow paper and green band."
+    }
+  ],
+  "fullPagesReviewed": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "ocrReview": "147 images OCR-recognized; 26 heuristic flags manually reviewed. Stylized/rotated typography and Cyrillic lookalike characters are OCR false positives; 00299 duplicate branding and 00410 footer corrected separately. No unexpected EXTar/EXTACHROME/JustShoot/sRGB tokens.",
+  "finalReview": {
+    "date": "2026-10-26",
+    "fullCatalog": 147,
+    "refinementsReviewed": 22,
+    "smallSize": "Representative 110px sheet inspected; stock titles identifiable.",
+    "harmony": "Kodak and Fujifilm 24-card mixed sheet inspected; shared margins and paper texture, stock/era-specific colors retained.",
+    "retry": "00502_000 first local edit failed with a connection error; successful retry inspected."
+  }
+}

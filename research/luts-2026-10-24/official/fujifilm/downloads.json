@@ -1,0 +1,30 @@
+{
+  "retrieved": "2026-10-24",
+  "sourcePage": "https://www.fujifilm-x.com/global/support/download/lut/",
+  "files": [
+    {
+      "url": "https://dl.fujifilm-x.com/support/lut/gfx-eterna-55-3d-lut-v110.zip",
+      "file": "gfx-eterna-55-3d-lut-v110.zip",
+      "bytes": 45809710,
+      "sha256": "febfc7050999620651ca0cf162bf8b499970ef270b4da632765b61b958cf7940"
+    },
+    {
+      "url": "https://dl.fujifilm-x.com/support/lut/FUJIFILM_IDT_F-Log2C_Ver.1.10.ctl.zip",
+      "file": "FUJIFILM_IDT_F-Log2C_Ver.1.10.ctl.zip",
+      "bytes": 627,
+      "sha256": "faa1bf80deb38c926ec5f9c25879d78ec9c265f4e7437698c935b450f51c0491"
+    },
+    {
+      "url": "https://dl.fujifilm-x.com/technical-data/F-Log2C_DataSheet_E_Ver.1.0.pdf",
+      "file": "F-Log2C_DataSheet_E_Ver.1.0.pdf",
+      "bytes": 86505,
+      "sha256": "f69c345b9ef7cbe2a10924ff94de24bf0ffe58097e499d60166bad3ce432f1e8"
+    },
+    {
+      "url": "https://dl.fujifilm-x.com/support/lut/GFX_ETERNA_WhitePaper_260206_v101.pdf",
+      "file": "GFX_ETERNA_WhitePaper_260206_v101.pdf",
+      "bytes": 3152408,
+      "sha256": "c77d1bdf159199ed9682375df9f7a09ebba5b03134220f4902d81b552be7bd20"
+    }
+  ]
+}

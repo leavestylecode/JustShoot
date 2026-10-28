@@ -2,6 +2,19 @@ import XCTest
 @testable import JustShoot
 
 final class PhotoEncodingPolicyTests: XCTestCase {
+    func testQualityPlanImprovesPrecisionWithoutChangingUnversionedRecoveryJobs() {
+        for codec in PhotoEncodingPolicy.Codec.allCases {
+            let existing = PhotoEncodingPolicy.decision(for: codec)
+            let current = PhotoEncodingPolicy.decision(for: codec, mode: .quality)
+            XCTAssertEqual(current.mode, .quality)
+            XCTAssertGreaterThan(current.quality, existing.quality)
+            XCTAssertLessThan(current.quality, 1)
+            XCTAssertEqual(PhotoEncodingPolicy.decision(for: codec, legacyQuality: 0.6, mode: .quality).quality, 0.6)
+        }
+        XCTAssertEqual(PhotoEncodingPolicy.decision(for: .heif10).quality, 0.85)
+        XCTAssertEqual(PhotoEncodingPolicy.decision(for: .jpeg).quality, 0.9)
+    }
+
     func testAutomaticDefaultsAvoidTheLosslessEndpointForEveryFallbackCodec() {
         for codec in PhotoEncodingPolicy.Codec.allCases {
             let decision = PhotoEncodingPolicy.decision(for: codec)

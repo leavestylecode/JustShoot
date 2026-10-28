@@ -1,0 +1,1154 @@
+[
+  {
+    "id": "00007_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-74245325-1d18-4c6a-88e5-363df54abffa.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00007_000.heic",
+    "bytes": 136171,
+    "sha256": "dcdcedee9354dcaddc1db5284a233208f80fd8af5f8ec08a4909b3c4c077fd03",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00007_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00012_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-6df35f65-6d99-4058-9aeb-51c937852295.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00012_000.heic",
+    "bytes": 142352,
+    "sha256": "20ee37c43dcded0a42d04934e16f1aab92a5ba61a1bfee2878a9b52bbd15ac68",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00012_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00022_000",
+    "kind": "reuse-approved",
+    "source": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/cover_fuji_pro_400h.heic",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00022_000.heic",
+    "bytes": 88737,
+    "sha256": "9999b889cf1d658c3de9834967857485247956cd7999786761e3438415faf791",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00022_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00023_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b8b30932-676f-421d-a96b-273824a58a8d.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00023_000.heic",
+    "bytes": 121765,
+    "sha256": "f81fa1035deec566af1492070c34cedccdefcd9c278f0ede08bb53bc954cf438",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00023_000.heic",
+    "color": "black",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00032_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c3c62b99-ca3f-4716-aae0-ccfa77494817.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00032_000.heic",
+    "bytes": 151476,
+    "sha256": "bb33a37f49a9f682dd19b74e92a19fe750ae5d20e61bd838ae0e77b2ffc3a966",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00032_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00034_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ae0d556c-2e3c-4829-8a8f-92f7615727c3.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00034_000.heic",
+    "bytes": 160062,
+    "sha256": "58b32dc52664e88c01684d4592d4720e39b38c90265e9f8388cc22a8efba58d8",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00034_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00040_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f34a70eb-56ab-4d1f-912a-4c24f1426110.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00040_000.heic",
+    "bytes": 149237,
+    "sha256": "5cfaf352e477f0fd8966dabf4401f704ee21f46554a45cdfcfc899d158d996d1",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00040_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00044_000",
+    "kind": "reuse-approved",
+    "source": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/cover_fuji_velvia.heic",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00044_000.heic",
+    "bytes": 134186,
+    "sha256": "f6c222161b64575ba82fbb9ec3ab5807c240df651585896257876414e714e20f",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00044_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00053_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-29eeb6dd-aa44-4ae3-819e-7f08373c2ef0.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00053_000.heic",
+    "bytes": 193611,
+    "sha256": "263fb3d09e033ea19cde66312e9a1c7ada3a614957850738cf572e24d4fd49f2",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00053_000.heic",
+    "color": "gray",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00055_000",
+    "kind": "reuse-approved",
+    "source": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/cover_fuji_provia_100f.heic",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00055_000.heic",
+    "bytes": 131599,
+    "sha256": "f220143e56261184aeb153e8946489bb447dbef2927262d2bdf5974ed4d4715e",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00055_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00056_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-2186f37f-a781-4719-bad5-27007ee5db75.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00056_000.heic",
+    "bytes": 155427,
+    "sha256": "2304337fd422895f3edd28c9184f78683f4a76c95f16373ee3c4fa8da2d85d78",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00056_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00073_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-6fa52796-6f95-4d98-8079-7e4648c9cde2.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00073_000.heic",
+    "bytes": 198643,
+    "sha256": "f8d73e03b0f31b058caaffd3252770e7119b0e9739b2bf8da7e81e7e53b52e5b",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00073_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00087_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-84066fe5-f0c5-4280-9527-50bc192a5030.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00087_000.heic",
+    "bytes": 129741,
+    "sha256": "6425fe03886f46cff4d518e6b8fe0f56648d3f27fd1a24add061da345c91ba1d",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00087_000.heic",
+    "color": "black",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00116_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-71dbe7a2-a814-487b-b533-4f4afb48c82c.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00116_000.heic",
+    "bytes": 153181,
+    "sha256": "d2c4cf2c82c7bc597453b7ef265c9ade5132ffb9fa7dff73febcefe70aa02ce1",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00116_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00117_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-55955222-336e-41e3-91a9-f285525ac074.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00117_000.heic",
+    "bytes": 133892,
+    "sha256": "1809be6c9875f037a3f153210fe6c3fcacb241ff119104fa8a68a0e5371c765d",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00117_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00118_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ed412be7-853e-41f5-8d74-e7d166b0fdad.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00118_000.heic",
+    "bytes": 181242,
+    "sha256": "1540b2a50ea3a2b349f7ccc28cfa7b2ee245a36f8f10b336c2e384af43ef9cb3",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00118_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00139_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-4329ce5c-1b8e-42db-9724-9ec4771ffcfe.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00139_000.heic",
+    "bytes": 170833,
+    "sha256": "26345c1e699dc541533279829aa07c5e98c07ca51d962481093b29472ea32672",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00139_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00150_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-85c44d07-bb05-4f53-817e-bd5f747d5494.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00150_000.heic",
+    "bytes": 123058,
+    "sha256": "1ee9ed25ecfac430a2c3b93e72e540c5ccfd7b5df025314833d9386e8f3b9710",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00150_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00165_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f9f465bd-bb2e-4636-b93d-329975e266e5.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00165_000.heic",
+    "bytes": 143006,
+    "sha256": "ea23fa18513aab6a0296f67ff17148cb5aac449275200a199cb3de28357ef081",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00165_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00167_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-431bcc47-7593-463f-817c-aaa4c5ba833e.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00167_000.heic",
+    "bytes": 130102,
+    "sha256": "b4ba932bbefc43b2c1cd583469bc97ee94a6a7ef7c2d30eeba537aa3a8125d6f",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00167_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00171_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-140f7a27-644a-4f54-b20b-fb953b4e8eb6.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00171_000.heic",
+    "bytes": 128438,
+    "sha256": "1f1ed93983d4ef2972b5557f99fc5a62b62bd1735138e8faebe507f586dd22c5",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00171_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00177_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-6b71eee7-f827-49a4-b408-9d83d3b0e71e.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00177_000.heic",
+    "bytes": 197436,
+    "sha256": "eed384d1a94583d7c1ba0f9adae7e53cdcad0e5539e8b1e6ad7dbc081f8cc63c",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00177_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00197_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-2be710f7-f281-4b74-a17d-13ff9d42995b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00197_000.heic",
+    "bytes": 154881,
+    "sha256": "b77c31c0ba8b22a2dff95c22dc5087de0e80126c5a980d6ad24bb71ea8cfdc2c",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00197_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00199_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b19cc966-119e-4f2c-b181-7fd773d6005c.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00199_000.heic",
+    "bytes": 97239,
+    "sha256": "fa3168f7dc65972b0e9df35243d2d57a4f447737adfa2289115c767a150b4a71",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00199_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00202_000",
+    "kind": "reuse-approved",
+    "source": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/cover_fuji_c200.heic",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00202_000.heic",
+    "bytes": 117766,
+    "sha256": "9f9769184715bd892c498f1fe81a951c5f5e0f4e50d4760de26d769da9b4091f",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00202_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00209_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-8c95edc0-b138-4078-94a4-bfae8795cc5f.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00209_000.heic",
+    "bytes": 144363,
+    "sha256": "73ef0df25989ee1621bf646c9f08362f8631c71afd3832e6eaf650db2ec6cd0e",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00209_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00217_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-87ca0089-66b3-4dcd-a451-2d4862411200.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00217_000.heic",
+    "bytes": 142255,
+    "sha256": "bd2bf0da4f8bc5b341a122de920e557199308e3cf6a16db1f50c062441c0ed71",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00217_000.heic",
+    "color": "red",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00218_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-203f9418-fb3c-45d3-86d0-7a1a937edec1.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00218_000.heic",
+    "bytes": 156393,
+    "sha256": "baf3140d61c3dec9ed25062432453505c9b51b0161addc1e8403bd538b21030d",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00218_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00219_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-9addcc6a-8717-4ff7-ad53-4163045c90ec.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00219_000.heic",
+    "bytes": 138423,
+    "sha256": "1f78a6d9bc1a1a35f48b80063861486a8fd40d6bb89783eb6ff3558cd6105019",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00219_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00220_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-30672753-7cd9-4bb9-92ce-ba8ccba75bd1.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00220_000.heic",
+    "bytes": 128039,
+    "sha256": "f1af57521a74a55d901b55f1bb71fa89f98cfbc5cf6b27506dda7e322b0d7234",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00220_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00221_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-cb4510e4-abbf-4ee2-a6ec-399e6b89da77.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00221_000.heic",
+    "bytes": 117336,
+    "sha256": "74c365b4563c37b356f7259ebc8899959e1090b6c1323b81abde1a4676911875",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00221_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00222_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c9f7526c-5dc1-4cf1-bf65-3b339ddf3027.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00222_000.heic",
+    "bytes": 131139,
+    "sha256": "3c439549671b1d9658baf56c9fdb7eb22f0b06d3262479229e03461851fe5106",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00222_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00229_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-4912e0f1-6e81-4e18-89b9-657a8e266833.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00229_000.heic",
+    "bytes": 83105,
+    "sha256": "2e30db2505a11a4e1c04b2436c61bc92b9ef86d4158b21e20934449a6faae2fa",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00229_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00230_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-04a907cd-29d6-4bb2-8f3c-c4d736a6ce42.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00230_000.heic",
+    "bytes": 103563,
+    "sha256": "0644cca82e8f4efc49f455e328d1cad4e6e5d4a11240ab963313d6d6b3124701",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00230_000.heic",
+    "color": "black",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00231_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a3d01478-317e-4b08-bbd6-b76bb7726968.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00231_000.heic",
+    "bytes": 162177,
+    "sha256": "0f6dc3377087a70258fe0fbe0ae3cd6c06fb0d2d34773e295211eec157d8bcbf",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00231_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00232_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-75bcd0d9-03ca-4d87-b8af-d4a9350dfed7.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00232_000.heic",
+    "bytes": 83670,
+    "sha256": "c3b01217de962f1b31dd605566730d0f290a3244905fe9b5ed203b8b5a087c9f",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00232_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00247_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-4f262e75-e191-4fd4-a528-6041818237f4.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00247_000.heic",
+    "bytes": 125842,
+    "sha256": "b80498db94c198dd3aa669d1d62c3468e3fedf1730f44321fc35977bc99b2790",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00247_000.heic",
+    "color": "black",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00248_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-1ad6c0f7-3646-4e0e-812f-4d609c458110.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00248_000.heic",
+    "bytes": 131240,
+    "sha256": "f4fbd15c8f4e1a870acb279b3d903eb0043b2159e3ad321efbe9e40ec909f0ca",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00248_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00249_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-0829a56b-ebb4-4755-a057-79643eef7136.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00249_000.heic",
+    "bytes": 119560,
+    "sha256": "16cf9da966eada7b6a262a571767d6bce12d19d57f53b3bb76a3f409796a7502",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00249_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00250_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-feb140e9-dd05-4c99-a76e-53d63b0e1359.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00250_000.heic",
+    "bytes": 113255,
+    "sha256": "ed859a91a39771cfaba5d60fc8b1a9b9feb63f49c200c491f946534295a70ff4",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00250_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00277_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-8c25f832-a62e-4f34-b9d3-e9c1cb3fdd6d.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00277_000.heic",
+    "bytes": 111310,
+    "sha256": "e58246a63cc5dd342baef70712a3f61a56ad7c8a216329ec478e6a54814bbfc8",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00277_000.heic",
+    "color": "red",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00281_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-617f3a00-cf27-46fe-85b6-b72879febdd6.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00281_000.heic",
+    "bytes": 135074,
+    "sha256": "9e0da3ddea10c57891c5580a6c111ba3166e18bae0f18275d3489fc6d0f7249a",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00281_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00289_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-2233c39a-d7a4-4fb9-a023-1d0c9ec1233f.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00289_000.heic",
+    "bytes": 162146,
+    "sha256": "ce5471735efb4b0cb63810c3ee3afc301e6bae7cf566864c600e6ba51713eedf",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00289_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00290_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-38f83843-d5d3-4d9f-b5eb-2334f6e5cc8c.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00290_000.heic",
+    "bytes": 136748,
+    "sha256": "44d23c16715eb242919ade072cb58dbadf1f8489d2e84f0e410dee409df049ca",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00290_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00292_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e68adc4c-4a66-4727-8ef6-92d8158dfc89.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00292_000.heic",
+    "bytes": 138163,
+    "sha256": "8e013fb9d1b820700ba0e94bbdf5f313c6c0f9edf58e4cf49aea65bc585b0cf1",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00292_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00307_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b72699ae-4d97-4002-8617-1b5760a19a66.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00307_000.heic",
+    "bytes": 130891,
+    "sha256": "387cc4acb01dab13fab27827628050caa7c1e5e6f1df4580db51f74cb914b5ab",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00307_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00308_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-8ae05884-b35d-4a35-88b6-960fe80e996e.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00308_000.heic",
+    "bytes": 135253,
+    "sha256": "998fcedd2ce4dd5e1653a16c23dbc5be20421ad8437b5c9b2d0e70b363611863",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00308_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00315_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-302db4cf-18ee-475f-8fbd-f2cafc5ba875.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00315_000.heic",
+    "bytes": 144646,
+    "sha256": "ee1a7b784e8e1b03bb513cae3c4df4007071cacf9d17098871c9aed12d5e5872",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00315_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00318_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-59dbce9c-2387-4ea3-848a-157d6244ae39.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00318_000.heic",
+    "bytes": 158473,
+    "sha256": "225574c18d7407f9db14bb0ce3f60f42a69d67486ca2611575280dc96524160e",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00318_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00319_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-49003d49-2a9c-4b2c-817c-cfd341cd5894.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00319_000.heic",
+    "bytes": 151117,
+    "sha256": "e803f4bc02e21fde8c83380b0440c28305292135633dc1b4c9fde25f4872d094",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00319_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00339_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-629cd2cd-c9a1-4db4-9c7c-d754951dd98a.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00339_000.heic",
+    "bytes": 129908,
+    "sha256": "29736075a5771897949e0cee1fa41f001a8b5198f0ebcf63484d135b0287b1f5",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00339_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00341_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a9a04447-59a6-4284-a78e-a11c7daf5415.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00341_000.heic",
+    "bytes": 158690,
+    "sha256": "52aef7191340e66acd38bfcf7d2ba84ad3c62d6f0f13f7e2579a5cfc6e718638",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00341_000.heic",
+    "color": "gray",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00343_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f2028f8a-96a2-4ee5-96b4-4ca55cf724a4.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00343_000.heic",
+    "bytes": 176436,
+    "sha256": "b647a03f48e14c29845258847a03490ba24d9ea6544cdf1377bfbe715c002d27",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00343_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00350_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-011c7f0c-a420-4e10-b46b-99e8b91952e9.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00350_000.heic",
+    "bytes": 162650,
+    "sha256": "4a17df8689e6c54726b11e9f2b1dda8852314462d0ea2293954a3b513ebc884d",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00350_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00372_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-0605a153-6ecf-42f3-ad36-44f70e18248c.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00372_000.heic",
+    "bytes": 144159,
+    "sha256": "f961675597557593e3f268e7c45371969988d1c391fbd02ad9475e3eceaa0426",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00372_000.heic",
+    "color": "black",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00404_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-22edb465-6bbe-4466-8f81-285ce9ac95b5.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00404_000.heic",
+    "bytes": 163987,
+    "sha256": "227a214a0e74fbbd8442cf45d135110d98830b816751b377bd2a60debb4f5643",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00404_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00461_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-04e4c3b8-0f26-48bd-80f2-8340e845e61b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00461_000.heic",
+    "bytes": 152886,
+    "sha256": "c7b4f663699ae18a46006349ffb89c425068731239ff7fa37c1b267df4549143",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00461_000.heic",
+    "color": "green",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00465_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a8328a7a-dc79-4527-82ff-e70d04463f69.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00465_000.heic",
+    "bytes": 130212,
+    "sha256": "c68d98f60203224c813c64be8580e429939573b321132025d0f6d2a2ff3b0ad0",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00465_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00466_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-99667ed0-f1cb-488c-a7d6-c0b98710ac4d.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00466_000.heic",
+    "bytes": 136400,
+    "sha256": "da3ded7ad6e4fbd785f6ab54599788ac0ba2976718f124aaff6a4d3f8389de1f",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00466_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00488_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-1fd51934-4262-46a7-b5c3-0f191fd292d9.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00488_000.heic",
+    "bytes": 132648,
+    "sha256": "5c99e4826cf0132e67b3325836d84c33d582ac514e7901cfb80de1f52b2e23c8",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00488_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00490_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d9d6f713-91f1-4a93-9757-c60c163eeebb.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00490_000.heic",
+    "bytes": 139098,
+    "sha256": "a3130b24fd4368ecd32a59ffaf93972f76f33d5ccfeaca32c5fdd02971461186",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00490_000.heic",
+    "color": "red",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00497_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-32871f1a-9376-43f0-b6c4-7fd135dda939.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00497_000.heic",
+    "bytes": 181518,
+    "sha256": "40803689950ca20d2988dca4b7dd6dc109387fd1c97e75e8ee95c15324db2d08",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00497_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00506_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c86cf227-14c7-4a8e-b101-6dd4ef8a8f5d.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00506_000.heic",
+    "bytes": 97595,
+    "sha256": "dcbc562a755cf46cf29ddc5301c9ec9472408bb5c64a490a775544758ba5f4e6",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00506_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00507_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-420cf468-2b1d-42ca-b331-1456e7fe5939.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00507_000.heic",
+    "bytes": 146679,
+    "sha256": "b62d426ca5ed31160c420d6b725ffda599f43e5b2e943e5b49fba080345f98d2",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00507_000.heic",
+    "color": "white",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00510_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e739907f-28b5-47a6-872b-63685f1487ec.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00510_000.heic",
+    "bytes": 131640,
+    "sha256": "66cf4743a17b896dd5ceead38cf48f12b778219ef28c38ad8ae8eb1b7cfc5036",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00510_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00518_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-3f083f09-9594-488e-9f8e-c84aa9bf7867.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00518_000.heic",
+    "bytes": 92501,
+    "sha256": "ed3491971c35f3e183531c819a4a01bc01ce50e6e611433f30c72ea58081f197",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00518_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00524_000",
+    "kind": "reuse-approved",
+    "source": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/cover_fuji_acros.heic",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00524_000.heic",
+    "bytes": 147068,
+    "sha256": "5b56be4e9bbbeefd3bc266c5e70e5ec5f42b51ec32fe7bee5e06ebc81e12593c",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00524_000.heic",
+    "color": "gray",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00525_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d7515af7-4156-481a-97f5-392eca4de61b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00525_000.heic",
+    "bytes": 173750,
+    "sha256": "5fba5dc767483fbe90470789da72a50af2f82d96a0bde659796983898863b91a",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00525_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00526_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c4e26a41-02d0-4144-a944-50e452cea196.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00526_000.heic",
+    "bytes": 141500,
+    "sha256": "5efc6af9a4c91f2d5d4b7003f11792ba551067eea3b58f9d598720cbdff3aa23",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00526_000.heic",
+    "color": "red",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00551_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-38cc438f-e3fc-4696-a8aa-73c188a0c03d.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00551_000.heic",
+    "bytes": 126666,
+    "sha256": "f76b2bfa69e9cf52f9568ad6642c1732e41dfc00f933dfd4a2b80e164e6a5232",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00551_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00554_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-7c5a0711-c259-45b1-a5b7-4810a92441bd.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00554_000.heic",
+    "bytes": 109861,
+    "sha256": "b6b9aa1d6be0d38181ca67e135f54d121772b7ce6b8070d5dfa51426660999b2",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00554_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00556_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-5a8696e9-0b9d-4a78-b1fd-5a2a6db33620.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-library-refresh-2026-10-25/after/00556_000.heic",
+    "bytes": 199713,
+    "sha256": "1ffb33b3f1ac170ab5895d7a9f6687619ac8a4359c5bf713a56efcfdf8d86b90",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00556_000.heic",
+    "color": "gray",
+    "status": "reviewed-installed"
+  }
+]

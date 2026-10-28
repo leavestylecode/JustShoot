@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-28",
+  "bundle": "/tmp/justshoot-raw-derived/Build/Products/Debug-iphonesimulator/JustShoot.app",
+  "coverCount": 559,
+  "totalCoverBytes": 54348069,
+  "errors": [],
+  "passed": true,
+  "buildStatus": "SUCCEEDED",
+  "buildLog": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-10-28T02-58-21-303Z_pid99216_8985da91.log",
+  "simulatorUI": {
+    "screen": "Film Library",
+    "result": "visually_verified",
+    "details": "Mixed-brand 3-column grid renders film cover artwork and labels correctly.",
+    "screenshot": "/var/folders/7n/2347nkq95kx12xjm0d2vwn500000gn/T/screenshot_optimized_689ac00b-f54f-4696-a3a7-35e2d75e958d.jpg"
+  }
+}

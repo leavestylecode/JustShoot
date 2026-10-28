@@ -1,0 +1,337 @@
+{
+  "scope": "Structural and in-memory compiler validation only. No film accuracy, app preview, or device validation.",
+  "files": [
+    {
+      "file": "research/luts-2026-10-24/community/gmic/kodak_portra_400.cube",
+      "sha256": "d370833399f38de59f42386757b18832c68d10a8877c89ad7428e3791ad266d3",
+      "dimension": 13,
+      "sample_count": 2197,
+      "headers": [
+        "# Created by: G'MIC (https://gmic.eu)",
+        "TITLE \"kodak_portra_400\"",
+        "# LUT size",
+        "# Data domain",
+        "# LUT data points"
+      ],
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "maximum_distance_from_8bit_grid": 0.0019607113856895397,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.02855028584599495,
+            0.036040645092725754,
+            0.035365428775548935
+          ],
+          "weighted_srgb_code": 0.03439944409877062
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.05142304342985153,
+            0.06448732036352157,
+            0.06704445147514343
+          ],
+          "weighted_srgb_code": 0.06189447995368243
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.08151640534400943,
+            0.10049727392196657,
+            0.10664503395557404
+          ],
+          "weighted_srgb_code": 0.09690580953671935
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.16991964337921145,
+            0.18688781988906863,
+            0.19698749236011506
+          ],
+          "weighted_srgb_code": 0.18400958191548256
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.6208484172821045,
+            0.6192054748535156,
+            0.6260539889335632
+          ],
+          "weighted_srgb_code": 0.620049227130413
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.9137642707824707,
+            0.9102052469253541,
+            0.9099492292404174
+          ],
+          "weighted_srgb_code": 0.9109434109205246
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.973810613155365,
+            0.9758283495903015,
+            0.9724279046058655
+          ],
+          "weighted_srgb_code": 0.9751538666963576
+        }
+      ],
+      "in_memory_binary_compile_passed": true
+    },
+    {
+      "file": "research/luts-2026-10-24/community/gmic/kodak_portra_400_++.cube",
+      "sha256": "143d36a113f0f5d1654044a74503a9437270bfb26922b478805ec6f537b93871",
+      "dimension": 13,
+      "sample_count": 2197,
+      "headers": [
+        "# Created by: G'MIC (https://gmic.eu)",
+        "TITLE \"kodak_portra_400_++\"",
+        "# LUT size",
+        "# Data domain",
+        "# LUT data points"
+      ],
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "maximum_distance_from_8bit_grid": 0.0019599879489226035,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.09228882193565369,
+            0.09682624787092209,
+            0.08920754492282867
+          ],
+          "weighted_srgb_code": 0.09531152076423167
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.09879704636335372,
+            0.11806805956363678,
+            0.10493182200193406
+          ],
+          "weighted_srgb_code": 0.11302260580530166
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.12210650026798249,
+            0.14897202086448671,
+            0.1355359652042389
+          ],
+          "weighted_srgb_code": 0.142290327967
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.17895137267780303,
+            0.2145625781116486,
+            0.20405303752899173
+          ],
+          "weighted_srgb_code": 0.20623284700634523
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.6270128488540649,
+            0.6188676357269287,
+            0.6156574487686157
+          ],
+          "weighted_srgb_code": 0.6203675325393677
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.9049049091339112,
+            0.9018121190071107,
+            0.9055134539604188
+          ],
+          "weighted_srgb_code": 0.9027368825716973
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.9540133476257324,
+            0.9584162831306458,
+            0.9549851417541504
+          ],
+          "weighted_srgb_code": 0.9572324906349181
+        }
+      ],
+      "in_memory_binary_compile_passed": true
+    },
+    {
+      "file": "research/luts-2026-10-24/community/gmic/kodak_portra_400_+.cube",
+      "sha256": "aa0175e243c1b5df122db2f53b6eb27ec037d208d631e23925fe79fa95ea4298",
+      "dimension": 13,
+      "sample_count": 2197,
+      "headers": [
+        "# Created by: G'MIC (https://gmic.eu)",
+        "TITLE \"kodak_portra_400_+\"",
+        "# LUT size",
+        "# Data domain",
+        "# LUT data points"
+      ],
+      "minimum": 0.0003425149479880929,
+      "maximum": 1.0,
+      "maximum_distance_from_8bit_grid": 0.0019604795119341767,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.06496769189834595,
+            0.06716951727867126,
+            0.06073922663927078
+          ],
+          "weighted_srgb_code": 0.06623714221864939
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.09188304603099823,
+            0.09414485400915146,
+            0.08829648596048356
+          ],
+          "weighted_srgb_code": 0.09324174145988225
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.13029666590690617,
+            0.13036214184761047,
+            0.12447193586826327
+          ],
+          "weighted_srgb_code": 0.12992294879090785
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.2173873575382233,
+            0.21429305356407166,
+            0.2071154185819626
+          ],
+          "weighted_srgb_code": 0.214432677343268
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.6240411400794983,
+            0.6172931790351868,
+            0.6136310696601868
+          ],
+          "weighted_srgb_code": 0.6184633912563324
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.9069107098579408,
+            0.9040425810813904,
+            0.9048265919685364
+          ],
+          "weighted_srgb_code": 0.9047089508453369
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.9627436399459839,
+            0.9659161567687988,
+            0.963904857635498
+          ],
+          "weighted_srgb_code": 0.9650964638948439
+        }
+      ],
+      "in_memory_binary_compile_passed": true
+    },
+    {
+      "file": "research/luts-2026-10-24/community/gmic/kodak_portra_400_-.cube",
+      "sha256": "26682ab713322b94c535acac8d879b8c3eb42ad9a3a7bcd619de6289b16cfc92",
+      "dimension": 13,
+      "sample_count": 2197,
+      "headers": [
+        "# Created by: G'MIC (https://gmic.eu)",
+        "TITLE \"kodak_portra_400_-\"",
+        "# LUT size",
+        "# Data domain",
+        "# LUT data points"
+      ],
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "maximum_distance_from_8bit_grid": 0.001960383793886966,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.0214360561221838,
+            0.022272447124123573,
+            0.024908745661377907
+          ],
+          "weighted_srgb_code": 0.02228497115150094
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.044812221556901934,
+            0.055693543970584874,
+            0.059167454004287724
+          ],
+          "weighted_srgb_code": 0.05363099112986922
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.07939242172241212,
+            0.09835737574100495,
+            0.10295727932453158
+          ],
+          "weighted_srgb_code": 0.09465753955538272
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.1801162550458908,
+            0.19826598371219634,
+            0.20586837125301363
+          ],
+          "weighted_srgb_code": 0.1949562437781868
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.6006735563278198,
+            0.6016345620155334,
+            0.6048751473426819
+          ],
+          "weighted_srgb_code": 0.6016642224669456
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.8923758387565615,
+            0.8881964297294618,
+            0.8901940460205079
+          ],
+          "weighted_srgb_code": 0.8892291999848366
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.9669613242149353,
+            0.9689303636550903,
+            0.9658844470977783
+          ],
+          "weighted_srgb_code": 0.9682918306946754
+        }
+      ],
+      "in_memory_binary_compile_passed": true
+    }
+  ]
+}

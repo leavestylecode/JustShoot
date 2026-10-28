@@ -8,12 +8,13 @@ final class FilmPresetCoverPreparationTests: XCTestCase {
         XCTAssertEqual(Set(covers.keys), Set(FilmPreset.allCases))
         let maximum = FilmCardImageCache.pixelSize(for: FilmPresetCoverPreparation.homePixel(displayScale: 2))
         for preset in FilmPreset.allCases {
+            guard let imageName = preset.libraryCardImage else { continue }
             let image = try XCTUnwrap(covers[preset])
             let cg = try XCTUnwrap(image.cgImage)
             XCTAssertGreaterThan(cg.width, 0)
             XCTAssertGreaterThan(cg.height, 0)
             XCTAssertLessThanOrEqual(max(cg.width, cg.height), maximum)
-            XCTAssertTrue(FilmCardImageCache.shared.cachedImage(imageName: preset.libraryCardImage, maxPixel: maximum) === image)
+            XCTAssertTrue(FilmCardImageCache.shared.cachedImage(imageName: imageName, maxPixel: maximum) === image)
         }
     }
 
@@ -22,11 +23,18 @@ final class FilmPresetCoverPreparationTests: XCTestCase {
         XCTAssertEqual(Set(covers.keys), Set(FilmPreset.allCases))
         let maximum = FilmCardImageCache.pixelSize(for: FilmPresetCoverPreparation.pickerPixel(displayScale: 3))
         for preset in FilmPreset.allCases {
+            guard let imageName = preset.libraryCardImage else { continue }
             let image = try XCTUnwrap(covers[preset])
-            XCTAssertTrue(FilmCardImageCache.shared.cachedImage(imageName: preset.libraryCardImage, maxPixel: maximum) === image)
+            XCTAssertTrue(FilmCardImageCache.shared.cachedImage(imageName: imageName, maxPixel: maximum) === image)
             let cg = try XCTUnwrap(image.cgImage)
             XCTAssertLessThanOrEqual(max(cg.width, cg.height), maximum)
         }
+    }
+
+    func testEveryPresetHasItsOwnCoverInsteadOfBorrowingAnotherLooksArtwork() {
+        let names = FilmPreset.allCases.compactMap(\.libraryCardImage)
+        XCTAssertEqual(names.count, FilmPreset.allCases.count)
+        XCTAssertEqual(Set(names).count, FilmPreset.allCases.count)
     }
 
     func testCancelledPreparationDoesNotReportAnEmptyReadySnapshot() async {

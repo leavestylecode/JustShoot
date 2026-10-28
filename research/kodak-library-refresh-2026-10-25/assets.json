@@ -1,0 +1,2354 @@
+[
+  {
+    "id": "00017_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-6cf19edd-e355-4247-a3bd-108c652f36df.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00017_000.heic",
+    "bytes": 119426,
+    "sha256": "bb7d3ca07227eb5192491bbb58f23f555ea46850d49b63a9fec668214d60e9c1",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00017_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00021_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a3e4a66f-43d3-47e3-8610-13c73f1cac76.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00021_000.heic",
+    "bytes": 81712,
+    "sha256": "76d29b37b7ffa20574976f83eaf6b16eda1805044474e9540cf588cac59645c7",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00021_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00024_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-72d2099a-098d-4cfa-812c-d4bf9cde4130.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00024_000.heic",
+    "bytes": 77211,
+    "sha256": "6343b10300111bfaa408dd067cedfafc5f60563a3cf8d767f649c4b52061f9e9",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00024_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00025_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b4470854-a9f3-482d-8b16-2c9013bf5a09.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00025_000.heic",
+    "bytes": 136666,
+    "sha256": "0d7111e7796abe43c42e35a0bff7db90ecd38feed9745573f7b801816fc32fef",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00025_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00026_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-9cb98b4c-96eb-41a3-b09b-40cd0cce684e.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00026_000.heic",
+    "bytes": 130924,
+    "sha256": "cf7981e836250b42a54ad6de0a793297bcffde33f6d3bffa0961377ca85a433e",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00026_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00027_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-cd001873-7404-4d2d-9af4-156bd6ab05e2.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00027_000.heic",
+    "bytes": 125274,
+    "sha256": "4d5b29aa6ed25c3a90aaddb0f8e2f8ec8190b8d3488c5a74cd387b5902e8ab15",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00027_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00028_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-51943078-8bc7-44af-aabd-184dcdfea261.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00028_000.heic",
+    "bytes": 65438,
+    "sha256": "77e325d7d0e60f62d50a0369b802c7b37f343bd3815d10ba0d629e4876ba8791",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00028_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00035_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-0139cc2d-41b1-4835-ac2c-510364962d3f.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00035_000.heic",
+    "bytes": 178682,
+    "sha256": "82747a0d1612b4897c279b1a8a786d27de5aa64ed6e584e4ecb6c9e58c08f518",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00035_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00037_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-99f30725-979a-4b10-ae7b-84d2429a5e35.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00037_000.heic",
+    "bytes": 108489,
+    "sha256": "8449f611a16baa55e8c11bea43e5642dac47cc8404fd968e77788cf896a5ae0e",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00037_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00041_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-454cc83c-2a4a-40cd-97ac-cc4b3c6ab57a.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00041_000.heic",
+    "bytes": 154815,
+    "sha256": "b1e8ac938f69985c59b37899ed8f063ebc19373492741f0f309145e57168b6f3",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00041_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00042_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d9c66e82-5ec3-4bac-a070-cc456ad8bbe9.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00042_000.heic",
+    "bytes": 91973,
+    "sha256": "b14517991531b1a5e8490cd5d9ee13e719ce49bb8179d0a583a036bd9245d8bf",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00042_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00043_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-fc8a92dd-eb9a-4329-bca9-b66fbfa1ea5e.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00043_000.heic",
+    "bytes": 201021,
+    "sha256": "fadaf180ee74f0846b4c8382e7abba15e127e597c18a3b085d8b6d45f0727f56",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00043_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00045_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-81894064-8842-489a-95c6-b48a9cb049a7.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00045_000.heic",
+    "bytes": 133322,
+    "sha256": "376964084f9d9b375b73629eb77bb48352adee1c15dfb5b5132749e0cded647a",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00045_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00052_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f5b00ad9-e1f6-41eb-bbdf-834d0d660663.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00052_000.heic",
+    "bytes": 107414,
+    "sha256": "eae2a5a8e49e6371a12c6022dc47ee02985a7c54f4240cb87f2cdd03b9a518db",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00052_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00060_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-8c26c4c6-2ad6-4651-9dc3-8b4bb2ee3516.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00060_000.heic",
+    "bytes": 137761,
+    "sha256": "6d42bea29b797fca3df3bdf14976f0920e1952f28f83400e37e2367f6197688a",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00060_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00064_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-db3b6a32-6f54-400f-8476-ea5d63ef8240.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00064_000.heic",
+    "bytes": 95347,
+    "sha256": "9dcc7e60322b2b85f5f3962dbee046b53ff130661fe8fb238c88e170af06401f",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00064_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00066_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d4aa4f1d-d9f9-47b1-bb70-b4614f880628.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00066_000.heic",
+    "bytes": 149801,
+    "sha256": "4d502223d18ed0196df2558aace7e346fec4aba8252f116737a7c09963f6002c",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00066_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00068_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b96645f9-a436-4419-9e44-7b97f37ca38b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00068_000.heic",
+    "bytes": 81914,
+    "sha256": "7426af7f65758ef7d6ce14c98b062afb9b93fd8f41dd1e4339487aafb69d66ba",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00068_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00069_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-bf9a97ce-a95d-4b9f-b83a-66c1f11bd587.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00069_000.heic",
+    "bytes": 121165,
+    "sha256": "b12e0b6cb5e472d963b4e477fa21b88692c203d023afcc7c16acaedfc0849901",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00069_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00079_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-7f2a2aa2-05ff-4cf7-893d-8e28fef16fa9.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00079_000.heic",
+    "bytes": 108937,
+    "sha256": "673970901e8dc0772ff955fdcc0f864bd2e73f9053edcaf30c3cccec6ad93aa9",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00079_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00080_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-8c9fe628-a609-496d-85d5-7b2aa311f08f.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00080_000.heic",
+    "bytes": 174397,
+    "sha256": "4eeb5a30ff5adc4f5896a39e293ef48ec33288d9a45db2b20c379081dd24c11c",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00080_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00081_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-68881015-ba4f-48a1-8556-dfb966ef90f7.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00081_000.heic",
+    "bytes": 94331,
+    "sha256": "c64018c0210ae7bfa50bdf559a3df1c6040507a86ac9fcf64e4140b1780d514c",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00081_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00084_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-67491384-0a30-43d7-9f24-e52c2120b3fb.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00084_000.heic",
+    "bytes": 119036,
+    "sha256": "f829643c4bed391825f7d324fafef6084fa7b68fd071c64308d1dcadc00dbd6a",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00084_000.heic",
+    "color": "red",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00086_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e476c457-1b34-44dd-89ec-c05b3573ba44.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00086_000.heic",
+    "bytes": 131606,
+    "sha256": "b790f43076ba2bef42ae1b3044d8f9a5570a9b651335a8f5ee706a5ac57a544c",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00086_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00088_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ecbf1191-8ae8-405f-aafd-b341a4bfb81c.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00088_000.heic",
+    "bytes": 178261,
+    "sha256": "afba447291f4e2fbe89621ba4297e62264a44b6b3df804356509a8ace0f75dc9",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00088_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00089_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-06a99c69-4b14-41ac-a9bc-e10d06a5a6e5.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00089_000.heic",
+    "bytes": 130314,
+    "sha256": "9550f76766d01f5e03640c488f7b9a0b39bcee4d39a98417596ec87c4332c362",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00089_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00091_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-907882cd-5e71-4a0e-a53c-4f8687822de4.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00091_000.heic",
+    "bytes": 146420,
+    "sha256": "d48b6644dae040f30cf2e9807ebb0d1fca2c81d09ecb718fb4bbac8e73ba0e77",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00091_000.heic",
+    "color": "red",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00094_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-55713d91-8b21-4498-9aae-50579127b2fe.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00094_000.heic",
+    "bytes": 117412,
+    "sha256": "a17677ab9c391764eb2ef7b50dc170f6a8bb8fa08ed06b6b71e5c79d2e303d03",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00094_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00095_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c16be773-737d-4d0f-b24e-da1c2c42b075.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00095_000.heic",
+    "bytes": 176401,
+    "sha256": "2cf47cd6392d7170dcbb3e7e808788443ec364152a46efa29f4383274345a0f8",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00095_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00097_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-db260047-77b1-44f5-8455-d1df1efd13a0.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00097_000.heic",
+    "bytes": 133683,
+    "sha256": "47eaab841454415925995f6acf4922415ee983ef1aa07d7ac81b07f8d30e06aa",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00097_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00099_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-84c68be9-6b70-41fd-ad94-8069d159dcaf.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00099_000.heic",
+    "bytes": 175715,
+    "sha256": "10168764901ed0c4a09cfe606192f4e55431109dc9684f9e8b55fa158c5585ab",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00099_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00100_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-999f07b1-f5d3-49c0-9572-a5c5f10434ae.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00100_000.heic",
+    "bytes": 114167,
+    "sha256": "025865e0dbc696597863f80c1e673952202a33a8684c11ffd6b1836072c06277",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00100_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00102_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-be567184-1c16-45a5-b2f5-8d3d42dd7a77.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00102_000.heic",
+    "bytes": 156732,
+    "sha256": "362929b58ac9abd43a077061bf8a16686764e964089f6cbfc4ce6e667a2ae2a8",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00102_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00103_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-74feb6db-a66d-44ae-860a-dbca177981bb.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00103_000.heic",
+    "bytes": 145851,
+    "sha256": "924de66ba08c378b0663f7ab7ddd3f535d15bc5e66533c12aeeded46608ac191",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00103_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00104_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-517ced03-e663-40d1-95c7-0b73f47ba621.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00104_000.heic",
+    "bytes": 73973,
+    "sha256": "d7b41c842d8d24b0f7db153f14c580b14c81151e2fc13c8758213b0459c253ed",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00104_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00105_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d002a557-2654-4a0c-b1b5-d60dfa0456f1.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00105_000.heic",
+    "bytes": 142728,
+    "sha256": "a90afb65e6506229caa91fa3ca94c196be02d0da5915b918953d802cda9bddc1",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00105_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00106_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-cac509fb-00f0-466d-9b6a-2febdac1f1cf.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00106_000.heic",
+    "bytes": 174636,
+    "sha256": "9438928a683342fd1b175a2dd92ca8a509b1f28276e149466a3a3d4018082309",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00106_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00107_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e6b805a8-c520-4813-b659-ae7c0a082710.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00107_000.heic",
+    "bytes": 129249,
+    "sha256": "10e9eba4b230de4e0bf1f3455e0c730b5171d015e556a74f5fa8eb9c15d32397",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00107_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00113_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-254912f0-bd22-4984-ac3a-d843531005e2.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00113_000.heic",
+    "bytes": 138778,
+    "sha256": "869f1e4c1dd0e6b7b580e599104c52bd7f3ed7bc9199ccb566b63381847cee41",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00113_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00114_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-93623e87-6532-41be-acb9-bfd4c0ba4ffc.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00114_000.heic",
+    "bytes": 132931,
+    "sha256": "e74713605402c2a280d7ac5058c50b1c8799e85b5a675758d0cdb7c267ab1b55",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00114_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00119_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d98ad4c5-6782-43dd-89ad-0ebef1d421c9.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00119_000.heic",
+    "bytes": 92171,
+    "sha256": "5c5d095228c9d603c647df3d3284fa8e7d737fb1befeaab63c277c86f9703f13",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00119_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00120_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-52673f1e-6c14-4288-a01e-285c9c9ca8f7.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00120_000.heic",
+    "bytes": 157776,
+    "sha256": "d3928c93795a1b17c9a759bc7b7c24228df50b7d3cb3d4a135cad12d8b8f1ec0",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00120_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00121_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-8dee0293-7ed0-4578-a372-5f9cfd89b0ec.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00121_000.heic",
+    "bytes": 160080,
+    "sha256": "71c5553156936213dd266de7701e22c0f08f243348176cfe200d242a1b3f4153",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00121_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00135_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-42377e12-8910-44df-bd8b-9faac9c4c8bf.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00135_000.heic",
+    "bytes": 105718,
+    "sha256": "acba47d743c080d09fc51da855eb87e541a63061796d01f25fb6d90e58373aad",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00135_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00142_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-1a1c4a2a-a478-46db-876f-310187059423.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00142_000.heic",
+    "bytes": 176379,
+    "sha256": "3f93671a22ee6bb500cbeff9c8b73d9bd6fe9812be0213d82497b1d00d711dc4",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00142_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00144_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-78c6d3ae-e2f9-4e32-b29e-227b8a63cd20.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00144_000.heic",
+    "bytes": 132664,
+    "sha256": "4549d27535f6ec0c252a4fea7a4fef3317105313079eb49d63f0c49e1dfe0ad3",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00144_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00146_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-afb4eaa1-e78d-4558-ab2f-17ab152bc6be.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00146_000.heic",
+    "bytes": 90118,
+    "sha256": "844827df843f8f29bf3986d084759fc50338ccb40e412fa18295ff7c12cdb20f",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00146_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00149_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b6055f0f-61d7-423e-b60a-8352083d1d43.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00149_000.heic",
+    "bytes": 128051,
+    "sha256": "8a0c0f66f97a5677639e4e366f67959de242df755b5af51c2ba35597d476ed32",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00149_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00153_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-13ab6899-f725-4615-b2bd-4eec3a969dc0.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00153_000.heic",
+    "bytes": 111665,
+    "sha256": "d5f06083cea7619d68123ea670e1faa17419925384b717ef65e10dbbf55cdf04",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00153_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00154_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d15d1785-334b-476c-ac55-5dae5416ef2b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00154_000.heic",
+    "bytes": 121349,
+    "sha256": "7c7ae90a7b600a79de99fa819e4eb48d6f74f840d8567f73da560741cb3a1f5a",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00154_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00155_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-126ed781-21a6-42b9-b493-825a7be4ca8f.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00155_000.heic",
+    "bytes": 110825,
+    "sha256": "8af6bbc133a99cf9f049a5b57544bf4648c418b260281bcb4893745be41f18f8",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00155_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00160_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f26c476f-e866-4840-a9e6-33cd1346ce56.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00160_000.heic",
+    "bytes": 100983,
+    "sha256": "fe663bd4f255551e55a51f0d794b57fcb90636d077c97bf9519b70bb170c3c25",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00160_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00172_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-91234b77-ae67-455d-9fd8-3f5e01a111bf.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00172_000.heic",
+    "bytes": 133703,
+    "sha256": "44d4874979d95a14351e6ec1e74f691815317a98952401060fe9490bb0eab65b",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00172_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00175_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-af79094c-a21a-4357-8309-efef647528cf.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00175_000.heic",
+    "bytes": 167278,
+    "sha256": "9da3ccdc5d909130d65156174bf1516c2a209330d4a209c909174ebb58fe6af8",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00175_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00176_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-75244c15-77b0-44a1-a19a-149e93386eba.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00176_000.heic",
+    "bytes": 171558,
+    "sha256": "5d4eb01b594ce42a11e0924a40c6c227645b98044fa46f85dde03ce829be3749",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00176_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00178_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-13a8be02-4876-4b27-8f3d-5b8d60dcd0f9.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00178_000.heic",
+    "bytes": 175437,
+    "sha256": "4be504fdfc71ad94ae3021564e46a8447f95b3249aca3f1c68d2b042aae2f9b7",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00178_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00180_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ee9753e5-8c92-489d-b34a-56401c38b16c.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00180_000.heic",
+    "bytes": 112191,
+    "sha256": "cfeb9d19a07a63e80d9ac0ce6bec0bbe44cf2979f87edabb333ae62705b28969",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00180_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00181_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ab538793-11f0-4689-956e-e3616fc38476.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00181_000.heic",
+    "bytes": 121013,
+    "sha256": "6891f7e8e25d4dc6a4117d87e41db4193f3a0c63da4449361d2625381b332c54",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00181_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00189_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-3de03796-9f6f-4c7d-8b79-c47671e08704.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00189_000.heic",
+    "bytes": 159848,
+    "sha256": "2c8537e32bbfb965ca53d1bd60a4fd6280209b136ed22bc7ff2f6f8d57020fae",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00189_000.heic",
+    "color": "gray",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00192_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-96bddbf4-d311-433a-afc8-918ebe673197.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00192_000.heic",
+    "bytes": 145634,
+    "sha256": "d4e2e4db42405a4410262ec8fd6cbbb7449b5a240c8957708e39d10a9d055dd4",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00192_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00193_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-89e4a881-4f09-4a2b-abd8-7124b5fd8a3c.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00193_000.heic",
+    "bytes": 128326,
+    "sha256": "4bf79f4935c0cf45abcb10cb1e4c39962aaf893f3490490bd98a11575d863612",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00193_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00200_000",
+    "kind": "reuse-approved",
+    "source": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/cover_kodak_portra_400.heic",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00200_000.heic",
+    "bytes": 110886,
+    "sha256": "22254b983a4ee2a122595e093249c3b64f71ac577f3a5f9edb254efe6b440ee0",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00200_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00201_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-179c78de-c66b-4c28-b0e2-42771fa9cd15.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00201_000.heic",
+    "bytes": 139585,
+    "sha256": "5b542bd390328195efc753ef85cc71571e75364873e0229e23c72c5e0b58d664",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00201_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00203_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-64134694-b057-4e1b-86e8-476e8b7f8bc8.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00203_000.heic",
+    "bytes": 78160,
+    "sha256": "1d2fc1a4870daa4039e9e02dee1761367b8fd9e0c6ac29811a1546ad705702f9",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00203_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00223_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-edc6b986-b9c4-4bc4-89f3-3e1243894e70.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00223_000.heic",
+    "bytes": 109869,
+    "sha256": "122f1d1d88e0b5c9244f5af63c07388be6d2b432b3ab6083cc49080eb8c9a108",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00223_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00224_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-210ce357-8ded-49cf-91df-b42cf208a669.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00224_000.heic",
+    "bytes": 168215,
+    "sha256": "6c148e78a45f0ab17a76b166438a450dfe036ebb4545b0ca2abf2d4b9ba8c543",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00224_000.heic",
+    "color": "red",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00233_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e06d8236-a1e2-4b82-a55b-09ab9628e2ba.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00233_000.heic",
+    "bytes": 115039,
+    "sha256": "4fa1f02418213ad6524e107dfe482bf789cd98a511c8f0a183380114d8df8d46",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00233_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00234_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-392b599f-bb63-4ffd-846a-624fe4f07f09.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00234_000.heic",
+    "bytes": 82528,
+    "sha256": "c7b95baa598a6c9c5b3f6d4849102cd02fb59c2b024635c216f01b7ff0686431",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00234_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00235_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-489f1aed-15b6-42cb-b069-a7f31dfcbbca.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00235_000.heic",
+    "bytes": 121546,
+    "sha256": "ddda616c94e3466bd84202dede3eb15361026addb27a256024a83c3a120f2c22",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00235_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00237_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-87c11ed4-c154-433b-bbf0-6a1a8a94b780.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00237_000.heic",
+    "bytes": 132089,
+    "sha256": "24945718b7c854f118eaab97969676fae8fc1312fe87f25751fc8c4ddd0396db",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00237_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00238_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b63edd1f-7f1e-4e92-99fc-6a9113a35f88.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00238_000.heic",
+    "bytes": 91167,
+    "sha256": "a908ab7f322f538a57d0866e396a22d052be11b5ee74e190b72f4bd600a88f28",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00238_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00239_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-aec86298-cc4e-49c5-ad4d-993feb087378.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00239_000.heic",
+    "bytes": 117708,
+    "sha256": "f418ebb7060bcfc0c2050ba3b5d6dbe6997dce5e190d482d3056be1c09132dfd",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00239_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00240_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-5dc67587-4155-4310-902f-b057d580347b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00240_000.heic",
+    "bytes": 172994,
+    "sha256": "a021f81a2f21ba58569b013d60800298d1621a7e8025c1eac359e00f9f4ce4b4",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00240_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00241_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-5e9793c0-2d33-4dc3-8078-5bd8764ab9fd.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00241_000.heic",
+    "bytes": 143473,
+    "sha256": "2e6fab7a3604c0e4393b8ab558cbac6b7aead2c2b0f7c50ce6e4a1ae4425fc58",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00241_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00242_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-5ffa7ef3-6fcd-4802-b267-40a28061c38a.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00242_000.heic",
+    "bytes": 142284,
+    "sha256": "0f1d2e40f74a70b52024b999d17ede2a08d60620ddf86598ab42342f37299db8",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00242_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00243_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-424b94ce-b28a-42ef-bd53-2666ddc48aab.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00243_000.heic",
+    "bytes": 97438,
+    "sha256": "02a655ff8b987060babc4638a405591a16ab245c17c1e630d5f024f3d8667fdc",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00243_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00244_000",
+    "kind": "reuse-approved",
+    "source": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/cover_kodak_portra_400.heic",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00244_000.heic",
+    "bytes": 110886,
+    "sha256": "22254b983a4ee2a122595e093249c3b64f71ac577f3a5f9edb254efe6b440ee0",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00244_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00245_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-0797a49e-5266-4cdd-b1d4-98d117664bf9.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00245_000.heic",
+    "bytes": 104736,
+    "sha256": "bf7f02020d8c04914ee5ec6348ea8e15d11146e8e573e200fb27200226d6f20d",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00245_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00246_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-cb478acb-a6a4-41ce-9eb2-6f0c04419bd3.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00246_000.heic",
+    "bytes": 122147,
+    "sha256": "52dba0245d5e3b342ebd9c6664fa2fd37324690579f2e0f3c8ec34718a202a13",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00246_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00251_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f1f22c2d-644a-46ed-ad4f-20e1f3b54b07.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00251_000.heic",
+    "bytes": 128388,
+    "sha256": "8369e8526f4f9f701755d21f22a8405dca345afdfd5ff0caed7f1479335adaf6",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00251_000.heic",
+    "color": "black",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00252_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-316d3770-ed41-4b84-8a6f-c000f0c5e6d7.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00252_000.heic",
+    "bytes": 126782,
+    "sha256": "e3b82bb279e40590ce6c5634e434d9435196fc18bbc0e6bbbdfc2b54fe3cbe73",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00252_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00253_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-3ddbfced-aff7-4861-aade-14a865408504.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00253_000.heic",
+    "bytes": 141673,
+    "sha256": "749415efa6eb466bcd322f661b3ead7ab315cef717a2ae9030a5fa187c87cb92",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00253_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00260_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-93b1c8b8-3407-4b0a-9fd5-27e5904141cc.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00260_000.heic",
+    "bytes": 78485,
+    "sha256": "0574cb5d0cd2eb061eb86fa954f292d546c5853859170bbe6e31232e9dd80717",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00260_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00261_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-cf97b80c-dd46-4629-9555-6f1a7861f699.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00261_000.heic",
+    "bytes": 165961,
+    "sha256": "750149d7c260dca8d55aa9d472c106617f8de5bc03e23cc7e823fbbbfb6b82a3",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00261_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00262_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-2adde8e9-89c5-451d-ad43-c006cf3930a9.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00262_000.heic",
+    "bytes": 115084,
+    "sha256": "27b9a61760aaee6ece6ba75b03b0605816b2d9b3af8ae541f15651b46e1a2b12",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00262_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00263_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-db161b84-80af-4105-b7af-ada1fcb1675f.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00263_000.heic",
+    "bytes": 167879,
+    "sha256": "350665be17c1effb422f5bd33ed300962e0cabf5829905742245ffdb51679aa6",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00263_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00271_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-23a64780-e658-412d-95d0-edc3411b5e98.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00271_000.heic",
+    "bytes": 141075,
+    "sha256": "12ca6d2c8ddd7ee7e0906d7e41437d2acec5d7753afa16db2beb3f0b98b89999",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00271_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00273_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-3cf4ea5f-2fef-49fc-9133-cac1d5511e10.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00273_000.heic",
+    "bytes": 123895,
+    "sha256": "b67b1dff8c6358f9ac7cde05620ad0a489495a001f9fc04bf913fd4dde9c2cbe",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00273_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00274_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-1951101b-4321-4420-a09a-684cbe9012ef.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00274_000.heic",
+    "bytes": 114471,
+    "sha256": "9cc43b241022a69d138105b239988bae3d5ce5ae3fd606b8341da37b6e47f171",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00274_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00275_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-0606b121-4ca2-48c0-9995-ebaf298aad63.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00275_000.heic",
+    "bytes": 111626,
+    "sha256": "9cee4b10738d1bcd229244a26afdc05b47b985e6109c8fee3eafba054677a20e",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00275_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00276_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b22d3fb7-21e1-463e-9fc6-92a13518f705.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00276_000.heic",
+    "bytes": 97737,
+    "sha256": "20cb420526e87c71a2e59854eb076560503095b9d9892a4b945a5ad9dcf35362",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00276_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00278_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-9fd6ca5f-e2d5-4c84-9f72-6384993da621.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00278_000.heic",
+    "bytes": 147722,
+    "sha256": "850efafb424872b9e7a01206bbc0c3ad071e5982023307d93e17d834556b654e",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00278_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00279_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-0022b17a-f1ee-46a9-aefc-3474d97a2eed.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00279_000.heic",
+    "bytes": 103272,
+    "sha256": "897fdffc4328bde95b80a041ac0565bcceb28d41d50bec4d39f1cf75d496e1f1",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00279_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00280_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-5243eee4-546a-49f1-9c91-42fc434cb3cf.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00280_000.heic",
+    "bytes": 122574,
+    "sha256": "7badc9cc47831c3b5dd043b246db4b8b120667d617188ecd44cfe5b3d758ec24",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00280_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00294_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-fa1f0ff0-7c5a-4bfc-8d9d-f995fa020b3b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00294_000.heic",
+    "bytes": 123759,
+    "sha256": "374abe57e074ce3ae3b12b608ee2b4483cec8bd4a602b523d40b212225ae9e71",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00294_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00295_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-4e63a64a-5cda-42c5-a2e4-24b32d4c18c7.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00295_000.heic",
+    "bytes": 103799,
+    "sha256": "769fcf9cc494730c0399642a9c8a07b95c051ec7b84e09e6b5cb475abb21aab9",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00295_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00296_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f2f8480d-1dec-496d-805f-a176458395e4.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00296_000.heic",
+    "bytes": 119476,
+    "sha256": "2c7a97315fca937df18d0895b5d269a653ec1cc442ba7c30e7d164b5a9e1d174",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00296_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00297_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-0afdd0d8-2438-4c73-86b8-b4a6d1504ad2.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00297_000.heic",
+    "bytes": 143416,
+    "sha256": "f7662038743f5fb6c208ffb304607dd95805ba94f2bd171b90c6e764c7f52dd0",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00297_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00299_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e947ba2d-9de5-43a3-aa96-4b2ab01f7e1c.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00299_000.heic",
+    "bytes": 125228,
+    "sha256": "39ea677e7947895e2659de3cd369603081742632a357b098dd1f10d92d940f79",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00299_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00303_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c298bbfc-3544-4dcd-9998-cde74bd21165.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00303_000.heic",
+    "bytes": 119302,
+    "sha256": "4abba9b80201b1d63e6149cac5fbbda88cd4fbb339ce95195cced18721bd35db",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00303_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00320_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c3d0cde3-9478-41b7-b086-b4ef98802034.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00320_000.heic",
+    "bytes": 155210,
+    "sha256": "5ff7442fb6de2e8ae876eae47ee8d7b8b57560205e61d9af9917906347c466af",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00320_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00325_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-73b766d2-209c-4e46-9b31-f2985712910a.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00325_000.heic",
+    "bytes": 162328,
+    "sha256": "696b27ccb1c62065636a17c8d4e7ec81e53578772c6248cb58375088bc30fb93",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00325_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00326_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ffba7cbe-b6c3-4898-86f8-868b3ff214f3.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00326_000.heic",
+    "bytes": 106804,
+    "sha256": "8d627bb10fa3393bd40298ffe9680c96e0b45ab00ca32c75bee52c0b1921a8cf",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00326_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00331_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f122fb5f-64b6-48e4-94f3-cbfb667f36f7.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00331_000.heic",
+    "bytes": 116050,
+    "sha256": "04e0475d787f370f7d731e2a897f7c82d2aa51a6e3a1ef8421cbbe011fdd15f0",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00331_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00332_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-6217c632-fb39-475c-b7db-71a2f51c572d.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00332_000.heic",
+    "bytes": 159520,
+    "sha256": "5b8f8dca42bfee2a8aec3f6bdcdd09fd07a1d4a0a46fc11f58f4df82c33513b1",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00332_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00333_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c36fa85c-fbaa-462e-b6a0-3b1fcf636367.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00333_000.heic",
+    "bytes": 125108,
+    "sha256": "d9155cad103d7ef85e2ac52815632070beb30aa9d1d4a90765ae926a079f3463",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00333_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00337_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ab054823-5ef2-4565-a0b9-92ac1248b345.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00337_000.heic",
+    "bytes": 110653,
+    "sha256": "66bbfd9d96517dd589f2fbd7a404a7e9bc988579a5b0acf19af78f3334b25361",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00337_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00338_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-297bb2f2-5f88-4502-a46c-d87f7c841c7b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00338_000.heic",
+    "bytes": 111089,
+    "sha256": "644b5075cf75cca77db6c4ddec2784cd3d4518b96864f860793e75bf1d264ae6",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00338_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00345_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-9ec24a1c-c111-4515-948e-0341ff500e17.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00345_000.heic",
+    "bytes": 164745,
+    "sha256": "693dc3fa9bd4c38e7088efb9f851c6edd9eb1f7f03d6dac1061956dd6a7cfe37",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00345_000.heic",
+    "color": "purple",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00353_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b1e14633-ce03-4c5e-b420-4cc04aa73198.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00353_000.heic",
+    "bytes": 130318,
+    "sha256": "81cbc9588698ca2b2d144636cf0bcbae1cc9f08153bace6d0e3eff4af24c5063",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00353_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00365_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-137b3d31-35b9-4438-9dd0-23caecf2498a.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00365_000.heic",
+    "bytes": 143396,
+    "sha256": "1f9d4beadb98358bb7b8217420aaa4498eee0e4b9b8a7570033c72047f5cbba2",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00365_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00381_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d64205cd-ce1b-40d3-ab8c-2f8e6b921875.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00381_000.heic",
+    "bytes": 107302,
+    "sha256": "51bc81d014842e85fffaba75fc51f8bc5295d968f860207612003181e791e1da",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00381_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00390_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e6d33641-e5ca-4627-a2cc-c331cc613758.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00390_000.heic",
+    "bytes": 133333,
+    "sha256": "9dd442eee9bde36cf07eb07905729800575695017e31f39743625645184cad3e",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00390_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00410_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e236af04-c84c-4118-a5a4-7763554ba741.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00410_000.heic",
+    "bytes": 106156,
+    "sha256": "ed12850e730047f26f05406dc52e6b53d9edda185e13c70784c0226440638ff7",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00410_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00411_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-33637ae3-5dca-4d27-9b51-17e3e53b2ef9.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00411_000.heic",
+    "bytes": 215241,
+    "sha256": "044f8cf826b1ba827f3967f291f72da20f036e0702288bddb377fe2e041f76f2",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00411_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00414_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-6141f824-e1a1-49b6-8a17-aeac13a822dc.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00414_000.heic",
+    "bytes": 141869,
+    "sha256": "9f0577d9f7609bd59cc92879f5b15c513deb69005f7f4c32619e162e10633b92",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00414_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00423_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-218b8269-110a-4bcc-af8d-5cf906beb21b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00423_000.heic",
+    "bytes": 121614,
+    "sha256": "c73062c84d4958e7b4ca3f99071b781784fb5f77ea0ff3dbb0e3c6300f0d90cf",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00423_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00424_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ad89f52b-40ad-46d6-8c0f-0574dd2b043c.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00424_000.heic",
+    "bytes": 192046,
+    "sha256": "54142908e8ac1199f459cdb9c4d53f842a6de451105780acb5b681c006e7d2eb",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00424_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00430_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-61d4feb6-5006-4915-8d3b-b14a410a2b61.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00430_000.heic",
+    "bytes": 228906,
+    "sha256": "a7db4749b220b39f508052e14942b733335ac9df2504ba8982801187e6c41326",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00430_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00431_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-3876ac99-f525-4eb3-8e00-ab578c55e1cc.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00431_000.heic",
+    "bytes": 134659,
+    "sha256": "dc9e6a45549c5851ecf6153e2e6c29db222196c99b26c750bd8bd65db4605205",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00431_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00433_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-9519246c-7559-4255-97c0-56fffa989ce2.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00433_000.heic",
+    "bytes": 176500,
+    "sha256": "3f26225f38d69e31401ef19206f24d8dd7da917d6a3f470e0642b444bc616abd",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00433_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00440_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-fefd9774-1ea2-4d51-8508-c69c6cc96d28.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00440_000.heic",
+    "bytes": 114769,
+    "sha256": "efbc4b21361e25b700376c932c8c8f27a35bf9b91a4cd2cd0a3c743ca34ebe46",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00440_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00441_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a33cab15-8361-4dc0-b2b6-c1fa373eead4.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00441_000.heic",
+    "bytes": 129310,
+    "sha256": "7b381b308bd4e10f1cf85ad2b0bf658740e95fb8756a7d0f185f3ba25ccd20df",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00441_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00442_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-6bf825a1-0c32-46b0-a3fb-e298ff9b6c6a.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00442_000.heic",
+    "bytes": 151424,
+    "sha256": "b7bcd21f258e3d497d9dfeafe69034675cbf1aaedbe2811e14e5f79a8a5de584",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00442_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00443_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b23a8e57-b554-45c8-9c5a-02c06b1f96ec.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00443_000.heic",
+    "bytes": 186619,
+    "sha256": "bf84c3d6b9c303fd6d9d9807fca3682010621715cbbc46e7b7ec5beeffcff587",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00443_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00446_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-06d3b9db-8b19-492d-8b5a-ad9d3ee7edfc.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00446_000.heic",
+    "bytes": 134894,
+    "sha256": "dd41f33d4abc938d30a805b9a058606923bbc0950676ff7cb7a5450aab246c64",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00446_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00453_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-66b5112d-4750-407a-a0db-9e376865d20f.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00453_000.heic",
+    "bytes": 117699,
+    "sha256": "0be906fa4e17d32fd9f4fbf8d9f10e130160242149c48f568dbba23662a55c3a",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00453_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00454_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-3bf37d56-e90d-410e-8e31-1e1a89994582.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00454_000.heic",
+    "bytes": 145041,
+    "sha256": "49fc503794b645e515573f1cbbc193cf4e9099957793b9074ce7c6a1fcaa607b",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00454_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00458_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d7f78352-2d2b-4d04-8ccb-07e655bb5259.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00458_000.heic",
+    "bytes": 145509,
+    "sha256": "88b3ee077e550c775a3a021f154ff3dcdd13ed772a6970e054a583452562cb98",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00458_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00459_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-2b818cc6-5fb5-4213-848a-14341437501b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00459_000.heic",
+    "bytes": 186386,
+    "sha256": "953452a2ebabbf0185a78988597ef984379be0b229927f911ca7d2f4c5f844a6",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00459_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00462_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ba40a2cc-3033-41b9-95ab-f8596866b69c.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00462_000.heic",
+    "bytes": 224117,
+    "sha256": "949aec7b35395e4a829692d14d5381ee4308ed0294a1d0c7c39b133aee5e002b",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00462_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00484_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a2ce9e00-3116-489c-89e9-9ade1056d42b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00484_000.heic",
+    "bytes": 119637,
+    "sha256": "52ed301407cd880eec7753eb21f3ebd60e3ffabba9fe9bcd1b8274c4c4e842aa",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00484_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00489_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-910991bb-eedd-4ea1-afa0-5b3fd23e59eb.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00489_000.heic",
+    "bytes": 115446,
+    "sha256": "aada07e6e4e8a847b3cfdffe8ef1981ef402b7069566eecb7b53ca76d4169bb6",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00489_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00501_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-5f1626e8-4ed4-4dc6-8fba-0ab713f94062.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00501_000.heic",
+    "bytes": 139743,
+    "sha256": "b88f90128b51dfa84557df6fe7372e04a23b2f97348d04ca55836e48e4bea974",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00501_000.heic",
+    "color": "blue",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00502_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f8319046-12b3-4254-8bb6-38325b618465.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00502_000.heic",
+    "bytes": 101197,
+    "sha256": "b8285005dba79c5ec92bfe089b2f5186cd03088be6f8c13a92428a997dc9879f",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00502_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00509_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d78215bc-4a6f-4df9-9c03-cc35a0dd527b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00509_000.heic",
+    "bytes": 121107,
+    "sha256": "8f3d02da3ce593023785b04e43775bc801d14ed453e43b7298d8b08caaa33a0b",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00509_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00519_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-23285bc9-9247-4b82-a7d2-b9d3e74b71b2.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00519_000.heic",
+    "bytes": 112569,
+    "sha256": "316a664dfa4c9857e51f15fe1cd38ebdd6c837f9f84cd7d62701ada308440d9d",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00519_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00520_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-29eeb4d0-52ba-4620-9ce9-26647ad9cee0.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00520_000.heic",
+    "bytes": 107517,
+    "sha256": "81c1a0b7c849e2270bdbc169c9509de9a87b0981f5f8a7a62bf42428bb013532",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00520_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00521_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a8e0481c-c421-4c73-b2fe-54ebfe94449b.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00521_000.heic",
+    "bytes": 173980,
+    "sha256": "0baa09537d1f9ceb6d486e0eaf8aca903e94ab4dfa52f584f82439c71f19a131",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00521_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00536_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-2bda8658-18c3-455c-9260-708f3f99427d.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00536_000.heic",
+    "bytes": 184815,
+    "sha256": "002bff5e8d38da8a2d7a50e09ed961271273b6ef43f9ff634c317c4e6432576a",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00536_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00537_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-4121ed3c-a8bd-49ce-ab6e-bb24c4860b3d.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00537_000.heic",
+    "bytes": 140801,
+    "sha256": "2a6e4c412dccf610dfcf335570e753a72346c1d6940b9a0065bdabb8f0b5df59",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00537_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00539_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-5e9270bb-f18f-4dcb-834f-70232d3bb166.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00539_000.heic",
+    "bytes": 257069,
+    "sha256": "ac2e7d5f1c97e78792a1a2bec2dbe6971ea7e4117a052aab46d4f0bec03b4d1b",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00539_000.heic",
+    "color": "orange",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00542_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b260cc87-589f-46ff-ab02-7e88fee91224.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00542_000.heic",
+    "bytes": 114841,
+    "sha256": "9ca6d287991024b1c778c721dcb91272eb993967ae336ec319436a1d95071877",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00542_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00543_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e5a0acdd-038e-4c83-b04e-178abced3524.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00543_000.heic",
+    "bytes": 139178,
+    "sha256": "f2aeb2a7b96f500a6baa326f3faf04cead934680d0a7a24dc4bf3ecfbb73d9d4",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00543_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00546_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-0f990e12-3eab-4c92-887b-2aaa4cc12b7a.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00546_000.heic",
+    "bytes": 167770,
+    "sha256": "7fe0ffbc673a2239b78102787761f5466bad50a346d411d0f63e7d8924ab45da",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00546_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00557_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-491f696f-4b77-4e7f-bfa6-183bcc0ee806.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00557_000.heic",
+    "bytes": 181056,
+    "sha256": "a93817ef4f0e85874514536c4adb5db8b7ad308312ef2d85fc51ca4d49fc3273",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00557_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  },
+  {
+    "id": "00562_000",
+    "kind": "generate",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c7b1a18e-7538-4353-93dd-4dbca74ada47.png",
+    "stagedPath": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00562_000.heic",
+    "bytes": 109782,
+    "sha256": "7e985db2f4c6c2bc2900fd4fd0e8c19d155bceb9e326b91dd01a7d1fcac722ae",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "installedPath": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot/Resources/cards/00562_000.heic",
+    "color": "yellow",
+    "status": "reviewed-installed"
+  }
+]

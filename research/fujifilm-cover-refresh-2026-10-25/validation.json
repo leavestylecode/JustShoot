@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-25",
+  "scope": {
+    "fujifilmCapturePresets": 8,
+    "redesigned": 5,
+    "retainedApproved": [
+      "ASTIA",
+      "Classic Chrome",
+      "Classic Neg."
+    ],
+    "collectionCardsChanged": 0,
+    "lutTablesChanged": 0
+  },
+  "assets": {
+    "count": 5,
+    "totalBytes": 651735,
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "encoding": "HEIC",
+    "existingResourcesVerifiedUnchanged": 574
+  },
+  "simulator": {
+    "name": "iPhone 17",
+    "os": "26.4.1",
+    "project": "JustShoot.xcodeproj",
+    "scheme": "JustShoot",
+    "configuration": "Debug",
+    "buildRun": {
+      "status": "passed",
+      "warnings": 0,
+      "log": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-10-25T04-20-12-810Z_pid9844_d2bf344f.log"
+    },
+    "tests": {
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 0,
+      "log": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-25T04-23-25-675Z_pid9844_f3e55e5c.log",
+      "resultBundle": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-25T04-23-25-675Z_pid9844_61744aee.xcresult"
+    },
+    "visual": {
+      "home": "All nine covers visible; main names legible; cover rounding does not cut titles; retained covers match existing files",
+      "picker": "All nine images decoded at actual display size by existing production preparation tests; camera UI not exercised on simulator",
+      "screenshot": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-covers-refresh-2026-10-25/home-simulator.jpg",
+      "comparison": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-covers-refresh-2026-10-25/before-after-five.jpg"
+    }
+  },
+  "devicePerformanceMeasured": false,
+  "diffCheck": "passed",
+  "testDatabase": "Simulator retains its previous ImportValidation custom LUT; no database edits in this cover refresh."
+}

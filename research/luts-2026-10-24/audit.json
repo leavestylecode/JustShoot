@@ -1,0 +1,932 @@
+{
+  "scope": "Raw LUT files only. Weighted sRGB codes are not linear luminance. No claim of film accuracy.",
+  "bundled": [
+    {
+      "file": "JustShoot/Resources/FujiC200.cube",
+      "sha256": "9a0cef94d51682ac9307073eadfd3e7681a10f58afef8dede57a0e2d3e1ed69b",
+      "dimension": 25,
+      "sample_count": 15625,
+      "headers": [
+        "#Generated with IWLTBAP LUT Generator",
+        "#Website: http://luts.iwltbap.com",
+        "TITLE \"偏绿\"",
+        "#LUT size",
+        "#LUT data points"
+      ],
+      "minimum": 0.0,
+      "maximum": 0.964706,
+      "maximum_distance_from_8bit_grid": 4.901960785064219e-07,
+      "gray_node_luma_reversals": [
+        {
+          "input_from": 0.9583333333333334,
+          "input_to": 1.0,
+          "luma_change": -0.005326145199999965
+        }
+      ],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.007843,
+            0.031373,
+            0.015686
+          ],
+          "weighted_srgb_code": 0.025237920599999995
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.017223488000000002,
+            0.036486248000000006,
+            0.023811864000000002
+          ],
+          "weighted_srgb_code": 0.0314758946992
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.027952928000000012,
+            0.047654888,
+            0.027450888000000003
+          ],
+          "weighted_srgb_code": 0.042007522504
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.066096062976,
+            0.076611763392,
+            0.06444522022400001
+          ],
+          "weighted_srgb_code": 0.0734977010668288
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.521569,
+            0.513725,
+            0.517647
+          ],
+          "weighted_srgb_code": 0.5156758027999999
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.9436550399999999,
+            0.9199371599999999,
+            0.937003704
+          ],
+          "weighted_srgb_code": 0.9262117857647999
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.952941,
+            0.929412,
+            0.945098
+          ],
+          "weighted_srgb_code": 0.9355467946
+        }
+      ]
+    },
+    {
+      "file": "JustShoot/Resources/FujiPro400H.cube",
+      "sha256": "e293f19bc746612f3cf17db979e9234d5c19784606bb4dc3541df8c83bded821",
+      "dimension": 25,
+      "sample_count": 15625,
+      "headers": [
+        "#Generated with IWLTBAP LUT Generator",
+        "#Website: http://luts.iwltbap.com",
+        "TITLE \"ORI\"",
+        "#LUT size",
+        "#LUT data points"
+      ],
+      "minimum": 0.0,
+      "maximum": 0.945098,
+      "maximum_distance_from_8bit_grid": 4.901960785064219e-07,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.027451,
+            0.003922,
+            0.003922
+          ],
+          "weighted_srgb_code": 0.0089242654
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.034572528000000005,
+            0.027858936000000008,
+            0.028768448000000005
+          ],
+          "weighted_srgb_code": 0.029351912425600004
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.06437649600000002,
+            0.06287071200000001,
+            0.06723116800000002
+          ],
+          "weighted_srgb_code": 0.06350566660160001
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.13763112339200004,
+            0.153188824896,
+            0.16341967680000002
+          ],
+          "weighted_srgb_code": 0.1506199250637184
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.611765,
+            0.596078,
+            0.592157
+          ],
+          "weighted_srgb_code": 0.59912996
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.8671058960000001,
+            0.8366117359999999,
+            0.846400144
+          ],
+          "weighted_srgb_code": 0.8438015174736
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.898039,
+            0.862745,
+            0.87451
+          ],
+          "weighted_srgb_code": 0.8710979374000001
+        }
+      ]
+    },
+    {
+      "file": "JustShoot/Resources/FujiProvia100F.cube",
+      "sha256": "80928b16687afe5d36d88c050dd272a58617a803978245fe3150a63e00eea202",
+      "dimension": 25,
+      "sample_count": 15625,
+      "headers": [
+        "#Generated with IWLTBAP LUT Generator",
+        "#Website: http://luts.iwltbap.com",
+        "TITLE \"ORI\"",
+        "#LUT size",
+        "#LUT data points"
+      ],
+      "minimum": 0.0,
+      "maximum": 0.992157,
+      "maximum_distance_from_8bit_grid": 4.901960785064219e-07,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.0,
+            0.003922,
+            0.0
+          ],
+          "weighted_srgb_code": 0.0028050144
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.0030117920000000023,
+            0.006557184000000003,
+            0.002635328000000001
+          ],
+          "weighted_srgb_code": 0.005520275657600002
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.024909840000000006,
+            0.030399904000000012,
+            0.013239136000000009
+          ],
+          "weighted_srgb_code": 0.02799370894400001
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.09583350892800001,
+            0.109449874304,
+            0.08795599942400002
+          ],
+          "weighted_srgb_code": 0.1050031772587264
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.568627,
+            0.584314,
+            0.588235
+          ],
+          "weighted_srgb_code": 0.5812620399999999
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.883137456,
+            0.9050665200000001,
+            0.9005490479999999
+          ],
+          "weighted_srgb_code": 0.9000782395152
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.945098,
+            0.94902,
+            0.956863
+          ],
+          "weighted_srgb_code": 0.9487524473999999
+        }
+      ]
+    },
+    {
+      "file": "JustShoot/Resources/HarmanPhoenix200.cube",
+      "sha256": "cdac71ca7530c09c6c6a5d3d2e660cfa5aeeb5d9ca296e6ad3228ad576332d12",
+      "dimension": 25,
+      "sample_count": 15625,
+      "headers": [
+        "#Generated with IWLTBAP LUT Generator",
+        "#Website: http://luts.iwltbap.com",
+        "TITLE \"ORI\"",
+        "#LUT size",
+        "#LUT data points"
+      ],
+      "minimum": 0.0,
+      "maximum": 0.980392,
+      "maximum_distance_from_8bit_grid": 4.901960785064219e-07,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.054902,
+            0.011765,
+            0.003922
+          ],
+          "weighted_srgb_code": 0.0203696616
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.07087060799999999,
+            0.025505648000000002,
+            0.012894072000000005
+          ],
+          "weighted_srgb_code": 0.0342396827088
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.087812016,
+            0.036360768,
+            0.032031432
+          ],
+          "weighted_srgb_code": 0.0469867252656
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.15812449478400004,
+            0.09089194380800003,
+            0.09209069459200002
+          ],
+          "weighted_srgb_code": 0.10527213395210241
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.686275,
+            0.690196,
+            0.705882
+          ],
+          "weighted_srgb_code": 0.6904949246
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.9381331439999999,
+            0.9286273999999999,
+            0.952784328
+          ],
+          "weighted_srgb_code": 0.9323924513759999
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.952941,
+            0.933333,
+            0.960784
+          ],
+          "weighted_srgb_code": 0.9394836229999999
+        }
+      ]
+    },
+    {
+      "file": "JustShoot/Resources/Kodak5207.cube",
+      "sha256": "be3e40a3a73dc7c0075e22ffac714a02cb0b67213aa716dfecfbfa943489e956",
+      "dimension": 25,
+      "sample_count": 15625,
+      "headers": [
+        "#Generated with IWLTBAP LUT Generator",
+        "#Website: http://luts.iwltbap.com",
+        "TITLE \"ORI\"",
+        "#LUT size",
+        "#LUT data points"
+      ],
+      "minimum": 0.0,
+      "maximum": 0.937255,
+      "maximum_distance_from_8bit_grid": 4.901960785064219e-07,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.043137,
+            0.019608,
+            0.035294
+          ],
+          "weighted_srgb_code": 0.0257427946
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.064219824,
+            0.025976279999999997,
+            0.048690008000000014
+          ],
+          "weighted_srgb_code": 0.035746788615999996
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.09176472000000002,
+            0.056784200000000014,
+            0.08677634400000002
+          ],
+          "weighted_srgb_code": 0.06638649134880002
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.154873874368,
+            0.14517947622400001,
+            0.164480024832
+          ],
+          "weighted_srgb_code": 0.14863400487891198
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.568627,
+            0.564706,
+            0.584314
+          ],
+          "weighted_srgb_code": 0.5669553021999999
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.8957803919999999,
+            0.883827592,
+            0.911654888
+          ],
+          "weighted_srgb_code": 0.8883778880512
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.913725,
+            0.901961,
+            0.937255
+          ],
+          "weighted_srgb_code": 0.9070102532
+        }
+      ]
+    },
+    {
+      "file": "JustShoot/Resources/KodakPortra400.cube",
+      "sha256": "bca703d2d5a16ae7d254fa85767106941840086145ed2c3793fcf8da81cf4210",
+      "dimension": 25,
+      "sample_count": 15625,
+      "headers": [
+        "#Generated with IWLTBAP LUT Generator",
+        "#Website: http://luts.iwltbap.com",
+        "TITLE \"偏黄\"",
+        "#LUT size",
+        "#LUT data points"
+      ],
+      "minimum": 0.0,
+      "maximum": 0.980392,
+      "maximum_distance_from_8bit_grid": 4.901960785064219e-07,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.0,
+            0.019608,
+            0.031373
+          ],
+          "weighted_srgb_code": 0.0162887722
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.010635496000000003,
+            0.03457265600000001,
+            0.065631416
+          ],
+          "weighted_srgb_code": 0.031726058256
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.026258744000000007,
+            0.06613336,
+            0.09091748000000001
+          ],
+          "weighted_srgb_code": 0.0594454301024
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.11118396844800002,
+            0.153044764672,
+            0.164040412992
+          ],
+          "weighted_srgb_code": 0.1449390452034816
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.631373,
+            0.635294,
+            0.615686
+          ],
+          "weighted_srgb_code": 0.6330446978
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.8559058320000001,
+            0.871937328,
+            0.8928000319999999
+          ],
+          "weighted_srgb_code": 0.8700353191792
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.901961,
+            0.917647,
+            0.929412
+          ],
+          "weighted_srgb_code": 0.9151615894
+        }
+      ]
+    },
+    {
+      "file": "JustShoot/Resources/KodakVision5203.cube",
+      "sha256": "55070bcf8b119200a10ce869d8c90044d29de32b37fbeaa9bb9dd0b4705eb263",
+      "dimension": 25,
+      "sample_count": 15625,
+      "headers": [
+        "#Generated with IWLTBAP LUT Generator",
+        "#Website: http://luts.iwltbap.com",
+        "TITLE \"5203\"",
+        "#LUT size",
+        "#LUT data points"
+      ],
+      "minimum": 0.027451,
+      "maximum": 0.94902,
+      "maximum_distance_from_8bit_grid": 4.901960785064219e-07,
+      "gray_node_luma_reversals": [
+        {
+          "input_from": 0.0,
+          "input_to": 0.041666666666666664,
+          "luma_change": -0.056590241400000005
+        },
+        {
+          "input_from": 0.9166666666666666,
+          "input_to": 0.9583333333333334,
+          "luma_change": -0.0036786873999999914
+        }
+      ],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.121569,
+            0.109804,
+            0.090196
+          ],
+          "weighted_srgb_code": 0.1108895414
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.07378815200000001,
+            0.05653308,
+            0.041317944
+          ],
+          "weighted_srgb_code": 0.059102975488
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.10177250400000001,
+            0.12461194400000003,
+            0.08392156
+          ],
+          "weighted_srgb_code": 0.11681843333120003
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.23074329241600003,
+            0.26195371027200004,
+            0.19866307001600003
+          ],
+          "weighted_srgb_code": 0.2507487912093312
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.65098,
+            0.67451,
+            0.67451
+          ],
+          "weighted_srgb_code": 0.669507522
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.9240471840000001,
+            0.89866656,
+            0.8915764479999998
+          ],
+          "weighted_srgb_code": 0.9035505745760001
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.929412,
+            0.894118,
+            0.898039
+          ],
+          "weighted_srgb_code": 0.9019046005999999
+        }
+      ]
+    },
+    {
+      "file": "JustShoot/Resources/KodakVision5219.cube",
+      "sha256": "a46782d24709bfee48bf64849702351f361b3b27cb31a79030ffe8bb5b643044",
+      "dimension": 25,
+      "sample_count": 15625,
+      "headers": [
+        "#Generated with IWLTBAP LUT Generator",
+        "#Website: http://luts.iwltbap.com",
+        "TITLE \"5219\"",
+        "#LUT size",
+        "#LUT data points"
+      ],
+      "minimum": 0.003922,
+      "maximum": 0.980392,
+      "maximum_distance_from_8bit_grid": 4.901960785064219e-07,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.015686,
+            0.015686,
+            0.023529
+          ],
+          "weighted_srgb_code": 0.016252264599999997
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.027576152000000003,
+            0.028831335999999996,
+            0.040470576
+          ],
+          "weighted_srgb_code": 0.029404837009599998
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.045521736000000014,
+            0.051733368,
+            0.07541961600000001
+          ],
+          "weighted_srgb_code": 0.05212292214240001
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.08325949049600001,
+            0.12946841817600002,
+            0.17408923609600005
+          ],
+          "weighted_srgb_code": 0.12286602320505602
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.556863,
+            0.643137,
+            0.694118
+          ],
+          "weighted_srgb_code": 0.6284759757999999
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.9279058240000001,
+            0.945850968,
+            0.9490510639999998
+          ],
+          "weighted_srgb_code": 0.9422668773167999
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.960784,
+            0.976471,
+            0.972549
+          ],
+          "weighted_srgb_code": 0.9728527753999999
+        }
+      ]
+    }
+  ],
+  "candidates": [
+    {
+      "file": "research/luts-2026-10-24/candidates/Portra400_EnduraPremier_sRGB_33.cube",
+      "sha256": "082f16a01a5cac2a38cc02c52eee06a3a3e41553d9aa602f5579397086cafec5",
+      "dimension": 33,
+      "sample_count": 35937,
+      "headers": [
+        "TITLE \"Portra400_EnduraPremier_sRGB_33\"",
+        "# Research candidate; not Kodak endorsed; not camera calibrated.",
+        "# Derived from Spectral Film LUT by Jan Lohse, MIT License.",
+        "# Source: https://github.com/JanLohse/spectral_film_lut/tree/bcbcfc6861f49cc706dc5d00ea048e4853060aab",
+        "# Baked by JustShoot research script; see manifest.json for settings.",
+        "# Input: encoded sRGB [0,1]. Output: encoded sRGB [0,1].",
+        "# No spatial grain, halation, bloom, app shadow toe or app calibration."
+      ],
+      "minimum": 0.005227034,
+      "maximum": 0.982300222,
+      "maximum_distance_from_8bit_grid": 0.0019607589215685506,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.05551821,
+            0.061009005,
+            0.067552768
+          ],
+          "weighted_srgb_code": 0.060314121671599996
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.056194315136,
+            0.06123984412800001,
+            0.06767203788
+          ],
+          "weighted_srgb_code": 0.06063156905319521
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.059305673680000004,
+            0.06271018411200001,
+            0.068548089688
+          ],
+          "weighted_srgb_code": 0.062407881976744004
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.09274956815065599,
+            0.08018030024908801,
+            0.076066266363584
+          ],
+          "weighted_srgb_code": 0.08255549335842798
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.572066784,
+            0.582559884,
+            0.593140244
+          ],
+          "weighted_srgb_code": 0.5810929529319999
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.9176955992560001,
+            0.942235559136,
+            0.9641202503119999
+          ],
+          "weighted_srgb_code": 0.9385984383684192
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.94638139,
+            0.965748966,
+            0.980886996
+          ],
+          "weighted_srgb_code": 0.9627243851084
+        }
+      ]
+    },
+    {
+      "file": "research/luts-2026-10-24/candidates/Portra400_PortraEndura_sRGB_33.cube",
+      "sha256": "7d10894712561615d5f0b08cd9adbc9815056ebb0e06f8780ccbfbca480e9eed",
+      "dimension": 33,
+      "sample_count": 35937,
+      "headers": [
+        "TITLE \"Portra400_PortraEndura_sRGB_33\"",
+        "# Research candidate; not Kodak endorsed; not camera calibrated.",
+        "# Derived from Spectral Film LUT by Jan Lohse, MIT License.",
+        "# Source: https://github.com/JanLohse/spectral_film_lut/tree/bcbcfc6861f49cc706dc5d00ea048e4853060aab",
+        "# Baked by JustShoot research script; see manifest.json for settings.",
+        "# Input: encoded sRGB [0,1]. Output: encoded sRGB [0,1].",
+        "# No spatial grain, halation, bloom, app shadow toe or app calibration."
+      ],
+      "minimum": 0.022755483,
+      "maximum": 0.947541893,
+      "maximum_distance_from_8bit_grid": 0.0019607731960784025,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.112077765,
+            0.078342341,
+            0.078973241
+          ],
+          "weighted_srgb_code": 0.0855600431224
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.113177339512,
+            0.079117228712,
+            0.07918080116000001
+          ],
+          "weighted_srgb_code": 0.0863629981988256
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.118356104264,
+            0.083562983176,
+            0.08096504732800001
+          ],
+          "weighted_srgb_code": 0.0907724297510832
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.160705733859072,
+            0.117491869368896,
+            0.098624682339904
+          ],
+          "weighted_srgb_code": 0.1253169260560142
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.552628756,
+            0.559380829,
+            0.567225873
+          ],
+          "weighted_srgb_code": 0.5585117504570001
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.85884175408,
+            0.8798298008400001,
+            0.9021833610000001
+          ],
+          "weighted_srgb_code": 0.876981669142376
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.894404411,
+            0.913983643,
+            0.932617962
+          ],
+          "weighted_srgb_code": 0.9111664961085999
+        }
+      ]
+    },
+    {
+      "file": "research/luts-2026-10-24/candidates/Portra400_PortraEndura_sRGB_65.cube",
+      "sha256": "0f9cbea780bd320314c3569138040a0ffe03e817dc4df583ea654ae610fd4e5e",
+      "dimension": 65,
+      "sample_count": 274625,
+      "headers": [
+        "TITLE \"Portra400_PortraEndura_sRGB_65\"",
+        "# Research candidate; not Kodak endorsed; not camera calibrated.",
+        "# Derived from Spectral Film LUT by Jan Lohse, MIT License.",
+        "# Source: https://github.com/JanLohse/spectral_film_lut/tree/bcbcfc6861f49cc706dc5d00ea048e4853060aab",
+        "# Baked by JustShoot research script; see manifest.json for settings.",
+        "# Input: encoded sRGB [0,1]. Output: encoded sRGB [0,1].",
+        "# No spatial grain, halation, bloom, app shadow toe or app calibration."
+      ],
+      "minimum": 0.022200234,
+      "maximum": 0.947541893,
+      "maximum_distance_from_8bit_grid": 0.001960781156862712,
+      "gray_node_luma_reversals": [],
+      "gray_samples": [
+        {
+          "input_srgb_code": 0.0,
+          "output_rgb": [
+            0.112077765,
+            0.078342341,
+            0.078973241
+          ],
+          "weighted_srgb_code": 0.0855600431224
+        },
+        {
+          "input_srgb_code": 0.05,
+          "output_rgb": [
+            0.113112489352,
+            0.07906565656799999,
+            0.079141115368
+          ],
+          "weighted_srgb_code": 0.08630946134323839
+        },
+        {
+          "input_srgb_code": 0.1,
+          "output_rgb": [
+            0.11772751848000002,
+            0.08322641388,
+            0.080771260552
+          ],
+          "weighted_srgb_code": 0.0903840866476784
+        },
+        {
+          "input_srgb_code": 0.18,
+          "output_rgb": [
+            0.15924354254169598,
+            0.11695165314003199,
+            0.09815510492972798
+          ],
+          "weighted_srgb_code": 0.1245857980460418
+        },
+        {
+          "input_srgb_code": 0.5,
+          "output_rgb": [
+            0.552628756,
+            0.559380829,
+            0.567225873
+          ],
+          "weighted_srgb_code": 0.5585117504570001
+        },
+        {
+          "input_srgb_code": 0.9,
+          "output_rgb": [
+            0.8587959394160001,
+            0.879877907152,
+            0.9022885316320001
+          ],
+          "weighted_srgb_code": 0.8770139278987823
+        },
+        {
+          "input_srgb_code": 1.0,
+          "output_rgb": [
+            0.894404411,
+            0.913983643,
+            0.932617962
+          ],
+          "weighted_srgb_code": 0.9111664961085999
+        }
+      ]
+    }
+  ]
+}

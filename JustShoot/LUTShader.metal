@@ -36,7 +36,7 @@ struct PreviewParams {
 
 // Stage 1: geometry + LUT + headroom. Energy is extracted AFTER grading in every renderer.
 kernel void previewLUT(
-    texture2d<half, access::sample> input [[texture(0)]],
+    texture2d<float, access::sample> input [[texture(0)]],
     texture3d<float, access::sample> lut [[texture(1)]],
     texture2d<half, access::write> graded [[texture(2)]],
     texture2d<half, access::write> energy [[texture(3)]],
@@ -60,7 +60,9 @@ kernel void previewLUT(
         return;
     }
     constexpr sampler linearSampler(filter::linear, address::clamp_to_edge);
-    float3 color = float3(input.sample(linearSampler, (source + 0.5) / float2(inW, inH)).rgb);
+    // Decode the 8-bit camera texture directly to float. Rounding it to half before
+    // a steep shadow/toe LUT magnifies quantization, especially on night images.
+    float3 color = input.sample(linearSampler, (source + 0.5) / float2(inW, inH)).rgb;
     // 胶片色温响应先于 LUT：真实胶片是"乳剂先响应、显影定色"，校白模拟必须在色彩映射之前。
     color = justShootApplyChromaticGain(
         color,

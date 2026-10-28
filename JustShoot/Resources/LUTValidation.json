@@ -1,0 +1,46 @@
+[
+  {
+    "resourceName": "FujiC200",
+    "dimension": 33,
+    "fidelityAgainst": "Unbaked model on 2048 seeded random RGBs and 1025 gray inputs; not real film",
+    "deltaE2000Median": 0.06531024724245071,
+    "deltaE2000P95": 0.4696583151817322,
+    "deltaE2000Max": 1.780294418334961,
+    "rgbRMSE": 0.002131295802774628,
+    "grayReversals": 13,
+    "worstGrayStep": -2.07588137435058e-05
+  },
+  {
+    "resourceName": "FujiPro400H",
+    "dimension": 33,
+    "fidelityAgainst": "Unbaked model on 2048 seeded random RGBs and 1025 gray inputs; not real film",
+    "deltaE2000Median": 0.05542435497045517,
+    "deltaE2000P95": 0.4048621356487274,
+    "deltaE2000Max": 1.7952946424484253,
+    "rgbRMSE": 0.0018857843083340876,
+    "grayReversals": 23,
+    "worstGrayStep": -3.0991711153449675e-05
+  },
+  {
+    "resourceName": "FujiProvia100F",
+    "dimension": 33,
+    "fidelityAgainst": "Unbaked model on 2048 seeded random RGBs and 1025 gray inputs; not real film",
+    "deltaE2000Median": 0.05637601763010025,
+    "deltaE2000P95": 0.28249892592430115,
+    "deltaE2000Max": 1.5895047187805176,
+    "rgbRMSE": 0.0015995875975404739,
+    "grayReversals": 0,
+    "worstGrayStep": -3.628678474962288e-06
+  },
+  {
+    "resourceName": "KodakPortra400",
+    "dimension": 33,
+    "fidelityAgainst": "Unbaked model on 2048 seeded random RGBs and 1025 gray inputs; not real film",
+    "deltaE2000Median": 0.06450790911912918,
+    "deltaE2000P95": 0.3730520009994507,
+    "deltaE2000Max": 3.1551153659820557,
+    "rgbRMSE": 0.0020772958555731885,
+    "grayReversals": 18,
+    "worstGrayStep": -2.7931944091674765e-05
+  }
+]

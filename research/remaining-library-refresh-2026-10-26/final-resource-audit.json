@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "approvedSources": 331,
+  "installedCovers": 331,
+  "builtResourceMatches": 331,
+  "allInstalledDimensions": [
+    1024,
+    1024
+  ],
+  "allInstalledICC": "sRGB",
+  "catalogRows": 550,
+  "changedAppPaths": 332,
+  "protectedLibraryCovers": 219,
+  "protectedCaptureCovers": 9,
+  "unrelatedAppFilesChanged": 0,
+  "catalogMetadataChanges": "Only dominant color labels on 80 target cards; IDs/order/image bindings and other metadata preserved.",
+  "gitDiffCheck": "passed",
+  "finalPreviewReview": "passed",
+  "newCoverBytes": 61428394,
+  "previousCoverBytes": 12868128
+}

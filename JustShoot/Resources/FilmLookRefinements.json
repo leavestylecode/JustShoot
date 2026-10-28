@@ -1,0 +1,59 @@
+{
+  "revision": "skin-shadow-v1",
+  "profiles": {
+    "fujiProvia100F": {
+      "shadowRetention": 0.22,
+      "skinHue": 0.4,
+      "skinChroma": 0.45,
+      "skinLightness": 0.12
+    },
+    "fujiRawVelvia": {
+      "shadowRetention": 0.24,
+      "skinHue": 0.32,
+      "skinChroma": 0.4,
+      "skinLightness": 0.14
+    },
+    "fujiRawASTIA": {
+      "shadowRetention": 0.24,
+      "skinHue": 0.45,
+      "skinChroma": 0.5,
+      "skinLightness": 0.14
+    },
+    "fujiRawClassicChrome": {
+      "shadowRetention": 0.24,
+      "skinHue": 0.38,
+      "skinChroma": 0.35,
+      "skinLightness": 0.13
+    },
+    "fujiRawClassicNeg": {
+      "shadowRetention": 0.22,
+      "skinHue": 0.3,
+      "skinChroma": 0.35,
+      "skinLightness": 0.13
+    },
+    "fujiRawACROS": {
+      "shadowRetention": 0.2,
+      "skinHue": 0.0,
+      "skinChroma": 0.0,
+      "skinLightness": 0.0
+    },
+    "fujiC200": {
+      "shadowRetention": 0.16,
+      "skinHue": 0.48,
+      "skinChroma": 0.55,
+      "skinLightness": 0.08
+    },
+    "fujiPro400H": {
+      "shadowRetention": 0.14,
+      "skinHue": 0.46,
+      "skinChroma": 0.5,
+      "skinLightness": 0.08
+    },
+    "kodakPortra400": {
+      "shadowRetention": 0.14,
+      "skinHue": 0.46,
+      "skinChroma": 0.55,
+      "skinLightness": 0.08
+    }
+  }
+}

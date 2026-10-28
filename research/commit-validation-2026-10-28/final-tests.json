@@ -1,0 +1,2652 @@
+{
+  "schema": "xcodebuildmcp.output.test-result",
+  "schemaVersion": "3",
+  "didError": false,
+  "error": null,
+  "data": {
+    "summary": {
+      "status": "SUCCEEDED",
+      "durationMs": 30006,
+      "counts": {
+        "passed": 431,
+        "failed": 0,
+        "skipped": 3
+      },
+      "target": "simulator"
+    },
+    "artifacts": {
+      "buildLogPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-28T02-45-02-314Z_pid99216_29ce8c08.log",
+      "xcresultPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-28T02-45-02-314Z_pid99216_ef761198.xcresult",
+      "testProductsPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/test-products/test_sim_2026-10-28T02-45-02-314Z_pid99216_77d4cda3.xctestproducts"
+    },
+    "tests": {
+      "discovered": {
+        "total": 434,
+        "items": [
+          "JustShootTests/AppStartupPreparationTests/testAnAlreadyMissingPreparedFilterDoesNotDeleteAnUnindexedFile",
+          "JustShootTests/AppStartupPreparationTests/testAnUninterruptibleStoreOpenIsReusedAfterCancellation",
+          "JustShootTests/AppStartupPreparationTests/testBackgroundTimeDoesNotTriggerTheForegroundDeadlineAndResumeRestartsIt",
+          "JustShootTests/AppStartupPreparationTests/testCancelledAttemptCannotReplaceANewerReadySnapshot",
+          "JustShootTests/AppStartupPreparationTests/testDeadlineFailsIndependentlyOfAnUnresponsiveResourceWaiter",
+          "JustShootTests/AppStartupPreparationTests/testPreparedCustomFilterCanBeDeletedBeforeTheLiveQueryArrives"
+        ]
+      }
+    },
+    "diagnostics": {
+      "warnings": [
+        {
+          "message": "-[JustShootTests.FilmCardImageCacheTests testBundledFilenameRequestsReuseTheSameDisplaySizeAcrossScreens] : [Internal] Thread running at User-interactive quality-of-service class waiting on a lower QoS thread running at Default quality-of-service class. Investigate ways to avoid priority inversions",
+          "location": "<unknown>:0"
+        }
+      ],
+      "errors": [],
+      "testFailures": []
+    },
+    "testCases": [
+      {
+        "suite": "AppStartupPreparationTests",
+        "test": "testAnAlreadyMissingPreparedFilterDoesNotDeleteAnUnindexedFile",
+        "status": "passed",
+        "durationMs": 35
+      },
+      {
+        "suite": "AppStartupPreparationTests",
+        "test": "testAnUninterruptibleStoreOpenIsReusedAfterCancellation",
+        "status": "passed",
+        "durationMs": 12
+      },
+      {
+        "suite": "AppStartupPreparationTests",
+        "test": "testBackgroundTimeDoesNotTriggerTheForegroundDeadlineAndResumeRestartsIt",
+        "status": "passed",
+        "durationMs": 203
+      },
+      {
+        "suite": "AppStartupPreparationTests",
+        "test": "testCancelledAttemptCannotReplaceANewerReadySnapshot",
+        "status": "passed",
+        "durationMs": 7
+      },
+      {
+        "suite": "AppStartupPreparationTests",
+        "test": "testDeadlineFailsIndependentlyOfAnUnresponsiveResourceWaiter",
+        "status": "passed",
+        "durationMs": 113
+      },
+      {
+        "suite": "AppStartupPreparationTests",
+        "test": "testPreparedCustomFilterCanBeDeletedBeforeTheLiveQueryArrives",
+        "status": "passed",
+        "durationMs": 17
+      },
+      {
+        "suite": "AppStartupPreparationTests",
+        "test": "testReadyWaitsForPreparedResourcesAndRepeatedCallsShareOneAttempt",
+        "status": "passed",
+        "durationMs": 8
+      },
+      {
+        "suite": "AppStartupPreparationTests",
+        "test": "testResourceFailureRetriesWithoutReopeningTheSuccessfulStore",
+        "status": "passed",
+        "durationMs": 9
+      },
+      {
+        "suite": "BlockingImageWorkTests",
+        "test": "testBundledHEIFCoverDecodesWithoutBlockingOtherSwiftTasks",
+        "status": "passed",
+        "durationMs": 47
+      },
+      {
+        "suite": "BlockingImageWorkTests",
+        "test": "testCancellingAWaitingDecodeDoesNotWaitForTheBlockedCodec",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "BlockingImageWorkTests",
+        "test": "testDecodingConcurrencyIsBoundedAcrossManyRequests",
+        "status": "passed",
+        "durationMs": 75
+      },
+      {
+        "suite": "BundledFilmLUTTests",
+        "test": "testBundledSourcesLoadWithoutTheSupersededToeAndPortraitCurves",
+        "status": "passed",
+        "durationMs": 978
+      },
+      {
+        "suite": "BundledFilmLUTTests",
+        "test": "testCoreImageMatchesSourceReferenceColorsInSRGB",
+        "status": "passed",
+        "durationMs": 54
+      },
+      {
+        "suite": "BundledFilmLUTTests",
+        "test": "testImportWithABuiltInFilenameKeepsOriginalBytes",
+        "status": "passed",
+        "durationMs": 944
+      },
+      {
+        "suite": "BundledFilmLUTTests",
+        "test": "testProvenanceCoversEveryStockAndShipsTheModelLicense",
+        "status": "passed",
+        "durationMs": 4
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testAutomaticReadingsAreNotClampedToManualControlLimits",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testClosedPickerDoesNotConsumeHorizontalGestureAsFilmSwipe",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testEachAutomaticAxisKeepsTheOtherManualValue",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testFastDragCoalescesToThirtyPreparationsAndAppliesFinalPosition",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testFilmSwipeCannotTurnIntoExposureDuringDiagonalTail",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testInvalidStartupGainsAndReadingsAreRejected",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testLandscapeAxesKeepFilmAndExposureOrthogonal",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testLUTPreparationStartsImmediatelyAfterIdle",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testOpenFilmPickerStillRoutesVerticalDragToExposure",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testReadingGateBoundsOutstandingWorkAndUpdateFrequency",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testReplacingPendingColorRequestDoesNotPostponeItsDeadline",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testTapJitterAndAmbiguousDiagonalDoNotSelectAnAdjustment",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testTemperatureIsFiniteBoundedAndQuantized",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testTintIsFiniteBoundedAndQuantized",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraAdjustmentPolicyTests",
+        "test": "testUnavailableReadingDoesNotInventManualReference",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraCaptureAdmissionTests",
+        "test": "testAnExposedCaptureKeepsItsSlotUntilStillCheckpointCompletes",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraCaptureAdmissionTests",
+        "test": "testBackgroundingDuringReservationOrFlashDelayRejectsTheOldCapture",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraCaptureAdmissionTests",
+        "test": "testGenerationChangeAloneCannotReviveAWaitingShutterPress",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraCaptureAdmissionTests",
+        "test": "testInvalidAdmissionFailsSynchronouslyWithoutStartingNativeCapture",
+        "status": "passed",
+        "durationMs": 15
+      },
+      {
+        "suite": "CameraCaptureAdmissionTests",
+        "test": "testReservationAlreadyOwnsTheHardwareSlotAndFrozenParameters",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraCaptureDeliveryTests",
+        "test": "testMissingRequestedLiveMoviePreservesTheStillAndReportsWarning",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraCaptureDeliveryTests",
+        "test": "testOrdinaryStillAndSuccessfulLiveCaptureDoNotReportMovieFailure",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraCapturePolicyTests",
+        "test": "testAFormatWithOnly12And48MPUsesItsSupportedOrdinarySize",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraCapturePolicyTests",
+        "test": "testAutomaticCaptureRespectsOutputCapability",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraCapturePolicyTests",
+        "test": "testDisabledSafeShutterUsesFullExposureRangeAndEnabledPolicyClamps",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraCapturePolicyTests",
+        "test": "testFormatRankingPrefersAnOrdinarySizeOverAMaxOnlyFormat",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraCapturePolicyTests",
+        "test": "testLegacyQualityPreferenceCannotRestoreMaximumCapture",
+        "status": "passed",
+        "durationMs": 5
+      },
+      {
+        "suite": "CameraCapturePolicyTests",
+        "test": "testOnlyHighResolutionFormatKeepsASupportedSizeInsteadOfInventing24MP",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraCapturePolicyTests",
+        "test": "testOrdinaryPhotoModePrefersSupported24MPOver48MP",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraCapturePolicyTests",
+        "test": "testPhotoSizeSelectionRejectsInvalidAndNonPhotoAspectRatios",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraColorControlsTests",
+        "test": "testAccessibilityAdjustmentKeepsManualBoundsAndStep",
+        "status": "passed",
+        "durationMs": 6
+      },
+      {
+        "suite": "CameraColorControlsTests",
+        "test": "testAutomaticReadingAnimatesOnlyTheThumbWithoutEditingCameraValues",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "CameraColorControlsTests",
+        "test": "testCompactControlsFitAndCaptureVisualPreview",
+        "status": "passed",
+        "durationMs": 95
+      },
+      {
+        "suite": "CameraColorControlsTests",
+        "test": "testDragReturningToItsStartDoesNotJumpToTheFingerOnRelease",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraColorControlsTests",
+        "test": "testDragStartsAtVisibleFractionAndRemainsContinuousBeforeQuantization",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraColorControlsTests",
+        "test": "testManualUpdatesAndReducedMotionDoNotAnimate",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraColorControlsTests",
+        "test": "testReadoutAndTrackShareOneHorizontalCenterline",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraColorControlsTests",
+        "test": "testUnknownReadingHasNoInventedThumbOrInteractiveValue",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraConstituentSwitchingPolicyTests",
+        "test": "testAnAdoptedZoomPolicyDoesNotReconfigureOnLaterFocalChanges",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraConstituentSwitchingPolicyTests",
+        "test": "testLeavingAPerDeviceLockExplicitlyUnlocksBeforeRestricting",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraConstituentSwitchingPolicyTests",
+        "test": "testUnsupportedDeviceNeverReceivesAConfigurationWrite",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraEntryPreparationTests",
+        "test": "testCapturePipelineAndNativeWarmupAreIndependentRequiredWork",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraEntryPreparationTests",
+        "test": "testCurrentAudioAndNativePhotoConfigurationMustComplete",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraEntryPreparationTests",
+        "test": "testCurrentStyleGPUCanArriveBeforeItsPreparedKeyPublication",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraEntryPreparationTests",
+        "test": "testDeviceWarmupCannotUseAnOlderGPUFrameToUnlockEntry",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraEntryPreparationTests",
+        "test": "testFailureCannotBeOverwrittenByLateReadyCallbacksAndRetryStartsFresh",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraEntryPreparationTests",
+        "test": "testNativeReadinessRevealsImmediatelyAfterTheCurrentFrameWithoutAnotherTimer",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraEntryPreparationTests",
+        "test": "testNormalFilterAndFocalChangesDoNotShowTheEntryCoverAgain",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraEntryPreparationTests",
+        "test": "testOldDeviceWarmupAndOldFramesCannotCompleteAResumedEntry",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraEntryPreparationTests",
+        "test": "testPermissionSheetsAndInactiveTimeDoNotConsumeTheActiveTimeoutBudget",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraEntryPreparationTests",
+        "test": "testResumeRequiresFreshGenerationWorkAndRejectsLateBackgroundCompletion",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraEntryPreparationTests",
+        "test": "testSessionAndLUTReadinessCannotRevealBeforeSuccessfulGPUCompletion",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraFlowDiagnosticsTests",
+        "test": "testFrameGapAcrossWindowsIsNotHidden",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraFlowDiagnosticsTests",
+        "test": "testInvalidAndOutOfOrderPresentationTimesDoNotCorruptCadence",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraFlowDiagnosticsTests",
+        "test": "testLateGPUCallbacksCannotBeAttributedToANewFocalRequest",
+        "status": "passed",
+        "durationMs": 32
+      },
+      {
+        "suite": "CameraFlowDiagnosticsTests",
+        "test": "testZoomHistoryIsBoundedAndKeepsTheLatestSample",
+        "status": "passed",
+        "durationMs": 30
+      },
+      {
+        "suite": "CameraLensCaptureGateTests",
+        "test": "testDuplicateSelectionKeepsItsHardwareRequestAndOriginalGrace",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraLensCaptureGateTests",
+        "test": "testElapsedGraceDoesNotBypassCompletionAndTelephotoLock",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraLensCaptureGateTests",
+        "test": "testFailedStaleOrMovedSelectionsRemainEligibleForRetry",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraLensCaptureGateTests",
+        "test": "testMovementRestartsGraceAndDriftAfterSettleIsRejected",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraLensCaptureGateTests",
+        "test": "testNativeSourceBarrierClosesBeforeMainActorCallbackAndRejectsOldObservers",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraLensCaptureGateTests",
+        "test": "testPhysicalSourceChangeAfterZoomSettlesRequiresANewFullGrace",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraLensCaptureGateTests",
+        "test": "testRetryAndNewSessionDoNotKeepFailedState",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraLensCaptureGateTests",
+        "test": "testSameZoomWaitsForHardwareAcknowledgementAndFullGrace",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraLensCaptureGateTests",
+        "test": "testSourceChangeCannotReviveFailedOrSupersededFocalRequests",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraLensCaptureGateTests",
+        "test": "testTimeoutNeverPermitsOldFocalLengthOrLateHardwareCompletion",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CameraNavigationGestureBlockerTests",
+        "test": "testCameraDisablesBothNavigationGesturesAndExplicitBackStillWorks",
+        "status": "passed",
+        "durationMs": 180
+      },
+      {
+        "suite": "CameraNavigationGestureBlockerTests",
+        "test": "testOtherPagesRegainGesturesAndReturningToCameraBlocksThemAgain",
+        "status": "passed",
+        "durationMs": 225
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testCeilingChangeHoldsUntilStreamDiscontinuity",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testContinuousStreamAcceptsCeilingByTimeout",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testCrossConstituentKeepsRateLadder",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testDiffusionPreservesOddSizedEdgesWithQuarterPixelCount",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testExtendedCropDegenerateInputsDisabled",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testExtendedCropInactiveWhenConstituentCoversZoom",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testExtendedCropMatchesPreviewClampBehavior",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testFirstFrameAfterResetLatchesImmediately",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testFrameGapThresholdBoundary",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testFrameRateDoesNotSelectAnUnsupportedGap",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testFramesWithoutCeilingChangeAreInert",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testInvalidZoomDoesNotReachHardware",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testLargeWindowCannotCreateUnboundedPreviewTextures",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testNonAnimatedChangeHasOnlyTheRequestedDestination",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testOscillatingConstituentTakesLatestCeiling",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testPreviewRestoresAutomaticBufferNegotiation",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testRapidReentryCannotRevivePreviousStartup",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testRetargetingUsesActualZoomForRateInsteadOfThePreviousUISelection",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testReversingAnActiveRampAnchorsAtActualZoomInsteadOfTheNewTarget",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testSameConstituentHopUsesFastRamp",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testSeamlessSwitchAcceptsCeilingWithinShortWindow",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testSelectingCurrentPositionStopsAnOldRampWithoutStartingAnother",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testSettledZoomDoesNotGetAnExtraImmediateAssignment",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPerformancePolicyTests",
+        "test": "testStopInvalidatesQueuedStart",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPhotoDiagnosticsTests",
+        "test": "testEncodedStillReportsOriginalOpticsAndEncodedSizeWithoutGPS",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CameraPreviewLifecycleTests",
+        "test": "testAnAttachedResizeBurstKeepsOneDrawableUntilTheFinalGeometrySettles",
+        "status": "passed",
+        "durationMs": 192
+      },
+      {
+        "suite": "CameraPreviewLifecycleTests",
+        "test": "testAnimatedRasterScaleCannotBypassControlledDrawableSizing",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "CameraPreviewLifecycleTests",
+        "test": "testDetachedLayoutKeepsTheDrawableAndReattachmentAppliesTheLatestSizeWithoutDelay",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "CameraPreviewLifecycleTests",
+        "test": "testDetachedViewCannotBeRestartedByForegroundNotification",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "CameraPreviewLifecycleTests",
+        "test": "testDismantleStopsDrawingAndDisconnectsDelegate",
+        "status": "passed",
+        "durationMs": 5
+      },
+      {
+        "suite": "CameraPreviewLifecycleTests",
+        "test": "testDismissingPhotoReviewWhileInactiveWaitsForForegroundBeforeDrawing",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "CameraPreviewLifecycleTests",
+        "test": "testInactiveNotificationPausesImmediatelyAndForegroundResumes",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "CameraPreviewLifecycleTests",
+        "test": "testPendingResizeCannotFireWhileInactiveAndResumeAppliesItSynchronously",
+        "status": "passed",
+        "durationMs": 163
+      },
+      {
+        "suite": "CameraPreviewLifecycleTests",
+        "test": "testPhotoReviewPausesDrawingUntilDismissedAndForegroundCannotRestartIt",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "CameraPreviewLifecycleTests",
+        "test": "testSceneMustAlsoBeActiveBeforeResuming",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "CaptureCheckpointTests",
+        "test": "testFailedMovieCopyDoesNotConsumeStillOrCaptureCompletion",
+        "status": "passed",
+        "durationMs": 11
+      },
+      {
+        "suite": "CaptureCheckpointTests",
+        "test": "testLateMovieUpdatesCheckpointOnceWithoutReplacingStill",
+        "status": "passed",
+        "durationMs": 7
+      },
+      {
+        "suite": "CaptureCheckpointTests",
+        "test": "testLegacyManifestWithoutCheckpointFieldsStillDecodes",
+        "status": "passed",
+        "durationMs": 4
+      },
+      {
+        "suite": "CaptureCheckpointTests",
+        "test": "testRecoveryAdoptsMovieCommittedBeforeManifestUpdate",
+        "status": "passed",
+        "durationMs": 6
+      },
+      {
+        "suite": "CaptureCheckpointTests",
+        "test": "testRecoveryDistinguishesReadableMovieFromInterruptedFile",
+        "status": "passed",
+        "durationMs": 59
+      },
+      {
+        "suite": "CaptureCheckpointTests",
+        "test": "testRestartWithoutMovieRecoversStillWithFrozenRecipe",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "CaptureCheckpointTests",
+        "test": "testStillIsDurableBeforeMovieAndForegroundRetryKeepsItPending",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "CaptureEncodingRecipeTests",
+        "test": "testAutomaticEncodingSurvivesAnEarlyCheckpointAndProcessRestart",
+        "status": "passed",
+        "durationMs": 4
+      },
+      {
+        "suite": "CaptureEncodingRecipeTests",
+        "test": "testLegacyFrozenQualityStillDecodesAndSurvivesLateMovieTiming",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CaptureEncodingRecipeTests",
+        "test": "testPortraitGrainResponseSurvivesCheckpointRecoveryAndLateTiming",
+        "status": "passed",
+        "durationMs": 6
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testBinaryCubeRejectsInvalidPayload",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testCancellingTranscodePreservesOriginalVideo",
+        "status": "passed",
+        "durationMs": 16
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testCubeHeadersAndCommentsDoNotBecomeSamples",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testCubeRejectsNonFiniteAndMissingSamples",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testCubeRejectsUnsupportedDomainInsteadOfChangingColors",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testDiscardedCaptureCannotBeRecoveredOrExported",
+        "status": "passed",
+        "durationMs": 4
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testExistingAssetIndexIsUpdatedInsteadOfDuplicated",
+        "status": "passed",
+        "durationMs": 34
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testJournalAppliesBackpressureWithoutRemovingOlderJobs",
+        "status": "passed",
+        "durationMs": 71
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testJournalRecoversCommitInterruptedBeforeRename",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testJournalRetainsRecipeAndLiveResourcesUntilCommit",
+        "status": "passed",
+        "durationMs": 6
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testLiveTranscodeKeepsEveryFrameAndPairingMetadata",
+        "status": "passed",
+        "durationMs": 87
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testLocationUsesMeasurementAgeAndAccuracy",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testOpticsCompositePreservesHighlightGradient",
+        "status": "passed",
+        "durationMs": 23
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testOpticsKernelUsesSRGBDisplayValues",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testSaveIsIdempotentAndKeepsCaptureDate",
+        "status": "passed",
+        "durationMs": 11
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testSingleEncodingPreservesPhotoMetadata",
+        "status": "passed",
+        "durationMs": 23
+      },
+      {
+        "suite": "CapturePipelineTests",
+        "test": "testUnknownJournalVersionKeepsOriginalFiles",
+        "status": "passed",
+        "durationMs": 4
+      },
+      {
+        "suite": "CaptureQueueStateTests",
+        "test": "testAnOlderInventoryCannotReleaseANewerActiveCheckpoint",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CaptureQueueStateTests",
+        "test": "testAReservationAndItsDurableCheckpointOccupyOnlyOneSlot",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CaptureQueueStateTests",
+        "test": "testCancellingANativeDeliveryDoesNotDiscardAnAlreadyDurableCheckpoint",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CaptureQueueStateTests",
+        "test": "testInventoryReadBeforeCompletionCannotResurrectASuccessfullySavedCapture",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CaptureQueueStateTests",
+        "test": "testLateAdmissionCannotRecreateADeletedCaptureSlot",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CaptureQueueStateTests",
+        "test": "testOlderInventoriesCannotHideOrReclassifyAFailedOrCancelledCapture",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CaptureQueueStateTests",
+        "test": "testRecoveryIssuesConsumeCapacityAndAStagingDuplicateDoesNotConsumeAnExtraSlot",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CaptureQueueStateTests",
+        "test": "testRecoveryPreservesUnjournaledReservationsAndDoesNotReactivateRetainedJobs",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CaptureRecoveryTests",
+        "test": "testAnExistingAssetRowAliasProtectsAndDeletesTheCaptureBeforeItsAssetIdentifierIsCheckpointed",
+        "status": "passed",
+        "durationMs": 16
+      },
+      {
+        "suite": "CaptureRecoveryTests",
+        "test": "testAProcessingFailureWithAllFilesPresentCanStillBeExportedAndExplicitlyDiscarded",
+        "status": "passed",
+        "durationMs": 5
+      },
+      {
+        "suite": "CaptureRecoveryTests",
+        "test": "testARepairedPhotoCannotBeDeletedByAStaleRecoveryAction",
+        "status": "passed",
+        "durationMs": 6
+      },
+      {
+        "suite": "CaptureRecoveryTests",
+        "test": "testDeletingAFallbackCommitsTheIndexAndImmediatelyReleasesItsQueueSlot",
+        "status": "passed",
+        "durationMs": 12
+      },
+      {
+        "suite": "CaptureRecoveryTests",
+        "test": "testExplicitDiscardRemovesOnlyTheChosenRecoveryDirectory",
+        "status": "passed",
+        "durationMs": 5
+      },
+      {
+        "suite": "CaptureRecoveryTests",
+        "test": "testIncompleteStagingAndMissingProcessedFilesRemainInTheRecoveryInventory",
+        "status": "passed",
+        "durationMs": 7
+      },
+      {
+        "suite": "CaptureRecoveryTests",
+        "test": "testUnknownVersionIsVisibleAndItsOriginalCanBeExportedWithoutChangingIt",
+        "status": "passed",
+        "durationMs": 5
+      },
+      {
+        "suite": "CaptureRenderCancellationTests",
+        "test": "testCancellationSignalIsVisibleToOtherThreads",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CaptureRenderCancellationTests",
+        "test": "testCancelledGraphDoesNotScheduleEffects",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CaptureRenderCancellationTests",
+        "test": "testCancelledRenderDoesNotReadAColdLUTOrProduceAnImage",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "test5100KWorksWithoutAnyCaptureDevice",
+        "status": "passed",
+        "durationMs": 101
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testAutoAndNeutralRestoreOriginalBytesExactly",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testBakedCubeKeepsRGBIndexOrder",
+        "status": "passed",
+        "durationMs": 99
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testBothAutomaticAxesUseOriginalLUTAsTheReadingChanges",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testCacheHasByteAndEntryBounds",
+        "status": "passed",
+        "durationMs": 382
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testCaptureSnapshotIsUnchangedByLaterTemperatureSelection",
+        "status": "passed",
+        "durationMs": 195
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testIncreasingKelvinWarmsAndDecreasingKelvinCools",
+        "status": "passed",
+        "durationMs": 195
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testInvalidTemperatureFailsWithoutTouchingHardware",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testInvalidTintIsRejectedEvenWithAutomaticTemperature",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testMalformedTableFailsBeforeCallingCoreImage",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testManualAdjustmentIsRelativeToTheMeasuredCameraWhitePoint",
+        "status": "passed",
+        "durationMs": 197
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testRealFujiC200At5100KPreservesTableResolution",
+        "status": "passed",
+        "durationMs": 120
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testStillExportUsesThePreparedTemperatureSnapshot",
+        "status": "passed",
+        "durationMs": 127
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testSwitchingFromAutoToItsDisplayedValueDoesNotChangeTheImage",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testTemperatureAndTintHaveIndependentCacheKeysAndComposeTogether",
+        "status": "passed",
+        "durationMs": 289
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testTemperatureIsAppliedBeforeTheFilmTransform",
+        "status": "passed",
+        "durationMs": 99
+      },
+      {
+        "suite": "ColorTemperatureLUTTests",
+        "test": "testTintWorksWithAutomaticTemperatureAndHasTheExpectedDirection",
+        "status": "passed",
+        "durationMs": 192
+      },
+      {
+        "suite": "CurveLUTComposerTests",
+        "test": "testAlreadyDenseCubesAndNeutralCurvesKeepTheirOriginalBytes",
+        "status": "passed",
+        "durationMs": 127
+      },
+      {
+        "suite": "CurveLUTComposerTests",
+        "test": "testInvalidStructuresReturnWithoutOverflowOrChangingTheirPayload",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CurveLUTComposerTests",
+        "test": "testLargeFiniteOppositeValuesDoNotOverflowDuringInterpolation",
+        "status": "passed",
+        "durationMs": 38
+      },
+      {
+        "suite": "CurveLUTComposerTests",
+        "test": "testTrilinearUpsamplingPreservesAnAffineRGBAFilmIncludingHDRValues",
+        "status": "passed",
+        "durationMs": 229
+      },
+      {
+        "suite": "CurveLUTComposerTests",
+        "test": "testTwoAndThreePointIdentityCubesActuallyRenderSoftAndSCurveTones",
+        "status": "passed",
+        "durationMs": 240
+      },
+      {
+        "suite": "CurveMathTests",
+        "test": "testArtistCurvesCanIntentionallyInvertTones",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CurveMathTests",
+        "test": "testEditableControlPointsStayContinuousAtTheToneTheyTarget",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CurveMathTests",
+        "test": "testExistingCustomNaturalSplineCharacterIsNotReplacedByAMonotoneInterpolator",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CurveMathTests",
+        "test": "testIdentityAndCollinearControlPointsPreserveEveryToneExactly",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CurveMathTests",
+        "test": "testInvalidGeometryOrNonFiniteControlPointsFallBackToIdentity",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CurveMathTests",
+        "test": "testNonFiniteAndOutOfRangeSamplesCannotTrapOrEscapeTheDisplayRange",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CurvePresetTests",
+        "test": "testBuiltinsStayFiniteMonotoneAndAvoidClippedOrAbruptToneSteps",
+        "status": "passed",
+        "durationMs": 4
+      },
+      {
+        "suite": "CurvePresetTests",
+        "test": "testCatalogueContainsFiveDistinctPhotographicRoles",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CurvePresetTests",
+        "test": "testMatteCombinesALiftedBlackFloorWithShadowAndHighlightContrast",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CurvePresetTests",
+        "test": "testMatteLiftsTheBlackPointAndKeepsBrightWhites",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CurvePresetTests",
+        "test": "testPresetRolesProduceDifferentResultsOnTheSameNeutralRamp",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "CurvePresetTests",
+        "test": "testSCurveSeparatesMidtonesWithoutChangingBlackAndWhitePoints",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "CurvePresetTests",
+        "test": "testSoftLiftsShadowsLowersHighlightsAndReducesMidtoneContrast",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "CurvePresetTests",
+        "test": "testTonePresetsLeaveNeutralGraysNeutralWhileXProSplitsTheirColor",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "DeviceFocalInfoTests",
+        "test": "testDualWideOmitsTeleStops",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "DeviceFocalInfoTests",
+        "test": "testDualWithTeleOmitsUltraWideStop",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "DeviceFocalInfoTests",
+        "test": "testHardwareClassificationThresholds",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "DeviceFocalInfoTests",
+        "test": "testSingleMainCameraShowsStandardStopsOnly",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "DeviceFocalInfoTests",
+        "test": "testTripleCameraShowsAllStops",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "DiagnosticLogStoreTests",
+        "test": "testOverflowIsExplicitRatherThanUnbounded",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "DiagnosticLogStoreTests",
+        "test": "testOversizedUnicodeRecordStaysValidAndSingleLine",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "DiagnosticLogStoreTests",
+        "test": "testRotationKeepsThreeBoundedFilesInChronologicalOrder",
+        "status": "passed",
+        "durationMs": 11
+      },
+      {
+        "suite": "DiagnosticLogStoreTests",
+        "test": "testSnapshotDrainsPendingWritesAndPreservesRecordOrder",
+        "status": "passed",
+        "durationMs": 23
+      },
+      {
+        "suite": "DiagnosticLogStoreTests",
+        "test": "testUnwritableDirectoryDoesNotProduceASuccessfulExport",
+        "status": "passed",
+        "durationMs": 7
+      },
+      {
+        "suite": "FilmCardCatalogIndexTests",
+        "test": "testColorThresholdAndDisplayOrderAreStable",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCardCatalogIndexTests",
+        "test": "testCombinedFiltersIntersectDimensionsAndKeepCatalogOrder",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCardCatalogIndexTests",
+        "test": "testMajorThresholdsAndChipTotalsPreserveEveryCard",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "FilmCardCatalogIndexTests",
+        "test": "testMissingAndEmptyMetadataRemainReachableInOtherBuckets",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCardImageCacheTests",
+        "test": "testBundledFilenameRequestsReuseTheSameDisplaySizeAcrossScreens",
+        "status": "passed",
+        "durationMs": 42
+      },
+      {
+        "suite": "FilmCardImageCacheTests",
+        "test": "testCancelledQueuedRequestDoesNotDecodeAndCanBeRequestedAgain",
+        "status": "passed",
+        "durationMs": 9
+      },
+      {
+        "suite": "FilmCardImageCacheTests",
+        "test": "testCancellingOneConsumerReturnsBeforeTheCodecAndKeepsAnotherConsumerUsable",
+        "status": "passed",
+        "durationMs": 7
+      },
+      {
+        "suite": "FilmCardImageCacheTests",
+        "test": "testConcurrentNearbySizesDecodeOnceAndShareThePreparedImage",
+        "status": "passed",
+        "durationMs": 36
+      },
+      {
+        "suite": "FilmCardImageCacheTests",
+        "test": "testExtremePixelRequestsStayWithinBundledImageBounds",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCardImageCacheTests",
+        "test": "testFailureCanBeRetriedAndDoesNotPoisonTheCache",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmChromaticResponseTests",
+        "test": "testDaylightStockShiftsWarmUnderTungstenLight",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmChromaticResponseTests",
+        "test": "testExtremeReadingsAreClamped",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "FilmChromaticResponseTests",
+        "test": "testLegacyJournalManifestDecodesAsNeutral",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmChromaticResponseTests",
+        "test": "testNeutralStrengthReturnsUnitGain",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmChromaticResponseTests",
+        "test": "testNewChromaticRecipeFreezesHighlightProtection",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmChromaticResponseTests",
+        "test": "testOldChromaticRecipeKeepsLegacyHighlightResponse",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmChromaticResponseTests",
+        "test": "testPartialStrengthSoftensButPreservesDirection",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmChromaticResponseTests",
+        "test": "testPerPresetResponsesFollowDesignIntent",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmChromaticResponseTests",
+        "test": "testSceneMatchingNativeCCTReturnsUnitGain",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmChromaticResponseTests",
+        "test": "testTungstenStockShiftsBlueInDaylight",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmChromaticResponseTests",
+        "test": "testUnitWhiteVectorIsNormalizedAndWarmAtLowCCT",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testDuplicateSaveCannotInsertASecondCurveWithTheSameUUID",
+        "status": "passed",
+        "durationMs": 8
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testExistingCustomIdentityDatesVisibilityAndChannelPointsSurviveCatalogMigration",
+        "status": "passed",
+        "durationMs": 5
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testFreshInstallAndNewSoftContrastNeverReceiveLegacyMigrationOnReload",
+        "status": "passed",
+        "durationMs": 4
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testHidingOrDeletingASelectionPersistsNeutralAlongWithTheCatalog",
+        "status": "passed",
+        "durationMs": 6
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testLegacyHiddenSelectionsFallBackWithoutRevivingHiddenCurves",
+        "status": "passed",
+        "durationMs": 9
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testMigrationAtomicallyRecordsItsSelectionAndIgnoresAStaleLegacyMirror",
+        "status": "passed",
+        "durationMs": 6
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testMigrationPreservesThePreviousSoftCurveAndWarmRGBEndpoints",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testNewMatteSelectionIsNotMistakenForThePreviousMatteDefinition",
+        "status": "passed",
+        "durationMs": 4
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testOldMatteHiddenPreferenceMapsToTheCurrentMatteWithoutRevivingTheHiddenSelection",
+        "status": "passed",
+        "durationMs": 7
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testOldMatteMigratesWithAndWithoutAnAtomicSelectionAndDoesNotDuplicateOnReload",
+        "status": "passed",
+        "durationMs": 10
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testOnlyThePreviouslySelectedRetiredOrRedefinedCurveMigrates",
+        "status": "passed",
+        "durationMs": 18
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testSavingAStaleEditorDraftDoesNotRestoreHiddenVisibility",
+        "status": "passed",
+        "durationMs": 5
+      },
+      {
+        "suite": "FilmCurveLibraryTests",
+        "test": "testUnknownOrMalformedPayloadCannotBeOverwrittenByAnyMutation",
+        "status": "passed",
+        "durationMs": 6
+      },
+      {
+        "suite": "FilmCurveRenderingTests",
+        "test": "testCurveCompositionRunsAfterTheFilmResponse",
+        "status": "passed",
+        "durationMs": 43
+      },
+      {
+        "suite": "FilmCurveRenderingTests",
+        "test": "testEditingTheSelectedCurveChangesItsKeyWithoutMutatingACapturedLUT",
+        "status": "passed",
+        "durationMs": 122
+      },
+      {
+        "suite": "FilmCurveRenderingTests",
+        "test": "testIdentityCustomCurveKeepsFiniteHDRValuesAndOriginalBytes",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "FilmCurveRenderingTests",
+        "test": "testRGBChannelCurvesKeepTheirOwnChannelAndFollowTheMasterCurve",
+        "status": "passed",
+        "durationMs": 42
+      },
+      {
+        "suite": "FilmCurveTests",
+        "test": "testCacheIdentityTracksPixelsWhileIgnoringMetadataChanges",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCurveTests",
+        "test": "testComposedInverseChannelsRecognizeTheEffectiveIdentity",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCurveTests",
+        "test": "testEqualRGBResponsesUseASinglePreviewLine",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCurveTests",
+        "test": "testLegacyFixedPointCurvesKeepTheirChannelsWhenDecoded",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCurveTests",
+        "test": "testResetAndCollinearCustomPointsAreNeutral",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCurveTests",
+        "test": "testStartingFromAPresetReproducesItsResponse",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmGrainTests",
+        "test": "testAreaMatchedCaptureRecipeRoundTripsWithoutChangingOldRecipes",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "FilmGrainTests",
+        "test": "testBalancedGrainKeepsAverageToneAndReducesShadowTexture",
+        "status": "passed",
+        "durationMs": 1482
+      },
+      {
+        "suite": "FilmGrainTests",
+        "test": "testBalancedGrainKeepsBlackWhiteAndSaturatedChannelsInGamut",
+        "status": "passed",
+        "durationMs": 205
+      },
+      {
+        "suite": "FilmGrainTests",
+        "test": "testBalancedGrainReducesFineTextureWhileRetainingMidtoneStructure",
+        "status": "passed",
+        "durationMs": 399
+      },
+      {
+        "suite": "FilmGrainTests",
+        "test": "testBalancedResponseIsScopedToNewPortraitPresetsAndRoundTrips",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmGrainTests",
+        "test": "testDisabledBalancedGrainLeavesExtendedRangeUntouched",
+        "status": "passed",
+        "durationMs": 9
+      },
+      {
+        "suite": "FilmGrainTests",
+        "test": "testLiveFrameMatchesStillWithBalancedGrainAndFrozenSeed",
+        "status": "passed",
+        "durationMs": 58
+      },
+      {
+        "suite": "FilmGrainTests",
+        "test": "testMetalPreviewFinishMatchesCoreImageAtMatchingGrainCoordinates",
+        "status": "passed",
+        "durationMs": 18
+      },
+      {
+        "suite": "FilmGrainTests",
+        "test": "testOldRecipeWithoutResponseKeepsFrozenLegacyPixels",
+        "status": "passed",
+        "durationMs": 7
+      },
+      {
+        "suite": "FilmGrainTests",
+        "test": "testPreviewTextureVarianceMatchesReducedFullResolutionPhoto",
+        "status": "passed",
+        "durationMs": 2186
+      },
+      {
+        "suite": "FilmGrainTests",
+        "test": "testUnifiedCaptureTexturePreservesShadowAndSkinMeansForEveryLook",
+        "status": "passed",
+        "durationMs": 445
+      },
+      {
+        "suite": "FilmImageKernelsTests",
+        "test": "testCaptureWarmUpProvidesEveryEffectAndConcurrentCallersReuseThem",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmImagePipelineReuseTests",
+        "test": "testDeferredOutputGraphsKeepTheirOwnFrameAfterFilterReuse",
+        "status": "passed",
+        "durationMs": 13
+      },
+      {
+        "suite": "FilmImagePipelineReuseTests",
+        "test": "testReusedLiveFilterMatchesFreshGraphAcrossFramesWithAllEffects",
+        "status": "passed",
+        "durationMs": 68
+      },
+      {
+        "suite": "FilmImagePipelineReuseTests",
+        "test": "testSeparateTranscodesKeepTheirOwnCube",
+        "status": "passed",
+        "durationMs": 8
+      },
+      {
+        "suite": "FilmInputProtectionTests",
+        "test": "testLegacyNearUnitGainRetainsUnmodifiedPixels",
+        "status": "passed",
+        "durationMs": 7
+      },
+      {
+        "suite": "FilmInputProtectionTests",
+        "test": "testLiveFrameMatchesStillGraphWithProtectedHighlights",
+        "status": "passed",
+        "durationMs": 21
+      },
+      {
+        "suite": "FilmInputProtectionTests",
+        "test": "testMetalPreviewMatchesCoreImageForProtectedAndLegacyRecipes",
+        "status": "passed",
+        "durationMs": 425
+      },
+      {
+        "suite": "FilmInputProtectionTests",
+        "test": "testProtectedColorVolumeIsFiniteAndInGamutForPresetTemperatureExtremes",
+        "status": "passed",
+        "durationMs": 137
+      },
+      {
+        "suite": "FilmInputProtectionTests",
+        "test": "testProtectedHighlightsStayInsideLUTAndRetainChannelGradients",
+        "status": "passed",
+        "durationMs": 14
+      },
+      {
+        "suite": "FilmInputProtectionTests",
+        "test": "testProtectionApproachesIdentityAsGainApproachesOne",
+        "status": "passed",
+        "durationMs": 6
+      },
+      {
+        "suite": "FilmInputProtectionTests",
+        "test": "testProtectionLeavesSkinMidtonesAndUnitGainUnchanged",
+        "status": "passed",
+        "durationMs": 28
+      },
+      {
+        "suite": "FilmLookRefinementTests",
+        "test": "testACROSRemainsMonochrome",
+        "status": "passed",
+        "durationMs": 292
+      },
+      {
+        "suite": "FilmLookRefinementTests",
+        "test": "testColoredLooksReduceBrightSkinHueDisplacementAndRetainMostOfTheirStyle",
+        "status": "passed",
+        "durationMs": 663
+      },
+      {
+        "suite": "FilmLookRefinementTests",
+        "test": "testCustomImportDoesNotReceiveBuiltInSkinOrShadowRefinement",
+        "status": "passed",
+        "durationMs": 15
+      },
+      {
+        "suite": "FilmLookRefinementTests",
+        "test": "testEveryPreparedLookMatchesIndependentPythonReference",
+        "status": "passed",
+        "durationMs": 791
+      },
+      {
+        "suite": "FilmLookRefinementTests",
+        "test": "testEvictedRefinementAndCurveRebuildWhileLegacyResourceKeysStayOriginal",
+        "status": "passed",
+        "durationMs": 93
+      },
+      {
+        "suite": "FilmLookRefinementTests",
+        "test": "testHardToeLooksRestoreInputShadowSeparationWithoutLiftingPureBlack",
+        "status": "passed",
+        "durationMs": 490
+      },
+      {
+        "suite": "FilmLookRefinementTests",
+        "test": "testRefinementKeepsBlackWhiteAndDaylightSignatureColors",
+        "status": "passed",
+        "durationMs": 865
+      },
+      {
+        "suite": "FilmPresetCatalogTests",
+        "test": "testCatalogContainsOnlyTheNineRemainingLooks",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "FilmPresetCatalogTests",
+        "test": "testRetiredLooksHaveNoBundledTablesOrCapturePreset",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testAwaitedHomePreparationReturnsEveryBundledCoverAtDisplaySize",
+        "status": "passed",
+        "durationMs": 56
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testCancelledCaptureWarmUpCannotReportResourcesReady",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testCancelledPreparationDoesNotReportAnEmptyReadySnapshot",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testEveryPresetHasItsOwnCoverInsteadOfBorrowingAnotherLooksArtwork",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testInvalidDisplayScaleCannotOverflowThumbnailDimensions",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testPickerPreparationReturnsItsActualDisplayImages",
+        "status": "passed",
+        "durationMs": 54
+      },
+      {
+        "suite": "FilmProcessorCacheTests",
+        "test": "testCurrentPreparationRestoresAnEvictedCurveRecipe",
+        "status": "passed",
+        "durationMs": 74
+      },
+      {
+        "suite": "FilmProcessorCacheTests",
+        "test": "testDeletingCustomLUTRemovesItsSourceAndDependentCompositions",
+        "status": "passed",
+        "durationMs": 47
+      },
+      {
+        "suite": "FilmProcessorCacheTests",
+        "test": "testEvictedCompositionRebuildsItsBaseWithoutChangingCaptureSnapshot",
+        "status": "passed",
+        "durationMs": 83
+      },
+      {
+        "suite": "FilmProcessorCacheTests",
+        "test": "testEvictedFileLUTReloadsFromItsActualRegisteredURL",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "FilmProcessorCacheTests",
+        "test": "testSourcePreparationWorksWhenNoTableFitsTheCacheBudget",
+        "status": "passed",
+        "durationMs": 49
+      },
+      {
+        "suite": "FilmSceneParityTests",
+        "test": "testEveryLookMatchesMetalAcrossSkinDaylightAndNightImages",
+        "status": "passed",
+        "durationMs": 1325
+      },
+      {
+        "suite": "LUTCacheBudgetTests",
+        "test": "testBudgetArithmeticDoesNotOverflowForLargeCosts",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "LUTCacheBudgetTests",
+        "test": "testByteBudgetEvictsLeastRecentlyUsedTablesOfDifferentSizes",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "LUTCacheBudgetTests",
+        "test": "testLightweightRecipesRespectTheirIndependentEntryLimit",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "LUTCacheBudgetTests",
+        "test": "testOversizedValueRemainsUsableWithoutEvictingOtherCachedValues",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "LUTCacheBudgetTests",
+        "test": "testReplacementRemovalAndClearReleaseTheirByteCosts",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "LUTImportPreparationTests",
+        "test": "testCancellationDoesNotCreateAnIndexedOrPartialFile",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "LUTImportPreparationTests",
+        "test": "testLogShapersAndNonUnitDomainsFailExplicitly",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LUTImportPreparationTests",
+        "test": "testNewCompiledAndExistingTextImportsReloadThroughTheSameLoader",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "LUTImportPreparationTests",
+        "test": "testRec709Gamma24ConvertsBothSidesRatherThanOnlyChangingTheTag",
+        "status": "passed",
+        "durationMs": 644
+      },
+      {
+        "suite": "LUTImportPreparationTests",
+        "test": "testSRGBImportPreservesEverySourceSampleAndCompiledBytesRoundTrip",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LensTransitionCompositorTests",
+        "test": "testHysteresisBandHoldsCurrentOpacity",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "LensTransitionCompositorTests",
+        "test": "testPremaskFiresForZoomOutAcrossConstituent",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "LensTransitionCompositorTests",
+        "test": "testPremaskSkipsZoomInAndSameConstituent",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LensTransitionCompositorTests",
+        "test": "testPremaskWindowCoversFadeOutPlusEarlyStall",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "LensTransitionCompositorTests",
+        "test": "testResumedMainStreamConcealsUnderlay",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "LensTransitionCompositorTests",
+        "test": "testStaleMainStreamRevealsUnderlayAndSaturates",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LensTransitionCompositorTests",
+        "test": "testThrottledFrameRatesDoNotTrigger",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LensTransitionCompositorTests",
+        "test": "testTransitionFloorInvalidatedWithoutUnderlay",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LensTransitionCompositorTests",
+        "test": "testTransitionFloorOfZeroReproducesLegacyBehavior",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LensTransitionCompositorTests",
+        "test": "testTransitionFloorSaturatesToTintInsteadOfPureUnderlay",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LensTransitionCompositorTests",
+        "test": "testUnderlayCompositionDoesNotDimIdenticalSourcesDuringFade",
+        "status": "passed",
+        "durationMs": 6
+      },
+      {
+        "suite": "LensTransitionCompositorTests",
+        "test": "testUnderlayUnavailablePinsMainSourceOpaque",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LibraryFlowTests",
+        "test": "testDeletionCannotOverlapAnActiveCaptureOrAnotherDeletion",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LibraryFlowTests",
+        "test": "testFailedDeletionCanRestoreARecoveryMarkerWithoutTouchingOriginalData",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "LibraryFlowTests",
+        "test": "testFailedLUTDeletionKeepsTheFileAndRollsBackTheIndex",
+        "status": "passed",
+        "durationMs": 27
+      },
+      {
+        "suite": "LibraryFlowTests",
+        "test": "testFallbackBecomingLiveAssetRefreshesTheSameGridItem",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LibraryFlowTests",
+        "test": "testGridSnapshotRefreshesLiveStateWithoutChangingPhotoIdentity",
+        "status": "passed",
+        "durationMs": 10
+      },
+      {
+        "suite": "LibraryFlowTests",
+        "test": "testRawDataRequestUsesTheSameCancellationGateAsImages",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "LibraryFlowTests",
+        "test": "testRecoveryIsBlockedUntilDeletionConfirmationEnds",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "LibraryFlowTests",
+        "test": "testShareBatchesCannotDeleteEachOthersFiles",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "LibraryFlowTests",
+        "test": "testShareCleanupDoesNotRemoveFilesOutsideItsBatchDirectory",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LibraryFlowTests",
+        "test": "testSuccessfulLUTDeletionCommitsBeforeRemovingTheFile",
+        "status": "passed",
+        "durationMs": 9
+      },
+      {
+        "suite": "LivePhotoCaptureStateTests",
+        "test": "testAlreadyEnabledOutputAvoidsAnotherPipelineReconfiguration",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "LivePhotoCaptureStateTests",
+        "test": "testConfigurationCanReenableAfterSupportTemporarilyDisappears",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LivePhotoCaptureStateTests",
+        "test": "testFinalConfigurationEnablesSupportedOutput",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LivePhotoCaptureStateTests",
+        "test": "testStateReportsReadbackInsteadOfAssumingEnablementSucceeded",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "LivePhotoCaptureStateTests",
+        "test": "testSupportIsNotInferredFromEnablement",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LivePhotoCaptureStateTests",
+        "test": "testUnavailableLiveRequestFailsWithoutSilentlyTakingAStill",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "LivePhotoCaptureStateTests",
+        "test": "testUnsupportedOutputNeverReceivesAnInvalidEnableAssignment",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "LivePhotoColorTests",
+        "test": "testH264WriterPreservesDeclaredSRGBTransferFunction",
+        "status": "passed",
+        "durationMs": 18
+      },
+      {
+        "suite": "LivePhotoColorTests",
+        "test": "testHEVCWriterPreservesDeclaredSRGBTransferFunction",
+        "status": "passed",
+        "durationMs": 32
+      },
+      {
+        "suite": "LivePhotoColorTests",
+        "test": "testProcessedLivePhotoCarriesSRGBColorTags",
+        "status": "passed",
+        "durationMs": 72
+      },
+      {
+        "suite": "PhotoCapturePlanTests",
+        "test": "testBayerDoesNotSilentlyReplaceComputationalProRAWAndFallbackIsExplicit",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "PhotoCapturePlanTests",
+        "test": "testCustomAndBuiltInLooksUseOneContractForEveryCaptureFormat",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "PhotoCapturePlanTests",
+        "test": "testEveryLookPrefersProRAWInQualityMode",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "PhotoCapturePlanTests",
+        "test": "testLiveAlwaysUsesDisplayInputAndRoundTripsFrozenPlan",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "PhotoDeletionPolicyTests",
+        "test": "testFullAccessCanRemoveIndexesForAssetsAlreadyDeletedElsewhere",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoDeletionPolicyTests",
+        "test": "testLimitedAccessCanDeleteACompletelyVisibleBatch",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoDeletionPolicyTests",
+        "test": "testLimitedAccessRejectsAnEntireBatchWhenAnyAssetIsInvisible",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoDeletionPolicyTests",
+        "test": "testRevokedOrUndecidedAccessCannotBeTreatedAsSuccessfulDeletion",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "PhotoDetailImagePolicyTests",
+        "test": "testFastJumpKeepsOnlyTheNewCurrentAndAdjacentPreviews",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoDetailImagePolicyTests",
+        "test": "testPreviewUsesNativeScreenPixelsInsteadOfOversizingSmallScreens",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoDisplayRoundTripTests",
+        "test": "testRenderedHEICRoundTripsThroughPhotoLibrary",
+        "status": "skipped",
+        "durationMs": 11
+      },
+      {
+        "suite": "PhotoEncodingPolicyTests",
+        "test": "testAutomaticDefaultsAvoidTheLosslessEndpointForEveryFallbackCodec",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoEncodingPolicyTests",
+        "test": "testExistingJournalsKeepTheirFrozenQualityAcrossCodecFallbacks",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoEncodingPolicyTests",
+        "test": "testInvalidLegacyValuesCannotReachTheEncoderAsNonFiniteOptions",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoEncodingPolicyTests",
+        "test": "testQualityPlanImprovesPrecisionWithoutChangingUnversionedRecoveryJobs",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "PhotoGridLifecycleTests",
+        "test": "testHiddenGridDoesNotLoadUntilVisibleAndReuseCannotShowThePreviousPhoto",
+        "status": "passed",
+        "durationMs": 4
+      },
+      {
+        "suite": "PhotoGridLifecycleTests",
+        "test": "testOffscreenCellDropsItsImageAndCanResumeWithoutReuse",
+        "status": "passed",
+        "durationMs": 4
+      },
+      {
+        "suite": "PhotoImageEncoderTests",
+        "test": "testAutomaticEncodingReducesSizeWhileKeepingPixelsMetadataAndDetail",
+        "status": "passed",
+        "durationMs": 413
+      },
+      {
+        "suite": "PhotoImageEncoderTests",
+        "test": "testCancelledEncoderDoesNotProduceAFallbackImage",
+        "status": "passed",
+        "durationMs": 5
+      },
+      {
+        "suite": "PhotoImageLoadingTests",
+        "test": "testAbandonedQueuedPreviewDoesNotDecodeOrWriteCacheAndCanRetry",
+        "status": "passed",
+        "durationMs": 11
+      },
+      {
+        "suite": "PhotoImageLoadingTests",
+        "test": "testCancelledConsumerReturnsWhileAnotherConsumerKeepsItsQueuedPhoto",
+        "status": "passed",
+        "durationMs": 9
+      },
+      {
+        "suite": "PhotoImageLoadingTests",
+        "test": "testClearingPreviewsKeepsGridThumbnailsAndPreventsLateCacheRepopulation",
+        "status": "passed",
+        "durationMs": 13
+      },
+      {
+        "suite": "PhotoImageLoadingTests",
+        "test": "testColdDiskThumbnailAndPreviewWorkWithoutOriginalBytes",
+        "status": "passed",
+        "durationMs": 4
+      },
+      {
+        "suite": "PhotoImageLoadingTests",
+        "test": "testConcurrentPhotoRequestsShareTheDecodedImage",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "PhotoImageLoadingTests",
+        "test": "testPhotoDeletedDuringDiskLookupDoesNotPublishOrReadItsOriginal",
+        "status": "passed",
+        "durationMs": 27
+      },
+      {
+        "suite": "PhotoImageRequestStateTests",
+        "test": "testCancellationBeforeContinuationInstallationDoesNotHang",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoImageRequestStateTests",
+        "test": "testCancellationBeforeRequestIDCancelsTheLateIDAndIgnoresCallback",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoImageRequestStateTests",
+        "test": "testCancellationOfRegisteredRequestReturnsItsIDExactlyOnce",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoImageRequestStateTests",
+        "test": "testSuccessfulImageIsDeliveredAndLateCancellationCannotReplaceIt",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoImageRequestStateTests",
+        "test": "testSynchronousCompletionBeforeRequestIDOnlyResumesOnce",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoPageImageLoaderTests",
+        "test": "testLeavingThePageCancelsBothRequestsWithoutPublishingLateImages",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoPageImageLoaderTests",
+        "test": "testMissingPreviewStillWaitsForUsableThumbnailFallback",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoPageImageLoaderTests",
+        "test": "testReadyPreviewDisplaysAndCancelsAStillPendingThumbnail",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoPageImageLoaderTests",
+        "test": "testThumbnailDisplaysWhilePreviewLoadsThenPreviewReplacesIt",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhysicalCameraPipelineTests",
+        "test": "testRealProRAWThroughDurablePipelineAndPhotos",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewDiffusionKernelCacheTests",
+        "test": "testBusyWorkerKeepsOnlyTheLatestQueuedFilmAndDoesNotBlockDrawing",
+        "status": "passed",
+        "durationMs": 10
+      },
+      {
+        "suite": "PreviewDiffusionKernelCacheTests",
+        "test": "testEvictedKernelsRemainUsableByAnActiveFrame",
+        "status": "passed",
+        "durationMs": 19
+      },
+      {
+        "suite": "PreviewDiffusionKernelCacheTests",
+        "test": "testFailedPreparationCanRetry",
+        "status": "passed",
+        "durationMs": 13
+      },
+      {
+        "suite": "PreviewDiffusionKernelCacheTests",
+        "test": "testFilmRevisitsReuseKernelsCreatedAwayFromMainActor",
+        "status": "passed",
+        "durationMs": 12
+      },
+      {
+        "suite": "PreviewDiffusionKernelCacheTests",
+        "test": "testPreparedKernelsPreservePixelsThroughActualGPUEncoding",
+        "status": "passed",
+        "durationMs": 15
+      },
+      {
+        "suite": "PreviewDiffusionKernelCacheTests",
+        "test": "testRecipesPreserveDiffusionRadiiAcrossFilmsAndOddDrawableSizes",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewDrawableResizePolicyTests",
+        "test": "testFirstValidSizeIsCommittedWithoutWaitingForTheQuietInterval",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewDrawableResizePolicyTests",
+        "test": "testInactiveLayoutCannotResizeAndReactivationImmediatelyAppliesTheLatestSize",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "PreviewDrawableResizePolicyTests",
+        "test": "testInvalidGeometryNeverReplacesTheLastDrawable",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "PreviewDrawableResizePolicyTests",
+        "test": "testRepeatedLayoutOfTheSamePendingSizeDoesNotPostponeItsCommit",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "PreviewDrawableResizePolicyTests",
+        "test": "testReturningToTheCurrentSizeCancelsAnUnnecessaryReallocation",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewDrawableResizePolicyTests",
+        "test": "testRotationAndARealAspectChangeApplyImmediatelyToPreserveTheFieldOfView",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewDrawableResizePolicyTests",
+        "test": "testThirtyFourAnimationSamplesKeepTheOriginalTargetsAndCommitOnlyTheFinalSize",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewLUTTextureCacheTests",
+        "test": "testAllocationFailureCanBeRetried",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "PreviewLUTTextureCacheTests",
+        "test": "testCancelledQueuedSelectionDoesNotUploadOrBlockTheNextSelection",
+        "status": "passed",
+        "durationMs": 8
+      },
+      {
+        "suite": "PreviewLUTTextureCacheTests",
+        "test": "testConcurrentRequestsUploadOnceAwayFromMainActor",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "PreviewLUTTextureCacheTests",
+        "test": "testEvictionDoesNotInvalidateAnActiveRendererTexture",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "PreviewLUTTextureCacheTests",
+        "test": "testOversizedTextureRemainsUsableWithoutEnteringTheCache",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewMetalResourcesTests",
+        "test": "testCameraExitFlushKeepsAnActiveFrameTextureValid",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "PreviewMetalResourcesTests",
+        "test": "testCancelledRendererPreparationCannotReportReady",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewMetalResourcesTests",
+        "test": "testConcurrentEntriesReuseRendererResources",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewRenderReadinessTests",
+        "test": "testAwaitedMetalPreparationProvidesReusablePipelines",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "PreviewRenderReadinessTests",
+        "test": "testGPUStatisticsAcceptBackgroundCompletionsAndDiscardOldGenerations",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewRenderReadinessTests",
+        "test": "testLateCompletionCannotSatisfyANewerFilmOrCameraGeneration",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewRenderReadinessTests",
+        "test": "testOnlyOneConcurrentCompletionCanNotifyTheEntryGate",
+        "status": "passed",
+        "durationMs": 7
+      },
+      {
+        "suite": "PreviewRenderReadinessTests",
+        "test": "testPauseInvalidatesBothInFlightAndQueuedNotifications",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewRenderReadinessTests",
+        "test": "testRepeatedActiveUpdatesDoNotResetTheOneShotNotification",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewTargetPoolTests",
+        "test": "testAResizeBurstWithAStableCommittedSizeReusesTheSameTarget",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewTargetPoolTests",
+        "test": "testColdDrawDoesNotWaitForAllocationAndRepeatedMissesShareOneRequest",
+        "status": "passed",
+        "durationMs": 7
+      },
+      {
+        "suite": "PreviewTargetPoolTests",
+        "test": "testCompletedTargetsAreAvailableForTheNextFrameWithoutAMainActorHop",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewTargetPoolTests",
+        "test": "testFailedAllocationCanRetryWithoutBlockingLaterDraws",
+        "status": "passed",
+        "durationMs": 13
+      },
+      {
+        "suite": "PreviewTargetPoolTests",
+        "test": "testInvalidOrDisabledRequestsNeverAllocate",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewTargetPoolTests",
+        "test": "testLateCompletionsAtTheOldSizeCannotPolluteTheNewTargetPool",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "PreviewTargetPoolTests",
+        "test": "testResizeAwayAndBackDiscardsTheOldAllocationRevision",
+        "status": "passed",
+        "durationMs": 12
+      },
+      {
+        "suite": "PreviewTargetPoolTests",
+        "test": "testThePoolRemainsBoundedUnderConcurrentGPUCompletions",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "ProcessingDiagnosticsTests",
+        "test": "testEnabledDiagnosticsWriteFourDecodableStagesForCapture",
+        "status": "passed",
+        "durationMs": 82
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testActualGPUKernelMatchesIndependentOCIOReferencesIncludingNegativeAndHDRInput",
+        "status": "passed",
+        "durationMs": 472
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testAdaptiveRAWRecipeIsVersionedAndLegacyLinearRecipesRemainReadable",
+        "status": "passed",
+        "durationMs": 245
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testAllOfficialSimulationsHaveFrozenVerifiedTablesAndSeparatePreviewCubes",
+        "status": "passed",
+        "durationMs": 688
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testDisplayRAWJournalNeedsOnlyItsFrozenCubeAndRetainsLegacyRecipes",
+        "status": "passed",
+        "durationMs": 154
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testDisplayRAWRetainsAppleRenderingAndAppliesFrozenCubeOnce",
+        "status": "passed",
+        "durationMs": 135
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testJournalFreezesRawRecipeAndTablesAndRecoversDNGWithoutThem",
+        "status": "passed",
+        "durationMs": 387
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testMalformedTablesAndUnsupportedRecipesAreRejected",
+        "status": "passed",
+        "durationMs": 133
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testProcessedJPEGIsRejectedAndCancelledRAWIsNotRendered",
+        "status": "passed",
+        "durationMs": 112
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testPublicAppleProRAWDevelopsToSRGBWhenExternalFixtureIsProvided",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testRAWSelectionAndDeliveryNeverSilentlySubstituteAProcessedPhoto",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testSceneRAWExposureReferenceIsInvariantToDNGStorageHeadroom",
+        "status": "passed",
+        "durationMs": 818
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testSelectedCurveIsAppliedAfterOfficialMappingAndWhiteBalanceIsFrozen",
+        "status": "passed",
+        "durationMs": 146
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testSyntheticDNGDevelopsThroughOfficialLUTAndEncodesSRGBWithOrientationAndMetadata",
+        "status": "passed",
+        "durationMs": 216
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testUnifiedRAWUsesTheExactPreviewCubeWithoutASecondWhiteBalance",
+        "status": "passed",
+        "durationMs": 1914
+      },
+      {
+        "suite": "RecentPhotoPresentationTests",
+        "test": "testCameraObservationFetchesOnlyTheNewestPhotoForItsFilm",
+        "status": "passed",
+        "durationMs": 15
+      },
+      {
+        "suite": "RecentPhotoPresentationTests",
+        "test": "testDeletedLastPhotoDoesNotProduceAnEmptySheet",
+        "status": "passed",
+        "durationMs": 9
+      },
+      {
+        "suite": "RecentPhotoPresentationTests",
+        "test": "testFirstCommittedCaptureOpensEvenWhenPreviousQueryWasEmpty",
+        "status": "passed",
+        "durationMs": 8
+      },
+      {
+        "suite": "RecentPhotoPresentationTests",
+        "test": "testNewCaptureReplacesOldSelectionWithoutChangingAnOpenSnapshot",
+        "status": "passed",
+        "durationMs": 9
+      },
+      {
+        "suite": "RuntimeDiagnosticsTests",
+        "test": "testAcknowledgementAfterDebuggerPauseReportsGap",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "RuntimeDiagnosticsTests",
+        "test": "testBackgroundResetRejectsAnOldAcknowledgement",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "RuntimeDiagnosticsTests",
+        "test": "testCaptureCorrelationPreservesItsOriginalClockAcrossStages",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "RuntimeDiagnosticsTests",
+        "test": "testInstrumentationPreservesReturnValuesAndErrors",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "RuntimeDiagnosticsTests",
+        "test": "testResponsiveMainQueueDoesNotReportStall",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "RuntimeDiagnosticsTests",
+        "test": "testStallHasOnlyOneOutstandingProbeAndRateLimitedReports",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "RuntimeDiagnosticsTests",
+        "test": "testSuspendedWatchdogDoesNotBlameTheMainQueue",
+        "status": "passed",
+        "durationMs": 0
+      }
+    ]
+  }
+}

@@ -12,6 +12,7 @@ enum PhotoEncodingPolicy {
 
     enum Mode: String, Sendable {
         case automatic
+        case quality
         case legacy
     }
 
@@ -21,12 +22,14 @@ enum PhotoEncodingPolicy {
         let mode: Mode
     }
 
-    static func decision(for codec: Codec, legacyQuality: CGFloat? = nil) -> Decision {
+    static func decision(for codec: Codec, legacyQuality: CGFloat? = nil, mode: Mode = .automatic) -> Decision {
         // Existing capture journals retain their frozen recipe. New captures pass nil.
         if let legacyQuality, legacyQuality.isFinite {
             return Decision(codec: codec, quality: min(max(legacyQuality, 0), 1), mode: .legacy)
         }
-        let quality: CGFloat = codec == .jpeg ? 0.9 : 0.85
-        return Decision(codec: codec, quality: quality, mode: .automatic)
+        let resolvedMode: Mode = mode == .quality ? .quality : .automatic
+        let quality: CGFloat = resolvedMode == .quality
+            ? (codec == .jpeg ? 0.97 : 0.95) : (codec == .jpeg ? 0.9 : 0.85)
+        return Decision(codec: codec, quality: quality, mode: resolvedMode)
     }
 }

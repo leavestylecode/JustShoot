@@ -1,0 +1,3937 @@
+{
+  "date": "2026-10-25",
+  "scope": "Offline SDR scene audit; no paired multi-scene iPhone RAW calibration",
+  "pythonPackages": {
+    "numpy": "2.2.6",
+    "Pillow": "13.0.0",
+    "scikit-image": "0.25.2"
+  },
+  "method": "Actual runtime .jslut resources; trilinear encoded-sRGB lookup. Gallery uses production Core Image final-stage exports with grain/optics. Synthetic patch and gray metrics isolate the LUT. No stock LUTs are rewritten.",
+  "limits": [
+    "Three already-rendered SDR images cannot establish absolute film/camera accuracy or the best look for all subjects.",
+    "Daylight sample is a film scan with preexisting color rendering. Untagged source is explicitly interpreted as sRGB.",
+    "Exposure sweeps scale decoded linear sRGB of an SDR source; these are numerical stress tests, not recovered RAW exposures.",
+    "Renderer parity uses identical input pixels. It does not measure Apple's different preview and RAW camera processing."
+  ],
+  "scenes": {
+    "skin": {
+      "label": "肤色",
+      "credit": "Eileen Collins / NASA; scikit-image astronaut",
+      "source": "https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.astronaut",
+      "note": "已显影的人像；仅有一种实际人物肤色，另以四组不同明度 RGB 肤色探针补充数值压力检查。",
+      "sha256": "ad25237fe28f989a969c813419429e384c1acff72787503a9a63ac72edddc71c",
+      "inputPath": "inputs/skin.png",
+      "size": [
+        512,
+        512
+      ],
+      "metrics": {
+        "encodedLumaP10P50P90": [
+          0.0,
+          0.4834109803921568,
+          0.8061192156862745
+        ],
+        "nearBlackPercent": 11.614227294921875,
+        "anyChannelNearClipPercent": 0.8609771728515625
+      }
+    },
+    "daylight": {
+      "label": "日光",
+      "credit": "Alan Fink / Kodak Image 19; Maine lighthouse",
+      "source": "https://r0k.us/graphics/kodak/kodim19.html",
+      "note": "EKTACHROME 64 Pro 的 PhotoCD 派生图，已有胶片和扫描影调；只作日光场景压力图，不是日光白平衡或胶片真值。",
+      "sha256": "95da6f7182b1dbfbc0a2eeeba96a3b3ff4b0b84bb375236b4d37dd226cca3db0",
+      "inputPath": "inputs/daylight.png",
+      "size": [
+        512,
+        768
+      ],
+      "metrics": {
+        "encodedLumaP10P50P90": [
+          0.24013019607843136,
+          0.43985411764705884,
+          0.7499435294117647
+        ],
+        "nearBlackPercent": 0.00025431315104166663,
+        "anyChannelNearClipPercent": 1.1660257975260415
+      }
+    },
+    "night": {
+      "label": "夜景",
+      "credit": "╬ಠ益ಠ) / 2011-03-11 night in Taipei / CC0",
+      "source": "https://commons.wikimedia.org/wiki/File:2011-03-11_night_in_Taipei.jpg",
+      "note": "已显影的 sRGB 夜景 JPEG，ISO 1000；没有可恢复的 RAW 高光或配对 iPhone 预览。",
+      "sha256": "05fcceceb7c00221b51aa71a78a8ae637555345af613ad5a8f3061e3e6d2ce34",
+      "inputPath": "inputs/night.png",
+      "size": [
+        960,
+        640
+      ],
+      "metrics": {
+        "encodedLumaP10P50P90": [
+          0.0529356862745098,
+          0.12266980392156862,
+          0.5661450980392156
+        ],
+        "nearBlackPercent": 0.0,
+        "anyChannelNearClipPercent": 3.592122395833333
+      }
+    }
+  },
+  "looks": [
+    {
+      "id": "fujiProvia100F",
+      "resource": "FujiRawPROVIA",
+      "label": "FUJI PROVIA",
+      "sha256": "26bc8803242d47b40bce097961abe37777558e3bf2df9199e008e90a17e460d8",
+      "dimension": 65,
+      "tableRange": [
+        0.0,
+        0.9999998807907104
+      ],
+      "gray": {
+        "blackRGB": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "whiteRGB": [
+          0.8313679695129395,
+          0.8342010378837585,
+          0.832473635673523
+        ],
+        "monotonicLumaViolations": 0,
+        "maximumLumaDrawdown": 0.0,
+        "drawdownIn8BitCodes": 0.0,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.0010724364919587972,
+          0.0012408176101744177,
+          0.0010294410325586798
+        ],
+        "highlightLumaSeparation90To100": 0.02770377754238429
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.7777278425331117,
+            0.587954058013916,
+            0.4441005972118378
+          ],
+          [
+            0.5594554551124573,
+            0.34950581274032594,
+            0.2058647297382354
+          ],
+          [
+            0.19706904314041135,
+            0.07202037901878355,
+            0.012985192547142503
+          ],
+          [
+            0.01967238602906466,
+            0.006507916822850704,
+            0.001804557223320007
+          ]
+        ],
+        "lightnessDelta": [
+          -0.3586617777170886,
+          -2.7144784868973915,
+          -12.935712752370996,
+          -8.496411328447753
+        ],
+        "chromaRatio": [
+          1.1310597237045117,
+          1.481584810888884,
+          1.0436803993722417,
+          0.1182606884093895
+        ],
+        "hueDeltaDegrees": [
+          6.455889231635723,
+          3.260729015706346,
+          -14.209419269854408,
+          -6.99920640530064
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.47322364503220127,
+              0.7654632196274475
+            ],
+            "nearBlackPercent": 16.690444946289062,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.4732164705882353,
+              0.765472156862745
+            ],
+            "nearBlackPercent": 16.971206665039062,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiProvia100F-skin.png",
+          "productionSHA256": "f4dd9c52a586d6915bafaef59f20e1c789119c5e0d5d1384bb0a5572a5342f90",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.15157785727617074,
+                0.4139832413676552
+              ],
+              "nearBlackPercent": 20.991897583007812,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.760034596468804,
+                0.8334740091085433
+              ],
+              "nearBlackPercent": 13.777923583984375,
+              "anyChannelNearClipPercent": 0.002288818359375
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.12659862789179782,
+              0.4316713297285057,
+              0.7206307694659354
+            ],
+            "nearBlackPercent": 0.41656494140625,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.12665647058823531,
+              0.43202196078431365,
+              0.7204588235294118
+            ],
+            "nearBlackPercent": 0.5854288736979167,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiProvia100F-daylight.png",
+          "productionSHA256": "29cd73aaa76f8b844aa2746c0ad8ca61df8336129f36ef368b81d518b3f742e6",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.01165862114105855,
+                0.11329889991780304,
+                0.35745698653155805
+              ],
+              "nearBlackPercent": 2.787017822265625,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.445982832987604,
+                0.7756033557586766,
+                0.8334740091085433
+              ],
+              "nearBlackPercent": 0.006357828776041667,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0014078217616204467,
+              0.016837634899975414,
+              0.5715016093150942
+            ],
+            "nearBlackPercent": 22.913248697916664,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.01678745098039216,
+              0.5719109019607841
+            ],
+            "nearBlackPercent": 29.142089843750004,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiProvia100F-night.png",
+          "productionSHA256": "512df78fc7852042222d2c2b105187f46581ca17c1984f6b94fbde56a9421dbb",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                6.790883282225391e-05,
+                0.000884833512562273,
+                0.212227362443848
+              ],
+              "nearBlackPercent": 61.38476562500001,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.025114755875838467,
+                0.16489457052508832,
+                0.8282292981800622
+              ],
+              "nearBlackPercent": 0.4178059895833333,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fujiRawVelvia",
+      "resource": "FujiRawVelvia",
+      "label": "FUJI Velvia",
+      "sha256": "227f017e1d5c7dc9e6199be9dc52428307fc5a0502f8d56fe41b2267b88cd2f9",
+      "dimension": 65,
+      "tableRange": [
+        0.0,
+        1.0
+      ],
+      "gray": {
+        "blackRGB": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "whiteRGB": [
+          0.8261650204658508,
+          0.8290720582008362,
+          0.8273632526397705
+        ],
+        "monotonicLumaViolations": 0,
+        "maximumLumaDrawdown": 0.0,
+        "drawdownIn8BitCodes": 0.0,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          1.9420135267864683e-06,
+          5.265116364171264e-06,
+          1.0662966424206388e-06
+        ],
+        "highlightLumaSeparation90To100": 0.035051173827284954
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.7760797385520937,
+            0.5880595021171571,
+            0.42440544014167786
+          ],
+          [
+            0.5812602955818176,
+            0.35839941101074224,
+            0.13747037487030023
+          ],
+          [
+            0.15018521748542785,
+            0.019998980967402456,
+            8.563250548104408e-07
+          ],
+          [
+            0.0006298546196846296,
+            8.309764462895691e-05,
+            8.605500017154946e-08
+          ]
+        ],
+        "lightnessDelta": [
+          -0.48244837490257453,
+          -1.6028549068540414,
+          -18.241889305951073,
+          -9.10989444833157
+        ],
+        "chromaRatio": [
+          1.207870938456415,
+          1.8773476659802941,
+          0.8475606106590643,
+          0.004475423460165345
+        ],
+        "hueDeltaDegrees": [
+          9.73574494623199,
+          10.207593966075677,
+          -31.07558885871157,
+          -22.131244565881786
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.48699677792147905,
+              0.747042174680244
+            ],
+            "nearBlackPercent": 19.729232788085938,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.48713803921568627,
+              0.7472486274509804
+            ],
+            "nearBlackPercent": 20.079803466796875,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawVelvia-skin.png",
+          "productionSHA256": "8f126702ca2747d2305ec1a74f57961f74913f3b9938749913e4c689f0886610",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.11227960737022387,
+                0.42193105942433584
+              ],
+              "nearBlackPercent": 27.001190185546875,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.7517568897269782,
+                0.8283306462168692
+              ],
+              "nearBlackPercent": 15.952682495117188,
+              "anyChannelNearClipPercent": 2.826690673828125
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.08053302927567871,
+              0.43935846072186263,
+              0.7073736781209012
+            ],
+            "nearBlackPercent": 1.811981201171875,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.08065254901960783,
+              0.43958196078431366,
+              0.707638431372549
+            ],
+            "nearBlackPercent": 1.9777933756510417,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawVelvia-daylight.png",
+          "productionSHA256": "b2f12a1cc7463ce693095b122aa977ae381980d8d984762208793d60e2cd620f",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0002792410331576403,
+                0.058924976374172815,
+                0.36407511386418207
+              ],
+              "nearBlackPercent": 20.584615071614586,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.46016449665618103,
+                0.7578646035068783,
+                0.8286067857284639
+              ],
+              "nearBlackPercent": 0.167083740234375,
+              "anyChannelNearClipPercent": 0.04297892252604167
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              4.968091925613049e-06,
+              0.000651514367707836,
+              0.5728588813738182
+            ],
+            "nearBlackPercent": 55.583658854166664,
+            "anyChannelNearClipPercent": 0.08382161458333333
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.0,
+              0.5732035294117646
+            ],
+            "nearBlackPercent": 56.98518880208333,
+            "anyChannelNearClipPercent": 0.09944661458333333
+          },
+          "productionPath": "renders/fujiRawVelvia-night.png",
+          "productionSHA256": "67fb2a9e54f87971588977d77b8e283c1f6730ad3b4ac2847da47bac762343af",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                2.578816740709046e-06,
+                0.18254991556016026
+              ],
+              "nearBlackPercent": 75.90266927083333,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.0015155922998354783,
+                0.12043410029426423,
+                0.8283306462168692
+              ],
+              "nearBlackPercent": 12.328938802083334,
+              "anyChannelNearClipPercent": 0.14290364583333334
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fujiRawASTIA",
+      "resource": "FujiRawASTIA",
+      "label": "FUJI ASTIA",
+      "sha256": "f33611d9dde0f73489c6aba43701c160d6eec3cf1b0e0dab6b6fc48dc4a604f5",
+      "dimension": 65,
+      "tableRange": [
+        0.0,
+        1.0
+      ],
+      "gray": {
+        "blackRGB": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "whiteRGB": [
+          0.818996250629425,
+          0.8212374448776245,
+          0.8194262385368347
+        ],
+        "monotonicLumaViolations": 0,
+        "maximumLumaDrawdown": 0.0,
+        "drawdownIn8BitCodes": 0.0,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.0007671134229749444,
+          0.0009685149937868119,
+          0.0007220079777762295
+        ],
+        "highlightLumaSeparation90To100": 0.026111346468259522
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.7581949978370668,
+            0.5977510463905334,
+            0.449345328754425
+          ],
+          [
+            0.563315829372406,
+            0.3525674880981445,
+            0.17862970173358916
+          ],
+          [
+            0.177826706199646,
+            0.05575849553465844,
+            0.002885368484184146
+          ],
+          [
+            0.013244014347255233,
+            0.004633201525002718,
+            0.0009255210034921764
+          ]
+        ],
+        "lightnessDelta": [
+          -0.22794121078746343,
+          -2.4768585397917207,
+          -14.999510665838699,
+          -8.690163882230319
+        ],
+        "chromaRatio": [
+          1.0571359872933614,
+          1.622465930261978,
+          0.9744756206812873,
+          0.08094367295757073
+        ],
+        "hueDeltaDegrees": [
+          11.850764899452031,
+          7.083641807134086,
+          -18.637497305770353,
+          -2.3475395069345666
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.4652409779281194,
+              0.7568214219411764
+            ],
+            "nearBlackPercent": 16.991424560546875,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.4649192156862745,
+              0.7565592156862744
+            ],
+            "nearBlackPercent": 17.3797607421875,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawASTIA-skin.png",
+          "productionSHA256": "33388c43c1b74dd832f15c1b41d9ed9ff332290e22d993e462bd30ba19bfeb2a",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.13381543819518352,
+                0.4223491327320512
+              ],
+              "nearBlackPercent": 21.595001220703125,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.7523226362043756,
+                0.8206301978826522
+              ],
+              "nearBlackPercent": 14.0350341796875,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.11428015601471457,
+              0.441942775528079,
+              0.7176010357427406
+            ],
+            "nearBlackPercent": 0.5513509114583333,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.11468549019607843,
+              0.4415686274509804,
+              0.7174541176470588
+            ],
+            "nearBlackPercent": 0.7260640462239583,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawASTIA-daylight.png",
+          "productionSHA256": "67114bceafb84339e0096164018eb48ca04d22fe849308efd665e3a1ea9b4bb3",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.008665430345456705,
+                0.09827148370592462,
+                0.36290395852857116
+              ],
+              "nearBlackPercent": 3.5085042317708335,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.45948771177888653,
+                0.7665464651380002,
+                0.8207654896513932
+              ],
+              "nearBlackPercent": 0.008646647135416668,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0010627892543318908,
+              0.01186264101916075,
+              0.5801084172730138
+            ],
+            "nearBlackPercent": 28.920084635416664,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.012032156862745096,
+              0.5807839215686273
+            ],
+            "nearBlackPercent": 35.467447916666664,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawASTIA-night.png",
+          "productionSHA256": "46ae55dfa670d49a60e5d8aede95e0766f30967cd1ff8fce0ae44d41c3577f69",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                6.085435720478173e-05,
+                0.000675116041720842,
+                0.19929076129305745
+              ],
+              "nearBlackPercent": 63.595540364583336,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.017661567270941148,
+                0.1494228580275825,
+                0.8191681335624378
+              ],
+              "nearBlackPercent": 0.7249348958333333,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fujiRawClassicChrome",
+      "resource": "FujiRawCLASSICCHROME",
+      "label": "FUJI Classic Chrome",
+      "sha256": "4a44e602e79325b7e0eaea7df21466fd33ebaabdffb650a9931f6f2111a41798",
+      "dimension": 65,
+      "tableRange": [
+        0.0,
+        0.9495540261268616
+      ],
+      "gray": {
+        "blackRGB": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "whiteRGB": [
+          0.8423689007759094,
+          0.8450751304626465,
+          0.8431094884872437
+        ],
+        "monotonicLumaViolations": 0,
+        "maximumLumaDrawdown": 0.0,
+        "drawdownIn8BitCodes": 0.0,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          7.474091439507903e-05,
+          0.00010132389701902867,
+          7.115353865083309e-05
+        ],
+        "highlightLumaSeparation90To100": 0.02570803152371659
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.7619605361061097,
+            0.6186038504371643,
+            0.5170317194023133
+          ],
+          [
+            0.5442420129776001,
+            0.34607046732902524,
+            0.23356247487068169
+          ],
+          [
+            0.14737402513504028,
+            0.03617999925374985,
+            0.005852217637598515
+          ],
+          [
+            0.004226707217231394,
+            0.0009198355135880409,
+            0.0001784235041681677
+          ]
+        ],
+        "lightnessDelta": [
+          1.5415268044657466,
+          -3.339726343135972,
+          -17.526247050883335,
+          -9.013677201757648
+        ],
+        "chromaRatio": [
+          0.8046850696269492,
+          1.2936195004198034,
+          0.7674926086303911,
+          0.027769465921456966
+        ],
+        "hueDeltaDegrees": [
+          5.797661487823632,
+          -0.5231444140979704,
+          -26.185412475240412,
+          -16.485415927194083
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.48600555108260074,
+              0.7822062683807052
+            ],
+            "nearBlackPercent": 18.498992919921875,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.48600039215686275,
+              0.7817764705882353
+            ],
+            "nearBlackPercent": 18.909072875976562,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawClassicChrome-skin.png",
+          "productionSHA256": "a535c217bd22696c5378c6c9d3dd3abfd7ae48405934bd10035e950ffe785862",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.12116854104682537,
+                0.40982410247008483
+              ],
+              "nearBlackPercent": 24.421310424804688,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.779476131621962,
+                0.8443578666806221
+              ],
+              "nearBlackPercent": 15.177536010742188,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.08904924236860884,
+              0.42988512701391973,
+              0.7413004168345415
+            ],
+            "nearBlackPercent": 1.1301676432291665,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.08902745098039215,
+              0.43014117647058825,
+              0.7415968627450981
+            ],
+            "nearBlackPercent": 1.3275146484375,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawClassicChrome-daylight.png",
+          "productionSHA256": "2dea322f06c30cf1c81932ac0d0e3f04a08da1856b690f63eb56b4d742b218a2",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0021392201932814,
+                0.0753344766630363,
+                0.34639188949559807
+              ],
+              "nearBlackPercent": 11.331431070963543,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.44862542539943506,
+                0.7897386307758172,
+                0.8443578666806221
+              ],
+              "nearBlackPercent": 0.07222493489583334,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.00011524259133720619,
+              0.003622551749321294,
+              0.5900699357159139
+            ],
+            "nearBlackPercent": 47.589518229166664,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.0036384313725490195,
+              0.5900280784313724
+            ],
+            "nearBlackPercent": 50.52685546875,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawClassicChrome-night.png",
+          "productionSHA256": "49cab995c8b8b7f2392ca0270acc035fd85727e9829de5fa11f2ea1ebb14bb5c",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                7.505238143065451e-06,
+                7.147020312341982e-05,
+                0.17957469403221232
+              ],
+              "nearBlackPercent": 71.4794921875,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.006539860647127221,
+                0.12675340909572202,
+                0.8389290965887005
+              ],
+              "nearBlackPercent": 5.998860677083333,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fujiRawRealaAce",
+      "resource": "FujiRawREALAACE",
+      "label": "FUJI REALA ACE",
+      "sha256": "9cb5536dcecbe63d485901018fcd8a28d645b2483c33572e717c0217f8aafa3b",
+      "dimension": 65,
+      "tableRange": [
+        0.0,
+        0.9609508514404297
+      ],
+      "gray": {
+        "blackRGB": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "whiteRGB": [
+          0.865361750125885,
+          0.8673640489578247,
+          0.8652380108833313
+        ],
+        "monotonicLumaViolations": 0,
+        "maximumLumaDrawdown": 0.0,
+        "drawdownIn8BitCodes": 0.0,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.0004364637820981444,
+          0.0005090139508247376,
+          0.0004274169267155231
+        ],
+        "highlightLumaSeparation90To100": 0.0235425875899149
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.7961785874443055,
+            0.6161664720420837,
+            0.4741411525421143
+          ],
+          [
+            0.5339330527305604,
+            0.3338748951911927,
+            0.19950372991561885
+          ],
+          [
+            0.22442951626300808,
+            0.08138810205936434,
+            0.012331361547410487
+          ],
+          [
+            0.010331084373474124,
+            0.0038018126793205737,
+            0.0009438409185484051
+          ]
+        ],
+        "lightnessDelta": [
+          2.056270145603918,
+          -4.596245008646619,
+          -10.985161175199504,
+          -8.774952353939554
+        ],
+        "chromaRatio": [
+          1.0811093212727827,
+          1.4108765752302252,
+          1.219716919092322,
+          0.061662197433203315
+        ],
+        "hueDeltaDegrees": [
+          7.745712148853244,
+          2.9083095373083836,
+          -12.156393230540118,
+          -1.9172567691589677
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.4571287469036499,
+              0.8080162878772331
+            ],
+            "nearBlackPercent": 17.540740966796875,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.4573537254901961,
+              0.8080745098039216
+            ],
+            "nearBlackPercent": 17.962265014648438,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawRealaAce-skin.png",
+          "productionSHA256": "8f617d5eb79f9511f41c2a5dfdb12ea247c9fabdefd4a157898e258aa6b1b0bc",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.15203555448450998,
+                0.40356188196557474
+              ],
+              "nearBlackPercent": 22.58148193359375,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.802089462942742,
+                0.8667848602771758
+              ],
+              "nearBlackPercent": 14.393997192382812,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.14484047284788004,
+              0.41776239332470855,
+              0.7621905433362148
+            ],
+            "nearBlackPercent": 0.6642659505208333,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.1445607843137255,
+              0.417846274509804,
+              0.7619286274509802
+            ],
+            "nearBlackPercent": 0.818634033203125,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawRealaAce-daylight.png",
+          "productionSHA256": "bf51caa791328fcd05d93dfb7db8db07428c9c60b352ee331299fc463446da1e",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.007249866780909825,
+                0.13056679274740748,
+                0.34709372933063726
+              ],
+              "nearBlackPercent": 4.952239990234375,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.4291240938508367,
+                0.8153615130739866,
+                0.8670771056631189
+              ],
+              "nearBlackPercent": 0.022125244140625,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0005707289232844662,
+              0.01586410897882723,
+              0.5866768000695989
+            ],
+            "nearBlackPercent": 33.32568359375,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.01620078431372549,
+              0.5865349019607841
+            ],
+            "nearBlackPercent": 37.877604166666664,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawRealaAce-night.png",
+          "productionSHA256": "471c7eb654be5808f4f8c5991027f6be162c07f7bf9a2a29751e74c2d7961739",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                2.4636003672575755e-05,
+                0.0003057686055264079,
+                0.2167749940887654
+              ],
+              "nearBlackPercent": 65.5517578125,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.02969051968772531,
+                0.17765083311230964,
+                0.8663856116755991
+              ],
+              "nearBlackPercent": 1.2335611979166665,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fujiRawProNegStd",
+      "resource": "FujiRawPRONegStd",
+      "label": "FUJI PRO Neg. Std",
+      "sha256": "21dbfa4fb9bef72209ea4b52b301d511bc8d3c0372770599c4132b0f589ce17b",
+      "dimension": 65,
+      "tableRange": [
+        0.0,
+        0.9747409820556641
+      ],
+      "gray": {
+        "blackRGB": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "whiteRGB": [
+          0.8310165405273438,
+          0.8328614234924316,
+          0.8314672708511353
+        ],
+        "monotonicLumaViolations": 0,
+        "maximumLumaDrawdown": 0.0,
+        "drawdownIn8BitCodes": 0.0,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.0019663066510111097,
+          0.0022383598238229748,
+          0.0019716443959623578
+        ],
+        "highlightLumaSeparation90To100": 0.027563645510398693
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.7398776070938111,
+            0.5908001309318542,
+            0.4811068767776489
+          ],
+          [
+            0.5109997152328491,
+            0.3556300518035888,
+            0.2556889264583587
+          ],
+          [
+            0.16129991571903227,
+            0.08573811249732971,
+            0.04065170850515366
+          ],
+          [
+            0.01987699707293511,
+            0.010546305696487426,
+            0.005607977362930775
+          ]
+        ],
+        "lightnessDelta": [
+          -0.9991820764029455,
+          -3.6914447803436516,
+          -13.490422155226938,
+          -8.272259415135501
+        ],
+        "chromaRatio": [
+          0.8634385065852427,
+          1.046162945180106,
+          0.6705541966704608,
+          0.09376850942332503
+        ],
+        "hueDeltaDegrees": [
+          6.517620152001285,
+          2.9413685513270593,
+          -6.9260387378351425,
+          3.2551559753649997
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.4687977183184937,
+              0.7645334165814981
+            ],
+            "nearBlackPercent": 16.45355224609375,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.46891686274509803,
+              0.7646337254901959
+            ],
+            "nearBlackPercent": 16.927719116210938,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawProNegStd-skin.png",
+          "productionSHA256": "58ee2a938a36718da191ef2f9d78cce8b0f123fc4bba65c421038627798aa4ea",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.15563920217088206,
+                0.41642796778175367
+              ],
+              "nearBlackPercent": 20.624160766601562,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.756924792521946,
+                0.8323685435533523
+              ],
+              "nearBlackPercent": 13.570022583007812,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.13289994467931399,
+              0.4334821222012909,
+              0.7192700449146269
+            ],
+            "nearBlackPercent": 0.26702880859375,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.13243529411764707,
+              0.4334403921568627,
+              0.7191419607843138
+            ],
+            "nearBlackPercent": 0.4084269205729167,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawProNegStd-daylight.png",
+          "productionSHA256": "93620d4966a5e2acba074a45ec54fc9d70293c13b36fb4c39d13ad1e04aa584a",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.015797550109782604,
+                0.12465472914061508,
+                0.35905044939402264
+              ],
+              "nearBlackPercent": 2.091725667317708,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.4460221840637599,
+                0.7751082227209062,
+                0.8323685435533523
+              ],
+              "nearBlackPercent": 0.006103515625,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0024349981231296734,
+              0.02283940336124622,
+              0.5711809372435742
+            ],
+            "nearBlackPercent": 15.3466796875,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0036384313725490195,
+              0.02324627450980392,
+              0.5715829019607842
+            ],
+            "nearBlackPercent": 23.949544270833336,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawProNegStd-night.png",
+          "productionSHA256": "1d69c18fe864ab25e3ebe1eebcbeb0a9728bb228e93c6ae04f347dc038dd3b17",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.00013802451579392108,
+                0.0015787810274164467,
+                0.21689418765092033
+              ],
+              "nearBlackPercent": 58.01253255208333,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.03261922309442777,
+                0.17102683053000792,
+                0.8274769238276308
+              ],
+              "nearBlackPercent": 0.10335286458333333,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fujiRawClassicNeg",
+      "resource": "FujiRawCLASSICNeg",
+      "label": "FUJI Classic Neg.",
+      "sha256": "9a0f19c3e308747bd8f6f5ccb09363dc39464b7dcda8769376518c470f8025e4",
+      "dimension": 65,
+      "tableRange": [
+        0.0,
+        0.9895642399787903
+      ],
+      "gray": {
+        "blackRGB": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "whiteRGB": [
+          0.9198249578475952,
+          0.8890584707260132,
+          0.8858195543289185
+        ],
+        "monotonicLumaViolations": 0,
+        "maximumLumaDrawdown": 0.0,
+        "drawdownIn8BitCodes": 0.0,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.00018558722664602107,
+          0.0003591388952918352,
+          0.0002491470319218934
+        ],
+        "highlightLumaSeparation90To100": 0.023448965164087676
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.8337846182670594,
+            0.6364551864776611,
+            0.49982032615852356
+          ],
+          [
+            0.5183849831581117,
+            0.321014469242096,
+            0.19194504017829894
+          ],
+          [
+            0.12079574590206146,
+            0.0667801254582405,
+            0.010868389325737953
+          ],
+          [
+            0.009937732786864046,
+            0.0034833347351551055,
+            0.000769772301018238
+          ]
+        ],
+        "lightnessDelta": [
+          4.442831512966492,
+          -5.97747140332519,
+          -16.727849956712074,
+          -8.797603136329254
+        ],
+        "chromaRatio": [
+          1.1060422976215096,
+          1.3864129813633579,
+          0.48800200801996185,
+          0.06027685559374663
+        ],
+        "hueDeltaDegrees": [
+          4.392846196524545,
+          2.283300525214088,
+          3.322718997505092,
+          -2.9671920877786704
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.46960586563264795,
+              0.8352063783743536
+            ],
+            "nearBlackPercent": 17.612457275390625,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.46935921568627453,
+              0.8349027450980391
+            ],
+            "nearBlackPercent": 17.89398193359375,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawClassicNeg-skin.png",
+          "productionSHA256": "133962805d81a3d780b23a81256a85d54a9fa75917252600de7c5fd4cf348f06",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.1263567538722898,
+                0.3969399427484756
+              ],
+              "nearBlackPercent": 22.805023193359375,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.8180506942810595,
+                0.8953655761241912
+              ],
+              "nearBlackPercent": 14.45770263671875,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.09957924105092074,
+              0.41978102997501365,
+              0.7877604275527665
+            ],
+            "nearBlackPercent": 0.722503662109375,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.09938588235294119,
+              0.4205450980392157,
+              0.7879858823529412
+            ],
+            "nearBlackPercent": 0.8547465006510416,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawClassicNeg-daylight.png",
+          "productionSHA256": "52a3fd48cbbc4cd183cbea458e9b4e2446c285ccdd47543e12dd090aed6e46f2",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.006797574912623861,
+                0.0975144111150971,
+                0.3147331316034951
+              ],
+              "nearBlackPercent": 5.2642822265625,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.4214637231854127,
+                0.844926663172036,
+                0.8953655761241912
+              ],
+              "nearBlackPercent": 0.024159749348958336,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.00038004890057884833,
+              0.012415875564552703,
+              0.6130962567148351
+            ],
+            "nearBlackPercent": 34.664225260416664,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.012865882352941175,
+              0.613030823529411
+            ],
+            "nearBlackPercent": 38.6943359375,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawClassicNeg-night.png",
+          "productionSHA256": "7ce28432645ce8f9924587df2db7a247544e37d7d44fb7e078f80db794cfd581",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                1.0191843375077242e-05,
+                0.00020921749380804257,
+                0.17515055838173715
+              ],
+              "nearBlackPercent": 65.96598307291667,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.020127525597061928,
+                0.1351990384368318,
+                0.8843937095063757
+              ],
+              "nearBlackPercent": 1.3050130208333333,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fujiRawETERNA",
+      "resource": "FujiRawETERNA",
+      "label": "FUJI ETERNA",
+      "sha256": "58291eed599d2460bfb904edd5310e1d9728903bba37555ec61550e2319137b8",
+      "dimension": 65,
+      "tableRange": [
+        0.00014400902728084475,
+        0.9424206018447876
+      ],
+      "gray": {
+        "blackRGB": [
+          0.00015866248577367514,
+          0.00015866248577367514,
+          0.00015866248577367514
+        ],
+        "whiteRGB": [
+          0.8126209378242493,
+          0.8149605989456177,
+          0.812549889087677
+        ],
+        "monotonicLumaViolations": 0,
+        "maximumLumaDrawdown": 0.0,
+        "drawdownIn8BitCodes": 0.0,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.005101995490491391,
+          0.0053500949963927276,
+          0.005279600664973259
+        ],
+        "highlightLumaSeparation90To100": 0.027582387184770796
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.7219402838706971,
+            0.5948771836738587,
+            0.4889191016788482
+          ],
+          [
+            0.5034792953491211,
+            0.35436750555038454,
+            0.26534525823593136
+          ],
+          [
+            0.2060483999252319,
+            0.1242258872818947,
+            0.061854878990650175
+          ],
+          [
+            0.058968334171295184,
+            0.024987431903004644,
+            0.011103597699046135
+          ]
+        ],
+        "lightnessDelta": [
+          -1.1490587398752297,
+          -3.964015534994026,
+          -8.631739304751843,
+          -6.897545497768348
+        ],
+        "chromaRatio": [
+          0.7806178311207259,
+          0.9711251011474525,
+          0.8459132903201297,
+          0.3353894932067824
+        ],
+        "hueDeltaDegrees": [
+          10.144950191655937,
+          1.335333536213966,
+          3.277328928105078,
+          -5.766195523201674
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.00015866248577367514,
+              0.4690600922948338,
+              0.749922729592351
+            ],
+            "nearBlackPercent": 15.099334716796875,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.4690101960784314,
+              0.7491678431372549
+            ],
+            "nearBlackPercent": 15.515518188476562,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawETERNA-skin.png",
+          "productionSHA256": "fce6eeca173b0dbcd7e9145efe9db0165e454d0eca45fe8b3adcce6a7c304e06",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.00015866248577367514,
+                0.1850199231040643,
+                0.41409265063447875
+              ],
+              "nearBlackPercent": 18.352508544921875,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.00015866248577367514,
+                0.7452326662498048,
+                0.8142891337394714
+              ],
+              "nearBlackPercent": 12.609100341796875,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.16752775973194628,
+              0.43175034549187985,
+              0.7110598830362067
+            ],
+            "nearBlackPercent": 0.06891886393229166,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.16713333333333333,
+              0.4314603921568627,
+              0.7113145098039216
+            ],
+            "nearBlackPercent": 0.09613037109375,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawETERNA-daylight.png",
+          "productionSHA256": "8d8948896b217debde25a1f83f402c6ab78d35d3b57926477f0021ec612dda1c",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.04230453217407784,
+                0.16046402659329517,
+                0.3568794999394371
+              ],
+              "nearBlackPercent": 1.0770161946614585,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.4421005311889918,
+                0.7583685304503672,
+                0.8142891337394714
+              ],
+              "nearBlackPercent": 0.0012715657552083335,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0059842317517015756,
+              0.05667687671035956,
+              0.5704068933977396
+            ],
+            "nearBlackPercent": 5.286458333333333,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.005589019607843137,
+              0.05658980392156863,
+              0.5705187450980389
+            ],
+            "nearBlackPercent": 7.730143229166667,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawETERNA-night.png",
+          "productionSHA256": "12e9722445f4c44d7d6a7fa75156b172c0cf7ddc5ea459dd725719d76d5486e2",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0006684052305169234,
+                0.003989521879682956,
+                0.23574659274164023
+              ],
+              "nearBlackPercent": 46.302408854166664,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.07120099867401088,
+                0.19917647228110702,
+                0.8080170296222795
+              ],
+              "nearBlackPercent": 0.0022786458333333335,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fujiRawEternaBB",
+      "resource": "FujiRawETERNABB",
+      "label": "FUJI ETERNA Bleach Bypass",
+      "sha256": "7021a8288519ec0e642679f339db314d1c098e9f5ae434179db08c38a039de73",
+      "dimension": 65,
+      "tableRange": [
+        0.0,
+        0.9000062346458435
+      ],
+      "gray": {
+        "blackRGB": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "whiteRGB": [
+          0.8946876525878906,
+          0.8960234522819519,
+          0.8942450881004333
+        ],
+        "monotonicLumaViolations": 0,
+        "maximumLumaDrawdown": 0.0,
+        "drawdownIn8BitCodes": 0.0,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.001372438479214907,
+          0.0015472176391631367,
+          0.0013204833604395394
+        ],
+        "highlightLumaSeparation90To100": 0.02142341174744078
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.7663706758041382,
+            0.6727067779960633,
+            0.6028869229621887
+          ],
+          [
+            0.42679080591201773,
+            0.31238656611442567,
+            0.2578672317028045
+          ],
+          [
+            0.11352590819835662,
+            0.07143040445089341,
+            0.048219928056001664
+          ],
+          [
+            0.019555244835138326,
+            0.01080897250801325,
+            0.006121181081980467
+          ]
+        ],
+        "lightnessDelta": [
+          5.630104786115879,
+          -9.228838212842042,
+          -16.44595429812792,
+          -8.261320714994255
+        ],
+        "chromaRatio": [
+          0.5207278100144355,
+          0.6945543767773554,
+          0.3245478202912558,
+          0.0883108461417485
+        ],
+        "hueDeltaDegrees": [
+          8.306830908713778,
+          -3.517650213835907,
+          -8.565575364679034,
+          3.6101518250720517
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.47067521461053086,
+              0.841863243759672
+            ],
+            "nearBlackPercent": 16.77093505859375,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.4703756862745099,
+              0.8411505882352942
+            ],
+            "nearBlackPercent": 17.152786254882812,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawEternaBB-skin.png",
+          "productionSHA256": "113a6e09ea064b34b1be2b5e6488789476d9b59b49322ad20f644ebc5e3beee2",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.11781623178381942,
+                0.38943823502529795
+              ],
+              "nearBlackPercent": 21.2615966796875,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.8368850370739532,
+                0.8956110633730888
+              ],
+              "nearBlackPercent": 13.77410888671875,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.10121234334419513,
+              0.4142700383824203,
+              0.8032355239970137
+            ],
+            "nearBlackPercent": 0.35196940104166663,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.10110039215686274,
+              0.4137513725490196,
+              0.8035443137254902
+            ],
+            "nearBlackPercent": 0.469207763671875,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawEternaBB-daylight.png",
+          "productionSHA256": "4b4ace59cca3fffd9e4c871893cc710d242316d182b215c7b20c39ab5a4e1312",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.01678820872242627,
+                0.09613151365874195,
+                0.307081148032434
+              ],
+              "nearBlackPercent": 2.352650960286458,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.42347528555164315,
+                0.8482756625270801,
+                0.8956110633730888
+              ],
+              "nearBlackPercent": 0.007375081380208333,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0017151697361038596,
+              0.024868842655828546,
+              0.6221552257904414
+            ],
+            "nearBlackPercent": 19.365071614583336,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0008337254901960785,
+              0.024934117647058822,
+              0.622148156862745
+            ],
+            "nearBlackPercent": 25.823567708333332,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawEternaBB-night.png",
+          "productionSHA256": "f347417701c011de97a7777b20eee63f5a3082bc9382a765747dfbe5e381fe93",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                5.320337179230915e-05,
+                0.0009905140806713332,
+                0.16240106232818857
+              ],
+              "nearBlackPercent": 59.87125651041667,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.03369714228174765,
+                0.12803793129185553,
+                0.889060098700398
+              ],
+              "nearBlackPercent": 0.18798828125,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fujiRawACROS",
+      "resource": "FujiRawACROS",
+      "label": "FUJI ACROS",
+      "sha256": "f9ed599b6f9a833a7caa988c96400bc5120136d38fffc77ca44a049f75a6f7b1",
+      "dimension": 65,
+      "tableRange": [
+        0.0,
+        0.8397762179374695
+      ],
+      "gray": {
+        "blackRGB": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "whiteRGB": [
+          0.8397762179374695,
+          0.8397762179374695,
+          0.8397762179374695
+        ],
+        "monotonicLumaViolations": 0,
+        "maximumLumaDrawdown": 0.0,
+        "drawdownIn8BitCodes": 0.0,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.0006486999327316882,
+          0.0006486999327316882,
+          0.0006486999327316882
+        ],
+        "highlightLumaSeparation90To100": 0.03287457698024798
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.6183266789741515,
+            0.6183266789741515,
+            0.6183266789741515
+          ],
+          [
+            0.3682334049224854,
+            0.3682334049224854,
+            0.3682334049224854
+          ],
+          [
+            0.07052814625740052,
+            0.07052814625740052,
+            0.07052814625740052
+          ],
+          [
+            0.004551849869966508,
+            0.004551849869966508,
+            0.004551849869966508
+          ]
+        ],
+        "lightnessDelta": [
+          -1.1469121206544344,
+          -5.957873622892421,
+          -17.558937996878086,
+          -8.805175762177086
+        ],
+        "chromaRatio": [
+          0.00014028778909020895,
+          0.00010661564293404553,
+          3.785422919154402e-05,
+          4.909155125095924e-06
+        ],
+        "hueDeltaDegrees": null,
+        "monochrome": true
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.4747828650246304,
+              0.7631319643215454
+            ],
+            "nearBlackPercent": 19.218063354492188,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.4745098039215686,
+              0.7647058823529411
+            ],
+            "nearBlackPercent": 19.808197021484375,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawACROS-skin.png",
+          "productionSHA256": "a70ac1458a875a13e24569cde0f6c77cd0f76a82e674eb455728f7a325f17130",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.13281204682931053,
+                0.4039301653544482
+              ],
+              "nearBlackPercent": 26.11541748046875,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.0,
+                0.758383292637824,
+                0.8397762179374694
+              ],
+              "nearBlackPercent": 15.129852294921875,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.09676070150114284,
+              0.42136543979877605,
+              0.7186749973476438
+            ],
+            "nearBlackPercent": 0.823974609375,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0980392156862745,
+              0.4196078431372549,
+              0.7176470588235293
+            ],
+            "nearBlackPercent": 1.0091145833333335,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawACROS-daylight.png",
+          "productionSHA256": "87b04712337f28f7f99295a9d7b334ab2960fa4177499960ec89a6655eb4fea1",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.006126641200184239,
+                0.08673410938476456,
+                0.33970885797195277
+              ],
+              "nearBlackPercent": 6.257120768229167,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.42836619961983224,
+                0.7728019519303413,
+                0.8397762179374694
+              ],
+              "nearBlackPercent": 0.06256103515625,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0007500098120716951,
+              0.009861637075067748,
+              0.5700361500222136
+            ],
+            "nearBlackPercent": 37.59944661458333,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.0,
+              0.011764705882352941,
+              0.5686274509803921
+            ],
+            "nearBlackPercent": 43.1689453125,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiRawACROS-night.png",
+          "productionSHA256": "f754fb452a703a43fd442f9c8d8ce7c7e16ed1ceba6da37654581ffdf27eb5b1",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                2.584665986653819e-05,
+                0.00046507667550814625,
+                0.1869170737526406
+              ],
+              "nearBlackPercent": 67.83219401041667,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.015855130667177197,
+                0.13619021676928833,
+                0.8291710368792535
+              ],
+              "nearBlackPercent": 1.7127278645833335,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fujiC200",
+      "resource": "FujiC200",
+      "label": "Fuji C200",
+      "sha256": "8657f167487d9a3d9b80e98bd6f2917f48a0621ba832efba5201dfe20279ec65",
+      "dimension": 33,
+      "tableRange": [
+        0.005093732848763466,
+        0.8985123634338379
+      ],
+      "gray": {
+        "blackRGB": [
+          0.036075085401535034,
+          0.06289301067590714,
+          0.07998118549585342
+        ],
+        "whiteRGB": [
+          0.8686026334762573,
+          0.8653383255004883,
+          0.8628540635108948
+        ],
+        "monotonicLumaViolations": 13,
+        "maximumLumaDrawdown": 0.00023086359491571867,
+        "drawdownIn8BitCodes": 0.05887021670350826,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.041019242644310006,
+          0.06437892580032349,
+          0.08154879087209702
+        ],
+        "highlightLumaSeparation90To100": 0.02738844634633575
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.8085702719535828,
+            0.6690291566886902,
+            0.5356154267463684
+          ],
+          [
+            0.640384671497345,
+            0.3809889162063599,
+            0.1811193109512329
+          ],
+          [
+            0.24803397439002986,
+            0.10905134699106216,
+            0.09116881144762039
+          ],
+          [
+            0.07267116591215135,
+            0.07053360326719284,
+            0.08300589764642716
+          ]
+        ],
+        "lightnessDelta": [
+          6.037350168585476,
+          1.927024391030976,
+          -7.7963148037378005,
+          -3.5167048834924195
+        ],
+        "chromaRatio": [
+          0.9103263777859352,
+          1.9095698925690883,
+          1.0239564154070404,
+          0.2339544373243518
+        ],
+        "hueDeltaDegrees": [
+          13.54602820836189,
+          5.036217283057795,
+          -24.023690401465217,
+          -117.50405310597897
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.05842528598457575,
+              0.4919479181645036,
+              0.8041418282895716
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.05804156862745098,
+              0.49282666666666664,
+              0.8030517647058824
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiC200-skin.png",
+          "productionSHA256": "486627964bfc00273f1c35cca1237640163f3c19115ae1761e03a88050e621e2",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.05842528598457575,
+                0.19581792269038698,
+                0.4703948567661773
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.05842528598457575,
+                0.7962702768099799,
+                0.8658529536604881
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.1301935307496709,
+              0.4841320448963692,
+              0.7691637780080204
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.1340949019607843,
+              0.4844850980392157,
+              0.7687984313725489
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiC200-daylight.png",
+          "productionSHA256": "a78187829817d6a38eb6eaad53043bda086c4077f52801b2090b78a3ffb305bf",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.07082905088688105,
+                0.11741830191822375,
+                0.3875692368344098
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.4766154785543633,
+                0.8095400078732249,
+                0.8658529536604881
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.060967290559467376,
+              0.07436461837759965,
+              0.6317668254591526
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.059992156862745095,
+              0.0751121568627451,
+              0.635077019607843
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiC200-night.png",
+          "productionSHA256": "b503e76ca7870d70580b22e75740a760f7d3a12e126764be1b42e5483a79e6ea",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.05936028684906832,
+                0.060834473873914205,
+                0.2102151890948752
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.0780431903020815,
+                0.15940167557727686,
+                0.8506177446215298
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "fujiPro400H",
+      "resource": "FujiPro400H",
+      "label": "Fuji Pro 400H",
+      "sha256": "dea6af96bafb0fee2f765b3dc9426f712f3126865df7536c6dccdaac806f1924",
+      "dimension": 33,
+      "tableRange": [
+        0.005217804107815027,
+        0.8843739628791809
+      ],
+      "gray": {
+        "blackRGB": [
+          0.06672787666320801,
+          0.09125592559576035,
+          0.11001480370759964
+        ],
+        "whiteRGB": [
+          0.8624332547187805,
+          0.8441668748855591,
+          0.8300526142120361
+        ],
+        "monotonicLumaViolations": 23,
+        "maximumLumaDrawdown": 0.0006072339140118649,
+        "drawdownIn8BitCodes": 0.15484464807302556,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.06759937220811844,
+          0.09067255073785782,
+          0.10952432090044023
+        ],
+        "highlightLumaSeparation90To100": 0.028110323537304027
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.7970529119796752,
+            0.6589968113059997,
+            0.5364850943336487
+          ],
+          [
+            0.6429986919403077,
+            0.399803880405426,
+            0.23590173921585084
+          ],
+          [
+            0.2679477468299865,
+            0.1279155424261093,
+            0.11626517988443374
+          ],
+          [
+            0.08135999829149247,
+            0.09268005480337144,
+            0.10965614547967911
+          ]
+        ],
+        "lightnessDelta": [
+          5.1142928821132045,
+          3.324001056510717,
+          -5.558022022594571,
+          -1.1873367750230486
+        ],
+        "chromaRatio": [
+          0.8627932148231529,
+          1.6674021790621065,
+          0.9866630735127871,
+          0.39761706857894447
+        ],
+        "hueDeltaDegrees": [
+          11.722207135357422,
+          2.84269453005021,
+          -27.403332813800603,
+          -145.98467049311427
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.08739565339237451,
+              0.5027583954475443,
+              0.7863592901010477
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.08660941176470588,
+              0.5036023529411765,
+              0.7747670588235294
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiPro400H-skin.png",
+          "productionSHA256": "f4217da895676bc4ec20bbb5ad49f3df1e821ae7c08176fc2c4b99cec9479d45",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.08739565339237451,
+                0.2180692070662515,
+                0.476675876001835
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.08739565339237451,
+                0.7820861958570152,
+                0.8470312576174736
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.15113653777765942,
+              0.48644376995861044,
+              0.7543956645209925
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.15253176470588237,
+              0.4880454901960784,
+              0.7466352941176471
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiPro400H-daylight.png",
+          "productionSHA256": "4d5df9a8e62d8f1a2101b1a6b6210f7d0e52cf0ed2bf92b624308a0ed0af7757",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.09084199542616994,
+                0.13381019796095195,
+                0.40893484861524954
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.49332040077393513,
+                0.79035654423044,
+                0.8470312576174736
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.08720471722915342,
+              0.09256801029456325,
+              0.626336162156845
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.08660941176470588,
+              0.09274901960784313,
+              0.628491764705882
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/fujiPro400H-night.png",
+          "productionSHA256": "4f7d7b3553ff97790c9c40f90c3f74a36f3a7be3053ae39472cc235eabf7c6a7",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.08704314821010636,
+                0.08749661858999218,
+                0.2354084366053699
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.09459236163521845,
+                0.17957234739616004,
+                0.8322286684148835
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "kodakPortra400",
+      "resource": "KodakPortra400",
+      "label": "Kodak Portra 400",
+      "sha256": "c9f22c6693a9feedcbe63773c6f6ee031cb7c31161eb4103251b557d3efc4442",
+      "dimension": 33,
+      "tableRange": [
+        0.02275548316538334,
+        0.9475418925285339
+      ],
+      "gray": {
+        "blackRGB": [
+          0.11207776516675949,
+          0.07834234088659286,
+          0.07897324115037918
+        ],
+        "whiteRGB": [
+          0.894404411315918,
+          0.9139836430549622,
+          0.9326179623603821
+        ],
+        "monotonicLumaViolations": 18,
+        "maximumLumaDrawdown": 0.00041055635130031465,
+        "drawdownIn8BitCodes": 0.10469186958158024,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.11317733961343765,
+          0.07911722868680954,
+          0.0791808014512062
+        ],
+        "highlightLumaSeparation90To100": 0.03402066616232036
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.827085705986023,
+            0.6574243510360718,
+            0.5074850257987976
+          ],
+          [
+            0.6405671149253847,
+            0.3776537614822388,
+            0.18655856709480284
+          ],
+          [
+            0.3055838428211212,
+            0.12944765951156617,
+            0.07917971926927567
+          ],
+          [
+            0.1383363791885376,
+            0.0841503001704216,
+            0.07961250667619706
+          ]
+        ],
+        "lightnessDelta": [
+          5.624998681408101,
+          1.7465738266191337,
+          -3.9760752024174693,
+          -0.4086690096107688
+        ],
+        "chromaRatio": [
+          1.0674406987154264,
+          1.8888025408575444,
+          1.390893044111953,
+          0.8732137116237874
+        ],
+        "hueDeltaDegrees": [
+          10.895250056168209,
+          3.8281570467829056,
+          -14.903088231547173,
+          -26.795944698307693
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.08556004308760165,
+              0.48973587527887685,
+              0.8336303157317421
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.08593490196078431,
+              0.4917294117647059,
+              0.826596862745098
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/kodakPortra400-skin.png",
+          "productionSHA256": "8af33276e94afd0c5ac42e44ec67b8cea8c390d14f703d36e8312ffa05ba350c",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.08556004308760165,
+                0.21939578932153275,
+                0.4547964414658114
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.08556004308760165,
+                0.8178356956092365,
+                0.9111664962410927
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.16958129064416283,
+              0.4682166518023314,
+              0.7829263293078683
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.17346352941176474,
+              0.4701411764705883,
+              0.7802619607843136
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/kodakPortra400-daylight.png",
+          "productionSHA256": "c339162011f0a07a8843d5ec9c295d7768e647232a5946ea64d3aff0b0513b25",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.09324389196592348,
+                0.1637193004647178,
+                0.3797594424648839
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.45046193051263533,
+                0.8404443079100533,
+                0.9111664962410927
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.08648763129337401,
+              0.0979417964553463,
+              0.6218009968434854
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.08593490196078431,
+              0.09880078431372549,
+              0.6274677647058822
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/kodakPortra400-night.png",
+          "productionSHA256": "253c676f51efa60e30e4a77f1880855fec904e5e9ff35c086f74c16cfbb76bb8",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.08581715935136447,
+                0.08642918852867651,
+                0.24855223947133304
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.10237938621218486,
+                0.20586066012993826,
+                0.8894535910528715
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "kodakVision5219",
+      "resource": "KodakVision5219",
+      "label": "Kodak Vision3 500T",
+      "sha256": "448f49a8658c4bf1d9b67d5e2366371101abc26bb59744ca83e7b20892bd9aac",
+      "dimension": 33,
+      "tableRange": [
+        0.002060130937024951,
+        0.8837774991989136
+      ],
+      "gray": {
+        "blackRGB": [
+          0.011772607453167439,
+          0.008125878870487213,
+          0.005387591198086739
+        ],
+        "whiteRGB": [
+          0.8276798725128174,
+          0.8655797839164734,
+          0.8187608122825623
+        ],
+        "monotonicLumaViolations": 16,
+        "maximumLumaDrawdown": 0.0005248021736249248,
+        "drawdownIn8BitCodes": 0.1338245542743558,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.015331275299191476,
+          0.01023458330333233,
+          0.006434800997376441
+        ],
+        "highlightLumaSeparation90To100": 0.033467394606992995
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.7557582637252808,
+            0.6258275492248535,
+            0.49472833889007567
+          ],
+          [
+            0.5784342244148255,
+            0.3725418341636658,
+            0.22072845153808596
+          ],
+          [
+            0.21783833711624145,
+            0.0806971463227272,
+            0.0075752654346823685
+          ],
+          [
+            0.04534284135150911,
+            0.01720945035296679,
+            0.006737371540397406
+          ]
+        ],
+        "lightnessDelta": [
+          1.7431121961645744,
+          -0.567378443154297,
+          -11.373723042540245,
+          -7.550843814965297
+        ],
+        "chromaRatio": [
+          0.8880008795640805,
+          1.482692373483083,
+          1.1884768105945895,
+          0.25684016958253136
+        ],
+        "hueDeltaDegrees": [
+          14.861602635223704,
+          5.11349006988317,
+          -10.931846128475513,
+          -6.2409021424620335
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.008703468997217714,
+              0.46696484441010816,
+              0.7764435888852524
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.00839372549019608,
+              0.4686588235294118,
+              0.7806125490196077
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/kodakVision5219-skin.png",
+          "productionSHA256": "b9f17c1c79df76a79c0cd401519b4c04ad02a6cd9b0c1d6c0708412c8920913d",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.008703468997217714,
+                0.1630315550067843,
+                0.4357039496822177
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.008703468997217714,
+                0.7651061998476818,
+                0.8541419330000876
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.12490560244880754,
+              0.4491733269460787,
+              0.7329538118757359
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.12887450980392157,
+              0.4491129411764706,
+              0.7357137254901962
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/kodakVision5219-daylight.png",
+          "productionSHA256": "4eed2225207757e5a83ba49277387f177cb475c3f3450ff1a048b6ed01c37c53",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.021783028847132523,
+                0.12004879705337776,
+                0.3707471575331953
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.445896799585918,
+                0.7855426009909052,
+                0.8541419330000876
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.01134661600628267,
+              0.026754077719808155,
+              0.5894036376521515
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.012315294117647058,
+              0.028232941176470586,
+              0.5941645490196075
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/kodakVision5219-night.png",
+          "productionSHA256": "7893ef2030c95f80bb5b46cf755e3c08c71e5409de5483e53d7bd256f7d2f054",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.009639418284726383,
+                0.010929311750714208,
+                0.22160515611091852
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.03351788948492777,
+                0.17183844676749319,
+                0.8343584211470236
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "kodakVision5203",
+      "resource": "KodakVision5203",
+      "label": "Kodak Vision3 50D",
+      "sha256": "ebd84fb435a027a329f96d6b5cb56549408235dc1810bbaf9dcca2420fbe7011",
+      "dimension": 33,
+      "tableRange": [
+        0.0012961180182173848,
+        0.8686316609382629
+      ],
+      "gray": {
+        "blackRGB": [
+          0.010314639657735825,
+          0.007270696107298136,
+          0.005160938017070293
+        ],
+        "whiteRGB": [
+          0.8148543238639832,
+          0.8589955568313599,
+          0.814255952835083
+        ],
+        "monotonicLumaViolations": 20,
+        "maximumLumaDrawdown": 0.0013353588482223136,
+        "drawdownIn8BitCodes": 0.34051650629668995,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.012137396462261677,
+          0.008489864200353622,
+          0.006067373596131801
+        ],
+        "highlightLumaSeparation90To100": 0.033972677675692786
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.7523274162330629,
+            0.6219639630241394,
+            0.485140913570404
+          ],
+          [
+            0.5861905653953552,
+            0.3795674471855164,
+            0.22706986923217773
+          ],
+          [
+            0.24340901510238644,
+            0.09005258965730667,
+            0.009717516744434834
+          ],
+          [
+            0.053298739354610464,
+            0.016214398412406447,
+            0.006241318438649177
+          ]
+        ],
+        "lightnessDelta": [
+          1.3598032712556858,
+          0.1561476719731445,
+          -9.524117152696025,
+          -7.466826400723512
+        ],
+        "chromaRatio": [
+          0.9157953120908083,
+          1.4830085577083445,
+          1.3411099309586405,
+          0.32873661194047143
+        ],
+        "hueDeltaDegrees": [
+          15.746244031906429,
+          5.185485755501077,
+          -9.932610780989876,
+          -13.907813445207069
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.007765513972006738,
+              0.4673730130653487,
+              0.7687291251777766
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.00839372549019608,
+              0.4683756862745098,
+              0.7688839215686274
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/kodakVision5203-skin.png",
+          "productionSHA256": "65a16b163bbd454431d8684c1853321b1522e1fc4dfe8835d59be5bbf7fd1e05",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.007765513972006738,
+                0.1740793331792358,
+                0.43863500248434356
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.007765513972006738,
+                0.7575955406869719,
+                0.8463809312939643
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.14067665097987203,
+              0.45031786266927554,
+              0.7272401143862381
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.14206431372549017,
+              0.450476862745098,
+              0.7278078431372549
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/kodakVision5203-daylight.png",
+          "productionSHA256": "47f888e3782f31c6836c2c9aec261b93cd23fb1c02f4bdefd60d6f87ea5515b1",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.021743728861888,
+                0.13496920153734876,
+                0.3804034735649389
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.4510819877544586,
+                0.7774130979480601,
+                0.8463809312939643
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.009263263608928143,
+              0.02902457795540752,
+              0.5859872163819122
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.00867686274509804,
+              0.03021960784313725,
+              0.5892047843137251
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/kodakVision5203-night.png",
+          "productionSHA256": "6835117a663214a04014c23898709e31b4c0289f85807a9fcff2b0967a54f62a",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.008462956380915992,
+                0.009940705661251535,
+                0.23418101594292193
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.03793056885509177,
+                0.1862059640751305,
+                0.8269202348666898
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "kodak5207",
+      "resource": "Kodak5207",
+      "label": "Kodak Vision3 250D",
+      "sha256": "9b4a626bb4c9595244872feee6e3dd3d8f71af4e1ae64b9a804390ad23d88b84",
+      "dimension": 33,
+      "tableRange": [
+        0.0021485560573637486,
+        0.8821190595626831
+      ],
+      "gray": {
+        "blackRGB": [
+          0.010520920157432556,
+          0.007104417774826288,
+          0.004877314902842045
+        ],
+        "whiteRGB": [
+          0.8194727897644043,
+          0.8609435558319092,
+          0.8122001886367798
+        ],
+        "monotonicLumaViolations": 18,
+        "maximumLumaDrawdown": 0.0009268519644467024,
+        "drawdownIn8BitCodes": 0.23634725093390913,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.014780997797846794,
+          0.00958503521978855,
+          0.005973623570054769
+        ],
+        "highlightLumaSeparation90To100": 0.03385385879889646
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.7565347644500733,
+            0.6239892602539062,
+            0.4855698352622986
+          ],
+          [
+            0.5857713244438172,
+            0.3775703749656677,
+            0.22077050104141235
+          ],
+          [
+            0.23572569534301754,
+            0.08699212466478348,
+            0.007732163236737249
+          ],
+          [
+            0.05338866841936113,
+            0.017439883276820185,
+            0.006071857251107693
+          ]
+        ],
+        "lightnessDelta": [
+          1.59841269804825,
+          -0.006439021164247549,
+          -10.096945406985526,
+          -7.404783429516211
+        ],
+        "chromaRatio": [
+          0.9279001437505349,
+          1.5110417070828297,
+          1.3006446795141784,
+          0.32643499765018225
+        ],
+        "hueDeltaDegrees": [
+          15.578647242987813,
+          5.559499544006258,
+          -10.059990769368142,
+          -10.66797067746873
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.007669969354011119,
+              0.4685835174832017,
+              0.7710391271353021
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.00839372549019608,
+              0.46939176470588234,
+              0.7714007843137255
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/kodak5207-skin.png",
+          "productionSHA256": "f9fa3904af0dcb7e83b333d99c427ebe0ff5e5d73ada017dd8b394d4f1ccbf3f",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.007669969354011119,
+                0.1710608923130618,
+                0.43750879894328426
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.007669969354011119,
+                0.7604191496630544,
+                0.8486075998544692
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.13289676408513326,
+              0.4503186609795676,
+              0.7291772426603542
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.1350705882352941,
+              0.44938039215686276,
+              0.7303921568627451
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/kodak5207-daylight.png",
+          "productionSHA256": "3695a1398d81f0e7699059e464a1ddc3f8fa8b1d1ca850ab31a2eb8f54fa8460",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.022795796936799846,
+                0.12809787568344455,
+                0.37649293423617486
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.44816278453226377,
+                0.7796982529612808,
+                0.8486075998544692
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.01075589703819863,
+              0.02922987565578148,
+              0.5869189740599161
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.012032156862745096,
+              0.03048705882352941,
+              0.5905132549019607
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/kodak5207-night.png",
+          "productionSHA256": "20840b5926b2f4116c5e9e9a157b36531e8771cb71e75af52bcbd4c12d9f4135",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.009012587160156103,
+                0.010645433830577684,
+                0.22938157423037345
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.03711556442833507,
+                0.18027810643759026,
+                0.829047447329237
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "harmanPhoenix200",
+      "resource": "HarmanPhoenix200",
+      "label": "Harman Phoenix 200",
+      "sha256": "6c485172ad1a00432dd5044940a4394d51cc7f92284fdf7ef5dea0c1ebf5907c",
+      "dimension": 64,
+      "tableRange": [
+        0.0,
+        1.0
+      ],
+      "gray": {
+        "blackRGB": [
+          0.05098000168800354,
+          0.10588199645280838,
+          0.1254899948835373
+        ],
+        "whiteRGB": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "monotonicLumaViolations": 5,
+        "maximumLumaDrawdown": 0.0005097009437663724,
+        "drawdownIn8BitCodes": 0.12997374066042497,
+        "drawdownExceedsOne8BitCode": false,
+        "shadowAt5Percent": [
+          0.06112535595940427,
+          0.11882344894111156,
+          0.1423526003956795
+        ],
+        "highlightLumaSeparation90To100": 0.0617460666578854
+      },
+      "skinProbes": {
+        "syntheticNotMeasuredColorChecker": true,
+        "inputRGB": [
+          [
+            0.78,
+            0.59,
+            0.48
+          ],
+          [
+            0.55,
+            0.39,
+            0.3
+          ],
+          [
+            0.3,
+            0.19,
+            0.12
+          ],
+          [
+            0.14,
+            0.09,
+            0.06
+          ]
+        ],
+        "outputRGB": [
+          [
+            0.8407452998280525,
+            0.6735210271525381,
+            0.5620954618091583
+          ],
+          [
+            0.5770590016245842,
+            0.4484705025419593,
+            0.36705841124057764
+          ],
+          [
+            0.25304835325956343,
+            0.23080478072345256,
+            0.19083596749305726
+          ],
+          [
+            0.11558055178326368,
+            0.14701978102326393,
+            0.14992153966128824
+          ]
+        ],
+        "lightnessDelta": [
+          7.251423347051741,
+          5.024415982929362,
+          2.058735632449263,
+          5.069600500001023
+        ],
+        "chromaRatio": [
+          0.9005051396785436,
+          0.8071396838407913,
+          0.36895488471008286,
+          0.42288787469659633
+        ],
+        "hueDeltaDegrees": [
+          4.053210094976691,
+          3.637414715505855,
+          28.792422069942717,
+          152.6558998320878
+        ],
+        "monochrome": false
+      },
+      "scenes": {
+        "skin": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.0956255298525095,
+              0.6238018436684043,
+              0.8668139554903918
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.8098602294921875
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.09562588235294117,
+              0.6253309803921568,
+              0.8716329411764706
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/harmanPhoenix200-skin.png",
+          "productionSHA256": "b5497eeaeaa0806a5577db1a2135e0e9cdabd43487f6ddef6ead5afd571f2273",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0956255298525095,
+                0.3045218489675423,
+                0.47108745751634806
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.0956255298525095,
+                0.8621703944993595,
+                1.0
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 62.7899169921875
+            }
+          }
+        },
+        "daylight": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.23707438326573554,
+              0.48243416575697035,
+              0.7898546815955838
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 1.186370849609375
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.24112392156862744,
+              0.48527686274509807,
+              0.7998494117647058
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/harmanPhoenix200-daylight.png",
+          "productionSHA256": "f345628f0d95ab86cef0bb87d618c90701dde142eca5dec92a1f5973d841e93e",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.13945362684060425,
+                0.2331050411749447,
+                0.41280906105286236
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.47737636570182734,
+                0.9004882805729076,
+                1.0
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 29.937998453776043
+            }
+          }
+        },
+        "night": {
+          "lutOnly": {
+            "encodedLumaP10P50P90": [
+              0.110329298583001,
+              0.1482217668241397,
+              0.6453085235849245
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 3.8953450520833335
+          },
+          "productionFinal": {
+            "encodedLumaP10P50P90": [
+              0.11019529411764706,
+              0.14967843137254905,
+              0.6570292549019607
+            ],
+            "nearBlackPercent": 0.0,
+            "anyChannelNearClipPercent": 0.0
+          },
+          "productionPath": "renders/harmanPhoenix200-night.png",
+          "productionSHA256": "77306cc012b2d30470c67dd4bc7b9a2fda381d65cb42308b839b9a3630f76626",
+          "syntheticExposureStressEV": {
+            "-2": {
+              "encodedLumaP10P50P90": [
+                0.0956255298525095,
+                0.10657077812499276,
+                0.31807991157785354
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 0.0
+            },
+            "2": {
+              "encodedLumaP10P50P90": [
+                0.15473186991404717,
+                0.2728572089817906,
+                0.971561714659706
+              ],
+              "nearBlackPercent": 0.0,
+              "anyChannelNearClipPercent": 14.708007812500002
+            }
+          }
+        }
+      }
+    }
+  ]
+}

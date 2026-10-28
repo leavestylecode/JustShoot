@@ -1,0 +1,58 @@
+[
+  {
+    "name": "FujiRawASTIA",
+    "title": "ASTIA",
+    "prompt": "Create ONE square, front-on flat film-box cover, a finished raster asset for a film preset. Reference images show the exact Fujifilm packaging visual language to follow. Match the original film-carton era, proportions, green base, Fuji brand typography and sharp clean label panels; subtle satin paper texture like the reference, no heavily distressed or decorative poster treatment. A centered large film name readable at thumbnail size. Keep all lettering within 8% margins. IMPORTANT: no JustShoot, no app name, no RAW, no sRGB, no arrows, no app badges, no modern editorial motifs, no invented unrelated branding, no 3D box mockup. Render only the brand/film label text specified; no fabricated film speed, exposure counts or technical spec text. This is bespoke simulation artwork in original film packaging style, keep the precise mode name so it never disguises itself as a different stock. Fujichrome ASTIA original packaging family. Fujifilm bright green carton, violet-blue diagonal ribbon and deep violet-blue name panel with silver border; creamy yellow serif ASTIA lettering. Text only: \"FUJIFILM\", \"FUJICHROME\", \"ASTIA\". Follow the Provia reference geometry, replace Provia navy with ASTIA violet blue.",
+    "referenceCards": [
+      "justshoot-provia-cover.png"
+    ]
+  },
+  {
+    "name": "FujiRawCLASSICCHROME",
+    "title": "CLASSIC CHROME",
+    "prompt": "Create ONE square, front-on flat film-box cover, a finished raster asset for a film preset. Reference images show the exact Fujifilm packaging visual language to follow. Match the original film-carton era, proportions, green base, Fuji brand typography and sharp clean label panels; subtle satin paper texture like the reference, no heavily distressed or decorative poster treatment. A centered large film name readable at thumbnail size. Keep all lettering within 8% margins. IMPORTANT: no JustShoot, no app name, no RAW, no sRGB, no arrows, no app badges, no modern editorial motifs, no invented unrelated branding, no 3D box mockup. Render only the brand/film label text specified; no fabricated film speed, exposure counts or technical spec text. This is bespoke simulation artwork in original film packaging style, keep the precise mode name so it never disguises itself as a different stock. Fujichrome packaging family; original reference bright Fujifilm green, strong dark navy rectangular title panel with subtle silver edging, a dark navy diagonal ribbon, cream-gold compact serif lettering. Text only: \"FUJIFILM\", \"FUJICHROME\", \"CLASSIC CHROME\". Title may occupy two compact lines inside the name panel.",
+    "referenceCards": [
+      "justshoot-provia-cover.png"
+    ]
+  },
+  {
+    "name": "FujiRawREALAACE",
+    "title": "REALA ACE",
+    "prompt": "Create ONE square, front-on flat film-box cover, a finished raster asset for a film preset. Reference images show the exact Fujifilm packaging visual language to follow. Match the original film-carton era, proportions, green base, Fuji brand typography and sharp clean label panels; subtle satin paper texture like the reference, no heavily distressed or decorative poster treatment. A centered large film name readable at thumbnail size. Keep all lettering within 8% margins. IMPORTANT: no JustShoot, no app name, no RAW, no sRGB, no arrows, no app badges, no modern editorial motifs, no invented unrelated branding, no 3D box mockup. Render only the brand/film label text specified; no fabricated film speed, exposure counts or technical spec text. This is bespoke simulation artwork in original film packaging style, keep the precise mode name so it never disguises itself as a different stock. Follow the original Superia Reala reference closely: Fujicolor green background, upper-left Fuji brand, white FUJICOLOR, large gold italic serif REALA with ACE beneath; original restrained red-orange-yellow diagonal band near bottom. Text only: \"FUJIFILM\", \"FUJICOLOR\", \"REALA ACE\".",
+    "referenceCards": [
+      "justshoot-00087_000.png"
+    ]
+  },
+  {
+    "name": "FujiRawPRONegStd",
+    "title": "PRO Neg. Std",
+    "prompt": "Create ONE square, front-on flat film-box cover, a finished raster asset for a film preset. Reference images show the exact Fujifilm packaging visual language to follow. Match the original film-carton era, proportions, green base, Fuji brand typography and sharp clean label panels; subtle satin paper texture like the reference, no heavily distressed or decorative poster treatment. A centered large film name readable at thumbnail size. Keep all lettering within 8% margins. IMPORTANT: no JustShoot, no app name, no RAW, no sRGB, no arrows, no app badges, no modern editorial motifs, no invented unrelated branding, no 3D box mockup. Render only the brand/film label text specified; no fabricated film speed, exposure counts or technical spec text. This is bespoke simulation artwork in original film packaging style, keep the precise mode name so it never disguises itself as a different stock. Follow the original Fujicolor professional negative reference: vivid Fujifilm green background, black FUJIFILM brand above, a purple FUJICOLOR header on near-black plum name panel, muted warm gold large sans-serif \"PRO Neg. Std\"; professional purple ribbon down from label. Text only: \"FUJIFILM\", \"FUJICOLOR\", \"PRO Neg. Std\".",
+    "referenceCards": [
+      "justshoot-00022_000.png"
+    ]
+  },
+  {
+    "name": "FujiRawCLASSICNeg",
+    "title": "CLASSIC Neg.",
+    "prompt": "Create ONE square, front-on flat film-box cover, a finished raster asset for a film preset. Reference images show the exact Fujifilm packaging visual language to follow. Match the original film-carton era, proportions, green base, Fuji brand typography and sharp clean label panels; subtle satin paper texture like the reference, no heavily distressed or decorative poster treatment. A centered large film name readable at thumbnail size. Keep all lettering within 8% margins. IMPORTANT: no JustShoot, no app name, no RAW, no sRGB, no arrows, no app badges, no modern editorial motifs, no invented unrelated branding, no 3D box mockup. Render only the brand/film label text specified; no fabricated film speed, exposure counts or technical spec text. This is bespoke simulation artwork in original film packaging style, keep the precise mode name so it never disguises itself as a different stock. Follow the original Fujicolor Superia-era packaging visual grammar closely: vivid Fuji green, Fuji brand upper left, large white FUJICOLOR, restrained warm gold condensed bold italic main name CLASSIC Neg., red-orange-yellow diagonal lower band. Text only: \"FUJIFILM\", \"FUJICOLOR\", \"CLASSIC Neg.\".",
+    "referenceCards": [
+      "justshoot-00087_000.png"
+    ]
+  },
+  {
+    "name": "FujiRawETERNA",
+    "title": "ETERNA",
+    "prompt": "Create ONE square, front-on flat film-box cover, a finished raster asset for a film preset. Reference images show the exact Fujifilm packaging visual language to follow. Match the original film-carton era, proportions, green base, Fuji brand typography and sharp clean label panels; subtle satin paper texture like the reference, no heavily distressed or decorative poster treatment. A centered large film name readable at thumbnail size. Keep all lettering within 8% margins. IMPORTANT: no JustShoot, no app name, no RAW, no sRGB, no arrows, no app badges, no modern editorial motifs, no invented unrelated branding, no 3D box mockup. Render only the brand/film label text specified; no fabricated film speed, exposure counts or technical spec text. This is bespoke simulation artwork in original film packaging style, keep the precise mode name so it never disguises itself as a different stock. Authentic Fuji motion-picture stock packaging family rather than consumer rebrand: Fujifilm green carton/label, black FUJIFILM brand upper left, white small FUJICOLOR, broad white rectangular label with a restrained rust-orange band across it, dark near-black large sans-serif ETERNA. Fine horizontal rules and generous original packaging negative space. Text only: \"FUJIFILM\", \"FUJICOLOR\", \"ETERNA\".",
+    "referenceCards": [
+      "justshoot-00022_000.png"
+    ]
+  },
+  {
+    "name": "FujiRawETERNABB",
+    "title": "ETERNA BLEACH BYPASS",
+    "prompt": "Create ONE square, front-on flat film-box cover, a finished raster asset for a film preset. Reference images show the exact Fujifilm packaging visual language to follow. Match the original film-carton era, proportions, green base, Fuji brand typography and sharp clean label panels; subtle satin paper texture like the reference, no heavily distressed or decorative poster treatment. A centered large film name readable at thumbnail size. Keep all lettering within 8% margins. IMPORTANT: no JustShoot, no app name, no RAW, no sRGB, no arrows, no app badges, no modern editorial motifs, no invented unrelated branding, no 3D box mockup. Render only the brand/film label text specified; no fabricated film speed, exposure counts or technical spec text. This is bespoke simulation artwork in original film packaging style, keep the precise mode name so it never disguises itself as a different stock. Same authentic Fuji ETERNA motion-picture stock packaging family: vivid Fujifilm green carton/label, black FUJIFILM brand upper left, white small FUJICOLOR, broad silver-white rectangular label with restrained charcoal band, large dark sans-serif ETERNA and smaller BLEACH BYPASS beneath inside the same panel. Restrained motion-picture label graphics. Text only: \"FUJIFILM\", \"FUJICOLOR\", \"ETERNA\", \"BLEACH BYPASS\".",
+    "referenceCards": [
+      "justshoot-00022_000.png"
+    ]
+  }
+]

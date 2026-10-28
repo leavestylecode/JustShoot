@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-25",
+  "scope": "Six refined Fujifilm capture covers; both Classic designs and Portra retained",
+  "assetValidation": {
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "colorSpace": "sRGB",
+    "format": "HEIC",
+    "count": 6,
+    "totalBytes": 770408,
+    "builtInCovers": 9
+  },
+  "baseline": {
+    "checked": 579,
+    "changed": [
+      "JustShoot/Resources/cards/cover_fuji_acros.heic",
+      "JustShoot/Resources/cards/cover_fuji_astia_100f.heic",
+      "JustShoot/Resources/cards/cover_fuji_c200.heic",
+      "JustShoot/Resources/cards/cover_fuji_pro_400h.heic",
+      "JustShoot/Resources/cards/cover_fuji_provia_100f.heic",
+      "JustShoot/Resources/cards/cover_fuji_velvia.heic"
+    ],
+    "unchanged": 573,
+    "originalCollectionImagesUnchanged": 550,
+    "cardsJsonUnchanged": true,
+    "lutTablesUnchanged": true,
+    "classicChromeClassicNegAndPortraUnchanged": true
+  },
+  "build": {
+    "tool": "XcodeBuildMCP build_run_sim",
+    "project": "JustShoot.xcodeproj",
+    "scheme": "JustShoot",
+    "configuration": "Debug",
+    "device": "iPhone 17",
+    "os": "iOS 26.4.1 Simulator",
+    "success": true,
+    "warnings": 0,
+    "errors": 0,
+    "log": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-10-25T04-39-12-036Z_pid9844_372448f4.log"
+  },
+  "tests": {
+    "tool": "XcodeBuildMCP test_sim",
+    "suites": [
+      "FilmPresetCoverPreparationTests",
+      "AppStartupPreparationTests",
+      "FilmPresetCatalogTests"
+    ],
+    "passed": 16,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 0,
+    "errors": 0,
+    "xcresult": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-25T04-42-26-835Z_pid9844_4ea7f2ee.xcresult"
+  },
+  "visualInspection": {
+    "homeScreenshot": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-cover-harmony-2026-10-25/home-simulator.jpg",
+    "comparison": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-cover-harmony-2026-10-25/before-after-grid.jpg",
+    "thumbnailGrid": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/fujifilm-cover-harmony-2026-10-25/thumbnail-grid-110px.png",
+    "checked": [
+      "Nine covers in production order",
+      "110px thumbnail hierarchy",
+      "Home labels and cover bindings",
+      "Rounded-corner rendering",
+      "No placeholders in bundled cover grid"
+    ],
+    "note": "Custom ImportValidation test filter retained. Camera picker is covered by actual display-image preparation tests; no physical camera or device performance claims."
+  },
+  "generation": {
+    "mode": "built-in image_gen",
+    "individualCoverEdits": 6,
+    "logoCorrectionEdits": 1,
+    "promptFile": "prompts.json",
+    "originalsPreserved": true
+  },
+  "productCodeChangesThisPass": false,
+  "gitDiffCheck": "passed"
+}

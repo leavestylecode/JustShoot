@@ -166,6 +166,78 @@ final class FilmGrainTests: XCTestCase {
         XCTAssertEqual(pixels(FilmGrainRenderer.applying(to: source, parameters: disabled, seed: seed)), pixels(source))
     }
 
+    func testAreaMatchedCaptureRecipeRoundTripsWithoutChangingOldRecipes() throws {
+        let current = legacy.forUnifiedCapture
+        XCTAssertEqual(current.response, .balancedAreaMatched)
+        XCTAssertEqual(current.shaderResponse, 1)
+        XCTAssertEqual(current.renderAmount(forLongEdge: 4_032), legacy.amount)
+        XCTAssertLessThan(current.renderAmount(forLongEdge: 1_000), legacy.amount)
+        XCTAssertEqual(legacy.renderAmount(forLongEdge: 500), legacy.amount)
+        XCTAssertEqual(try JSONDecoder().decode(FilmGrainParameters.self,
+            from: JSONEncoder().encode(current)), current)
+        XCTAssertEqual(FilmGrainSampling.amplitudeScale(size: 1, longEdge: .nan), 0)
+        XCTAssertEqual(FilmGrainSampling.amplitudeScale(size: .infinity, longEdge: 1_000), 0)
+        XCTAssertEqual(FilmGrainSampling.amplitudeScale(size: 1, longEdge: 8_000), 1)
+        XCTAssertLessThan(FilmGrainSampling.amplitudeScale(size: 1, longEdge: 64),
+                          FilmGrainSampling.amplitudeScale(size: 1, longEdge: 500))
+    }
+
+    func testPreviewTextureVarianceMatchesReducedFullResolutionPhoto() {
+        let width = 4_000, height = 128
+        for size: Float in [1, 1.235, 2] {
+            let grain = FilmGrainParameters(amount: 0.046, size: size, chroma: 0.06,
+                response: .balancedAreaMatched)
+            let full = luminance(pixels(FilmGrainRenderer.applying(
+                to: image([SIMD3(repeating: 0.5)], width: width, height: height),
+                parameters: grain, seed: seed)))
+            for reduction in [2, 4, 8] {
+                let smallWidth = width / reduction, smallHeight = height / reduction
+                var reduced = [Float](repeating: 0, count: smallWidth * smallHeight)
+                for y in 0..<height {
+                    for x in 0..<width {
+                        reduced[(y / reduction) * smallWidth + x / reduction] +=
+                            full[y * width + x] / Float(reduction * reduction)
+                    }
+                }
+                let source = image([SIMD3(repeating: 0.5)], width: smallWidth, height: smallHeight)
+                let preview = statistics(luminance(pixels(FilmGrainRenderer.applying(
+                    to: source, parameters: grain, seed: seed))))
+                let unfiltered = FilmGrainParameters(amount: grain.amount, size: size,
+                    chroma: grain.chroma, response: .balanced)
+                let before = statistics(luminance(pixels(FilmGrainRenderer.applying(
+                    to: source, parameters: unfiltered, seed: seed))))
+                let reference = statistics(reduced)
+                let ratio = preview.deviation / reference.deviation
+                XCTAssertEqual(preview.mean, 0.5, accuracy: 0.0003)
+                XCTAssertEqual(ratio, 1, accuracy: 0.18,
+                    "Preview should carry the variance of a photo reduced to the same size")
+                XCTAssertLessThan(abs(preview.deviation - reference.deviation),
+                    abs(before.deviation - reference.deviation) * 0.40)
+                print("grain_area_check size=\(size) reduction=\(reduction) old_ratio=\(before.deviation / reference.deviation) new_ratio=\(ratio)")
+            }
+        }
+    }
+
+    func testUnifiedCaptureTexturePreservesShadowAndSkinMeansForEveryLook() {
+        let colors: [SIMD3<Float>] = [SIMD3(repeating: 0.02), SIMD3(repeating: 0.08),
+            SIMD3(0.55, 0.39, 0.30), SIMD3(0.30, 0.19, 0.12), SIMD3(repeating: 0.98)]
+        for preset in FilmPreset.allCases {
+            let grain = FilmSource.preset(preset).captureRenderProfile.grain
+            guard grain.isEnabled else { continue }
+            XCTAssertEqual(grain.response, .balancedAreaMatched)
+            for color in colors {
+                let output = pixels(FilmGrainRenderer.applying(
+                    to: image([color], width: 1_000, height: 32), parameters: grain, seed: seed))
+                for channel in 0..<3 {
+                    let mean = stride(from: channel, to: output.count, by: 4)
+                        .reduce(0.0) { $0 + Double(output[$1]) } / Double(output.count / 4)
+                    XCTAssertEqual(mean, Double(color[channel]), accuracy: 0.00025,
+                        "\(preset): texture must not add a shadow veil or shift skin color")
+                }
+            }
+        }
+    }
+
     func testLiveFrameMatchesStillWithBalancedGrainAndFrozenSeed() throws {
         let width = 64, height = 16
         let attributes: [String: Any] = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
@@ -231,10 +303,11 @@ final class FilmGrainTests: XCTestCase {
             withBytes: $0.baseAddress!, bytesPerRow: 2) }
         let ciSource = CIImage(bitmapData: source.withUnsafeBufferPointer { Data(buffer: $0) },
             bytesPerRow: width * 8, size: CGSize(width: width, height: height), format: .RGBAh, colorSpace: space)
-        for grain in [legacy, FilmPreset.kodakPortra400.renderProfile.grain] {
+        for grain in [legacy, FilmPreset.kodakPortra400.renderProfile.grain,
+                      FilmPreset.kodakPortra400.renderProfile.grain.forUnifiedCapture] {
             var params = RealtimePreviewView.Coordinator.PreviewParams(scale: 1, offsetX: 0, offsetY: 0,
                 inputWidth: UInt32(width), inputHeight: UInt32(height), rotation: 0, lutDimension: 2,
-                grainAmount: grain.amount, grainSize: grain.pixelSize(forLongEdge: CGFloat(width)),
+                grainAmount: grain.renderAmount(forLongEdge: CGFloat(width)), grainSize: grain.pixelSize(forLongEdge: CGFloat(width)),
                 grainChroma: grain.chroma, grainSeed: seed,
                 halationAmount: 0, halationRadiusPx: 0, halationHue: 0,
                 bloomAmount: 0, bloomRadiusPx: 0, highlightThreshold: 0.72,

@@ -120,11 +120,13 @@ final class FilmChromaticResponseTests: XCTestCase {
     }
 
     func testPerPresetResponsesFollowDesignIntent() {
-        // T 卷（5219）是唯一钨点平衡；反转片响应最浅；电影卷深于同 ISO 消费卷。
-        XCTAssertEqual(FilmPreset.kodakVision5219.chromaticResponse.nativeCCT, 3_200)
+        // 剩余消费负片保留日光基准与原有响应；历史任务直接恢复冻结参数。
+        for preset in [FilmPreset.fujiC200, .fujiPro400H, .kodakPortra400] {
+            XCTAssertEqual(preset.chromaticResponse.nativeCCT, 5_500)
+        }
         XCTAssertLessThan(FilmPreset.fujiProvia100F.chromaticResponse.strength,
                           FilmPreset.fujiC200.chromaticResponse.strength)
-        XCTAssertGreaterThan(FilmPreset.kodakVision5219.chromaticResponse.strength,
+        XCTAssertGreaterThan(FilmPreset.fujiPro400H.chromaticResponse.strength,
                              FilmPreset.kodakPortra400.chromaticResponse.strength)
         // 自定义 LUT：用户导入什么就出什么，色温响应关闭。
         XCTAssertEqual(FilmSource.custom(id: UUID(), displayName: "x", iso: 200, fileName: "a.cube")

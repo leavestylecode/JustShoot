@@ -1,0 +1,171 @@
+{
+  "schema": "xcodebuildmcp.output.test-result",
+  "schemaVersion": "3",
+  "didError": false,
+  "error": null,
+  "data": {
+    "summary": {
+      "status": "SUCCEEDED",
+      "durationMs": 11463,
+      "counts": {
+        "passed": 18,
+        "failed": 0,
+        "skipped": 0
+      },
+      "target": "simulator"
+    },
+    "artifacts": {
+      "buildLogPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-27T12-07-15-846Z_pid35031_08f9874f.log",
+      "xcresultPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-27T12-07-15-846Z_pid35031_2e67d8cb.xcresult",
+      "testProductsPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/test-products/test_sim_2026-10-27T12-07-15-846Z_pid35031_d61da22d.xctestproducts"
+    },
+    "tests": {
+      "selected": [
+        "JustShootTests/FilmCardCatalogIndexTests/testColorThresholdAndDisplayOrderAreStable",
+        "JustShootTests/FilmCardCatalogIndexTests/testCombinedFiltersIntersectDimensionsAndKeepCatalogOrder",
+        "JustShootTests/FilmCardCatalogIndexTests/testMajorThresholdsAndChipTotalsPreserveEveryCard",
+        "JustShootTests/FilmCardCatalogIndexTests/testMissingAndEmptyMetadataRemainReachableInOtherBuckets",
+        "JustShootTests/FilmCardImageCacheTests/testBundledFilenameRequestsReuseTheSameDisplaySizeAcrossScreens",
+        "JustShootTests/FilmCardImageCacheTests/testCancelledQueuedRequestDoesNotDecodeAndCanBeRequestedAgain",
+        "JustShootTests/FilmCardImageCacheTests/testCancellingOneConsumerReturnsBeforeTheCodecAndKeepsAnotherConsumerUsable",
+        "JustShootTests/FilmCardImageCacheTests/testConcurrentNearbySizesDecodeOnceAndShareThePreparedImage",
+        "JustShootTests/FilmCardImageCacheTests/testExtremePixelRequestsStayWithinBundledImageBounds",
+        "JustShootTests/FilmCardImageCacheTests/testFailureCanBeRetriedAndDoesNotPoisonTheCache",
+        "JustShootTests/FilmPresetCatalogTests/testCatalogContainsOnlyTheNineRemainingLooks",
+        "JustShootTests/FilmPresetCatalogTests/testRetiredLooksHaveNoBundledTablesOrCapturePreset",
+        "JustShootTests/FilmPresetCoverPreparationTests/testAwaitedHomePreparationReturnsEveryBundledCoverAtDisplaySize",
+        "JustShootTests/FilmPresetCoverPreparationTests/testCancelledCaptureWarmUpCannotReportResourcesReady",
+        "JustShootTests/FilmPresetCoverPreparationTests/testCancelledPreparationDoesNotReportAnEmptyReadySnapshot",
+        "JustShootTests/FilmPresetCoverPreparationTests/testEveryPresetHasItsOwnCoverInsteadOfBorrowingAnotherLooksArtwork",
+        "JustShootTests/FilmPresetCoverPreparationTests/testInvalidDisplayScaleCannotOverflowThumbnailDimensions",
+        "JustShootTests/FilmPresetCoverPreparationTests/testPickerPreparationReturnsItsActualDisplayImages"
+      ],
+      "discovered": {
+        "total": 18,
+        "items": [
+          "JustShootTests/FilmCardCatalogIndexTests/testColorThresholdAndDisplayOrderAreStable",
+          "JustShootTests/FilmCardCatalogIndexTests/testCombinedFiltersIntersectDimensionsAndKeepCatalogOrder",
+          "JustShootTests/FilmCardCatalogIndexTests/testMajorThresholdsAndChipTotalsPreserveEveryCard",
+          "JustShootTests/FilmCardCatalogIndexTests/testMissingAndEmptyMetadataRemainReachableInOtherBuckets",
+          "JustShootTests/FilmCardImageCacheTests/testBundledFilenameRequestsReuseTheSameDisplaySizeAcrossScreens",
+          "JustShootTests/FilmCardImageCacheTests/testCancelledQueuedRequestDoesNotDecodeAndCanBeRequestedAgain"
+        ]
+      }
+    },
+    "diagnostics": {
+      "warnings": [],
+      "errors": [],
+      "testFailures": []
+    },
+    "testCases": [
+      {
+        "suite": "FilmCardCatalogIndexTests",
+        "test": "testColorThresholdAndDisplayOrderAreStable",
+        "status": "passed",
+        "durationMs": 3
+      },
+      {
+        "suite": "FilmCardCatalogIndexTests",
+        "test": "testCombinedFiltersIntersectDimensionsAndKeepCatalogOrder",
+        "status": "passed",
+        "durationMs": 2
+      },
+      {
+        "suite": "FilmCardCatalogIndexTests",
+        "test": "testMajorThresholdsAndChipTotalsPreserveEveryCard",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCardCatalogIndexTests",
+        "test": "testMissingAndEmptyMetadataRemainReachableInOtherBuckets",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCardImageCacheTests",
+        "test": "testBundledFilenameRequestsReuseTheSameDisplaySizeAcrossScreens",
+        "status": "passed",
+        "durationMs": 83
+      },
+      {
+        "suite": "FilmCardImageCacheTests",
+        "test": "testCancelledQueuedRequestDoesNotDecodeAndCanBeRequestedAgain",
+        "status": "passed",
+        "durationMs": 14
+      },
+      {
+        "suite": "FilmCardImageCacheTests",
+        "test": "testCancellingOneConsumerReturnsBeforeTheCodecAndKeepsAnotherConsumerUsable",
+        "status": "passed",
+        "durationMs": 8
+      },
+      {
+        "suite": "FilmCardImageCacheTests",
+        "test": "testConcurrentNearbySizesDecodeOnceAndShareThePreparedImage",
+        "status": "passed",
+        "durationMs": 35
+      },
+      {
+        "suite": "FilmCardImageCacheTests",
+        "test": "testExtremePixelRequestsStayWithinBundledImageBounds",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmCardImageCacheTests",
+        "test": "testFailureCanBeRetriedAndDoesNotPoisonTheCache",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmPresetCatalogTests",
+        "test": "testCatalogContainsOnlyTheNineRemainingLooks",
+        "status": "passed",
+        "durationMs": 4
+      },
+      {
+        "suite": "FilmPresetCatalogTests",
+        "test": "testRetiredLooksHaveNoBundledTablesOrCapturePreset",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testAwaitedHomePreparationReturnsEveryBundledCoverAtDisplaySize",
+        "status": "passed",
+        "durationMs": 136
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testCancelledCaptureWarmUpCannotReportResourcesReady",
+        "status": "passed",
+        "durationMs": 6
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testCancelledPreparationDoesNotReportAnEmptyReadySnapshot",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testEveryPresetHasItsOwnCoverInsteadOfBorrowingAnotherLooksArtwork",
+        "status": "passed",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testInvalidDisplayScaleCannotOverflowThumbnailDimensions",
+        "status": "passed",
+        "durationMs": 0
+      },
+      {
+        "suite": "FilmPresetCoverPreparationTests",
+        "test": "testPickerPreparationReturnsItsActualDisplayImages",
+        "status": "passed",
+        "durationMs": 117
+      }
+    ]
+  }
+}

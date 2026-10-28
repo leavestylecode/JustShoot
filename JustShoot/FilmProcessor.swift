@@ -16,6 +16,7 @@ final class FilmProcessor: Sendable {
     private let srgbColorSpace: CGColorSpace
     /// CIContext 首次创建在真机约需 1 秒；与 LUT cache 分锁，避免纯 LUT 读取触发或等待 GPU 初始化。
     private let renderContextLock = OSAllocatedUnfairLock<CIContext?>(initialState: nil)
+    private let rawRenderContextLock = OSAllocatedUnfairLock<CIContext?>(initialState: nil)
     /// LUT bytes share one budget; lightweight source/curve recipes have separate entry limits.
     private let lock: OSAllocatedUnfairLock<LUTState>
 
@@ -75,20 +76,22 @@ final class FilmProcessor: Sendable {
 
     /// 唯一的静态照片 CIContext。创建过程在锁内执行：后台预热与极快首拍撞车时，后者等待同一实例，
     /// 不会各自创建一份昂贵的 Metal context。
-    private func renderingContext() -> CIContext {
-        renderContextLock.withLock { context in
+    private func renderingContext(raw: Bool = false) -> CIContext {
+        let contextLock = raw ? rawRenderContextLock : renderContextLock
+        return contextLock.withLock { context in
             if let context { return context }
 
             // 显式使用 Metal 设备，确保 LUT 处理走 GPU 加速路径。
             // highQualityDownsample: 任何隐式缩放都走 Lanczos（保高频细节），不开默认走廉价 linear。
             // cacheIntermediates: 48MP 路径中间步骤缓存可达数百 MB；关掉后按需重算，避免低内存设备 jetsam。
-            let baseOptions: [CIContextOption: Any] = [
-                CIContextOption.workingColorSpace: srgbColorSpace,
+            var baseOptions: [CIContextOption: Any] = [
+                CIContextOption.workingColorSpace: raw ? RawFilmRenderer.linearSpace : srgbColorSpace,
                 CIContextOption.outputColorSpace: srgbColorSpace,
                 CIContextOption.highQualityDownsample: true,
                 CIContextOption.cacheIntermediates: false,
                 CIContextOption.priorityRequestLow: true
             ]
+            if raw { baseOptions[.workingFormat] = CIFormat.RGBAf }
             let created: CIContext
             if let mtlDevice = MTLCreateSystemDefaultDevice() {
                 created = CIContext(mtlDevice: mtlDevice, options: baseOptions)
@@ -108,6 +111,12 @@ final class FilmProcessor: Sendable {
         _ = renderingContext()
         _ = FilmImageKernels.shared
         timer.end()
+    }
+
+    /// Called by the serial RAW resource actor before enabling the shutter.
+    func prepareRawRendering() throws {
+        _ = renderingContext(raw: true)
+        try RawFilmRenderer.prepare()
     }
 
     /// Initializes the shared still-render CIContext and effect kernels before capture admission. This performs
@@ -156,7 +165,8 @@ final class FilmProcessor: Sendable {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
             // 原片按真实编码字节保留（AVCapture 交付 HEIC；极旧设备回退 JPEG 时按魔数定扩展名）。
-            let originalExtension = original.starts(with: [0xFF, 0xD8]) ? "jpg" : "heic"
+            let source = CGImageSourceCreateWithData(original as CFData, nil)
+            let originalExtension = source.map { RawFilmRenderer.isDNG($0) } == true ? "dng" : (original.starts(with: [0xFF, 0xD8]) ? "jpg" : "heic")
             try original.write(to: directory.appendingPathComponent("1_original.\(originalExtension)"), options: .atomic)
 
             for stage in stages {
@@ -210,7 +220,7 @@ final class FilmProcessor: Sendable {
 
     /// 构建期生成的直接加载格式：magic(8) + dimension(UInt32 LE) + floatCount(UInt32 LE)
     /// + RGBA Float32 LE。Apple 平台均为 little-endian，payload 可直接交给 CIColorCube / Metal。
-    private static func decodeCompiledLUT(_ data: Data) throws -> CubeLUT {
+    static func decodeCompiledLUT(_ data: Data) throws -> CubeLUT {
         guard data.count >= compiledLUTHeaderSize,
               Array(data.prefix(compiledLUTMagic.count)) == compiledLUTMagic else {
             throw NSError(
@@ -276,14 +286,13 @@ final class FilmProcessor: Sendable {
         let totalTimer = Log.perf("lut_load", logger: Log.lut)
 
         // 内置资源优先走构建期编译的二进制格式。读取 + 16-byte header 校验后即可直接使用，
-        // 不再在冷启动时解析 15,625 行十进制文本。
+        // 不再在冷启动时解析整份十进制文本。
         if let compiledURL = Bundle.main.url(forResource: resourceName, withExtension: "jslut") {
             do {
                 let data = try Data(contentsOf: compiledURL, options: .mappedIfSafe)
-                let cube = FilmLUTCalibration.applying(
-                    to: Self.applyingShadowToe(to: try Self.decodeCompiledLUT(data)), resourceName: resourceName)
+                let cube = try Self.decodeCompiledLUT(data)
                 _ = lock.withLock { $0.luts.insert(cube, forKey: resourceName, cost: cube.data.count) }
-                totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=binary bytes=\(data.count) shadow_toe=on")
+                totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=binary bytes=\(data.count)")
                 return cube
             } catch {
                 Log.lut.error("lut_binary_load_failed name=\(resourceName, privacy: .public) error=\(error.localizedDescription, privacy: .public) fallback=text")
@@ -302,9 +311,8 @@ final class FilmProcessor: Sendable {
             let text = try Self.readCubeText(from: url)
             readTimer.end("name=\(resourceName) chars=\(text.count)")
             let parseTimer = Log.perf("lut_text_parse", logger: Log.lut)
-            let cube = FilmLUTCalibration.applying(
-                to: Self.applyingShadowToe(to: try Self.parseCubeFile(text)), resourceName: resourceName)
-            parseTimer.end("name=\(resourceName) dim=\(cube.dimension) shadow_toe=on")
+            let cube = try Self.parseCubeFile(text)
+            parseTimer.end("name=\(resourceName) dim=\(cube.dimension)")
             _ = lock.withLock { $0.luts.insert(cube, forKey: resourceName, cost: cube.data.count) }
             totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=text")
             return cube
@@ -315,38 +323,7 @@ final class FilmProcessor: Sendable {
     }
 
     func preload(preset: FilmPreset) {
-        _ = try? loadCubeLUT(resourceName: preset.lutResourceName)
-    }
-
-    // MARK: - 内置 LUT 暗部趾部保护
-    //
-    // 实测内置 .cube 的中性轴：部分胶片（尤其 Provia 100F）把输入 0.05 的中性灰压到加权
-    // luma ≈ 0.003——可见纹理被挤进 sRGB 底部约 1/255 的不可见区。这里在加载时对 LUT 的
-    // **输出值** 做逐通道趾部抬升（印相纸 base fog 的思路）：
-    //   y' = y + s · ((t − y)/t)² · t   （y < t；y ≥ t 恒等）
-    // t=0.16 以上完全不触碰，保留各卷影调风格；黑端最多抬 s·t ≈ 0.035，实测 Provia 0.05
-    // 输入从 0.003 → 0.037（≈9/255，可见）。烘焙进缓存数据后，预览 / 静态图 / Live Photo
-    // 与曲线合成共用同一份数据，三路数学自动一致。自定义 LUT 不做处理（用户导入什么就出什么）。
-    private static let shadowToeThreshold: Float = 0.16
-    private static let shadowToeStrength: Float = 0.22
-
-    private static func applyingShadowToe(to lut: CubeLUT) -> CubeLUT {
-        let t = shadowToeThreshold
-        let s = shadowToeStrength
-        var data = lut.data
-        data.withUnsafeMutableBytes { rawBuffer in
-            let floats = rawBuffer.bindMemory(to: Float.self)
-            for index in stride(from: 0, to: floats.count - 3, by: 4) {
-                for channel in 0..<3 {
-                    let y = floats[index + channel]
-                    if y < t {
-                        let distance = (t - y) / t
-                        floats[index + channel] = y + s * distance * distance * t
-                    }
-                }
-            }
-        }
-        return CubeLUT(data: data, dimension: lut.dimension)
+        _ = try? loadLUT(source: .preset(preset))
     }
 
     /// 从文件 URL 加载自定义 LUT（用于用户导入的 .cube 文件）
@@ -359,8 +336,17 @@ final class FilmProcessor: Sendable {
             return cached
         }
         do {
-            let text = try Self.readCubeText(from: url)
-            let cube = try Self.parseCubeFile(text)
+            let cube: CubeLUT
+            if url.pathExtension.lowercased() == "jslut" {
+                let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                guard size <= 16 + CubeLUT.maximumDimension * CubeLUT.maximumDimension * CubeLUT.maximumDimension * 16 else {
+                    throw CubeLUT.ParseError.malformed
+                }
+                cube = try Self.decodeCompiledLUT(Data(contentsOf: url, options: .mappedIfSafe))
+            } else {
+                // Existing imported files retain their historical sRGB interpretation.
+                cube = try Self.parseCubeFile(Self.readCubeText(from: url))
+            }
             _ = lock.withLock { $0.luts.insert(cube, forKey: cacheKey, cost: cube.data.count) }
             return cube
         } catch {
@@ -409,6 +395,10 @@ final class FilmProcessor: Sendable {
         if let url = lock.withLock({ $0.fileSources.value(forKey: cacheKey) }) {
             return try? loadCubeLUTFromFile(url: url, cacheKey: cacheKey)
         }
+        if cacheKey.hasSuffix(FilmLookRefinement.cacheSuffix),
+           let preset = FilmPreset.allCases.first(where: { FilmSource.preset($0).lutCacheKey == cacheKey }) {
+            return try? loadLUT(source: .preset(preset))
+        }
         if Bundle.main.url(forResource: cacheKey, withExtension: "jslut") != nil
             || Bundle.main.url(forResource: cacheKey, withExtension: "cube") != nil {
             return try? loadCubeLUT(resourceName: cacheKey)
@@ -433,7 +423,15 @@ final class FilmProcessor: Sendable {
         let base: CubeLUT
         switch source {
         case .preset(let p):
-            base = try loadCubeLUT(resourceName: p.lutResourceName)
+            if let cached = cachedLUT(cacheKey: baseKey) {
+                base = cached
+            } else {
+                let original = try loadCubeLUT(resourceName: p.lutResourceName)
+                let timer = Log.perf("lut_look_refine", logger: Log.lut)
+                base = try FilmLookRefinement.applying(to: original, preset: p)
+                _ = lock.withLock { $0.luts.insert(base, forKey: baseKey, cost: base.data.count) }
+                timer.end("film=\(p.rawValue) revision=\(FilmLookRefinement.revision) dim=\(base.dimension)")
+            }
         case .custom(_, _, _, let fileName):
             let url = CustomLUT.storageDirectory.appendingPathComponent(fileName)
             base = try loadCubeLUTFromFile(url: url, cacheKey: baseKey)
@@ -463,12 +461,15 @@ final class FilmProcessor: Sendable {
         imageData: Data,
         lutCacheKey: String,
         capturedLUT: CubeLUT? = nil,
+        rawRecipe: RawCaptureRecipe? = nil,
+        rawLUT: RawFilmLUT? = nil,
         grain: FilmGrainParameters = .disabled,
         grainSeed: UInt32 = 0,
         optics: FilmOpticsParameters = .disabled,
         chromatic: FilmChromaticResponseParameters = .neutral,
         chromaticSceneCCT: Float? = nil,
         outputQuality: CGFloat? = nil,
+        encodingMode: PhotoEncodingPolicy.Mode = .automatic,
         location: CLLocation? = nil,
         captureDate: Date = Date(),
         focalLengthIn35mm: Int? = nil,
@@ -490,7 +491,20 @@ final class FilmProcessor: Sendable {
             return 1
         }()
 
-        guard let rawCI = CIImage(data: imageData) else {
+        let decoded: CIImage?
+        if let rawRecipe {
+            if rawRecipe.requiresRawLUT {
+                guard let rawLUT else { return nil }
+                decoded = RawFilmRenderer.develop(imageData, lut: rawLUT, recipe: rawRecipe, cancellation: cancellation)
+            } else {
+                guard let capturedLUT, (try? rawRecipe.validate(displayLUT: capturedLUT)) != nil,
+                      rawLUT == nil else { return nil }
+                decoded = RawFilmRenderer.develop(imageData, recipe: rawRecipe, cancellation: cancellation)
+            }
+        } else {
+            decoded = CIImage(data: imageData)
+        }
+        guard let rawCI = decoded else {
             Log.lut.error("lut_apply_failed reason=ciimage_init_nil bytes=\(imageData.count)")
             return nil
         }
@@ -529,7 +543,7 @@ final class FilmProcessor: Sendable {
             return nil
         }
 
-        guard let stages = FilmImagePipeline.stages(for: ciInput, lut: lut,
+        guard let stages = FilmImagePipeline.stages(for: ciInput, lut: rawRecipe?.requiresRawLUT == true ? nil : lut,
             chromaticGain: chromatic.responseGain(sceneCCT: chromaticSceneCCT),
             protectChromaticHighlights: chromatic.protectsHighlights,
             optics: optics, grain: grain, grainSeed: grainSeed,
@@ -608,6 +622,14 @@ final class FilmProcessor: Sendable {
 
         metadata[kCGImagePropertyPixelWidth as String] = Int(output.extent.width)
         metadata[kCGImagePropertyPixelHeight as String] = Int(output.extent.height)
+        if rawRecipe != nil {
+            metadata.removeValue(forKey: kCGImagePropertyDNGDictionary as String)
+            var exif = metadata[kCGImagePropertyExifDictionary as String] as? [String: Any] ?? [:]
+            exif[kCGImagePropertyExifColorSpace as String] = 1
+            exif[kCGImagePropertyExifPixelXDimension as String] = Int(output.extent.width)
+            exif[kCGImagePropertyExifPixelYDimension as String] = Int(output.extent.height)
+            metadata[kCGImagePropertyExifDictionary as String] = exif
+        }
         metadata.removeValue(forKey: kCGImagePropertyDepth as String)
         let outputWithMetadata = output.settingProperties(metadata)
 
@@ -615,10 +637,10 @@ final class FilmProcessor: Sendable {
         let outMP = (outExtent.isInfinite || outExtent.isEmpty) ? 0 : (outExtent.width * outExtent.height) / 1_000_000
 
         guard cancellation?.isCancelled != true else { return nil }
-        let ciContext = renderingContext()
+        let ciContext = renderingContext(raw: rawRecipe != nil)
         guard cancellation?.isCancelled != true else { return nil }
         guard let encoded = PhotoImageEncoder.encode(outputWithMetadata, context: ciContext,
-            colorSpace: srgbColorSpace, legacyQuality: outputQuality, cancellation: cancellation) else {
+            colorSpace: srgbColorSpace, legacyQuality: outputQuality, mode: encodingMode, cancellation: cancellation) else {
             if cancellation?.isCancelled != true { Log.lut.error("lut_apply_failed reason=render_failed") }
             return nil
         }

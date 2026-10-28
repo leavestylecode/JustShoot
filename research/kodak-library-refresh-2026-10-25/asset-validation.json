@@ -1,0 +1,454 @@
+{
+  "covers": 147,
+  "newlyGenerated": 145,
+  "reuseApproved": 2,
+  "totalBytes": 19644157,
+  "oldTotalBytes": 4796544,
+  "format": "HEIC, 1024 x 1024, embedded sRGB ICC",
+  "colorLabelsChanged": [
+    {
+      "id": "00017_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00021_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00037_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00042_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00043_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00052_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00066_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00079_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00080_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00081_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00084_000",
+      "before": "orange",
+      "after": "red"
+    },
+    {
+      "id": "00086_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00088_000",
+      "before": "purple",
+      "after": "yellow"
+    },
+    {
+      "id": "00089_000",
+      "before": "yellow",
+      "after": "purple"
+    },
+    {
+      "id": "00094_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00095_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00097_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00099_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00120_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00121_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00149_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00153_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00155_000",
+      "before": "orange",
+      "after": "blue"
+    },
+    {
+      "id": "00176_000",
+      "before": "gray",
+      "after": "yellow"
+    },
+    {
+      "id": "00189_000",
+      "before": "orange",
+      "after": "gray"
+    },
+    {
+      "id": "00260_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00261_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00263_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00274_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00278_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00279_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00303_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00332_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00333_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00337_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00390_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00424_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00430_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00431_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00433_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00440_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00442_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00443_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00446_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00459_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00462_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00484_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00489_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00501_000",
+      "before": "orange",
+      "after": "blue"
+    },
+    {
+      "id": "00509_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00519_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00542_000",
+      "before": "orange",
+      "after": "yellow"
+    },
+    {
+      "id": "00543_000",
+      "before": "orange",
+      "after": "yellow"
+    }
+  ],
+  "colorDistributionBefore": {
+    "orange": 51,
+    "yellow": 84,
+    "purple": 5,
+    "red": 2,
+    "blue": 3,
+    "gray": 1,
+    "black": 1
+  },
+  "colorDistributionAfter": {
+    "yellow": 131,
+    "red": 3,
+    "purple": 5,
+    "blue": 5,
+    "orange": 1,
+    "black": 1,
+    "gray": 1
+  },
+  "changedAppPaths": [
+    "JustShoot/Resources/cards.json",
+    "JustShoot/Resources/cards/00017_000.heic",
+    "JustShoot/Resources/cards/00021_000.heic",
+    "JustShoot/Resources/cards/00024_000.heic",
+    "JustShoot/Resources/cards/00025_000.heic",
+    "JustShoot/Resources/cards/00026_000.heic",
+    "JustShoot/Resources/cards/00027_000.heic",
+    "JustShoot/Resources/cards/00028_000.heic",
+    "JustShoot/Resources/cards/00035_000.heic",
+    "JustShoot/Resources/cards/00037_000.heic",
+    "JustShoot/Resources/cards/00041_000.heic",
+    "JustShoot/Resources/cards/00042_000.heic",
+    "JustShoot/Resources/cards/00043_000.heic",
+    "JustShoot/Resources/cards/00045_000.heic",
+    "JustShoot/Resources/cards/00052_000.heic",
+    "JustShoot/Resources/cards/00060_000.heic",
+    "JustShoot/Resources/cards/00064_000.heic",
+    "JustShoot/Resources/cards/00066_000.heic",
+    "JustShoot/Resources/cards/00068_000.heic",
+    "JustShoot/Resources/cards/00069_000.heic",
+    "JustShoot/Resources/cards/00079_000.heic",
+    "JustShoot/Resources/cards/00080_000.heic",
+    "JustShoot/Resources/cards/00081_000.heic",
+    "JustShoot/Resources/cards/00084_000.heic",
+    "JustShoot/Resources/cards/00086_000.heic",
+    "JustShoot/Resources/cards/00088_000.heic",
+    "JustShoot/Resources/cards/00089_000.heic",
+    "JustShoot/Resources/cards/00091_000.heic",
+    "JustShoot/Resources/cards/00094_000.heic",
+    "JustShoot/Resources/cards/00095_000.heic",
+    "JustShoot/Resources/cards/00097_000.heic",
+    "JustShoot/Resources/cards/00099_000.heic",
+    "JustShoot/Resources/cards/00100_000.heic",
+    "JustShoot/Resources/cards/00102_000.heic",
+    "JustShoot/Resources/cards/00103_000.heic",
+    "JustShoot/Resources/cards/00104_000.heic",
+    "JustShoot/Resources/cards/00105_000.heic",
+    "JustShoot/Resources/cards/00106_000.heic",
+    "JustShoot/Resources/cards/00107_000.heic",
+    "JustShoot/Resources/cards/00113_000.heic",
+    "JustShoot/Resources/cards/00114_000.heic",
+    "JustShoot/Resources/cards/00119_000.heic",
+    "JustShoot/Resources/cards/00120_000.heic",
+    "JustShoot/Resources/cards/00121_000.heic",
+    "JustShoot/Resources/cards/00135_000.heic",
+    "JustShoot/Resources/cards/00142_000.heic",
+    "JustShoot/Resources/cards/00144_000.heic",
+    "JustShoot/Resources/cards/00146_000.heic",
+    "JustShoot/Resources/cards/00149_000.heic",
+    "JustShoot/Resources/cards/00153_000.heic",
+    "JustShoot/Resources/cards/00154_000.heic",
+    "JustShoot/Resources/cards/00155_000.heic",
+    "JustShoot/Resources/cards/00160_000.heic",
+    "JustShoot/Resources/cards/00172_000.heic",
+    "JustShoot/Resources/cards/00175_000.heic",
+    "JustShoot/Resources/cards/00176_000.heic",
+    "JustShoot/Resources/cards/00178_000.heic",
+    "JustShoot/Resources/cards/00180_000.heic",
+    "JustShoot/Resources/cards/00181_000.heic",
+    "JustShoot/Resources/cards/00189_000.heic",
+    "JustShoot/Resources/cards/00192_000.heic",
+    "JustShoot/Resources/cards/00193_000.heic",
+    "JustShoot/Resources/cards/00200_000.heic",
+    "JustShoot/Resources/cards/00201_000.heic",
+    "JustShoot/Resources/cards/00203_000.heic",
+    "JustShoot/Resources/cards/00223_000.heic",
+    "JustShoot/Resources/cards/00224_000.heic",
+    "JustShoot/Resources/cards/00233_000.heic",
+    "JustShoot/Resources/cards/00234_000.heic",
+    "JustShoot/Resources/cards/00235_000.heic",
+    "JustShoot/Resources/cards/00237_000.heic",
+    "JustShoot/Resources/cards/00238_000.heic",
+    "JustShoot/Resources/cards/00239_000.heic",
+    "JustShoot/Resources/cards/00240_000.heic",
+    "JustShoot/Resources/cards/00241_000.heic",
+    "JustShoot/Resources/cards/00242_000.heic",
+    "JustShoot/Resources/cards/00243_000.heic",
+    "JustShoot/Resources/cards/00244_000.heic",
+    "JustShoot/Resources/cards/00245_000.heic",
+    "JustShoot/Resources/cards/00246_000.heic",
+    "JustShoot/Resources/cards/00251_000.heic",
+    "JustShoot/Resources/cards/00252_000.heic",
+    "JustShoot/Resources/cards/00253_000.heic",
+    "JustShoot/Resources/cards/00260_000.heic",
+    "JustShoot/Resources/cards/00261_000.heic",
+    "JustShoot/Resources/cards/00262_000.heic",
+    "JustShoot/Resources/cards/00263_000.heic",
+    "JustShoot/Resources/cards/00271_000.heic",
+    "JustShoot/Resources/cards/00273_000.heic",
+    "JustShoot/Resources/cards/00274_000.heic",
+    "JustShoot/Resources/cards/00275_000.heic",
+    "JustShoot/Resources/cards/00276_000.heic",
+    "JustShoot/Resources/cards/00278_000.heic",
+    "JustShoot/Resources/cards/00279_000.heic",
+    "JustShoot/Resources/cards/00280_000.heic",
+    "JustShoot/Resources/cards/00294_000.heic",
+    "JustShoot/Resources/cards/00295_000.heic",
+    "JustShoot/Resources/cards/00296_000.heic",
+    "JustShoot/Resources/cards/00297_000.heic",
+    "JustShoot/Resources/cards/00299_000.heic",
+    "JustShoot/Resources/cards/00303_000.heic",
+    "JustShoot/Resources/cards/00320_000.heic",
+    "JustShoot/Resources/cards/00325_000.heic",
+    "JustShoot/Resources/cards/00326_000.heic",
+    "JustShoot/Resources/cards/00331_000.heic",
+    "JustShoot/Resources/cards/00332_000.heic",
+    "JustShoot/Resources/cards/00333_000.heic",
+    "JustShoot/Resources/cards/00337_000.heic",
+    "JustShoot/Resources/cards/00338_000.heic",
+    "JustShoot/Resources/cards/00345_000.heic",
+    "JustShoot/Resources/cards/00353_000.heic",
+    "JustShoot/Resources/cards/00365_000.heic",
+    "JustShoot/Resources/cards/00381_000.heic",
+    "JustShoot/Resources/cards/00390_000.heic",
+    "JustShoot/Resources/cards/00410_000.heic",
+    "JustShoot/Resources/cards/00411_000.heic",
+    "JustShoot/Resources/cards/00414_000.heic",
+    "JustShoot/Resources/cards/00423_000.heic",
+    "JustShoot/Resources/cards/00424_000.heic",
+    "JustShoot/Resources/cards/00430_000.heic",
+    "JustShoot/Resources/cards/00431_000.heic",
+    "JustShoot/Resources/cards/00433_000.heic",
+    "JustShoot/Resources/cards/00440_000.heic",
+    "JustShoot/Resources/cards/00441_000.heic",
+    "JustShoot/Resources/cards/00442_000.heic",
+    "JustShoot/Resources/cards/00443_000.heic",
+    "JustShoot/Resources/cards/00446_000.heic",
+    "JustShoot/Resources/cards/00453_000.heic",
+    "JustShoot/Resources/cards/00454_000.heic",
+    "JustShoot/Resources/cards/00458_000.heic",
+    "JustShoot/Resources/cards/00459_000.heic",
+    "JustShoot/Resources/cards/00462_000.heic",
+    "JustShoot/Resources/cards/00484_000.heic",
+    "JustShoot/Resources/cards/00489_000.heic",
+    "JustShoot/Resources/cards/00501_000.heic",
+    "JustShoot/Resources/cards/00502_000.heic",
+    "JustShoot/Resources/cards/00509_000.heic",
+    "JustShoot/Resources/cards/00519_000.heic",
+    "JustShoot/Resources/cards/00520_000.heic",
+    "JustShoot/Resources/cards/00521_000.heic",
+    "JustShoot/Resources/cards/00536_000.heic",
+    "JustShoot/Resources/cards/00537_000.heic",
+    "JustShoot/Resources/cards/00539_000.heic",
+    "JustShoot/Resources/cards/00542_000.heic",
+    "JustShoot/Resources/cards/00543_000.heic",
+    "JustShoot/Resources/cards/00546_000.heic",
+    "JustShoot/Resources/cards/00557_000.heic",
+    "JustShoot/Resources/cards/00562_000.heic"
+  ],
+  "independentChangesPreserved": [
+    {
+      "path": "JustShoot/Localizable.xcstrings",
+      "baselineSHA256": "d576f2e034427ac7d62a6af25be8cb83e04192f91a93beb44a3d2b397b67663a",
+      "observedSHA256": "e6bacb3a605c332c1ed2444848c4b2767467d655b19408517f957ffe7f665757",
+      "note": "Independent change observed during final scope audit; cover tooling does not edit this string catalog. Preserve this exact file and audit cover changes separately."
+    }
+  ],
+  "scopeAudit": "This refresh installs exactly 147 Kodak numeric image assets and Kodak color labels in cards.json. One independent Localizable.xcstrings change observed since the starting baseline is recorded separately and preserved at its observed hash. All other app files match baseline.",
+  "catalogAudit": "550 cards, 147 Kodak cards; IDs, ordering, image bindings and all metadata except these cards color labels preserved.",
+  "visualReview": "All 147 covers reviewed against exact packaging scans and approved app styles on complete contact sheets; individual refinements recorded separately."
+}

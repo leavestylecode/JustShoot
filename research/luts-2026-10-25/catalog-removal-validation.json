@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-25",
+  "scope": "Remove eight built-in LUTs; retain nine unchanged looks and custom LUT import functionality. Pre-release product: existing photo/custom-LUT data compatibility is not required. Simulator verification only.",
+  "removed": {
+    "fujiRawRealaAce": "FujiRawREALAACE",
+    "fujiRawProNegStd": "FujiRawPRONegStd",
+    "fujiRawETERNA": "FujiRawETERNA",
+    "fujiRawEternaBB": "FujiRawETERNABB",
+    "kodakVision5219": "KodakVision5219",
+    "kodakVision5203": "KodakVision5203",
+    "kodak5207": "Kodak5207",
+    "harmanPhoenix200": "HarmanPhoenix200"
+  },
+  "removedResourceCount": 16,
+  "removedResourceBytes": 54129241,
+  "archive": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/removed-luts-2026-10-25",
+  "remaining": [
+    "fujiProvia100F",
+    "fujiRawVelvia",
+    "fujiRawASTIA",
+    "fujiRawClassicChrome",
+    "fujiRawClassicNeg",
+    "fujiRawACROS",
+    "fujiC200",
+    "fujiPro400H",
+    "kodakPortra400"
+  ],
+  "checks": {
+    "remainingSourceHashesAndProfilesUnchanged": true,
+    "allDeletedResourcesAbsentInAppBundle": "passed in FilmPresetCatalogTests",
+    "existingLocalizationEntriesPreserved": true,
+    "pythonAST": "passed",
+    "gitDiffCheck": "passed",
+    "removedPresetRuntimeReferences": "absent; historical name mapping and dedicated compatibility test removed"
+  },
+  "simulator": {
+    "project": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot.xcodeproj",
+    "scheme": "JustShoot",
+    "configuration": "Debug",
+    "name": "iPhone 17",
+    "os": "26.4.1",
+    "passed": 432,
+    "failed": 0,
+    "skipped": 3,
+    "warnings": 0,
+    "log": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-25T03-19-27-509Z_pid9844_5aacb51b.log",
+    "resultBundle": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-25T03-19-27-510Z_pid9844_edb62a35.xcresult",
+    "appLaunch": "passed; build_run_sim succeeded without warnings",
+    "uiInspection": {
+      "screen": "Films",
+      "builtInCount": 9,
+      "removedLooksAbsent": true,
+      "customImportEntryRetained": true,
+      "existingCustomFilterRetained": "ImportValidation",
+      "screenshot": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/removed-luts-2026-10-25/remaining-luts-simulator.jpg"
+    }
+  },
+  "rendererParity": {
+    "scope": "Same quantized sRGB input, grading stage only; no new physical-device paired capture.",
+    "count": 54,
+    "maximumRGB": 0.0022250414,
+    "maximumMeanRGB": 0.0006817513543258732
+  },
+  "preReleaseCleanup": {
+    "reason": "User confirmed the product has not shipped; existing photo/custom-LUT data need not be migrated.",
+    "removed": [
+      "Retired preset historical display-name mapping",
+      "Retired preset historical metadata regression"
+    ],
+    "recoveryFixture": "PROVIA; no retired-look surrogate fixture",
+    "preservedFeatures": [
+      "Custom LUT import",
+      "Capture-time frozen LUT and save/recovery"
+    ],
+    "dataDeletionOrMigrationPerformed": false,
+    "simulator": {
+      "name": "iPhone 17",
+      "os": "26.4.1",
+      "scheme": "JustShoot",
+      "passed": 15,
+      "failed": 0,
+      "skipped": 1,
+      "skipReason": "Optional external Apple ProRAW fixture not supplied",
+      "warnings": 0,
+      "log": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-25T03-26-12-702Z_pid9844_b1e3a1eb.log",
+      "resultBundle": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-25T03-26-12-702Z_pid9844_dcb40d6f.xcresult"
+    },
+    "buildRun": {
+      "status": "passed",
+      "warnings": 0,
+      "log": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-10-25T03-27-07-702Z_pid9844_6813841b.log"
+    },
+    "uiInspection": "Films page: exactly 9 built-in looks and Import LUT entry present; removed looks absent"
+  }
+}

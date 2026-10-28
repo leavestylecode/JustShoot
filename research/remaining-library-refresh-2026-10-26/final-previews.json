@@ -1,0 +1,42 @@
+{
+  "mixedIds": [
+    "00200_000",
+    "00361_000",
+    "00473_000",
+    "00023_000",
+    "00478_000",
+    "00463_000",
+    "00419_000",
+    "00021_000",
+    "00367_000",
+    "00517_000",
+    "00055_000",
+    "00475_000",
+    "00476_000",
+    "00535_000",
+    "00081_000",
+    "00471_000",
+    "00541_000",
+    "00558_000",
+    "00506_000",
+    "00451_000",
+    "00438_000",
+    "00544_000",
+    "00455_000",
+    "00560_000"
+  ],
+  "beforeAfterIds": [
+    "00361_000",
+    "00473_000",
+    "00475_000",
+    "00463_000",
+    "00478_000",
+    "00419_000",
+    "00517_000",
+    "00541_000"
+  ],
+  "mixedImage": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/final-harmony.jpg",
+  "comparisonImage": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/final-before-after.jpg",
+  "reviewed": true,
+  "findings": "24-cover mixed board reviewed with six protected Kodak/Fujifilm covers. Eight before/after pairs reviewed. Distinctive packaging palettes and typography retained; compact hierarchy and visual weight are harmonious."
+}

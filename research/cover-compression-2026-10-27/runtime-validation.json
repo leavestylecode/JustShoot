@@ -1,0 +1,56 @@
+{
+  "complete": true,
+  "project": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot.xcodeproj",
+  "scheme": "JustShoot",
+  "configuration": "Debug",
+  "simulator": "iPhone 17",
+  "simulatorId": "06CBF94A-F235-4319-A5F9-3548DDC86AD2",
+  "iOS": "26.4",
+  "build": {
+    "status": "SUCCEEDED",
+    "durationMs": 58756,
+    "warnings": [],
+    "errors": [],
+    "log": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-10-27T15-46-23-101Z_pid3911_f10ea37d.log"
+  },
+  "tests": {
+    "status": "SUCCEEDED",
+    "durationMs": 11639,
+    "counts": {
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0
+    },
+    "target": "simulator"
+  },
+  "testEvidence": "test-result.json",
+  "uiInspections": [
+    {
+      "screen": "Library mixed-brand grid",
+      "result": "All visible images load, lettering and packaging colors display correctly."
+    },
+    {
+      "screen": "Ilford HP5 Plus detail",
+      "result": "Full cover and small footer readable."
+    },
+    {
+      "screen": "Films grid",
+      "result": "All 9 bundled capture covers visible and correctly bound."
+    }
+  ],
+  "screenshots": {
+    "library": "/Users/leavestyle/.codex/visualizations/2026/10/27/justshoot-cover-compression/comparisons/simulator-library.jpg",
+    "detail": "/Users/leavestyle/.codex/visualizations/2026/10/27/justshoot-cover-compression/comparisons/simulator-detail.jpg",
+    "films": "/Users/leavestyle/.codex/visualizations/2026/10/27/justshoot-cover-compression/comparisons/simulator-films.jpg"
+  },
+  "bundleEvidence": "bundle-resource-check.json",
+  "physicalDeviceTested": false,
+  "physicalPerformanceClaim": false,
+  "finalScopeAudit": {
+    "changedAppFiles": 559,
+    "allChangedFilesAreExpectedCovers": true,
+    "catalogLUTsCodeAndOtherAppFilesUnchanged": true,
+    "all552PNGMastersUnchanged": true
+  },
+  "gitDiffCheckPassed": true
+}

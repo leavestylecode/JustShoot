@@ -1,0 +1,280 @@
+{
+  "pairsChecked": 59,
+  "beforeRecognizedLines": 271,
+  "afterRecognizedLines": 272,
+  "flaggedPairs": 8,
+  "flags": [
+    {
+      "name": "00548_000.heic",
+      "beforeOCR": [
+        {
+          "confidence": 1,
+          "text": "lomogrophy",
+          "y": 0.8808593752929688
+        }
+      ],
+      "afterOCR": [
+        {
+          "confidence": 1,
+          "text": "lamography",
+          "y": 0.8828125002766927
+        },
+        {
+          "confidence": 1,
+          "text": "POTSDAM",
+          "y": 0.39875625898786204
+        },
+        {
+          "confidence": 1,
+          "text": "120 • ISO 100 • BW",
+          "y": 0.03710937500985523
+        }
+      ],
+      "manualResolution": "Reviewed before/after image crops. Letter shapes and readability retained; OCR variation in stylized lettering, accents, whitespace or Latin/Cyrillic lookalikes."
+    },
+    {
+      "name": "00444_000.heic",
+      "beforeOCR": [
+        {
+          "confidence": 1,
+          "text": "Agfà",
+          "y": 0.7773437502618963
+        }
+      ],
+      "afterOCR": [
+        {
+          "confidence": 1,
+          "text": "Agfa",
+          "y": 0.7832031253102022
+        },
+        {
+          "confidence": 1,
+          "text": "Agfacolor",
+          "y": 0.377661595891319
+        },
+        {
+          "confidence": 1,
+          "text": "Reversal Film",
+          "y": 0.2929687503817471
+        },
+        {
+          "confidence": 1,
+          "text": "CK",
+          "y": 0.17839550433321327
+        },
+        {
+          "confidence": 1,
+          "text": "35mm • 36exp • ISO 80",
+          "y": 0.0282029559762762
+        }
+      ],
+      "manualResolution": "Reviewed before/after image crops. Letter shapes and readability retained; OCR variation in stylized lettering, accents, whitespace or Latin/Cyrillic lookalikes."
+    },
+    {
+      "name": "00190_000.heic",
+      "beforeOCR": [
+        {
+          "confidence": 1,
+          "text": "35mm • 36exp • ISO 400 • BW",
+          "y": 0.05273437501015632
+        }
+      ],
+      "afterOCR": [
+        {
+          "confidence": 1,
+          "text": "AGFA",
+          "y": 0.8007812502604167
+        },
+        {
+          "confidence": 1,
+          "text": "Agfa",
+          "y": 0.8296538984323087
+        },
+        {
+          "confidence": 1,
+          "text": "AGFAPAN",
+          "y": 0.6152343750156579
+        },
+        {
+          "confidence": 1,
+          "text": "АРХ 400",
+          "y": 0.26367187559168204
+        },
+        {
+          "confidence": 1,
+          "text": "35mm • 36ехр • ISO 400 • BW",
+          "y": 0.05111317922764225
+        }
+      ],
+      "manualResolution": "Reviewed before/after image crops. Letter shapes and readability retained; OCR variation in stylized lettering, accents, whitespace or Latin/Cyrillic lookalikes."
+    },
+    {
+      "name": "00177_000.heic",
+      "beforeOCR": [
+        {
+          "confidence": 1,
+          "text": "FUJ FILM",
+          "y": 0.8314973547669071
+        }
+      ],
+      "afterOCR": [
+        {
+          "confidence": 1,
+          "text": "FUJIFILM",
+          "y": 0.8301021717757668
+        },
+        {
+          "confidence": 1,
+          "text": "FUJICOLOR",
+          "y": 0.6358553602209494
+        },
+        {
+          "confidence": 1,
+          "text": "NATURA",
+          "y": 0.45103153836246945
+        },
+        {
+          "confidence": 1,
+          "text": "1600",
+          "y": 0.308333329953014
+        },
+        {
+          "confidence": 1,
+          "text": "35mm • 36EXP",
+          "y": 0.1054687500146485
+        },
+        {
+          "confidence": 1,
+          "text": "ISO 1600",
+          "y": 0.06496471193259201
+        }
+      ],
+      "manualResolution": "Reviewed before/after image crops. Letter shapes and readability retained; OCR variation in stylized lettering, accents, whitespace or Latin/Cyrillic lookalikes."
+    },
+    {
+      "name": "00286_000.heic",
+      "beforeOCR": [
+        {
+          "confidence": 1,
+          "text": "Аgfa",
+          "y": 0.7382812504720052
+        },
+        {
+          "confidence": 1,
+          "text": "alrockeplatten",
+          "y": 0.3083333316682588
+        }
+      ],
+      "afterOCR": [
+        {
+          "confidence": 1,
+          "text": "Agfa",
+          "y": 0.7363281254625822
+        },
+        {
+          "confidence": 1,
+          "text": "rockenplatten",
+          "y": 0.30498947386096453
+        },
+        {
+          "confidence": 1,
+          "text": "9x12cm • 12 Sheets • BW",
+          "y": 0.08398437500763789
+        }
+      ],
+      "manualResolution": "Reviewed before/after image crops. Letter shapes and readability retained; OCR variation in stylized lettering, accents, whitespace or Latin/Cyrillic lookalikes."
+    },
+    {
+      "name": "00511_000.heic",
+      "beforeOCR": [
+        {
+          "confidence": 1,
+          "text": "ЕПО",
+          "y": 0.4257812506713867
+        }
+      ],
+      "afterOCR": [
+        {
+          "confidence": 1,
+          "text": "Escura",
+          "y": 0.8730468750843394
+        },
+        {
+          "confidence": 1,
+          "text": "ЕЛО",
+          "y": 0.4257812505273437
+        },
+        {
+          "confidence": 1,
+          "text": "UKIYO-E",
+          "y": 0.324218750024414
+        },
+        {
+          "confidence": 1,
+          "text": "35mm • 24exp • ISO 400 • C-41",
+          "y": 0.027343750012466694
+        }
+      ],
+      "manualResolution": "Reviewed before/after image crops. Letter shapes and readability retained; OCR variation in stylized lettering, accents, whitespace or Latin/Cyrillic lookalikes."
+    },
+    {
+      "name": "00475_000.heic",
+      "beforeOCR": [
+        {
+          "confidence": 1,
+          "text": "lomography",
+          "y": 0.8730468751708984
+        }
+      ],
+      "afterOCR": [
+        {
+          "confidence": 1,
+          "text": "lamography",
+          "y": 0.8730468753069196
+        },
+        {
+          "confidence": 1,
+          "text": "POTSDAM",
+          "y": 0.20842329985007924
+        },
+        {
+          "confidence": 1,
+          "text": "35mm • 36exp • ISO 100 • BW",
+          "y": 0.052734375010850654
+        }
+      ],
+      "manualResolution": "Reviewed before/after image crops. Letter shapes and readability retained; OCR variation in stylized lettering, accents, whitespace or Latin/Cyrillic lookalikes."
+    },
+    {
+      "name": "00057_000.heic",
+      "beforeOCR": [
+        {
+          "confidence": 1,
+          "text": "Alien FI",
+          "y": 0.8122949251654559
+        }
+      ],
+      "afterOCR": [
+        {
+          "confidence": 1,
+          "text": "Аlien FIF",
+          "y": 0.8150109242275723
+        },
+        {
+          "confidence": 1,
+          "text": "5222/ХX",
+          "y": 0.0966221779351708
+        },
+        {
+          "confidence": 1,
+          "text": "35mm • 36exp • ISO 250 • BW",
+          "y": 0.03320312500743583
+        }
+      ],
+      "manualResolution": "Reviewed before/after image crops. Letter shapes and readability retained; OCR variation in stylized lettering, accents, whitespace or Latin/Cyrillic lookalikes."
+    }
+  ],
+  "manualReviewComplete": true,
+  "unresolved": [],
+  "limitation": "OCR is supplemental and was run on 59 selected pairs, not all 559 covers. Counts alone do not establish readability."
+}

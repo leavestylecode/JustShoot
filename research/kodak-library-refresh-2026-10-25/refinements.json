@@ -1,0 +1,350 @@
+[
+  {
+    "id": "00028_000",
+    "issue": "Duplicate Kodak at top and bottom; retain only compact top brand.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-8fa42987-fe2e-4dc4-824e-82601a230bd9.png",
+    "oldRecord": "{\n  \"id\": \"00028_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-8fa42987-fe2e-4dc4-824e-82601a230bd9.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00028_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00028_000.jpg",
+    "product": "Tri-X 400",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Tri-X 400 packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Duplicate Kodak at top and bottom; retain only compact top brand. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00028_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00028_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-51943078-8bc7-44af-aabd-184dcdfea261.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00064_000",
+    "issue": "Format120 still oversized; make entire footer one small consistent text size.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-341f92fb-0bd3-46e1-aa17-ec942ff94ff9.png",
+    "oldRecord": "{\n  \"id\": \"00064_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-341f92fb-0bd3-46e1-aa17-ec942ff94ff9.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00064_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00064_000.jpg",
+    "product": "Kodacolor-X",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Kodacolor-X packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Format120 still oversized; make entire footer one small consistent text size. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00064_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00064_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-db3b6a32-6f54-400f-8476-ea5d63ef8240.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00068_000",
+    "issue": "Format110 larger than other footer text; normalize footer hierarchy.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a463c3e9-3c83-487e-bf42-f772fbf8e677.png",
+    "oldRecord": "{\n  \"id\": \"00068_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a463c3e9-3c83-487e-bf42-f772fbf8e677.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00068_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00068_000.jpg",
+    "product": "Kodacolor Gold 200",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Kodacolor Gold 200 packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Format110 larger than other footer text; normalize footer hierarchy. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00068_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00068_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b96645f9-a436-4419-9e44-7b97f37ca38b.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00081_000",
+    "issue": "Duplicate Kodak at top and bottom; retain only compact top brand.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-351c6c6b-3126-4539-b902-a7a4d13302a5.png",
+    "oldRecord": "{\n  \"id\": \"00081_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-351c6c6b-3126-4539-b902-a7a4d13302a5.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00081_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00081_000.jpg",
+    "product": "Ektar 100",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Ektar 100 packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Duplicate Kodak at top and bottom; retain only compact top brand. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00081_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00081_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-68881015-ba4f-48a1-8556-dfb966ef90f7.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00094_000",
+    "issue": "ULTRA400 has white bevel-like edge; flatten title to plain cream and blue ink.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-59f2042d-c748-4854-89f2-eaec08eb70c8.png",
+    "oldRecord": "{\n  \"id\": \"00094_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-59f2042d-c748-4854-89f2-eaec08eb70c8.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00094_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00094_000.jpg",
+    "product": "Gold Ultra 400",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Gold Ultra 400 packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: ULTRA400 has white bevel-like edge; flatten title to plain cream and blue ink. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00094_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00094_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-55713d91-8b21-4498-9aae-50579127b2fe.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00104_000",
+    "issue": "Duplicate Kodak at top and bottom; retain a single compact top brand.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-71fd32a8-9c10-4e94-a629-1c22f4fa9bcf.png",
+    "oldRecord": "{\n  \"id\": \"00104_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-71fd32a8-9c10-4e94-a629-1c22f4fa9bcf.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00104_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00104_000.jpg",
+    "product": "TMAX P3200",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak TMAX P3200 packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Duplicate Kodak at top and bottom; retain a single compact top brand. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00104_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00104_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-517ced03-e663-40d1-95c7-0b73f47ba621.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00160_000",
+    "issue": "Standalone format120 still too large; normalize to small footer with process/ISO.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-3e8a6952-e3f7-48db-b9e0-f9853c47a89e.png",
+    "oldRecord": "{\n  \"id\": \"00160_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-3e8a6952-e3f7-48db-b9e0-f9853c47a89e.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00160_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00160_000.jpg",
+    "product": "Ektachrome E100VS",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Ektachrome E100VS packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Standalone format120 still too large; normalize to small footer with process/ISO. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00160_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00160_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f26c476f-e866-4840-a9e6-33cd1346ce56.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00234_000",
+    "issue": "Multipack quantity3 dominates title; make3x24EXP a tiny footer and MAX400 the clear main title.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e3c620a6-8acc-4912-b1e7-9eb1c890c184.png",
+    "oldRecord": "{\n  \"id\": \"00234_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e3c620a6-8acc-4912-b1e7-9eb1c890c184.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00234_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00234_000.jpg",
+    "product": "MAX",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak MAX packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Multipack quantity3 dominates title; make3x24EXP a tiny footer and MAX400 the clear main title. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00234_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00234_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-392b599f-bb63-4ffd-846a-624fe4f07f09.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00243_000",
+    "issue": "Normalize standalone format120 to small technical footer.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-dc51ae3e-6c98-4d40-b4e0-c1da9eae3332.png",
+    "oldRecord": "{\n  \"id\": \"00243_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-dc51ae3e-6c98-4d40-b4e0-c1da9eae3332.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00243_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00243_000.jpg",
+    "product": "Portra 400VC",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Portra 400VC packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Normalize standalone format120 to small technical footer. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00243_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00243_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-424b94ce-b28a-42ef-bd53-2666ddc48aab.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00246_000",
+    "issue": "Duplicate Kodak at top and bottom; remove top mark, keep bottom Kodak Professional.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b9f955d1-9e78-4995-b81e-b70c8d1c98f0.png",
+    "oldRecord": "{\n  \"id\": \"00246_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b9f955d1-9e78-4995-b81e-b70c8d1c98f0.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00246_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00246_000.jpg",
+    "product": "Portra 400",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Portra 400 packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Duplicate Kodak at top and bottom; remove top mark, keep bottom Kodak Professional. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00246_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00246_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-cb478acb-a6a4-41ce-9eb2-6f0c04419bd3.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00251_000",
+    "issue": "Duplicate Kodak at top and bottom; remove top mark, keep bottom Kodak Professional.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e0ba5146-e99f-4fd9-b97a-74302393a1e5.png",
+    "oldRecord": "{\n  \"id\": \"00251_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e0ba5146-e99f-4fd9-b97a-74302393a1e5.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00251_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00251_000.jpg",
+    "product": "Ektar 100",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Ektar 100 packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Duplicate Kodak at top and bottom; remove top mark, keep bottom Kodak Professional. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00251_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00251_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f1f22c2d-644a-46ed-ad4f-20e1f3b54b07.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00260_000",
+    "issue": "Duplicate Kodak at blue-header bottom and above title; retain one compact header mark.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-cf3559d5-fe76-45e7-84eb-8044f4c8125e.png",
+    "oldRecord": "{\n  \"id\": \"00260_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-cf3559d5-fe76-45e7-84eb-8044f4c8125e.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00260_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00260_000.jpg",
+    "product": "Ektachrome Slide Duplicating Film",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Ektachrome Slide Duplicating Film packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Duplicate Kodak at blue-header bottom and above title; retain one compact header mark. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00260_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00260_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-93b1c8b8-3407-4b0a-9fd5-27e5904141cc.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00299_000",
+    "issue": "Duplicate Kodak at upper left and Kodak Professional below title. Remove upper-left Kodak entirely; retain only the lower Kodak Professional as brand. Preserve PORTRA 400UC, magenta angular panel and yellow paper.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b12bd9c7-df03-433f-ac98-87ce822f7676.png",
+    "oldRecord": "{\n  \"id\": \"00299_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-b12bd9c7-df03-433f-ac98-87ce822f7676.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00299_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00299_000.jpg",
+    "prompt": "Precisely edit the first cover image only. The second image is the authentic scanned packaging edition for identity. Duplicate Kodak at upper left and Kodak Professional below title. Remove upper-left Kodak entirely; retain only the lower Kodak Professional as brand. Preserve PORTRA 400UC, magenta angular panel and yellow paper. Make only this local correction; preserve accurate spelling, palette, geometry and flat printed paper texture. Square full-bleed 1024x1024, no shadow, bevel, 3D, new icons or extra text. One brand identification only, actual product name prominent, specifications in tiny footer.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00299_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00299_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e947ba2d-9de5-43a3-aa96-4b2ab01f7e1c.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00303_000",
+    "issue": "Normalize standalone format120 to small technical footer.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e39441da-d6f0-47c6-9e10-6317f0e8e72e.png",
+    "oldRecord": "{\n  \"id\": \"00303_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e39441da-d6f0-47c6-9e10-6317f0e8e72e.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00303_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00303_000.jpg",
+    "product": "High Speed Ektachrome",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak High Speed Ektachrome packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Normalize standalone format120 to small technical footer. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00303_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00303_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c298bbfc-3544-4dcd-9998-cde74bd21165.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00331_000",
+    "issue": "Duplicate110 cartridge label at lower left competes with title; retain only small format in footer.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ad4c982a-7525-4fdc-a4c8-61ba978e770f.png",
+    "oldRecord": "{\n  \"id\": \"00331_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ad4c982a-7525-4fdc-a4c8-61ba978e770f.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00331_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00331_000.jpg",
+    "product": "Kodacolor 400",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Kodacolor 400 packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Duplicate110 cartridge label at lower left competes with title; retain only small format in footer. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00331_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00331_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f122fb5f-64b6-48e4-94f3-cbfb667f36f7.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00338_000",
+    "issue": "Duplicate Kodak header and lower red emblem; keep header and remove lower emblem.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c05e402a-b782-4161-a885-0e02ae7e2d19.png",
+    "oldRecord": "{\n  \"id\": \"00338_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c05e402a-b782-4161-a885-0e02ae7e2d19.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00338_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00338_000.jpg",
+    "product": "Tri-X Pan",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Tri-X Pan packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Duplicate Kodak header and lower red emblem; keep header and remove lower emblem. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00338_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00338_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-297bb2f2-5f88-4502-a46c-d87f7c841c7b.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00365_000",
+    "issue": "Format120 oversized and PRO/400 lettering looks shiny; normalize footer and flatten printed type.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-77eeb778-cf12-4b2b-94dc-9e444a36fffb.png",
+    "oldRecord": "{\n  \"id\": \"00365_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-77eeb778-cf12-4b2b-94dc-9e444a36fffb.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00365_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00365_000.jpg",
+    "product": "Tri-X 400 Pro",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Tri-X 400 Pro packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Format120 oversized and PRO/400 lettering looks shiny; normalize footer and flatten printed type. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00365_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00365_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-137b3d31-35b9-4438-9dd0-23caecf2498a.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00381_000",
+    "issue": "Duplicate Kodak top wordmark and bottom red emblem; remove lower emblem.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e01daacb-7fe2-483d-ae7d-822338693989.png",
+    "oldRecord": "{\n  \"id\": \"00381_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e01daacb-7fe2-483d-ae7d-822338693989.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00381_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00381_000.jpg",
+    "product": "Kodachrome 40 Movie Film (Type A) for Post-process Sound Striping",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Kodachrome 40 Movie Film (Type A) for Post-process Sound Striping packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Duplicate Kodak top wordmark and bottom red emblem; remove lower emblem. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00381_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00381_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d64205cd-ce1b-40d3-ab8c-2f8e6b921875.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00410_000",
+    "issue": "Footer specifications are oversized and heavy. Shrink both footer lines to consistent 24px at 1024 canvas with generous margins. Keep TRI-X PAN as headline and existing small red Kodak emblem, yellow paper and green band.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-883a4e85-72c5-4b31-a301-ed907b70641b.png",
+    "oldRecord": "{\n  \"id\": \"00410_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-883a4e85-72c5-4b31-a301-ed907b70641b.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00410_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00410_000.jpg",
+    "prompt": "Precisely edit the first cover image only. The second image is the authentic scanned packaging edition for identity. Footer specifications are oversized and heavy. Shrink both footer lines to consistent 24px at 1024 canvas with generous margins. Keep TRI-X PAN as headline and existing small red Kodak emblem, yellow paper and green band. Make only this local correction; preserve accurate spelling, palette, geometry and flat printed paper texture. Square full-bleed 1024x1024, no shadow, bevel, 3D, new icons or extra text. One brand identification only, actual product name prominent, specifications in tiny footer.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00410_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00410_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e236af04-c84c-4118-a5a4-7763554ba741.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00423_000",
+    "issue": "Duplicate Kodak plaque and title-band brand; keep one compact brand only.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a0beaee6-7e10-4bc2-bfaf-7fd597f85b8b.png",
+    "oldRecord": "{\n  \"id\": \"00423_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a0beaee6-7e10-4bc2-bfaf-7fd597f85b8b.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00423_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00423_000.jpg",
+    "product": "Ektachrome-X",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Ektachrome-X packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Duplicate Kodak plaque and title-band brand; keep one compact brand only. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00423_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00423_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-218b8269-110a-4bcc-af8d-5cf906beb21b.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00433_000",
+    "issue": "Duplicate Kodak upper plaque and inline title-band plaque; retain upper brand only, remove inline duplicate and give VERICHROME PAN breathing space.",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c3ad0493-0b1c-4ae9-b853-e70bcbc95253.png",
+    "oldRecord": "{\n  \"id\": \"00433_000\",\n  \"source\": \"/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c3ad0493-0b1c-4ae9-b853-e70bcbc95253.png\"\n}\n",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00433_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00433_000.jpg",
+    "product": "Verichrome Pan",
+    "prompt": "Edit image 1 only, a finished JustShoot Library cover for the real Kodak Verichrome Pan packaging edition. Image 2 is that exact original packaging scan for identity reference. Make a precise local typography correction, preserving the current palette, composition, authentic packaging geometry, flat print texture and all accurate product words. Required correction: Duplicate Kodak upper plaque and inline title-band plaque; retain upper brand only, remove inline duplicate and give VERICHROME PAN breathing space. Keep only ONE Kodak brand identification on the entire card (a K emblem adjacent to its wordmark counts as one). Technical format/quantity/ISO/process belongs in one small consistent 24\u201328px footer at 1024px, never a standalone giant format number. Preserve actual product names and their ISO numbers as headline text; 110 Film is a real product name. Keep flat printed ink, no bevel, extrusion, foil, shadows, fabric, mockup, rounded corners or outside border. Square 1024x1024 full bleed. No JustShoot, RAW, sRGB, captions, new icons, decorative content or invented film names. This is a restrained final polish, not a redesign.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00433_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00433_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-9519246c-7559-4255-97c0-56fffa989ce2.png",
+    "status": "visually-reviewed-approved"
+  },
+  {
+    "id": "00502_000",
+    "originalSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c8c20c17-f086-4882-9927-3747a6fe8453.png",
+    "target": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00502_000.png",
+    "packaging": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00502_000.jpg",
+    "prompt": "Precisely edit image 1 only, the finished Kodak TRI-X PAN 120 cover. Image 2 is the exact scanned packaging edition for reference. Remove the upper-left red Kodak emblem entirely, filling its space with matching yellow printed paper. Keep the ONE compact yellow Kodak mark attached to the black-and-green title band. Preserve every other element: TRI-X PAN lettering, green band, black divider, warm yellow paper texture and tiny lower-right 120 / ISO 400 / BW footer. No duplicate brand, no new text, icons, shadows, bevel, 3D, mockup or border. Square 1024x1024 full bleed. Local correction only.",
+    "references": [
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/after/00502_000.png",
+      "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00502_000.jpg"
+    ],
+    "selectedSource": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f8319046-12b3-4254-8bb6-38325b618465.png",
+    "status": "visually-reviewed-approved",
+    "retry": "First refinement request failed with a connection error; this retry succeeded."
+  }
+]

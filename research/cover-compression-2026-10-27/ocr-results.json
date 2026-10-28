@@ -1,0 +1,3130 @@
+[
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "ADOX",
+        "y" : 0.8089769224936003
+      },
+      {
+        "confidence" : 1,
+        "text" : "CMS",
+        "y" : 0.395382850492092
+      },
+      {
+        "confidence" : 1,
+        "text" : "20 || Pro",
+        "y" : 0.24471943180045674
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 20 • BW",
+        "y" : 0.05859375000697542
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "ADOX)",
+        "y" : 0.8066365744834592
+      },
+      {
+        "confidence" : 1,
+        "text" : "CMS",
+        "y" : 0.40654263672277446
+      },
+      {
+        "confidence" : 1,
+        "text" : "20 || Pro",
+        "y" : 0.24493849430913595
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 20 • BW",
+        "y" : 0.058593750007013945
+      }
+    ],
+    "name" : "00401_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Rollei",
+        "y" : 0.7876922565219006
+      },
+      {
+        "confidence" : 1,
+        "text" : "RETRO 80S",
+        "y" : 0.4296875000175562
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 80 • BW",
+        "y" : 0.06054687500781242
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Rollei",
+        "y" : 0.7886393764626485
+      },
+      {
+        "confidence" : 1,
+        "text" : "RETRO 80S",
+        "y" : 0.42795994727210773
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 80 • BW",
+        "y" : 0.06054687500781242
+      }
+    ],
+    "name" : "00169_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "CatLABS",
+        "y" : 0.816994264739406
+      },
+      {
+        "confidence" : 1,
+        "text" : "X FILM 80 MKI",
+        "y" : 0.5133803763123252
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 80 • BW",
+        "y" : 0.07377307078215911
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "CatLABS",
+        "y" : 0.815038677323271
+      },
+      {
+        "confidence" : 1,
+        "text" : "X FILM 80 MKI",
+        "y" : 0.513337800596504
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 80 • BW",
+        "y" : 0.07377307078215911
+      }
+    ],
+    "name" : "00360_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.7975866348143443
+      },
+      {
+        "confidence" : 1,
+        "text" : "VERICHROME PAN",
+        "y" : 0.4472656253102022
+      },
+      {
+        "confidence" : 1,
+        "text" : "122 • 6EXP • BW",
+        "y" : 0.0722656250118886
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.797759603984216
+      },
+      {
+        "confidence" : 1,
+        "text" : "VERICHROME PAN",
+        "y" : 0.4472656253102022
+      },
+      {
+        "confidence" : 1,
+        "text" : "122 • 6EXP • BW",
+        "y" : 0.07226562501265921
+      }
+    ],
+    "name" : "00433_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Minolta",
+        "y" : 0.8085937504045759
+      },
+      {
+        "confidence" : 1,
+        "text" : "COLOR FILM",
+        "y" : 0.3378906250146485
+      },
+      {
+        "confidence" : 1,
+        "text" : "FOR PRINTS",
+        "y" : 0.2480468750142112
+      },
+      {
+        "confidence" : 1,
+        "text" : "16mm • 20exp • ISO 100 • C-41",
+        "y" : 0.02929687500790279
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Minolta",
+        "y" : 0.8125000004394531
+      },
+      {
+        "confidence" : 1,
+        "text" : "COLOR FILM",
+        "y" : 0.3378906253417968
+      },
+      {
+        "confidence" : 1,
+        "text" : "FOR PRINTS",
+        "y" : 0.24804687501426437
+      },
+      {
+        "confidence" : 1,
+        "text" : "16mm • 20exp • ISO 100 • C-41",
+        "y" : 0.03125000000733835
+      }
+    ],
+    "name" : "00162_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "UT",
+        "y" : 0.67187500028125
+      },
+      {
+        "confidence" : 0.3,
+        "text" : "GHKUMI",
+        "y" : 0.3353608384372886
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 50",
+        "y" : 0.058593750009596324
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "UT",
+        "y" : 0.6718750002851562
+      },
+      {
+        "confidence" : 0.3,
+        "text" : "GAKUMI",
+        "y" : 0.3373603498528783
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 50",
+        "y" : 0.05859375000965206
+      }
+    ],
+    "name" : "00408_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.7717286460615856
+      },
+      {
+        "confidence" : 1,
+        "text" : "VERICHROME",
+        "y" : 0.43452837721532656
+      },
+      {
+        "confidence" : 1,
+        "text" : "616 • 8EXP",
+        "y" : 0.09375000001870015
+      },
+      {
+        "confidence" : 1,
+        "text" : "BW",
+        "y" : 0.056640625058593796
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.7720565684651585
+      },
+      {
+        "confidence" : 1,
+        "text" : "VERICHROME",
+        "y" : 0.4343534686352668
+      },
+      {
+        "confidence" : 1,
+        "text" : "616 • 8EXP",
+        "y" : 0.09375000002143674
+      },
+      {
+        "confidence" : 1,
+        "text" : "BW",
+        "y" : 0.05664062526041669
+      }
+    ],
+    "name" : "00443_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Mr.",
+        "y" : 0.8167887470126105
+      },
+      {
+        "confidence" : 1,
+        "text" : "Negative",
+        "y" : 0.7570499070338248
+      },
+      {
+        "confidence" : 1,
+        "text" : "Eterna",
+        "y" : 0.4208137107186025
+      },
+      {
+        "confidence" : 1,
+        "text" : "250D",
+        "y" : 0.20477252590849704
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 250 • ECN-2",
+        "y" : 0.04687500000654399
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Mr.",
+        "y" : 0.8160156242098764
+      },
+      {
+        "confidence" : 1,
+        "text" : "Negative",
+        "y" : 0.7551569640994595
+      },
+      {
+        "confidence" : 1,
+        "text" : "Eterna",
+        "y" : 0.42126083699290007
+      },
+      {
+        "confidence" : 1,
+        "text" : "250D",
+        "y" : 0.20619686696725248
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 250 • ECN-2",
+        "y" : 0.04687500000654399
+      }
+    ],
+    "name" : "00322_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "UI FUJIFILM",
+        "y" : 0.8710937502232143
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICOLOR",
+        "y" : 0.6601562500178079
+      },
+      {
+        "confidence" : 1,
+        "text" : "NPS",
+        "y" : 0.36183663057736903
+      },
+      {
+        "confidence" : 1,
+        "text" : "160",
+        "y" : 0.15625000034765624
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm-36EXP",
+        "y" : 0.07812500001321665
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 160 • C-41",
+        "y" : 0.039062500017959745
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "UI FUJIFILM",
+        "y" : 0.8710937501838235
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICOLOR",
+        "y" : 0.6601562500177037
+      },
+      {
+        "confidence" : 1,
+        "text" : "NPS",
+        "y" : 0.36186086835889064
+      },
+      {
+        "confidence" : 1,
+        "text" : "160",
+        "y" : 0.1562500004138765
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm-36EXP",
+        "y" : 0.07812500001321665
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 160 • C-41",
+        "y" : 0.039062500017959745
+      }
+    ],
+    "name" : "00053_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.8457031250300953
+      },
+      {
+        "confidence" : 1,
+        "text" : "PORTRA",
+        "y" : 0.43689585880753934
+      },
+      {
+        "confidence" : 1,
+        "text" : "800",
+        "y" : 0.4218750000521725
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 800 • C-41",
+        "y" : 0.05468750001120648
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.8457031250299072
+      },
+      {
+        "confidence" : 1,
+        "text" : "PORTRA",
+        "y" : 0.4367986792822123
+      },
+      {
+        "confidence" : 1,
+        "text" : "800",
+        "y" : 0.42187500005289713
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 800 • C-41",
+        "y" : 0.05468750001120648
+      }
+    ],
+    "name" : "00240_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "CHROMI",
+        "y" : 0.2714843750928796
+      },
+      {
+        "confidence" : 1,
+        "text" : "21",
+        "y" : 0.10156250064019101
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 24 exp • ISO 100",
+        "y" : 0.055397060058060665
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 0.3,
+        "text" : "ЛIDYOlS",
+        "y" : 0.5156250002473959
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 24 exp • ISO 100",
+        "y" : 0.05539712818535736
+      }
+    ],
+    "name" : "00359_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Joma",
+        "y" : 0.7324218754136029
+      },
+      {
+        "confidence" : 1,
+        "text" : "FOMAPAN",
+        "y" : 0.4455920607018504
+      },
+      {
+        "confidence" : 1,
+        "text" : "200",
+        "y" : 0.22936950261779654
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 100ft • ISO 200 • BW",
+        "y" : 0.05419050328842334
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "foma",
+        "y" : 0.7343750003466797
+      },
+      {
+        "confidence" : 1,
+        "text" : "FOMAPAN",
+        "y" : 0.4458499699996885
+      },
+      {
+        "confidence" : 1,
+        "text" : "200",
+        "y" : 0.22934413402537623
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 100ft • ISO 200 • BW",
+        "y" : 0.054190503527253964
+      }
+    ],
+    "name" : "00183_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.8261718750300995
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.7753906250208586
+      },
+      {
+        "confidence" : 1,
+        "text" : "P3200 TMAX",
+        "y" : 0.4375000000152248
+      },
+      {
+        "confidence" : 1,
+        "text" : "T-MAX P3200 BLACK & WHITE NEGATIVE FILM",
+        "y" : 0.3652343751888021
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36ЕХР",
+        "y" : 0.10546875001470091
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 3200 • BW",
+        "y" : 0.07031250001350564
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.8261718750298948
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.7753906250208586
+      },
+      {
+        "confidence" : 1,
+        "text" : "P3200 TMAX",
+        "y" : 0.43750000001519096
+      },
+      {
+        "confidence" : 1,
+        "text" : "T-MAX P3200 BLACK & WHITE NEGATIVE FILM",
+        "y" : 0.36523437517700197
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36ЕХР",
+        "y" : 0.10546875001470091
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 3200 • BW",
+        "y" : 0.06835937501454459
+      }
+    ],
+    "name" : "00142_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "OR",
+        "y" : 0.8476562501953124
+      },
+      {
+        "confidence" : 1,
+        "text" : "WO",
+        "y" : 0.7915985426132682
+      },
+      {
+        "confidence" : 1,
+        "text" : "ORWOCHROME",
+        "y" : 0.466796875028483
+      },
+      {
+        "confidence" : 1,
+        "text" : "RC100",
+        "y" : 0.3313671378125569
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 100 • E-6",
+        "y" : 0.056640625008138046
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "OR",
+        "y" : 0.8515625000600962
+      },
+      {
+        "confidence" : 1,
+        "text" : "WO",
+        "y" : 0.7917071367730842
+      },
+      {
+        "confidence" : 1,
+        "text" : "ORWOCHROME",
+        "y" : 0.46679687504410283
+      },
+      {
+        "confidence" : 1,
+        "text" : "RC100",
+        "y" : 0.3331644539187304
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 100 • E-6",
+        "y" : 0.056640625008138046
+      }
+    ],
+    "name" : "00530_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "YORK",
+        "y" : 0.6946794888058951
+      },
+      {
+        "confidence" : 1,
+        "text" : "PHOTO LABS",
+        "y" : 0.6464843753069196
+      },
+      {
+        "confidence" : 1,
+        "text" : "DXG 200",
+        "y" : 0.32151116494144183
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 200 • C-41",
+        "y" : 0.07031250000751199
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "YORK",
+        "y" : 0.6948402666504505
+      },
+      {
+        "confidence" : 1,
+        "text" : "PHOTO LABS",
+        "y" : 0.6464843752387153
+      },
+      {
+        "confidence" : 1,
+        "text" : "DXG 200",
+        "y" : 0.3203470563253499
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 200 • C-41",
+        "y" : 0.07031250000751199
+      }
+    ],
+    "name" : "00051_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "lamography",
+        "y" : 0.8828125002766927
+      },
+      {
+        "confidence" : 1,
+        "text" : "POTSDAM",
+        "y" : 0.39875625898786204
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 100 • BW",
+        "y" : 0.03710937500985523
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "lomogrophy",
+        "y" : 0.8808593752929688
+      },
+      {
+        "confidence" : 1,
+        "text" : "POTSDAM",
+        "y" : 0.3968921303976366
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 100 • BW",
+        "y" : 0.03710937500994649
+      }
+    ],
+    "name" : "00548_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Agfa",
+        "y" : 0.7832031253102022
+      },
+      {
+        "confidence" : 1,
+        "text" : "Agfacolor",
+        "y" : 0.377661595891319
+      },
+      {
+        "confidence" : 1,
+        "text" : "Reversal Film",
+        "y" : 0.2929687503817471
+      },
+      {
+        "confidence" : 1,
+        "text" : "CK",
+        "y" : 0.17839550433321327
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 80",
+        "y" : 0.0282029559762762
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Agfà",
+        "y" : 0.7773437502618963
+      },
+      {
+        "confidence" : 1,
+        "text" : "Agfacolor",
+        "y" : 0.37485290399334514
+      },
+      {
+        "confidence" : 1,
+        "text" : "Reversal Film",
+        "y" : 0.2929687503817471
+      },
+      {
+        "confidence" : 1,
+        "text" : "CK",
+        "y" : 0.17840817562084932
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 80",
+        "y" : 0.02772722027171526
+      }
+    ],
+    "name" : "00444_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJIFILM",
+        "y" : 0.8903152477239825
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICHROME",
+        "y" : 0.6992187500160092
+      },
+      {
+        "confidence" : 1,
+        "text" : "PROVIA",
+        "y" : 0.48362646289182476
+      },
+      {
+        "confidence" : 1,
+        "text" : "400",
+        "y" : 0.3007812503821332
+      },
+      {
+        "confidence" : 1,
+        "text" : "PROFESSIONAL",
+        "y" : 0.2167968753320313
+      },
+      {
+        "confidence" : 1,
+        "text" : "120",
+        "y" : 0.06445312510003809
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 400",
+        "y" : 0.028927395155459834
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJIFILM",
+        "y" : 0.889847653011582
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICHROME",
+        "y" : 0.6992187500160092
+      },
+      {
+        "confidence" : 1,
+        "text" : "PROVIA",
+        "y" : 0.48828125049370663
+      },
+      {
+        "confidence" : 1,
+        "text" : "400",
+        "y" : 0.29882812538637915
+      },
+      {
+        "confidence" : 1,
+        "text" : "PROFESSIONAL",
+        "y" : 0.2130979643348645
+      },
+      {
+        "confidence" : 1,
+        "text" : "120",
+        "y" : 0.06445312531550473
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 400",
+        "y" : 0.029173956306929316
+      }
+    ],
+    "name" : "00318_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "omogrophy",
+        "y" : 0.837890625265067
+      },
+      {
+        "confidence" : 1,
+        "text" : "BLACK & WHITE",
+        "y" : 0.6547148751788634
+      },
+      {
+        "confidence" : 1,
+        "text" : "BABYLON",
+        "y" : 0.46781854255693944
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 13 • BW",
+        "y" : 0.03515625000742417
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "omogrophy",
+        "y" : 0.8378906252061632
+      },
+      {
+        "confidence" : 1,
+        "text" : "BLACK & WHITE",
+        "y" : 0.6546376760065169
+      },
+      {
+        "confidence" : 1,
+        "text" : "BABYLON",
+        "y" : 0.47181979861676204
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 13 • BW",
+        "y" : 0.03515625000742417
+      }
+    ],
+    "name" : "00147_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "AGFA",
+        "y" : 0.8007812502604167
+      },
+      {
+        "confidence" : 1,
+        "text" : "Agfa",
+        "y" : 0.8296538984323087
+      },
+      {
+        "confidence" : 1,
+        "text" : "AGFAPAN",
+        "y" : 0.6152343750156579
+      },
+      {
+        "confidence" : 1,
+        "text" : "АРХ 400",
+        "y" : 0.26367187559168204
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36ехр • ISO 400 • BW",
+        "y" : 0.05111317922764225
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "AGFA",
+        "y" : 0.8007812500837054
+      },
+      {
+        "confidence" : 1,
+        "text" : "Agfa",
+        "y" : 0.8297168370937298
+      },
+      {
+        "confidence" : 1,
+        "text" : "AGFAPAN",
+        "y" : 0.6152343750156579
+      },
+      {
+        "confidence" : 1,
+        "text" : "АРХ400",
+        "y" : 0.26367187503985967
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 400 • BW",
+        "y" : 0.05273437501015632
+      }
+    ],
+    "name" : "00190_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "foma",
+        "y" : 0.7083333339285713
+      },
+      {
+        "confidence" : 1,
+        "text" : "FOMAPAN",
+        "y" : 0.3964843750341611
+      },
+      {
+        "confidence" : 1,
+        "text" : "classic",
+        "y" : 0.30078125030598957
+      },
+      {
+        "confidence" : 1,
+        "text" : "100",
+        "y" : 0.17382812505190737
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 100 • BW",
+        "y" : 0.04882812501164713
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "foma",
+        "y" : 0.7083333339583333
+      },
+      {
+        "confidence" : 1,
+        "text" : "FOMAPAN",
+        "y" : 0.39648437503403167
+      },
+      {
+        "confidence" : 1,
+        "text" : "classic",
+        "y" : 0.3011673969848936
+      },
+      {
+        "confidence" : 1,
+        "text" : "100",
+        "y" : 0.17382812505190737
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 100 • BW",
+        "y" : 0.04882812501175493
+      }
+    ],
+    "name" : "00515_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.8551337084749772
+      },
+      {
+        "confidence" : 1,
+        "text" : "NEOPAN",
+        "y" : 0.6167849209361416
+      },
+      {
+        "confidence" : 1,
+        "text" : "ACROS",
+        "y" : 0.367769002960729
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.28882938287823423
+      },
+      {
+        "confidence" : 1,
+        "text" : "100 II",
+        "y" : 0.0735135600357133
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.1054687502441406
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 100 • BW",
+        "y" : 0.0703125000201057
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.855468750025561
+      },
+      {
+        "confidence" : 1,
+        "text" : "NEOPAN",
+        "y" : 0.6166497841678203
+      },
+      {
+        "confidence" : 1,
+        "text" : "ACROS",
+        "y" : 0.3710423335695533
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.28949953649012516
+      },
+      {
+        "confidence" : 1,
+        "text" : "100 II",
+        "y" : 0.0713410229009348
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.1054687502441406
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 100 • BW",
+        "y" : 0.0703125000201057
+      }
+    ],
+    "name" : "00524_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.8551337084749772
+      },
+      {
+        "confidence" : 1,
+        "text" : "NEOPAN",
+        "y" : 0.6167849209361416
+      },
+      {
+        "confidence" : 1,
+        "text" : "ACROS",
+        "y" : 0.367769002960729
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.28882938287823423
+      },
+      {
+        "confidence" : 1,
+        "text" : "100 II",
+        "y" : 0.0735135600357133
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.1054687502441406
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 100 • BW",
+        "y" : 0.0703125000201057
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.855468750025561
+      },
+      {
+        "confidence" : 1,
+        "text" : "NEOPAN",
+        "y" : 0.6166497841678203
+      },
+      {
+        "confidence" : 1,
+        "text" : "ACROS",
+        "y" : 0.3710423335695533
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.28949953649012516
+      },
+      {
+        "confidence" : 1,
+        "text" : "100 II",
+        "y" : 0.0713410229009348
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.1054687502441406
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 100 • BW",
+        "y" : 0.0703125000201057
+      }
+    ],
+    "name" : "cover_fuji_acros.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJIFILM",
+        "y" : 0.8301021717757668
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICOLOR",
+        "y" : 0.6358553602209494
+      },
+      {
+        "confidence" : 1,
+        "text" : "NATURA",
+        "y" : 0.45103153836246945
+      },
+      {
+        "confidence" : 1,
+        "text" : "1600",
+        "y" : 0.308333329953014
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.1054687500146485
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 1600",
+        "y" : 0.06496471193259201
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ FILM",
+        "y" : 0.8314973547669071
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICOLOR",
+        "y" : 0.6358553599521699
+      },
+      {
+        "confidence" : 0.5,
+        "text" : "NAURA",
+        "y" : 0.4688317615592652
+      },
+      {
+        "confidence" : 1,
+        "text" : "1600",
+        "y" : 0.308333329953014
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.1054687500146485
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 1600",
+        "y" : 0.0651056545067894
+      }
+    ],
+    "name" : "00177_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Konica",
+        "y" : 0.854706988047258
+      },
+      {
+        "confidence" : 1,
+        "text" : "INFRARED",
+        "y" : 0.5380357355276416
+      },
+      {
+        "confidence" : 1,
+        "text" : "750пm",
+        "y" : 0.33279497966313376
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 32 • BW",
+        "y" : 0.05468750001105538
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Konica",
+        "y" : 0.8545594143975473
+      },
+      {
+        "confidence" : 1,
+        "text" : "INFRARED",
+        "y" : 0.5375655070347388
+      },
+      {
+        "confidence" : 1,
+        "text" : "750пm",
+        "y" : 0.31030695044913403
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 32 • BW",
+        "y" : 0.05468750001179745
+      }
+    ],
+    "name" : "00036_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ FILM",
+        "y" : 0.8554687500255409
+      },
+      {
+        "confidence" : 1,
+        "text" : "CLASSIC",
+        "y" : 0.4710304969696334
+      },
+      {
+        "confidence" : 1,
+        "text" : "Neg-",
+        "y" : 0.3019740509234923
+      },
+      {
+        "confidence" : 1,
+        "text" : "FILM SIMULATION",
+        "y" : 0.06054687501179745
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ FILM",
+        "y" : 0.8574218750249123
+      },
+      {
+        "confidence" : 1,
+        "text" : "CLASSIC",
+        "y" : 0.4649396568380615
+      },
+      {
+        "confidence" : 1,
+        "text" : "Neg-",
+        "y" : 0.3019189956315612
+      },
+      {
+        "confidence" : 1,
+        "text" : "FILM SIMULATION",
+        "y" : 0.06054687501179745
+      }
+    ],
+    "name" : "cover_fuji_classic_neg.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Klick",
+        "y" : 0.7916632966055492
+      },
+      {
+        "confidence" : 1,
+        "text" : "жD200",
+        "y" : 0.48902143014571586
+      },
+      {
+        "confidence" : 1,
+        "text" : "110 • 24exp • ISO 200 • C-41",
+        "y" : 0.07031250000847711
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Klick",
+        "y" : 0.7932366857957581
+      },
+      {
+        "confidence" : 1,
+        "text" : "·D200",
+        "y" : 0.4612615810130183
+      },
+      {
+        "confidence" : 1,
+        "text" : "110 • 24exp • ISO 200 • C-41",
+        "y" : 0.07226562500813805
+      }
+    ],
+    "name" : "00062_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Agfa",
+        "y" : 0.726562500390625
+      },
+      {
+        "confidence" : 1,
+        "text" : "Isopan",
+        "y" : 0.44804365177030725
+      },
+      {
+        "confidence" : 1,
+        "text" : "Portrait",
+        "y" : 0.29559230062105823
+      },
+      {
+        "confidence" : 1,
+        "text" : "12x16.5cm • 12 Sheets • BW",
+        "y" : 0.058593750006281975
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Agfa",
+        "y" : 0.7265625004743304
+      },
+      {
+        "confidence" : 1,
+        "text" : "Isopan",
+        "y" : 0.44808614475333686
+      },
+      {
+        "confidence" : 1,
+        "text" : "Portrait",
+        "y" : 0.2955674901876868
+      },
+      {
+        "confidence" : 1,
+        "text" : "12x16.5cm • 12 Sheets • BW",
+        "y" : 0.058593750006281975
+      }
+    ],
+    "name" : "00483_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "• Polaroid",
+        "y" : 0.8249999985561802
+      },
+      {
+        "confidence" : 1,
+        "text" : "High",
+        "y" : 0.5156250000397327
+      },
+      {
+        "confidence" : 1,
+        "text" : "Definition",
+        "y" : 0.42773437524157076
+      },
+      {
+        "confidence" : 0.3,
+        "text" : "offa",
+        "y" : 0.20963768337536948
+      },
+      {
+        "confidence" : 1,
+        "text" : "110 • 24exp • ISO 200 • C-41",
+        "y" : 0.05468750001302081
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "• Polaroid",
+        "y" : 0.8244954862167257
+      },
+      {
+        "confidence" : 1,
+        "text" : "High",
+        "y" : 0.5156636626966749
+      },
+      {
+        "confidence" : 1,
+        "text" : "Definition",
+        "y" : 0.4277343750917969
+      },
+      {
+        "confidence" : 0.3,
+        "text" : "offm",
+        "y" : 0.20768838056358585
+      },
+      {
+        "confidence" : 1,
+        "text" : "110 • 24exp • ISO 200 • C-41",
+        "y" : 0.05468750001302081
+      }
+    ],
+    "name" : "00327_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Polaroid",
+        "y" : 0.8423677548355759
+      },
+      {
+        "confidence" : 1,
+        "text" : "GridFilm",
+        "y" : 0.5372664551560125
+      },
+      {
+        "confidence" : 1,
+        "text" : "ABCDEFGHIJKLMNOP",
+        "y" : 0.4480573540477564
+      },
+      {
+        "confidence" : 1,
+        "text" : "Integral Film • 10exp • ISO 640 • Instant",
+        "y" : 0.04101562500614875
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Polaroid",
+        "y" : 0.8423200105685573
+      },
+      {
+        "confidence" : 1,
+        "text" : "GridFilm",
+        "y" : 0.5390625004997702
+      },
+      {
+        "confidence" : 1,
+        "text" : "ABCDEFGHIJKLMNOP",
+        "y" : 0.4480573540477564
+      },
+      {
+        "confidence" : 1,
+        "text" : "Integral Film • 10exp • ISO 640 • Instant",
+        "y" : 0.04296875000529665
+      }
+    ],
+    "name" : "00031_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Polaroid",
+        "y" : 0.8417968750288842
+      },
+      {
+        "confidence" : 1,
+        "text" : "PolaBlue",
+        "y" : 0.47287623687783276
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm",
+        "y" : 0.32287027807131463
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 12exp • ISO 8 • Instant",
+        "y" : 0.0800781250110445
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Polaroid",
+        "y" : 0.8411590893697326
+      },
+      {
+        "confidence" : 1,
+        "text" : "PolaBlue",
+        "y" : 0.4736128949077514
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm",
+        "y" : 0.32279260218259465
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 12exp • ISO 8 • Instant",
+        "y" : 0.0800781250110445
+      }
+    ],
+    "name" : "00019_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "ROSSMANN",
+        "y" : 0.9042968752473959
+      },
+      {
+        "confidence" : 1,
+        "text" : "JAHRESZEITEN",
+        "y" : 0.6542968750155101
+      },
+      {
+        "confidence" : 1,
+        "text" : "PACK",
+        "y" : 0.5281117521654128
+      },
+      {
+        "confidence" : 1,
+        "text" : "3×36 FARBBILDER",
+        "y" : 0.05859375035400394
+      },
+      {
+        "confidence" : 1,
+        "text" : "35 mm • 36exp • ISO 100 • C-41",
+        "y" : 0.011718750007053025
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "ROSSMANN",
+        "y" : 0.9042968752473959
+      },
+      {
+        "confidence" : 1,
+        "text" : "JAHRESZEITEN",
+        "y" : 0.6542968750155101
+      },
+      {
+        "confidence" : 1,
+        "text" : "PACK",
+        "y" : 0.5258135982408498
+      },
+      {
+        "confidence" : 1,
+        "text" : "3×36 FARBBILDER",
+        "y" : 0.05859375035400394
+      },
+      {
+        "confidence" : 1,
+        "text" : "35 mm • 36exp • ISO 100 • C-41",
+        "y" : 0.011718750007053025
+      }
+    ],
+    "name" : "00072_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Svema",
+        "y" : 0.749424549157974
+      },
+      {
+        "confidence" : 1,
+        "text" : "FOTO 200",
+        "y" : 0.3339843757446289
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 200 • BW",
+        "y" : 0.05707908602253453
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Svema",
+        "y" : 0.7501159765424908
+      },
+      {
+        "confidence" : 1,
+        "text" : "FOTO 200",
+        "y" : 0.3339843757123162
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 200 • BW",
+        "y" : 0.05707908602253453
+      }
+    ],
+    "name" : "00316_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Agfa",
+        "y" : 0.7363281254625822
+      },
+      {
+        "confidence" : 1,
+        "text" : "rockenplatten",
+        "y" : 0.30498947386096453
+      },
+      {
+        "confidence" : 1,
+        "text" : "9x12cm • 12 Sheets • BW",
+        "y" : 0.08398437500763789
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Аgfa",
+        "y" : 0.7382812504720052
+      },
+      {
+        "confidence" : 1,
+        "text" : "alrockeplatten",
+        "y" : 0.3083333316682588
+      },
+      {
+        "confidence" : 1,
+        "text" : "9x12 cm • 12 Sheets • BW",
+        "y" : 0.08203125000818345
+      }
+    ],
+    "name" : "00286_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Escura",
+        "y" : 0.8730468750843394
+      },
+      {
+        "confidence" : 1,
+        "text" : "ЕЛО",
+        "y" : 0.4257812505273437
+      },
+      {
+        "confidence" : 1,
+        "text" : "UKIYO-E",
+        "y" : 0.324218750024414
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 24exp • ISO 400 • C-41",
+        "y" : 0.027343750012466694
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Escura",
+        "y" : 0.8730468750843394
+      },
+      {
+        "confidence" : 1,
+        "text" : "ЕПО",
+        "y" : 0.4257812506713867
+      },
+      {
+        "confidence" : 1,
+        "text" : "UKIYO-E",
+        "y" : 0.324218750024414
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 24exp • ISO 400 • C-41",
+        "y" : 0.027343750012466694
+      }
+    ],
+    "name" : "00511_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.7519531250492455
+      },
+      {
+        "confidence" : 1,
+        "text" : "FARBWELT400",
+        "y" : 0.4316406253813244
+      },
+      {
+        "confidence" : 1,
+        "text" : "Allround",
+        "y" : 0.30249596699413683
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.11132812501360778
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 400 • C-41",
+        "y" : 0.07031250023716518
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.7484000198013061
+      },
+      {
+        "confidence" : 1,
+        "text" : "FARBWELT400",
+        "y" : 0.4295573867360323
+      },
+      {
+        "confidence" : 1,
+        "text" : "Allround",
+        "y" : 0.3024935487550331
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.11132812501360778
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 400 • C-41",
+        "y" : 0.07031250023716518
+      }
+    ],
+    "name" : "00297_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Film",
+        "y" : 0.7720588131338377
+      },
+      {
+        "confidence" : 1,
+        "text" : "PHOTOGRAPHY",
+        "y" : 0.7480468750171558
+      },
+      {
+        "confidence" : 1,
+        "text" : "PROJECT",
+        "y" : 0.7187500000282118
+      },
+      {
+        "confidence" : 1,
+        "text" : "FPP 620*",
+        "y" : 0.40389848405023077
+      },
+      {
+        "confidence" : 1,
+        "text" : "BLACK & WHITE",
+        "y" : 0.3789062502983941
+      },
+      {
+        "confidence" : 1,
+        "text" : "PANCHROMATIC",
+        "y" : 0.32617187501541944
+      },
+      {
+        "confidence" : 1,
+        "text" : "NEGATIVE FILM",
+        "y" : 0.251286898503551
+      },
+      {
+        "confidence" : 1,
+        "text" : "620 • ISO 100 • BW",
+        "y" : 0.05664062500945066
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Film",
+        "y" : 0.7764016504773936
+      },
+      {
+        "confidence" : 1,
+        "text" : "PHOTOGRAPHY",
+        "y" : 0.7480468750171558
+      },
+      {
+        "confidence" : 1,
+        "text" : "PROJECT",
+        "y" : 0.7187500000282118
+      },
+      {
+        "confidence" : 1,
+        "text" : "FPP 620*",
+        "y" : 0.40368152220507425
+      },
+      {
+        "confidence" : 1,
+        "text" : "BLACK & WHITE",
+        "y" : 0.3789062503159467
+      },
+      {
+        "confidence" : 1,
+        "text" : "PANCHROMATIC",
+        "y" : 0.32617187501541944
+      },
+      {
+        "confidence" : 1,
+        "text" : "NEGATIVE FILM",
+        "y" : 0.2512868980730836
+      },
+      {
+        "confidence" : 1,
+        "text" : "620 • ISO 100 • BW",
+        "y" : 0.05664062500945066
+      }
+    ],
+    "name" : "00499_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.8364852218804935
+      },
+      {
+        "confidence" : 1,
+        "text" : "ULTRAMAX",
+        "y" : 0.5156250000206514
+      },
+      {
+        "confidence" : 1,
+        "text" : "400",
+        "y" : 0.3867187500735436
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.09667084983191943
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 400 • C-41",
+        "y" : 0.06054687501331668
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.8368716799225944
+      },
+      {
+        "confidence" : 1,
+        "text" : "ULTRAMAX",
+        "y" : 0.5136718754255022
+      },
+      {
+        "confidence" : 1,
+        "text" : "400",
+        "y" : 0.3867187502752131
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.0966898111129102
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 400 • C-41",
+        "y" : 0.06054687501331668
+      }
+    ],
+    "name" : "00241_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.8087605686871022
+      },
+      {
+        "confidence" : 1,
+        "text" : "Ektachrome 200",
+        "y" : 0.44352888533391654
+      },
+      {
+        "confidence" : 1,
+        "text" : "COLOR FILM",
+        "y" : 0.4003906250133775
+      },
+      {
+        "confidence" : 1,
+        "text" : "126 • 20EXP • ISO 200 • E-6",
+        "y" : 0.06835937500743039
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.8086252169058896
+      },
+      {
+        "confidence" : 1,
+        "text" : "Ektachrome 200",
+        "y" : 0.4442777973816324
+      },
+      {
+        "confidence" : 1,
+        "text" : "COLOR FILM",
+        "y" : 0.4003906250133775
+      },
+      {
+        "confidence" : 1,
+        "text" : "126 • 20EXP • ISO 200 • E-6",
+        "y" : 0.06835937500743039
+      }
+    ],
+    "name" : "00261_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "PORTRA4OOUC",
+        "y" : 0.5156250000923295
+      },
+      {
+        "confidence" : 1,
+        "text" : "Kodak Professional",
+        "y" : 0.3097185463970864
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 400 • C-41",
+        "y" : 0.06054687501015632
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "PORTRA4OOUC",
+        "y" : 0.5156250000923295
+      },
+      {
+        "confidence" : 1,
+        "text" : "Kodak Professional",
+        "y" : 0.31054687505244505
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 400 • C-41",
+        "y" : 0.06054687501015632
+      }
+    ],
+    "name" : "00299_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Lloydspharmacy",
+        "y" : 0.8728804713727227
+      },
+      {
+        "confidence" : 1,
+        "text" : "TM",
+        "y" : 0.6347656250651041
+      },
+      {
+        "confidence" : 1,
+        "text" : "APVANCED",
+        "y" : 0.5402307662653019
+      },
+      {
+        "confidence" : 1,
+        "text" : "PHOTO SYSTEM",
+        "y" : 0.5390625000110973
+      },
+      {
+        "confidence" : 1,
+        "text" : "TM",
+        "y" : 0.5371093750511533
+      },
+      {
+        "confidence" : 1,
+        "text" : "APS Film",
+        "y" : 0.34342341367257856
+      },
+      {
+        "confidence" : 1,
+        "text" : "200",
+        "y" : 0.20507812507905498
+      },
+      {
+        "confidence" : 1,
+        "text" : "APS • 40exp • ISO 200 • C-41",
+        "y" : 0.05664062500739231
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Lloydspharmacy",
+        "y" : 0.8730468750245801
+      },
+      {
+        "confidence" : 1,
+        "text" : "TM",
+        "y" : 0.6347656250616777
+      },
+      {
+        "confidence" : 0.5,
+        "text" : "АРНАNSCED™М",
+        "y" : 0.534064595162664
+      },
+      {
+        "confidence" : 1,
+        "text" : "PHOTO SYSTEM",
+        "y" : 0.5390625000087979
+      },
+      {
+        "confidence" : 1,
+        "text" : "APS Film",
+        "y" : 0.34321275791675077
+      },
+      {
+        "confidence" : 1,
+        "text" : "200",
+        "y" : 0.2047596992063686
+      },
+      {
+        "confidence" : 1,
+        "text" : "APS • 40exp • ISO 200 • C-41",
+        "y" : 0.05664062500739231
+      }
+    ],
+    "name" : "00067_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "ILFORD",
+        "y" : 0.8022643030033008
+      },
+      {
+        "confidence" : 1,
+        "text" : "DELTA",
+        "y" : 0.42916666587022556
+      },
+      {
+        "confidence" : 1,
+        "text" : "100",
+        "y" : 0.2636718753458659
+      },
+      {
+        "confidence" : 1,
+        "text" : "PROFESSIONAL",
+        "y" : 0.18597020199669045
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 100 • BW",
+        "y" : 0.053297164768961514
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "ILFORD",
+        "y" : 0.8038083613191613
+      },
+      {
+        "confidence" : 1,
+        "text" : "DELTA",
+        "y" : 0.43945312506111
+      },
+      {
+        "confidence" : 1,
+        "text" : "100",
+        "y" : 0.2617187505310059
+      },
+      {
+        "confidence" : 1,
+        "text" : "PROFESSIONAL",
+        "y" : 0.18750000001307532
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 100 • BW",
+        "y" : 0.053297164768961514
+      }
+    ],
+    "name" : "00361_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "lamography",
+        "y" : 0.8730468753069196
+      },
+      {
+        "confidence" : 1,
+        "text" : "POTSDAM",
+        "y" : 0.20842329985007924
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 100 • BW",
+        "y" : 0.052734375010850654
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "lomography",
+        "y" : 0.8730468751708984
+      },
+      {
+        "confidence" : 1,
+        "text" : "POTSDAM",
+        "y" : 0.21975740378706232
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 100 • BW",
+        "y" : 0.051287057266591995
+      }
+    ],
+    "name" : "00475_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "lomogrophy",
+        "y" : 0.8727332444530812
+      },
+      {
+        "confidence" : 1,
+        "text" : "COLOR",
+        "y" : 0.5083333350091246
+      },
+      {
+        "confidence" : 1,
+        "text" : "NEGATIVE",
+        "y" : 0.40039062501702727
+      },
+      {
+        "confidence" : 1,
+        "text" : "400",
+        "y" : 0.2792968752355238
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 400 • C-41",
+        "y" : 0.056640625234374964
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "lomogrophy",
+        "y" : 0.8730468752539062
+      },
+      {
+        "confidence" : 1,
+        "text" : "COLOR",
+        "y" : 0.50833333509593
+      },
+      {
+        "confidence" : 1,
+        "text" : "NEGATIVE",
+        "y" : 0.40039062501694045
+      },
+      {
+        "confidence" : 1,
+        "text" : "400",
+        "y" : 0.27929687506256107
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 400 • C-41",
+        "y" : 0.05664062529296876
+      }
+    ],
+    "name" : "00558_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 0.3,
+        "text" : "Çeraet",
+        "y" : 0.6806397781577649
+      },
+      {
+        "confidence" : 1,
+        "text" : "Superchrom",
+        "y" : 0.33463607732450784
+      },
+      {
+        "confidence" : 1,
+        "text" : "12x16.5cm • 12 plates • 30° • BW",
+        "y" : 0.06504806274483754
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 0.3,
+        "text" : "Çeraet",
+        "y" : 0.6787147402421463
+      },
+      {
+        "confidence" : 1,
+        "text" : "Superchrom",
+        "y" : 0.324228626296173
+      },
+      {
+        "confidence" : 1,
+        "text" : "12x16.5cm • 12 plates • 30° • BW",
+        "y" : 0.06504806274483754
+      }
+    ],
+    "name" : "00541_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "VC200",
+        "y" : 0.3789062500229914
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 200 • C-41",
+        "y" : 0.060546875009374945
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "C200",
+        "y" : 0.37668972464536654
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 200 • C-41",
+        "y" : 0.06054687500945066
+      }
+    ],
+    "name" : "00473_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.8627366833646889
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICHROME",
+        "y" : 0.687500000221946
+      },
+      {
+        "confidence" : 1,
+        "text" : "PROVIA",
+        "y" : 0.4040184766366126
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.28515625004682144
+      },
+      {
+        "confidence" : 1,
+        "text" : "100F",
+        "y" : 0.054130081137680586
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.0937500000183824
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 100 • E-6",
+        "y" : 0.058593750015897506
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.863281250025605
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICHROME",
+        "y" : 0.687500000221946
+      },
+      {
+        "confidence" : 1,
+        "text" : "PROVIA",
+        "y" : 0.40568643758472045
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.2851562500474718
+      },
+      {
+        "confidence" : 1,
+        "text" : "100F",
+        "y" : 0.05360324685869
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.0937500000183824
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 100 • E-6",
+        "y" : 0.05859375001470091
+      }
+    ],
+    "name" : "00055_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Seagull",
+        "y" : 0.8277064524892542
+      },
+      {
+        "confidence" : 1,
+        "text" : "Color",
+        "y" : 0.3689007551631205
+      },
+      {
+        "confidence" : 1,
+        "text" : "IR100",
+        "y" : 0.2343750000249164
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 100 • C-41",
+        "y" : 0.04296875000742417
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Seagull",
+        "y" : 0.8276916755675059
+      },
+      {
+        "confidence" : 1,
+        "text" : "Color",
+        "y" : 0.3671875003723144
+      },
+      {
+        "confidence" : 1,
+        "text" : "IR100",
+        "y" : 0.234375000024713
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 100 • C-41",
+        "y" : 0.04296875000721323
+      }
+    ],
+    "name" : "00463_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "ILFORD",
+        "y" : 0.8373839634061123
+      },
+      {
+        "confidence" : 1,
+        "text" : "FP4 PLUS",
+        "y" : 0.41234968632038427
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 125 • BW",
+        "y" : 0.06054687519531243
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "ILFORD",
+        "y" : 0.8373182381093413
+      },
+      {
+        "confidence" : 1,
+        "text" : "FP4 PLUS",
+        "y" : 0.41091787836899907
+      },
+      {
+        "confidence" : 1,
+        "text" : "120 • ISO 125 • BW",
+        "y" : 0.06054687519531243
+      }
+    ],
+    "name" : "00517_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "135",
+        "y" : 0.8710937500558036
+      },
+      {
+        "confidence" : 1,
+        "text" : "PORTRA 400",
+        "y" : 0.5019531250173839
+      },
+      {
+        "confidence" : 1,
+        "text" : "Film • Película • Filme • Pellicola",
+        "y" : 0.44335937501203015
+      },
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.11328125005765255
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.06445312529296876
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36ЕХР",
+        "y" : 0.1035156250142415
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 400 • C-41",
+        "y" : 0.07031250001379918
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "135",
+        "y" : 0.8710937500837054
+      },
+      {
+        "confidence" : 1,
+        "text" : "PORTRA 400",
+        "y" : 0.5019531250173385
+      },
+      {
+        "confidence" : 1,
+        "text" : "Film • Película • Filme • Pellicola",
+        "y" : 0.44335937501203015
+      },
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.11328125005765255
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.06445312529296876
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36ЕХР",
+        "y" : 0.1035156250142415
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 400 • C-41",
+        "y" : 0.07031250001379918
+      }
+    ],
+    "name" : "00200_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.7766075903698542
+      },
+      {
+        "confidence" : 1,
+        "text" : "Ektar 100",
+        "y" : 0.42561883792702115
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.16015625001410583
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 100 • C-41",
+        "y" : 0.1269531250162761
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.7761357892479581
+      },
+      {
+        "confidence" : 1,
+        "text" : "Ektar 100",
+        "y" : 0.4258426826069983
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.16015625001410583
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 100 • C-41",
+        "y" : 0.1269531250162761
+      }
+    ],
+    "name" : "00081_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "Аlien FIF",
+        "y" : 0.8150109242275723
+      },
+      {
+        "confidence" : 1,
+        "text" : "5222\/ХX",
+        "y" : 0.0966221779351708
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 250 • BW",
+        "y" : 0.03320312500743583
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "Alien FI",
+        "y" : 0.8122949251654559
+      },
+      {
+        "confidence" : 1,
+        "text" : "5222\/ХX",
+        "y" : 0.09646270912642674
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36exp • ISO 250 • BW",
+        "y" : 0.03320312500743583
+      }
+    ],
+    "name" : "00057_000.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.8710937500204281
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICHROME",
+        "y" : 0.6835937500127591
+      },
+      {
+        "confidence" : 1,
+        "text" : "ASTIA",
+        "y" : 0.3976516393386955
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.3007812502629207
+      },
+      {
+        "confidence" : 1,
+        "text" : "100F",
+        "y" : 0.04492187504075418
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.08593750003388068
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 100 • E-6",
+        "y" : 0.05078125002579603
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.8703680634705286
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICHROME",
+        "y" : 0.6835937500127591
+      },
+      {
+        "confidence" : 1,
+        "text" : "ASTIA",
+        "y" : 0.3976564856838831
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.3007812502278646
+      },
+      {
+        "confidence" : 1,
+        "text" : "100F",
+        "y" : 0.04492187504322498
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.08593750003388068
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 100 • E-6",
+        "y" : 0.04849178964931122
+      }
+    ],
+    "name" : "cover_fuji_astia_100f.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ FILM",
+        "y" : 0.8465406745866318
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICOLOR",
+        "y" : 0.5878906250367419
+      },
+      {
+        "confidence" : 1,
+        "text" : "C200",
+        "y" : 0.28906250003782463
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.1054687500138467
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 200 • C-41",
+        "y" : 0.06250000001729328
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ FILM",
+        "y" : 0.8469301184650645
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICOLOR",
+        "y" : 0.5878906250367419
+      },
+      {
+        "confidence" : 1,
+        "text" : "C200",
+        "y" : 0.2910156253801619
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.10351562501457556
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 200 • C-41",
+        "y" : 0.06250000001729328
+      }
+    ],
+    "name" : "cover_fuji_c200.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "CLASSIC CHROME",
+        "y" : 0.315616466135474
+      },
+      {
+        "confidence" : 1,
+        "text" : "FILM SIMULATION",
+        "y" : 0.06054687501103939
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 0.5,
+        "text" : "FUJI",
+        "y" : 0.5100048793163762
+      },
+      {
+        "confidence" : 1,
+        "text" : "CLASSIC CHROME",
+        "y" : 0.3148902654899506
+      },
+      {
+        "confidence" : 1,
+        "text" : "FILM SIMULATION",
+        "y" : 0.06054687501103939
+      }
+    ],
+    "name" : "cover_fuji_classic_chrome.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.8333602808645468
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICOLOR",
+        "y" : 0.6708333333655498
+      },
+      {
+        "confidence" : 1,
+        "text" : "PRO 400H",
+        "y" : 0.4464025492103707
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.3203125002278646
+      },
+      {
+        "confidence" : 1,
+        "text" : "120",
+        "y" : 0.05859375009114576
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 400 • C-41",
+        "y" : 0.06054687501436118
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.8333705053219804
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICOLOR",
+        "y" : 0.6708333333655498
+      },
+      {
+        "confidence" : 1,
+        "text" : "PRO 400H",
+        "y" : 0.44583200983180116
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.3203125002278646
+      },
+      {
+        "confidence" : 1,
+        "text" : "120",
+        "y" : 0.05859375009114576
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 400 • C-41",
+        "y" : 0.06054687501436118
+      }
+    ],
+    "name" : "cover_fuji_pro_400h.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.8627366833646889
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICHROME",
+        "y" : 0.687500000221946
+      },
+      {
+        "confidence" : 1,
+        "text" : "PROVIA",
+        "y" : 0.4040184766366126
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.28515625004682144
+      },
+      {
+        "confidence" : 1,
+        "text" : "100F",
+        "y" : 0.054130081137680586
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.0937500000183824
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 100 • E-6",
+        "y" : 0.058593750015897506
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.863281250025605
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICHROME",
+        "y" : 0.687500000221946
+      },
+      {
+        "confidence" : 1,
+        "text" : "PROVIA",
+        "y" : 0.40568643758472045
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.2851562500474718
+      },
+      {
+        "confidence" : 1,
+        "text" : "100F",
+        "y" : 0.05360324685869
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.0937500000183824
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 100 • E-6",
+        "y" : 0.05859375001470091
+      }
+    ],
+    "name" : "cover_fuji_provia_100f.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.8535623103576339
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICHROME",
+        "y" : 0.6132812500147009
+      },
+      {
+        "confidence" : 1,
+        "text" : "VELVIA",
+        "y" : 0.37890625003244605
+      },
+      {
+        "confidence" : 1,
+        "text" : "50",
+        "y" : 0.06250000008923762
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.10546875001482281
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 50 • E-6",
+        "y" : 0.06501066320130922
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "FUJ.FILM",
+        "y" : 0.8536476791100809
+      },
+      {
+        "confidence" : 1,
+        "text" : "FUJICHROME",
+        "y" : 0.6132812500147009
+      },
+      {
+        "confidence" : 1,
+        "text" : "VELVIA",
+        "y" : 0.38085937503171474
+      },
+      {
+        "confidence" : 1,
+        "text" : "50",
+        "y" : 0.06250000032348635
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36EXP",
+        "y" : 0.10546875001482281
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 50 • E-6",
+        "y" : 0.06514439256205007
+      }
+    ],
+    "name" : "cover_fuji_velvia.heic"
+  },
+  {
+    "after" : [
+      {
+        "confidence" : 1,
+        "text" : "135",
+        "y" : 0.8710937500558036
+      },
+      {
+        "confidence" : 1,
+        "text" : "PORTRA 400",
+        "y" : 0.5019531250173839
+      },
+      {
+        "confidence" : 1,
+        "text" : "Film • Película • Filme • Pellicola",
+        "y" : 0.44335937501203015
+      },
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.11328125005765255
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.06445312529296876
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36ЕХР",
+        "y" : 0.1035156250142415
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 400 • C-41",
+        "y" : 0.07031250001379918
+      }
+    ],
+    "before" : [
+      {
+        "confidence" : 1,
+        "text" : "135",
+        "y" : 0.8710937500837054
+      },
+      {
+        "confidence" : 1,
+        "text" : "PORTRA 400",
+        "y" : 0.5019531250173385
+      },
+      {
+        "confidence" : 1,
+        "text" : "Film • Película • Filme • Pellicola",
+        "y" : 0.44335937501203015
+      },
+      {
+        "confidence" : 1,
+        "text" : "Kodak",
+        "y" : 0.11328125005765255
+      },
+      {
+        "confidence" : 1,
+        "text" : "Professional",
+        "y" : 0.06445312529296876
+      },
+      {
+        "confidence" : 1,
+        "text" : "35mm • 36ЕХР",
+        "y" : 0.1035156250142415
+      },
+      {
+        "confidence" : 1,
+        "text" : "ISO 400 • C-41",
+        "y" : 0.07031250001379918
+      }
+    ],
+    "name" : "cover_kodak_portra_400.heic"
+  }
+]

@@ -17,9 +17,8 @@ struct CameraView: View {
     /// 当前选中的胶片源。底部右侧封面打开 picker 后可切换——`@State` 让 toolbar title、
     /// 预览 LUT (RealtimePreviewView.lutCacheKey)、右下封面、左下最近照片 badge 都自动跟随。
     @State private var source: FilmSource
-    /// Live Photo 开关（顶栏切换，默认开，像 iPhone 原相机）。开启时每张拍照同时录一段动态视频，
-    /// 静态图与视频都套当前胶片 LUT 后存为系统相册 Live Photo。开关始终保留在顶栏。
-    @AppStorage("livePhotoEnabled") private var livePhotoEnabled = true
+    /// Quality is the default for both existing and new installations. Live remains explicit.
+    @AppStorage("photoCaptureMode") private var captureModeValue = PhotoCaptureMode.quality.rawValue
     /// Live Photo 是否录音（设置页可配置，默认开）。开启时麦克风挂上 session、Live 视频带声音；
     /// 关闭则静音。与顶栏 livePhotoEnabled 一起决定是否挂麦克风——见 CameraManager.setLivePhotoAudio。
     @AppStorage("livePhotoSoundEnabled") private var livePhotoSoundEnabled = true
@@ -39,6 +38,7 @@ struct CameraView: View {
     @State private var isShutterBusy = false
     @ObservedObject private var capturePipeline = CapturePipeline.shared
     @State private var preparedLUT: (key: String, lut: CubeLUT, texture: PreviewLUTTexture, profile: FilmRenderProfile)?
+    @State private var showRAWHelp = false
     @State private var lutPreparationCadence = CameraLUTPreparationCadence()
     @State private var entryRetryRevision: UInt64 = 0
     @State private var preparedPickerCovers: [FilmPreset: UIImage] = [:]
@@ -111,9 +111,9 @@ struct CameraView: View {
                                 manager: cameraManager,
                                 lutCacheKey: preparedLUT?.key ?? previewLUTKey,
                                 preparedLUT: preparedLUT?.texture,
-                                grain: preparedLUT?.profile.grain ?? source.renderProfile.grain,
-                                optics: preparedLUT?.profile.optics ?? source.renderProfile.optics,
-                                chromatic: preparedLUT?.profile.effectiveChromatic ?? source.renderProfile.effectiveChromatic,
+                                grain: preparedLUT?.profile.grain ?? source.captureRenderProfile.grain,
+                                optics: preparedLUT?.profile.optics ?? source.captureRenderProfile.optics,
+                                chromatic: preparedLUT?.profile.effectiveChromatic ?? source.captureRenderProfile.effectiveChromatic,
                                 isContentVisible: !isReviewingPhotos
                             )
                                 .id(entryRetryRevision)
@@ -308,21 +308,7 @@ struct CameraView: View {
             // Keep the control visible while support/enablement is being negotiated.
             // If availability is lost, an existing On preference can still be switched Off.
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    cameraManager.hapticLight.impactOccurred()
-                    livePhotoEnabled.toggle()
-                } label: {
-                    Image(systemName: livePhotoEnabled && cameraManager.livePhotoCaptureState.canCapture ? "livephoto" : "livephoto.slash")
-                        .rotationEffect(controlRotationAngle)
-                        .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
-                }
-                .tint(livePhotoEnabled && cameraManager.livePhotoCaptureState.canCapture ? .yellow : .white)
-                .disabled(cameraManager.readiness != .ready || isShutterBusy || (!cameraManager.livePhotoCaptureState.canCapture && !livePhotoEnabled))
-                .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
-                .accessibilityIdentifier("camera.live_photo")
-                .accessibilityLabel(!cameraManager.livePhotoCaptureState.canCapture ? Text("Live Photo unavailable") :
-                    livePhotoEnabled ? Text("Live Photo on") : Text("Live Photo off"))
-                .accessibilityHint("Toggle Live Photo")
+                captureFormatControl
             }
             ToolbarSpacer(.fixed, placement: .primaryAction)
 
@@ -426,15 +412,15 @@ struct CameraView: View {
             cameraManager.updateEntryLUT(expectedKey: previewLUTKey, preparedKey: preparedLUT?.key)
             cameraManager.requestCameraPermission()
             // 告知期望录音状态（live && sound）；session 配置完成后据此决定是否挂麦克风。
-            cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
+            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
         }
         // 顶栏 Live 开关 / 设置页声音开关变化时，实时增删麦克风输入（在相机页内切换即时生效）。
-        .onChange(of: livePhotoEnabled) { _, _ in
-            cameraManager.diagnostics.event("live_photo_preference_changed", "requested=\(livePhotoEnabled) supported=\(cameraManager.livePhotoCaptureState.supported) enabled=\(cameraManager.livePhotoCaptureState.enabled)")
-            cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
+        .onChange(of: captureModeValue) { _, _ in
+            cameraManager.diagnostics.event("live_photo_preference_changed", "requested=\(wantsLiveCapture) supported=\(cameraManager.livePhotoCaptureState.supported) enabled=\(cameraManager.livePhotoCaptureState.enabled)")
+            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
         }
         .onChange(of: livePhotoSoundEnabled) { _, _ in
-            cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
+            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
         }
         .onChange(of: cameraManager.flashMode) { _, mode in
             cameraManager.diagnostics.event("flash_changed", "mode=\(mode.rawValue)")
@@ -450,6 +436,7 @@ struct CameraView: View {
         }
         .onChange(of: previewLUTKey) { _, key in
             cameraManager.updateEntryLUT(expectedKey: key, preparedKey: preparedLUT?.key)
+            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
         }
         .onChange(of: capturePipeline.isPrepared) { _, ready in
             cameraManager.updateEntryPipelineReady(ready)
@@ -494,11 +481,12 @@ struct CameraView: View {
                 "\(curveFields) \(colorAdjustmentDiagnosticFields) cadence_wait_ms=\(Diagnostics.milliseconds(since: requestedAt))")
             do {
                 let lut = try await ColorTemperatureLUT.shared.prepare(source: requestedSource, curve: curve, selection: selection, tint: tint, reference: reference)
+                try await FilmCapturePreparation.shared.prepareRendering()
                 try Task.checkCancellation()
                 let texture = try await PreviewLUTTextureCache.shared.prepare(key: key, lut: lut)
                 lutWait.end("ok", "cancelled=\(Task.isCancelled)")
                 guard !Task.isCancelled, key == previewLUTKey else { return }
-                preparedLUT = (key, lut, texture, requestedSource.renderProfile)
+                preparedLUT = (key, lut, texture, requestedSource.captureRenderProfile)
                 cameraManager.updateEntryLUT(expectedKey: key, preparedKey: key)
                 cameraManager.diagnostics.event("camera_lut_ready", "dimension=\(lut.dimension) \(curveFields) \(colorAdjustmentDiagnosticFields)")
             } catch is CancellationError {
@@ -568,6 +556,11 @@ struct CameraView: View {
         } message: {
             Text(captureError ?? "")
         }
+        .alert("Capture quality", isPresented: $showRAWHelp) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Quality develops Apple ProRAW at full precision and saves an sRGB photo. All filters share the same white balance, LUT and curve in preview, photos and Live Photo. HEIF is used when ProRAW is unavailable. Camera processing can still change fine detail and local brightness between preview and the photo. Originals are kept for recovery until saving succeeds.")
+        }
         .sheet(isPresented: $showCurveManager) {
             NavigationStack {
                 FilmCurveLibraryView(showsDoneButton: true)
@@ -576,7 +569,34 @@ struct CameraView: View {
         }
     }
 
+    private var captureFormatControl: some View {
+        Menu {
+            Picker("Capture mode", selection: $captureModeValue) {
+                Text("Quality").tag(PhotoCaptureMode.quality.rawValue)
+                Text("Live Photo").tag(PhotoCaptureMode.livePhoto.rawValue)
+            }
+            Button("Capture quality", systemImage: "info.circle") { showRAWHelp = true }
+        } label: {
+            HStack(spacing: 3) {
+                if capturePlan.approximateLook { Image(systemName: "approximately") }
+                Text(capturePlan.capturesRAW ? "ProRAW" : capturePlan.capturesLivePhoto ? "Live" : "HEIF")
+                    .font(.caption.weight(.bold))
+            }
+            .foregroundStyle(capturePlan.capturesRAW ? .green : .white)
+            .rotationEffect(controlRotationAngle)
+        }
+        .disabled(cameraManager.readiness != .ready || isShutterBusy)
+        .accessibilityIdentifier("camera.capture_mode")
+        .accessibilityLabel("Capture mode")
+        .accessibilityValue(capturePlan.capturesRAW ? Text("Apple ProRAW") : capturePlan.capturesLivePhoto ? Text("Live Photo") : Text("Processed photo"))
+    }
+
     private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }
+    private var captureMode: PhotoCaptureMode { PhotoCaptureMode(rawValue: captureModeValue) ?? .quality }
+    private var wantsLiveCapture: Bool { captureMode == .livePhoto }
+    private var capturePlan: PhotoCapturePlan {
+        .resolve(mode: captureMode, rawFormat: cameraManager.rawCaptureFormat)
+    }
 
     @ViewBuilder
     private var cameraPreparationScreen: some View {
@@ -619,7 +639,7 @@ struct CameraView: View {
         entryRetryRevision &+= 1
         cameraManager.updateEntryLUT(expectedKey: previewLUTKey, preparedKey: nil)
         cameraManager.retryEntryPreparation()
-        cameraManager.setLivePhotoAudio(live: livePhotoEnabled, sound: livePhotoSoundEnabled)
+        cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
     }
     private var previewLUTKey: String {
         let baseKey = FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: selectedCurve)
@@ -674,7 +694,7 @@ struct CameraView: View {
         let curveFields = curveDiagnosticFields(capturedCurve)
         let requestedID = admission.id
         let captureTrace = DiagnosticTrace(id: requestedID.uuidString)
-        captureTrace.event("shutter_tap", "camera=\(cameraManager.diagnostics.id) pending=\(capturePipeline.pendingCount) requested_live=\(livePhotoEnabled) \(curveFields) \(colorAdjustmentDiagnosticFields)")
+        captureTrace.event("shutter_tap", "camera=\(cameraManager.diagnostics.id) pending=\(capturePipeline.pendingCount) requested_live=\(wantsLiveCapture) \(curveFields) \(colorAdjustmentDiagnosticFields)")
         let tapTime = Log.now()
         // 拍摄时刻快照：相册 creationDate 必须反映按快门的瞬间。后处理已串行排队，若在队列任务
         // 里才求值 Date()，连拍尾部照片的时间会晚数秒到数十秒（Photos 按 creationDate 排序展示）。
@@ -686,7 +706,7 @@ struct CameraView: View {
         // 这里固化合成键，预览所见（拍摄瞬间）与成片一致。
         // 自动渲染配置与随机基种子也在快门时刻固化。后续切换胶片不会改变已排队照片；
         // Live Photo 用同一基种子按时间戳派生逐帧 seed，静态帧与标记时刻保持连续。
-        let renderProfile = currentSource.renderProfile
+        let renderProfile = preparedLUT.profile
         // 胶片色温响应的输入用**设备 AWB 读数**（物理语义：乳剂对到达的光响应，不感知用户
         // 手动 WB 意图——那是校白侧的调整，与乳剂侧正交叠加，恰是真实胶片摄影的分层）。
         // 读数与预览同一来源，成片与预览所见一致。
@@ -695,9 +715,14 @@ struct CameraView: View {
         let grainBaseSeed = UInt32.random(in: 1...UInt32.max)
         let location = cameraManager.captureLocation(at: captureDate).map(CaptureLocation.init)
 
+        let plan = capturePlan
+        let requestedRawFormat = plan.capturesRAW ? cameraManager.rawCaptureFormat : nil
         let capturedLUT = preparedLUT.lut
+        let capturedRawLUT: RawFilmLUT? = nil
+        let rawRecipe = plan.capturesRAW ? RawCaptureRecipe(unifiedLUT: capturedLUT) : nil
+        captureTrace.event("capture_plan", "format=\(plan.format.rawValue) input=\(plan.inputSpace.rawValue) approximate=\(plan.approximateLook)")
         let focalMm = admission.focalLength
-        let wantsLive = livePhotoEnabled
+        let wantsLive = plan.capturesLivePhoto
         guard !wantsLive || cameraManager.livePhotoCaptureState.canCapture else {
             captureTrace.event("live_photo_request_unavailable", "stage=shutter supported=\(cameraManager.livePhotoCaptureState.supported) enabled=\(cameraManager.livePhotoCaptureState.enabled)")
             cameraManager.cancelCaptureAdmission(admission)
@@ -713,7 +738,7 @@ struct CameraView: View {
             try? await Task.sleep(for: .milliseconds(100))
             shutterPressed = false
         }
-        guard let captureID = await capturePipeline.reserve(lutBytes: capturedLUT.data.count, id: requestedID) else {
+        guard let captureID = await capturePipeline.reserve(lutBytes: capturedLUT.data.count + (capturedRawLUT?.data.count ?? 0), id: requestedID) else {
             cameraManager.cancelCaptureAdmission(admission)
             isShutterBusy = false
             return
@@ -733,8 +758,8 @@ struct CameraView: View {
             id: captureID, captureDate: captureDate, filterName: currentSource.photoFilterName,
             displayLabel: displayLabel, focalLength: focalMm, outputQuality: nil,
             profile: renderProfile, grainSeed: grainBaseSeed, location: location,
-            lutDimension: capturedLUT.dimension, chromaticSceneCCT: chromaticSceneCCT, photoDisplayTime: nil)
-        cameraManager.capturePhoto(admission: admission, live: wantsLive, trace: captureTrace, onWillCapture: {
+            lutDimension: capturedLUT.dimension, chromaticSceneCCT: chromaticSceneCCT, photoDisplayTime: nil, raw: rawRecipe, plan: plan)
+        cameraManager.capturePhoto(admission: admission, live: wantsLive, raw: plan.capturesRAW, expectedRAWFormat: requestedRawFormat, trace: captureTrace, onWillCapture: {
             // AVF 主曝光起始帧——开闪光灯时即氙气主脉冲发射的瞬间，关闪光灯时 ZSL/responsive
             // 让这一刻在 tap 后 50–150ms 内 fire。在这里驱动白屏，UI 与真实光线同帧。
             //
@@ -764,7 +789,7 @@ struct CameraView: View {
             captureTrace.event("shutter_available")
             isShutterBusy = false
         }, onStillCaptured: { still in
-            await capturePipeline.checkpointStill(still, recipe: recipe, lut: capturedLUT)
+            await capturePipeline.checkpointStill(still, recipe: recipe, lut: capturedLUT, rawLUT: capturedRawLUT)
         }) { result in
             // 拍照交付（启动后处理的信号，**不是**放开快门的信号——快门早在 onShutterReady 放开了）。
             // 闪光灯 AE/WB 已在 CameraManager.deliverCaptureIfReady 里于静态图就绪时还原。
@@ -793,7 +818,7 @@ struct CameraView: View {
                 displayTime.isValid && displayTime.isNumeric ? displayTime.seconds : nil)
             captureTrace.event("chromatic_response_snapshot",
                 "native_kk=\(Int(renderProfile.effectiveChromatic.nativeCCT)) strength=\(String(format: "%.2f", renderProfile.effectiveChromatic.strength)) scene_kk=\(chromaticSceneCCT.map { Int($0) }.map(String.init) ?? "unavailable") gain=\(String(format: "%.3f/%.3f/%.3f", chromaticGain.x, chromaticGain.y, chromaticGain.z))")
-            capturePipeline.enqueue(result, recipe: completedRecipe, lut: capturedLUT)
+            capturePipeline.enqueue(result, recipe: completedRecipe, lut: capturedLUT, rawLUT: capturedRawLUT)
         }
     }
 

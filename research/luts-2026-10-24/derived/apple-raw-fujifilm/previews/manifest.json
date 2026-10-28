@@ -1,0 +1,231 @@
+{
+  "kind": "Sample-input style preview, not real RAW capture",
+  "inputMethod": "Decode sRGB transfer function, convert linear sRGB to linear Rec.2020/D65, no inverse camera tone mapping or scene reconstruction",
+  "matrixLinearSRGBToLinearRec2020": [
+    [
+      0.627403895934699,
+      0.329283038377883,
+      0.043313065687418
+    ],
+    [
+      0.069097289358232,
+      0.919540395075459,
+      0.011362315566309
+    ],
+    [
+      0.01639143887515,
+      0.088013307877226,
+      0.895595253247624
+    ]
+  ],
+  "exposureEV": 0,
+  "autoWhiteBalance": false,
+  "grain": false,
+  "optics": false,
+  "renderer": "OpenColorIO evaluates the actual serialized latest CLF files",
+  "packages": {
+    "numpy": "2.2.6",
+    "opencolorio": "2.5.2",
+    "Pillow": "13.0.0",
+    "scikit-image": "0.25.2"
+  },
+  "sources": [
+    {
+      "scene": "人像",
+      "credit": "Eileen Collins / NASA",
+      "dimensions": [
+        512,
+        512,
+        3
+      ],
+      "pixelSHA256": "a8c429c18afa7b0fd5673e598d73a21225d94c864a71bbb3885126fdecb41071"
+    },
+    {
+      "scene": "静物",
+      "credit": "Andreas Praefcke",
+      "dimensions": [
+        400,
+        600,
+        3
+      ],
+      "pixelSHA256": "0ce2b51640b9c95f19617f03eabf40c3f0368589cc1ee1190b70966165ac184f"
+    },
+    {
+      "scene": "夜景",
+      "credit": "SpaceX",
+      "dimensions": [
+        427,
+        640,
+        3
+      ],
+      "pixelSHA256": "3d4435cc745752b7f9724df88c6e18817de3ce7e3d2d71c55f85f7831e68f197"
+    }
+  ],
+  "luts": [
+    {
+      "mode": "PROVIA",
+      "file": "FujiPROVIA_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "sha256": "5870224c294c2b75f523d237863d21239ec6bb9db49166a56b8de77ea27e5c8f"
+    },
+    {
+      "mode": "Velvia",
+      "file": "FujiVelvia_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "sha256": "fde9ffc67f7f238471eef649d3fe29a01f0f1beb0d0c7fa0b6d11f10d6deb15c"
+    },
+    {
+      "mode": "ASTIA",
+      "file": "FujiASTIA_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "sha256": "62dbc1044bf30002b11a708caa401065602d345743a7dae127c1504bb03bb110"
+    },
+    {
+      "mode": "CLASSIC-CHROME",
+      "file": "FujiCLASSIC-CHROME_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "sha256": "3fbf8a0d588c23e6a7b916e9e6ce7c263e8a193520113a32a83428e71c10539a"
+    },
+    {
+      "mode": "REALA-ACE",
+      "file": "FujiREALA-ACE_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "sha256": "bfcfa7dea3332af3a51f7d0b33f080499a05b8a57aa1895fd44a20faf252d42b"
+    },
+    {
+      "mode": "PRO-Neg.Std",
+      "file": "FujiPRO-Neg.Std_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "sha256": "ca450361504cd7096abb839c6ebe6523835b4cdcb1949edc7bb20a93fcd6a185"
+    },
+    {
+      "mode": "CLASSIC-Neg.",
+      "file": "FujiCLASSIC-Neg._AppleRAW_LinearRec2020_to_sRGB.clf",
+      "sha256": "567c60f08676d1fbaf7e1214ef59c58ca74badcca514448b3a7ec0a25a630912"
+    },
+    {
+      "mode": "ETERNA",
+      "file": "FujiETERNA_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "sha256": "0f921c225a2b94e59d7836ac8cf10bd1c22619897dbee8443b089922beaaf7ba"
+    },
+    {
+      "mode": "ETERNA-BB",
+      "file": "FujiETERNA-BB_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "sha256": "dcff4f504ba2e0d0bd92c2b46a736cc34d8c3b7e87cb483deeab93e07323f98b"
+    },
+    {
+      "mode": "ACROS",
+      "file": "FujiACROS_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "sha256": "654088c78b334d8ad22de8b7c58dddb453788b30e48921b1735b5166e4810e72"
+    }
+  ],
+  "currentProviaCubeSHA256": "0e966561060aaf417010a42f6697b61fbff01cc40bfd94ffcd23337fed1a5e9d",
+  "files": [
+    {
+      "file": "PROVIA-input-vs-latest.jpg",
+      "size": [
+        1212,
+        1713
+      ],
+      "sha256": "897d43c19b736b208b08e40ecdfc340d01f91dedf69e27bba7f980c1bb50cd29"
+    },
+    {
+      "file": "Velvia-input-vs-latest.jpg",
+      "size": [
+        1212,
+        1713
+      ],
+      "sha256": "618e833cc5dba8d7551672d0efaf0cf2c1bec338d73c22ce563e83d2f1a80c8f"
+    },
+    {
+      "file": "ASTIA-input-vs-latest.jpg",
+      "size": [
+        1212,
+        1713
+      ],
+      "sha256": "f57a7643523f04665dd343d345644edc80936625a6e60995201fd95abceab15d"
+    },
+    {
+      "file": "CLASSIC_CHROME-input-vs-latest.jpg",
+      "size": [
+        1212,
+        1713
+      ],
+      "sha256": "ec3d25927960bb6f5f6596b041a710125332ea337a4a369eaf5b020d2e83c903"
+    },
+    {
+      "file": "REALA_ACE-input-vs-latest.jpg",
+      "size": [
+        1212,
+        1713
+      ],
+      "sha256": "55d385f55b24b44594edd990a9f60a9007315c67402480db58d1f1c3294ac913"
+    },
+    {
+      "file": "PRO_NegStd-input-vs-latest.jpg",
+      "size": [
+        1212,
+        1713
+      ],
+      "sha256": "cc3004a929185d1948c4b227c3bbbf3f144ab4664a4c36c8f21fde10732f610a"
+    },
+    {
+      "file": "CLASSIC_Neg-input-vs-latest.jpg",
+      "size": [
+        1212,
+        1713
+      ],
+      "sha256": "8907c4293a6c846b025fbecf2d346f1f5f07050eee1fc1a3749b03368448de65"
+    },
+    {
+      "file": "ETERNA-input-vs-latest.jpg",
+      "size": [
+        1212,
+        1713
+      ],
+      "sha256": "eca86bab5fdd77e17b2b1e1d9f13f34ac0149c91f461a9232fa53bb50746b7f3"
+    },
+    {
+      "file": "ETERNA_BB-input-vs-latest.jpg",
+      "size": [
+        1212,
+        1713
+      ],
+      "sha256": "9e4461139f76dc4b84b34a27d1f918b19084e7209a63b4b68b0cc99721f9ece0"
+    },
+    {
+      "file": "ACROS-input-vs-latest.jpg",
+      "size": [
+        1212,
+        1713
+      ],
+      "sha256": "eee427a250933eeedf763b2ad6561369e1ed59885eca599df63bf3bd7b99324e"
+    },
+    {
+      "file": "all-ten-portrait.jpg",
+      "size": [
+        2144,
+        1936
+      ],
+      "sha256": "f861d4ac07f17a7c9444da29cd682f3f9466e62e70e71b241ab328dfeb4b4082"
+    },
+    {
+      "file": "all-ten-still-life.jpg",
+      "size": [
+        2144,
+        1423
+      ],
+      "sha256": "dbd90a70ad317dcd5458483df7455e618514b724a9269ae7fd6149371f947670"
+    },
+    {
+      "file": "all-ten-night.jpg",
+      "size": [
+        2144,
+        1426
+      ],
+      "sha256": "cd0303697a70b7fa9a6880624557939152c617698f718ccc38c91e3a145dbba2"
+    },
+    {
+      "file": "PROVIA-current-vs-latest.jpg",
+      "size": [
+        1616,
+        1577
+      ],
+      "sha256": "d3eed8bd801f2823f288ceaab01bd221e42baa7bd0c7b3d84474ff453d91014f"
+    }
+  ]
+}

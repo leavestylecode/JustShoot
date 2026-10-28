@@ -1,20 +1,15 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {},
-    "%1$@ %2$@ built-in lens" : {
-      "extractionState" : "manual",
+    "" : {
+
+    },
+    "“%@” will be permanently deleted." : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ %2$@ built-in lens"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ %2$@ 内置镜头"
+            "value" : "“%@”将被永久删除。"
           }
         }
       }
@@ -70,6 +65,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@，ISO %2$lld，已拍 %3$lld 张"
+          }
+        }
+      }
+    },
+    "%1$@ %2$@ built-in lens" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@ built-in lens"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@ 内置镜头"
           }
         }
       }
@@ -180,7 +192,12 @@
         }
       }
     },
-    "200" : {},
+    "© 2026 Leavestylecode" : {
+
+    },
+    "200" : {
+
+    },
     "A saved photo could not be opened. Its original files have been kept." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -209,26 +226,6 @@
         }
       }
     },
-    "Add Curve" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加曲线"
-          }
-        }
-      }
-    },
-    "Add Point" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加节点"
-          }
-        }
-      }
-    },
     "Add contrast through the midtones." : {
       "localizations" : {
         "en" : {
@@ -241,6 +238,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "增强中间调反差。"
+          }
+        }
+      }
+    },
+    "Add Curve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加曲线"
           }
         }
       }
@@ -258,6 +265,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "用 S 曲线增强中间调反差。"
+          }
+        }
+      }
+    },
+    "Add Point" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加节点"
           }
         }
       }
@@ -295,23 +312,6 @@
         }
       }
     },
-    "Allow Photos access in Settings to save or delete photos." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allow Photos access in Settings to save or delete photos."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请在设置中允许访问照片，以保存或删除照片。"
-          }
-        }
-      }
-    },
     "Allow camera access for JustShoot in Settings" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -325,6 +325,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请在系统设置中允许 JustShoot 访问相机"
+          }
+        }
+      }
+    },
+    "Allow Photos access in Settings to save or delete photos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Photos access in Settings to save or delete photos."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在设置中允许访问照片，以保存或删除照片。"
           }
         }
       }
@@ -370,6 +387,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "光圈"
+          }
+        }
+      }
+    },
+    "Apple ProRAW" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple ProRAW"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple ProRAW"
           }
         }
       }
@@ -765,6 +799,57 @@
         }
       }
     },
+    "Capture mode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capture mode"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄模式"
+          }
+        }
+      }
+    },
+    "Capture quality" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capture quality"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄画质"
+          }
+        }
+      }
+    },
+    "Captures a RAW still, develops it with the selected Fujifilm LUT, and saves an sRGB photo. The video preview is approximate. RAW originals are kept for recovery until saving succeeds." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Captures a RAW still, develops it with the selected Fujifilm LUT, and saves an sRGB photo. The video preview is approximate. RAW originals are kept for recovery until saving succeeds."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄 RAW 静态照片，经所选富士 LUT 显影后保存为 sRGB 照片。视频取景为近似预览。保存成功前会保留 RAW 原片，以便失败时恢复。"
+          }
+        }
+      }
+    },
     "Capturing" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -929,7 +1014,9 @@
         }
       }
     },
-    "Corners" : {},
+    "Corners" : {
+
+    },
     "Could not delete filter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1258,6 +1345,23 @@
         }
       }
     },
+    "Delete photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除照片"
+          }
+        }
+      }
+    },
     "Delete Point" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1281,23 +1385,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "删除恢复文件"
-          }
-        }
-      }
-    },
-    "Delete photo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete photo"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "删除照片"
           }
         }
       }
@@ -1370,7 +1457,9 @@
         }
       }
     },
-    "Done selecting" : {},
+    "Done selecting" : {
+
+    },
     "Drag a point vertically. Points stay ordered automatically to keep the result photographic and free of tone reversals." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1547,6 +1636,26 @@
         }
       }
     },
+    "Film picker" : {
+
+    },
+    "Film simulation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Film simulation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶片模拟"
+          }
+        }
+      }
+    },
     "Film Soft" : {
       "localizations" : {
         "en" : {
@@ -1563,7 +1672,6 @@
         }
       }
     },
-    "Film picker" : {},
     "Film unavailable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1581,7 +1689,9 @@
         }
       }
     },
-    "Films" : {},
+    "Films" : {
+
+    },
     "Filter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1595,6 +1705,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "筛选"
+          }
+        }
+      }
+    },
+    "Filter · %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter · %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筛选 · %lld"
           }
         }
       }
@@ -1629,23 +1756,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "滤镜名称"
-          }
-        }
-      }
-    },
-    "Filter · %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Filter · %lld"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "筛选 · %lld"
           }
         }
       }
@@ -1851,6 +1961,9 @@
         }
       }
     },
+    "HEIF" : {
+
+    },
     "Hide" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1861,24 +1974,6 @@
         }
       }
     },
-    "ISO" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ISO"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ISO"
-          }
-        }
-      }
-    },
-    "ISO %lld" : {},
     "Import" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1896,19 +1991,18 @@
         }
       }
     },
-    "Import LUT" : {
-      "extractionState" : "manual",
+    "Import a 3D .cube with a 0–1 input range. Input and output must both use the selected SDR color space. Camera Log, HDR and 1D shaper LUTs must first be converted to an sRGB-to-sRGB look in a color-managed editor. A .cube file cannot reliably identify its color space. Existing imports keep their sRGB interpretation." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Import LUT"
+            "value" : "Import a 3D .cube with a 0–1 input range. Input and output must both use the selected SDR color space. Camera Log, HDR and 1D shaper LUTs must first be converted to an sRGB-to-sRGB look in a color-managed editor. A .cube file cannot reliably identify its color space. Existing imports keep their sRGB interpretation."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "导入 LUT"
+            "value" : "请导入输入范围为 0–1 的 3D .cube，输入和输出均需使用所选 SDR 颜色空间。相机 Log、HDR 及带 1D 整形的 LUT，需先在支持色彩管理的编辑器中转换为 sRGB 输入、sRGB 输出的风格 LUT。仅凭 .cube 文件无法可靠识别颜色空间。已有导入继续按 sRGB 处理。"
           }
         }
       }
@@ -1930,6 +2024,23 @@
         }
       }
     },
+    "Import LUT" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import LUT"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入 LUT"
+          }
+        }
+      }
+    },
     "Input" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1939,6 +2050,26 @@
           }
         }
       }
+    },
+    "ISO" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ISO"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ISO"
+          }
+        }
+      }
+    },
+    "ISO %lld" : {
+
     },
     "JustShoot" : {
       "extractionState" : "manual",
@@ -1957,23 +2088,8 @@
         }
       }
     },
-    "JustShoot %@" : {},
-    "Keep Processing Stages" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keep Processing Stages"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保留处理阶段对照图"
-          }
-        }
-      }
+    "JustShoot %@" : {
+
     },
     "Keep handheld shots sharp." : {
       "extractionState" : "manual",
@@ -1988,6 +2104,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "减少手持模糊。"
+          }
+        }
+      }
+    },
+    "Keep Processing Stages" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Processing Stages"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留处理阶段对照图"
           }
         }
       }
@@ -2008,24 +2141,6 @@
         }
       }
     },
-    "LIVE" : {},
-    "LUT resource not found: %@.cube" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "LUT resource not found: %@.cube"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "找不到 LUT 资源：%@.cube"
-          }
-        }
-      }
-    },
     "Large" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2036,7 +2151,9 @@
         }
       }
     },
-    "Library" : {},
+    "Library" : {
+
+    },
     "Lift blacks for a faded print look." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2087,6 +2204,9 @@
         }
       }
     },
+    "Live" : {
+
+    },
     "Live Photo" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2108,8 +2228,6 @@
         }
       }
     },
-    "Live Photo off" : {},
-    "Live Photo on" : {},
     "Live Photo unavailable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2117,6 +2235,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Live Photo 暂不可用"
+          }
+        }
+      }
+    },
+    "Loading photo…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading photo…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在载入照片…"
           }
         }
       }
@@ -2145,6 +2280,55 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "日志导出失败"
+          }
+        }
+      }
+    },
+    "LUT color space" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUT color space"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUT 颜色空间"
+          }
+        }
+      }
+    },
+    "LUT compatibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUT compatibility"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUT 兼容性"
+          }
+        }
+      }
+    },
+    "LUT resource not found: %@.cube" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUT resource not found: %@.cube"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到 LUT 资源：%@.cube"
           }
         }
       }
@@ -2257,23 +2441,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更多曲线操作"
-          }
-        }
-      }
-    },
-    "Loading photo…": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Loading photo…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在载入照片…"
           }
         }
       }
@@ -2483,6 +2650,23 @@
         }
       }
     },
+    "Open larger view" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open larger view"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看大图"
+          }
+        }
+      }
+    },
     "Open Settings" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2529,23 +2713,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "通透暗部"
-          }
-        }
-      }
-    },
-    "Open larger view" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open larger view"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "查看大图"
           }
         }
       }
@@ -2665,7 +2832,9 @@
         }
       }
     },
-    "Photos" : {},
+    "Photos" : {
+
+    },
     "Photos could not be loaded. Please try again." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2860,6 +3029,26 @@
         }
       }
     },
+    "Processed photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processed photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "处理后照片"
+          }
+        }
+      }
+    },
+    "ProRAW" : {
+
+    },
     "Punch" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2894,7 +3083,110 @@
         }
       }
     },
-    "Rate on the App Store" : {},
+    "Quality" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quality"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画质"
+          }
+        }
+      }
+    },
+    "Quality develops Apple ProRAW at full precision and saves an sRGB photo. All filters share the same white balance, LUT and curve in preview, photos and Live Photo. HEIF is used when ProRAW is unavailable. Camera processing can still change fine detail and local brightness between preview and the photo. Originals are kept for recovery until saving succeeds." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quality develops Apple ProRAW at full precision and saves an sRGB photo. All filters share the same white balance, LUT and curve in preview, photos and Live Photo. HEIF is used when ProRAW is unavailable. Camera processing can still change fine detail and local brightness between preview and the photo. Originals are kept for recovery until saving succeeds."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高画质模式以完整精度显影 Apple ProRAW，并保存为 sRGB 照片。所有滤镜在预览、照片和实况照片中共用相同的白平衡、LUT 与曲线。不支持 ProRAW 时使用 HEIF。相机处理仍可能使预览与成片的细节和局部亮度存在差异。保存成功前保留原片，以便失败恢复。"
+          }
+        }
+      }
+    },
+    "Quality prefers Apple ProRAW and saves an sRGB photo. Each film uses its required RAW development. HEIF is used when ProRAW is unavailable. Live uses processed frames. Fujifilm looks are approximate in HEIF, Live and the video preview. Originals are kept for recovery until saving succeeds." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quality prefers Apple ProRAW and saves an sRGB photo. Each film uses its required RAW development. HEIF is used when ProRAW is unavailable. Live uses processed frames. Fujifilm looks are approximate in HEIF, Live and the video preview. Originals are kept for recovery until saving succeeds."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画质模式优先拍摄 Apple ProRAW，按胶片所需的输入规范显影并保存为 sRGB 照片。不支持 ProRAW 时使用 HEIF；Live 使用处理后画面。富士在 HEIF、Live 和视频取景中为近似效果。原片保留至保存成功，可用于故障恢复。"
+          }
+        }
+      }
+    },
+    "Rate on the App Store" : {
+
+    },
+    "RAW is unavailable for this camera configuration. Try the native 1× focal length on a RAW-capable camera, or choose another film. These Fujifilm presets require RAW capture." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAW is unavailable for this camera configuration. Try the native 1× focal length on a RAW-capable camera, or choose another film. These Fujifilm presets require RAW capture."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前相机配置不支持 RAW。请尝试支持 RAW 的相机原生 1× 焦段，或选择其他胶片。这些富士预设需要 RAW 拍摄。"
+          }
+        }
+      }
+    },
+    "RAW to sRGB" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAW to sRGB"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAW 转 sRGB"
+          }
+        }
+      }
+    },
+    "RAW unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAW unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RAW 不可用"
+          }
+        }
+      }
+    },
     "Ready" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3223,10 +3515,18 @@
         }
       }
     },
-    "Send Feedback" : {},
-    "Settings" : {},
-    "Share" : {},
-    "Share this photo" : {},
+    "Send Feedback" : {
+
+    },
+    "Settings" : {
+
+    },
+    "Share" : {
+
+    },
+    "Share this photo" : {
+
+    },
     "Show" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3253,6 +3553,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在相机中显示或隐藏此曲线"
+          }
+        }
+      }
+    },
+    "Show RAW capture information" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show RAW capture information"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看 RAW 拍摄说明"
           }
         }
       }
@@ -3459,7 +3776,9 @@
         }
       }
     },
-    "Switch film" : {},
+    "Switch film" : {
+
+    },
     "Take a photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3487,8 +3806,12 @@
         }
       }
     },
-    "Tap to close film picker" : {},
-    "Tap to pick another film" : {},
+    "Tap to close film picker" : {
+
+    },
+    "Tap to pick another film" : {
+
+    },
     "Temp." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3501,6 +3824,7 @@
       }
     },
     "The camera could not be started. Please try again." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3517,6 +3841,7 @@
       }
     },
     "The camera is taking longer than expected. Please try again." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3616,6 +3941,23 @@
         }
       }
     },
+    "This film could not be prepared. Please try again." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This film could not be prepared. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法载入当前胶片，请重试。"
+          }
+        }
+      }
+    },
     "This LUT is invalid or unsupported." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3634,22 +3976,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此 LUT 的输入范围暂不受支持。"
-          }
-        }
-      }
-    },
-    "This film could not be prepared. Please try again." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This film could not be prepared. Please try again."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法载入当前胶片，请重试。"
           }
         }
       }
@@ -3784,7 +4110,6 @@
         }
       }
     },
-    "Toggle Live Photo" : {},
     "Toggle flash" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3839,22 +4164,6 @@
         }
       }
     },
-    "Try Again" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try Again"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重试"
-          }
-        }
-      }
-    },
     "Try adjusting the filters" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3868,6 +4177,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "调整筛选条件试试"
+          }
+        }
+      }
+    },
+    "Try Again" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
           }
         }
       }
@@ -3962,7 +4287,9 @@
         }
       }
     },
-    "Version %@" : {},
+    "Version %@" : {
+
+    },
     "View photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4134,17 +4461,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法读取已保存的曲线。数据仍保留在此设备上，目前无法编辑。"
-          }
-        }
-      }
-    },
-    "© 2026 Leavestylecode" : {},
-    "“%@” will be permanently deleted." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "“%@”将被永久删除。"
           }
         }
       }

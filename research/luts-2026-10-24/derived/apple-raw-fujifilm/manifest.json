@@ -1,0 +1,503 @@
+{
+  "schemaVersion": 1,
+  "status": "Research conversion; not wired into app RAW capture/rendering",
+  "source": {
+    "url": "https://dl.fujifilm-x.com/support/lut/gfx-eterna-55-3d-lut-v110.zip",
+    "archiveSHA256": "febfc7050999620651ca0cf162bf8b499970ef270b4da632765b61b958cf7940",
+    "packageVersion": "1.10",
+    "cubeVersion": "1.00"
+  },
+  "input": {
+    "space": "Linear-transfer Rec.2020 / D65, developed from Apple RAW or ProRAW",
+    "normalization": "DNG exposure/local-gain adapted linear RGB (RAW recipe v3); LUT reference middle gray = 0.18; no per-image peak normalization",
+    "sensorDataAccepted": false,
+    "defaultRenderedProRAWAccepted": false,
+    "domain": "Finite half-float values; negatives and upper values follow official LUT domain clamping"
+  },
+  "rawDevelopmentContract": {
+    "exposure": 0,
+    "baselineExposure": "Preserve DNG default (per-image linear exposure compensation)",
+    "shadowBias": 0,
+    "boostAmount": 0,
+    "localToneMapAmount": "Preserve DNG default for recipe version 3; zero for legacy version 1",
+    "isGamutMappingEnabled": false,
+    "whiteBalance": "Use captured DNG neutral; do not force 6500K",
+    "workingFormat": "Floating point, preserve values above 1",
+    "calibration": "DNG camera profile and exposure baseline retained; camera-to-camera color calibration not yet measured"
+  },
+  "output": "Encoded sRGB / D65, normalized RGB; write an sRGB profile in the final image",
+  "outputViewingAssumption": "Official white paper p13 recommends BT.709 / D65 / Gamma 2.2. Decode that reference view with power 2.2 and encode sRGB; LUT header itself specifies BT.709 gamut only.",
+  "runtime": "One self-contained CLF containing baked input LUT, original 65-cube, baked output LUT. No external F-Log stage or intermediate image. App currently supports plain unit-domain cubes only and needs a RAW profile renderer to consume this contract.",
+  "packages": {
+    "numpy": "2.2.6",
+    "opencolorio": "2.5.2"
+  },
+  "generatorSHA256": "5c51957d8bbc68b06c199f808b918279bad2db060b34a490a1470e37d12d7555",
+  "stocks": [
+    {
+      "mode": "PROVIA",
+      "file": "FujiPROVIA_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "bytes": 13287833,
+      "sha256": "5870224c294c2b75f523d237863d21239ec6bb9db49166a56b8de77ea27e5c8f",
+      "originalPath": "gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_PROVIA_65grid_V.1.00.cube",
+      "originalSHA256": "322d1fc83072ebd4ba73287f32b88bf7fc71582ea03da459fa976a3eb6cdc68f",
+      "sourceCubeResampled": false,
+      "validation": {
+        "probeCount": 22542,
+        "seed": 20261024,
+        "reference": "Analytic source encoding + original 65-cube trilinear + Gamma 2.2 to sRGB",
+        "implementation": "Serialized CLF evaluated independently by OpenColorIO",
+        "absoluteRGBErrorP95": 9.830788427755976e-08,
+        "absoluteRGBErrorMax": 9.11861396613034e-07,
+        "highlightInputs": [
+          0.18000000715255737,
+          1.0,
+          4.0,
+          16.0
+        ],
+        "highlightOutputs": [
+          [
+            0.46045711636543274,
+            0.46082624793052673,
+            0.4606055021286011
+          ],
+          [
+            0.8313679695129395,
+            0.8342010378837585,
+            0.832473635673523
+          ],
+          [
+            0.9297003746032715,
+            0.932522714138031,
+            0.9301756620407104
+          ],
+          [
+            0.9990541338920593,
+            0.9999852776527405,
+            0.9996249079704285
+          ]
+        ],
+        "interpretation": "Numerical conversion fidelity only; not iPhone/Fujifilm camera color matching"
+      }
+    },
+    {
+      "mode": "Velvia",
+      "file": "FujiVelvia_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "bytes": 13287807,
+      "sha256": "fde9ffc67f7f238471eef649d3fe29a01f0f1beb0d0c7fa0b6d11f10d6deb15c",
+      "originalPath": "gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_Velvia_65grid_V.1.00.cube",
+      "originalSHA256": "80a9ac219c30e9d1c230bd157d96ab25c2e6052de3bad7dc650823de65a0ac77",
+      "sourceCubeResampled": false,
+      "validation": {
+        "probeCount": 22542,
+        "seed": 20261024,
+        "reference": "Analytic source encoding + original 65-cube trilinear + Gamma 2.2 to sRGB",
+        "implementation": "Serialized CLF evaluated independently by OpenColorIO",
+        "absoluteRGBErrorP95": 1.0984213424936051e-07,
+        "absoluteRGBErrorMax": 1.2483816034247752e-06,
+        "highlightInputs": [
+          0.18000000715255737,
+          1.0,
+          4.0,
+          16.0
+        ],
+        "highlightOutputs": [
+          [
+            0.46837344765663147,
+            0.4688371419906616,
+            0.46863022446632385
+          ],
+          [
+            0.8261650204658508,
+            0.8290720582008362,
+            0.8273632526397705
+          ],
+          [
+            0.9486095905303955,
+            0.952572226524353,
+            0.9517512917518616
+          ],
+          [
+            1.0,
+            1.0,
+            1.0
+          ]
+        ],
+        "interpretation": "Numerical conversion fidelity only; not iPhone/Fujifilm camera color matching"
+      }
+    },
+    {
+      "mode": "ASTIA",
+      "file": "FujiASTIA_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "bytes": 13287824,
+      "sha256": "62dbc1044bf30002b11a708caa401065602d345743a7dae127c1504bb03bb110",
+      "originalPath": "gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_ASTIA_65grid_V.1.00.cube",
+      "originalSHA256": "164871904f39c581e5ad51bd69f254cd268b7e3d77bad6a17a54c7b22f5bcc27",
+      "sourceCubeResampled": false,
+      "validation": {
+        "probeCount": 22542,
+        "seed": 20261024,
+        "reference": "Analytic source encoding + original 65-cube trilinear + Gamma 2.2 to sRGB",
+        "implementation": "Serialized CLF evaluated independently by OpenColorIO",
+        "absoluteRGBErrorP95": 9.623731545005398e-08,
+        "absoluteRGBErrorMax": 6.401575106881885e-07,
+        "highlightInputs": [
+          0.18000000715255737,
+          1.0,
+          4.0,
+          16.0
+        ],
+        "highlightOutputs": [
+          [
+            0.4716489911079407,
+            0.4718989133834839,
+            0.4718169867992401
+          ],
+          [
+            0.818996250629425,
+            0.8212374448776245,
+            0.8194262385368347
+          ],
+          [
+            0.9222890138626099,
+            0.9236061573028564,
+            0.9224638342857361
+          ],
+          [
+            0.9990541338920593,
+            0.9999852776527405,
+            0.9996249079704285
+          ]
+        ],
+        "interpretation": "Numerical conversion fidelity only; not iPhone/Fujifilm camera color matching"
+      }
+    },
+    {
+      "mode": "CLASSIC-CHROME",
+      "file": "FujiCLASSIC-CHROME_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "bytes": 13287851,
+      "sha256": "3fbf8a0d588c23e6a7b916e9e6ce7c263e8a193520113a32a83428e71c10539a",
+      "originalPath": "gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_CLASSIC-CHROME_65grid_V.1.00.cube",
+      "originalSHA256": "43f7fc5f262eaa2525c0de805ad7fa50f5b77d85873840ae48ab2a07a6b36ff9",
+      "sourceCubeResampled": false,
+      "validation": {
+        "probeCount": 22542,
+        "seed": 20261024,
+        "reference": "Analytic source encoding + original 65-cube trilinear + Gamma 2.2 to sRGB",
+        "implementation": "Serialized CLF evaluated independently by OpenColorIO",
+        "absoluteRGBErrorP95": 8.521313801801433e-08,
+        "absoluteRGBErrorMax": 6.215519142149795e-07,
+        "highlightInputs": [
+          0.18000000715255737,
+          1.0,
+          4.0,
+          16.0
+        ],
+        "highlightOutputs": [
+          [
+            0.4626413881778717,
+            0.4630222022533417,
+            0.4627506136894226
+          ],
+          [
+            0.8423689007759094,
+            0.8450751304626465,
+            0.8431094884872437
+          ],
+          [
+            0.9351520538330078,
+            0.9371318817138672,
+            0.9351542592048645
+          ],
+          [
+            0.9992901086807251,
+            0.999925434589386,
+            0.9996535778045654
+          ]
+        ],
+        "interpretation": "Numerical conversion fidelity only; not iPhone/Fujifilm camera color matching"
+      }
+    },
+    {
+      "mode": "REALA-ACE",
+      "file": "FujiREALA-ACE_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "bytes": 13287842,
+      "sha256": "bfcfa7dea3332af3a51f7d0b33f080499a05b8a57aa1895fd44a20faf252d42b",
+      "originalPath": "gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_REALA-ACE_65grid_V.1.00.cube",
+      "originalSHA256": "a57a8473d666eda294ca3c32886af7708d7097d185c20240a290e3c2a0cb7c2b",
+      "sourceCubeResampled": false,
+      "validation": {
+        "probeCount": 22542,
+        "seed": 20261024,
+        "reference": "Analytic source encoding + original 65-cube trilinear + Gamma 2.2 to sRGB",
+        "implementation": "Serialized CLF evaluated independently by OpenColorIO",
+        "absoluteRGBErrorP95": 8.870932401844334e-08,
+        "absoluteRGBErrorMax": 8.203293076214369e-07,
+        "highlightInputs": [
+          0.18000000715255737,
+          1.0,
+          4.0,
+          16.0
+        ],
+        "highlightOutputs": [
+          [
+            0.45841434597969055,
+            0.458678662776947,
+            0.458540141582489
+          ],
+          [
+            0.865361750125885,
+            0.8673640489578247,
+            0.8652380108833313
+          ],
+          [
+            0.9554888010025024,
+            0.9547365307807922,
+            0.9541152119636536
+          ],
+          [
+            0.9970458745956421,
+            0.9980353116989136,
+            0.9974057078361511
+          ]
+        ],
+        "interpretation": "Numerical conversion fidelity only; not iPhone/Fujifilm camera color matching"
+      }
+    },
+    {
+      "mode": "PRO-Neg.Std",
+      "file": "FujiPRO-Neg.Std_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "bytes": 13287854,
+      "sha256": "ca450361504cd7096abb839c6ebe6523835b4cdcb1949edc7bb20a93fcd6a185",
+      "originalPath": "gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_PRO-Neg.Std_65grid_V.1.00.cube",
+      "originalSHA256": "3cf531162720aa31ac09609f3dec5aca7680a4c07887cbc8502468533b434cdc",
+      "sourceCubeResampled": false,
+      "validation": {
+        "probeCount": 22542,
+        "seed": 20261024,
+        "reference": "Analytic source encoding + original 65-cube trilinear + Gamma 2.2 to sRGB",
+        "implementation": "Serialized CLF evaluated independently by OpenColorIO",
+        "absoluteRGBErrorP95": 9.017430296909268e-08,
+        "absoluteRGBErrorMax": 6.403619713379882e-07,
+        "highlightInputs": [
+          0.18000000715255737,
+          1.0,
+          4.0,
+          16.0
+        ],
+        "highlightOutputs": [
+          [
+            0.4625277817249298,
+            0.46289005875587463,
+            0.4624370336532593
+          ],
+          [
+            0.8310165405273438,
+            0.8328614234924316,
+            0.8314672708511353
+          ],
+          [
+            0.9298086762428284,
+            0.9312445521354675,
+            0.9293651580810547
+          ],
+          [
+            0.9990541338920593,
+            0.9999852776527405,
+            0.9996249079704285
+          ]
+        ],
+        "interpretation": "Numerical conversion fidelity only; not iPhone/Fujifilm camera color matching"
+      }
+    },
+    {
+      "mode": "CLASSIC-Neg.",
+      "file": "FujiCLASSIC-Neg._AppleRAW_LinearRec2020_to_sRGB.clf",
+      "bytes": 13287851,
+      "sha256": "567c60f08676d1fbaf7e1214ef59c58ca74badcca514448b3a7ec0a25a630912",
+      "originalPath": "gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_CLASSIC-Neg._65grid_V.1.00.cube",
+      "originalSHA256": "f890a58d2ae278703aa09e73d6037a32cb925a6d90414292da7675e12b7dd3c9",
+      "sourceCubeResampled": false,
+      "validation": {
+        "probeCount": 22542,
+        "seed": 20261024,
+        "reference": "Analytic source encoding + original 65-cube trilinear + Gamma 2.2 to sRGB",
+        "implementation": "Serialized CLF evaluated independently by OpenColorIO",
+        "absoluteRGBErrorP95": 8.630451642233083e-08,
+        "absoluteRGBErrorMax": 6.969851461535725e-07,
+        "highlightInputs": [
+          0.18000000715255737,
+          1.0,
+          4.0,
+          16.0
+        ],
+        "highlightOutputs": [
+          [
+            0.4624137282371521,
+            0.4628702402114868,
+            0.4585376977920532
+          ],
+          [
+            0.9198249578475952,
+            0.8890584707260132,
+            0.8858195543289185
+          ],
+          [
+            0.9708899259567261,
+            0.9611337184906006,
+            0.9595399498939514
+          ],
+          [
+            1.0,
+            1.0,
+            1.0
+          ]
+        ],
+        "interpretation": "Numerical conversion fidelity only; not iPhone/Fujifilm camera color matching"
+      }
+    },
+    {
+      "mode": "ETERNA",
+      "file": "FujiETERNA_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "bytes": 13285533,
+      "sha256": "0f921c225a2b94e59d7836ac8cf10bd1c22619897dbee8443b089922beaaf7ba",
+      "originalPath": "gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_ETERNA_65grid_V.1.00.cube",
+      "originalSHA256": "5c0a909c021e114adc1d1c9c8d085264db303f235d2a285f8543019062edc944",
+      "sourceCubeResampled": false,
+      "validation": {
+        "probeCount": 22542,
+        "seed": 20261024,
+        "reference": "Analytic source encoding + original 65-cube trilinear + Gamma 2.2 to sRGB",
+        "implementation": "Serialized CLF evaluated independently by OpenColorIO",
+        "absoluteRGBErrorP95": 8.51030988457957e-08,
+        "absoluteRGBErrorMax": 5.630320313310122e-07,
+        "highlightInputs": [
+          0.18000000715255737,
+          1.0,
+          4.0,
+          16.0
+        ],
+        "highlightOutputs": [
+          [
+            0.46252313256263733,
+            0.46274295449256897,
+            0.462573766708374
+          ],
+          [
+            0.8126209378242493,
+            0.8149605989456177,
+            0.812549889087677
+          ],
+          [
+            0.9215152263641357,
+            0.923292338848114,
+            0.920947790145874
+          ],
+          [
+            0.9992901086807251,
+            0.999925434589386,
+            0.9996535778045654
+          ]
+        ],
+        "interpretation": "Numerical conversion fidelity only; not iPhone/Fujifilm camera color matching"
+      }
+    },
+    {
+      "mode": "ETERNA-BB",
+      "file": "FujiETERNA-BB_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "bytes": 13287842,
+      "sha256": "dcff4f504ba2e0d0bd92c2b46a736cc34d8c3b7e87cb483deeab93e07323f98b",
+      "originalPath": "gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_ETERNA-BB_65grid_V.1.00.cube",
+      "originalSHA256": "367024b32ca0f263e2122febd1b83a024d2ffc232a1770f8e061432468ffd5a6",
+      "sourceCubeResampled": false,
+      "validation": {
+        "probeCount": 22542,
+        "seed": 20261024,
+        "reference": "Analytic source encoding + original 65-cube trilinear + Gamma 2.2 to sRGB",
+        "implementation": "Serialized CLF evaluated independently by OpenColorIO",
+        "absoluteRGBErrorP95": 7.593569048558457e-08,
+        "absoluteRGBErrorMax": 2.8826971665285583e-07,
+        "highlightInputs": [
+          0.18000000715255737,
+          1.0,
+          4.0,
+          16.0
+        ],
+        "highlightOutputs": [
+          [
+            0.45997855067253113,
+            0.4601747691631317,
+            0.4598703384399414
+          ],
+          [
+            0.8946876525878906,
+            0.8960234522819519,
+            0.8942450881004333
+          ],
+          [
+            0.9598822593688965,
+            0.961353600025177,
+            0.9603409171104431
+          ],
+          [
+            1.0,
+            1.0,
+            1.0
+          ]
+        ],
+        "interpretation": "Numerical conversion fidelity only; not iPhone/Fujifilm camera color matching"
+      }
+    },
+    {
+      "mode": "ACROS",
+      "file": "FujiACROS_AppleRAW_LinearRec2020_to_sRGB.clf",
+      "bytes": 13287830,
+      "sha256": "654088c78b334d8ad22de8b7c58dddb453788b30e48921b1735b5166e4810e72",
+      "originalPath": "gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_ACROS_65grid_V.1.00.cube",
+      "originalSHA256": "1e7b6c1b05924c5bdb9f2e922e962dcb608f2df15f38e628a9aac3a646293da4",
+      "sourceCubeResampled": false,
+      "validation": {
+        "probeCount": 22542,
+        "seed": 20261024,
+        "reference": "Analytic source encoding + original 65-cube trilinear + Gamma 2.2 to sRGB",
+        "implementation": "Serialized CLF evaluated independently by OpenColorIO",
+        "absoluteRGBErrorP95": 7.353933595410922e-08,
+        "absoluteRGBErrorMax": 2.7715141362461004e-07,
+        "highlightInputs": [
+          0.18000000715255737,
+          1.0,
+          4.0,
+          16.0
+        ],
+        "highlightOutputs": [
+          [
+            0.4537036716938019,
+            0.4537036716938019,
+            0.4537036716938019
+          ],
+          [
+            0.8397762179374695,
+            0.8397762179374695,
+            0.8397762179374695
+          ],
+          [
+            0.9448040127754211,
+            0.9448040127754211,
+            0.9448040127754211
+          ],
+          [
+            1.0,
+            1.0,
+            1.0
+          ]
+        ],
+        "interpretation": "Numerical conversion fidelity only; not iPhone/Fujifilm camera color matching"
+      }
+    }
+  ],
+  "runtimeContractRevision": {
+    "date": "2026-10-24",
+    "rawRecipeVersion": 3,
+    "reason": "Retain DNG exposure reference and per-image local gain before the official global film curve. Numeric LUT tables are unchanged. Adapted linear RGB is not a radiometric measurement of the original scene."
+  }
+}

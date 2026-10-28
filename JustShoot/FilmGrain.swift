@@ -152,6 +152,7 @@ private enum AutomaticFilmProfile {
 struct FilmGrainParameters: Sendable, Equatable, Codable {
     enum Response: String, Sendable, Codable {
         case balanced = "balanced_v2"
+        case balancedAreaMatched = "balanced_area_v3"
     }
 
     let amount: Float
@@ -170,8 +171,20 @@ struct FilmGrainParameters: Sendable, Equatable, Codable {
     static let disabled = FilmGrainParameters(amount: 0, size: 1, chroma: 0)
 
     var isEnabled: Bool { amount > 0.0001 }
-    var shaderResponse: Float { response == .balanced ? 1 : 0 }
+    var shaderResponse: Float { response == nil ? 0 : 1 }
     var responseIdentifier: String { response?.rawValue ?? "legacy_v1" }
+
+    /// New captures use zero-mean texture in shadows/skin and area-matched preview
+    /// amplitude. Frozen v1/v2 journals keep both their old tone and sampling.
+    var forUnifiedCapture: Self {
+        guard isEnabled else { return self }
+        return Self(amount: amount, size: size, chroma: chroma, response: .balancedAreaMatched)
+    }
+
+    func renderAmount(forLongEdge longEdge: CGFloat) -> Float {
+        guard isEnabled, response == .balancedAreaMatched else { return amount }
+        return amount * FilmGrainSampling.amplitudeScale(size: size, longEdge: longEdge)
+    }
 
     /// 颗粒代表胶片画幅上的结构，而不是固定像素噪声。预览最小为 1px，完整照片随长边放大。
     func pixelSize(forLongEdge longEdge: CGFloat) -> Float {
@@ -189,34 +202,34 @@ extension FilmPreset {
 
     private var grainCharacter: FilmGrainCharacter {
         switch self {
-        case .fujiProvia100F, .kodakVision5203:
+        case .fujiProvia100F:
             return .ultraFine
-        case .fujiPro400H, .kodakPortra400, .kodakVision5219, .kodak5207:
+        case .fujiPro400H, .kodakPortra400:
             return .fine
         case .fujiC200:
             return .balanced
-        case .harmanPhoenix200:
-            return .expressive
+        default:
+            return .ultraFine
         }
     }
 
     /// 胶片原生色温响应（初版保守值，待真机在日光/阴影/钨丝灯三环境实拍校准）：
-    /// 钨点平衡的 T 卷响应最深；反转片出厂校色严格、响应最浅；现代消费负片居中偏克制。
+    /// 反转片响应较浅，现代消费负片居中偏克制；新拍摄不额外叠加此旧版响应。
     var chromaticResponse: FilmChromaticResponseParameters {
         switch self {
-        case .kodakVision5219:  return FilmChromaticResponseParameters(nativeCCT: 3_200, strength: 0.60)
-        case .kodakVision5203:  return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.52)
-        case .kodak5207:        return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.52)
         case .kodakPortra400:   return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.42)
         case .fujiPro400H:      return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.46)
         case .fujiC200:         return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.38)
         case .fujiProvia100F:   return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.24)
-        case .harmanPhoenix200: return FilmChromaticResponseParameters(nativeCCT: 5_500, strength: 0.55)
+        default: return .neutral
         }
     }
 
     var renderProfile: FilmRenderProfile {
-        FilmRenderProfile(
+        if rawSimulation != nil {
+            return FilmRenderProfile(grain: .disabled, optics: .disabled, chromatic: .neutral)
+        }
+        return FilmRenderProfile(
             grain: AutomaticFilmProfile.grain(iso: iso, character: grainCharacter, response: grainResponse),
             optics: filmOptics,
             chromatic: chromaticResponse
@@ -266,7 +279,7 @@ enum FilmGrainRenderer {
         let floatSeed = Float(seed & 0x00FF_FFFF)
         return kernel.apply(
             extent: image.extent,
-            arguments: [image, parameters.amount, pixelSize, parameters.chroma, floatSeed,
+            arguments: [image, parameters.renderAmount(forLongEdge: longEdge), pixelSize, parameters.chroma, floatSeed,
                         parameters.shaderResponse]
         ) ?? image
     }

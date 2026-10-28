@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-25",
+  "generator": "built-in image_gen",
+  "assets": [
+    {
+      "preset": "astia",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-5537590b-62bc-4ffd-a879-c8037cca092f.png",
+      "resource": "JustShoot/Resources/cards/cover_fuji_astia_100f.heic",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "colorSpace": "sRGB",
+      "bytes": 118433,
+      "sha256": "609030c565de4f716f2db1ed410cac20477e135b56d6b9d62d973e0dee34ee56",
+      "encodingQuality": 60
+    },
+    {
+      "preset": "classic_chrome",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-1396b1c5-4549-4523-9173-a8a31bdd2bb1.png",
+      "resource": "JustShoot/Resources/cards/cover_fuji_classic_chrome.heic",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "colorSpace": "sRGB",
+      "bytes": 103148,
+      "sha256": "7c9d2bc8e23228d9e3492ba32adf8520a8f0f6a349ab49cdbbe1c6c3115f752d",
+      "encodingQuality": 60
+    },
+    {
+      "preset": "classic_neg",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-589525eb-b4f2-4936-827c-a0d55d7e58c8.png",
+      "resource": "JustShoot/Resources/cards/cover_fuji_classic_neg.heic",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "colorSpace": "sRGB",
+      "bytes": 177661,
+      "sha256": "fd75cf57ee1de7b63fb6fbe9d6044ab4fbbdc2e22d712791cb0b367ffb5d39ae",
+      "encodingQuality": 60
+    }
+  ],
+  "existingCoverSHA256": {
+    "00055_000.heic": "18d12d40056b37c025236370b6a772a28b43cb595d7daf42f270d24119fed1e4",
+    "00044_000.heic": "710a3ab3bee1d993769e629b78f55ad130b69aadbb1b6de7f15f397fdde27790",
+    "00524_000.heic": "d70dabc3a2e0eff57af9a773666622aac943a6f179c4e590fb02e13b3c23486b",
+    "00202_000.heic": "d71da0d39f5e6fcff756608fdf4edca981d6c7537aac8da6630495fee212f1af",
+    "00022_000.heic": "b07d88d8cb211ae850dc6469313a45f3735bd61dbff1e82ca47f4f45e9940598",
+    "00200_000.heic": "8dcef4b1eeb0cf918e9216be265c4b4d50cd80f7d671ccc5a64732c965276b73"
+  }
+}

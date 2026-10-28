@@ -8,8 +8,9 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @State private var showFileImporter = false
-    @State private var importedFileURL: URL?
     @State private var importedCube: CubeLUT?
+    @State private var importEncoding = LUTColorEncoding.sRGB
+    @State private var isImporting = false
     @State private var showImportSheet = false
     @State private var importName = ""
     @State private var importISO = "200"
@@ -115,10 +116,14 @@ struct ContentView: View {
                 ImportLUTSheet(
                     name: $importName,
                     iso: $importISO,
+                    encoding: $importEncoding,
+                    isImporting: isImporting,
                     onConfirm: confirmImport,
                     onCancel: cancelImport
                 )
-                .presentationDetents([.height(280)])
+                .presentationDetents([.medium])
+                .interactiveDismissDisabled(isImporting)
+                .onDisappear { if !isImporting { cancelImport() } }
             }
             .alert(operationErrorTitle, isPresented: $showImportError) {
                 Button("OK", role: .cancel) {}
@@ -151,14 +156,10 @@ struct ContentView: View {
             importTask?.cancel()
             importTask = Task {
                 do {
-                    let cube = try await Task.detached(priority: .userInitiated) {
-                        guard url.startAccessingSecurityScopedResource() else { throw CocoaError(.fileReadNoPermission) }
-                        defer { url.stopAccessingSecurityScopedResource() }
-                        return try FilmProcessor.parseCubeFile(FilmProcessor.readCubeText(from: url))
-                    }.value
+                    let cube = try await LUTImportPreparation.shared.read(url)
                     guard !Task.isCancelled else { return }
-                    importedFileURL = url
                     importedCube = cube
+                    importEncoding = .sRGB
                     importName = url.deletingPathExtension().lastPathComponent
                     importISO = "200"
                     showImportSheet = true
@@ -177,55 +178,45 @@ struct ContentView: View {
 
     private func confirmImport() {
         operationErrorTitle = "Import failed"
-        guard let sourceURL = importedFileURL, let cube = importedCube else { return }
+        guard let cube = importedCube, !isImporting else { return }
 
-        let iso = Float(importISO) ?? 200
+        let enteredISO = Float(importISO) ?? 200
+        let iso = enteredISO.isFinite && enteredISO > 0 ? min(enteredISO, 102_400) : 200
         let id = UUID()
-        let fileName = "\(id.uuidString).cube"
+        let fileName = "\(id.uuidString).jslut"
 
-        // 确保目录存在
         let dir = CustomLUT.storageDirectory
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-
         let destURL = dir.appendingPathComponent(fileName)
-
-        do {
-            guard sourceURL.startAccessingSecurityScopedResource() else {
-                importError = String(localized: "Couldn't access the file")
+        let encoding = importEncoding
+        let displayName = importName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? String(localized: "Custom") : importName
+        isImporting = true
+        importTask = Task {
+            defer { isImporting = false }
+            do {
+                let dimension = try await LUTImportPreparation.shared.save(cube, encoding: encoding, to: destURL)
+                try Task.checkCancellation()
+                let customLUT = CustomLUT(displayName: displayName, fileName: fileName, iso: iso, dimension: dimension)
+                customLUT.id = id
+                modelContext.insert(customLUT)
+                do { try modelContext.save() }
+                catch { modelContext.rollback(); throw error }
+                initialCustomFilters.insert(HomeCustomFilter(customLUT), at: 0)
+                showImportSheet = false
+                importedCube = nil
+            } catch {
+                // Roll back only the import's index save, then remove its orphan off-main.
+                _ = await Task.detached(priority: .utility) { try? FileManager.default.removeItem(at: destURL) }.value
+                guard !Task.isCancelled else { return }
+                importError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
                 showImportError = true
-                return
             }
-            defer { sourceURL.stopAccessingSecurityScopedResource() }
-
-            let data = try Data(contentsOf: sourceURL)
-            try data.write(to: destURL)
-
-            let displayName = importName.isEmpty ? String(localized: "Custom") : importName
-            let customLUT = CustomLUT(displayName: displayName,
-                                      fileName: fileName, iso: iso, dimension: cube.dimension)
-            customLUT.id = id
-            modelContext.insert(customLUT)
-            try modelContext.save()
-            initialCustomFilters.insert(HomeCustomFilter(customLUT), at: 0)
-
-            // Load the table when selected; importing an unused LUT needs no second parse or cache entry.
-        } catch {
-            modelContext.rollback()
-            // 文件可能已写入而行保存失败——删掉孤儿 .cube，否则 Documents/CustomLUTs 里
-            // 累积无主文件（文件未写入时 removeItem 是无害 no-op）。
-            try? FileManager.default.removeItem(at: destURL)
-            importError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
-            showImportError = true
         }
-
-        showImportSheet = false
-        importedFileURL = nil
-        importedCube = nil
     }
 
     private func cancelImport() {
         showImportSheet = false
-        importedFileURL = nil
+        importTask?.cancel()
         importedCube = nil
     }
 
@@ -261,6 +252,9 @@ struct ContentView: View {
 struct ImportLUTSheet: View {
     @Binding var name: String
     @Binding var iso: String
+    @Binding var encoding: LUTColorEncoding
+    let isImporting: Bool
+    @State private var showCompatibility = false
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
@@ -274,17 +268,33 @@ struct ImportLUTSheet: View {
                     TextField("200", text: $iso)
                         .keyboardType(.numberPad)
                 }
+                Section {
+                    Picker("LUT color space", selection: $encoding) {
+                        Text(verbatim: "sRGB").tag(LUTColorEncoding.sRGB)
+                        Text(verbatim: "Rec.709 Gamma 2.4").tag(LUTColorEncoding.rec709Gamma24)
+                    }
+                    Button("LUT compatibility", systemImage: "info.circle") { showCompatibility = true }
+                }
             }
+            .disabled(isImporting)
             .navigationTitle("Import LUT")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)
+                        .disabled(isImporting)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Import", action: onConfirm)
                         .bold()
+                        .disabled(isImporting)
                 }
+            }
+            .overlay { if isImporting { ProgressView() } }
+            .alert("LUT compatibility", isPresented: $showCompatibility) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Import a 3D .cube with a 0–1 input range. Input and output must both use the selected SDR color space. Camera Log, HDR and 1D shaper LUTs must first be converted to an sRGB-to-sRGB look in a color-managed editor. A .cube file cannot reliably identify its color space. Existing imports keep their sRGB interpretation.")
             }
         }
     }
@@ -305,19 +315,22 @@ struct FilmPresetTile: View {
                 .frame(maxWidth: .infinity)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(preset.displayName)
+                Text(preset.rawSimulation?.displayName ?? preset.displayName)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(1)
 
-                Text("ISO \(Int(preset.iso))")
+                Group {
+                    if preset.rawSimulation != nil { Text("Film simulation") }
+                    else { Text("ISO \(Int(preset.iso))") }
+                }
                     .font(.system(size: 10))
                     .foregroundColor(.white.opacity(0.5))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("\(preset.displayName), ISO \(Int(preset.iso))"))
+        .accessibilityLabel(preset.rawSimulation != nil ? Text(verbatim: preset.displayName) : Text("\(preset.displayName), ISO \(Int(preset.iso))"))
         .accessibilityHint("Start shooting with this film")
     }
 

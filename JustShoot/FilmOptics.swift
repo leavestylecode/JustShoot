@@ -4,8 +4,8 @@ import CoreImage
 // MARK: - 胶片光学参数（halation / bloom / headroom）
 //
 // 建模自胶片光化学过程，参数与颗粒一样按胶片性格固定，不暴露用户开关：
-//   - halation：强光穿透乳剂层、经片基反射后**选择性再曝光红层**——高光周围的橙红光晕
-//     （CineStill 800T / Harman Phoenix 的招牌特征）。hue 控制红→橙的能量色偏。
+//   - halation：强光穿透乳剂层、经片基反射后**选择性再曝光红层**——高光周围的橙红光晕。
+//     hue 控制红→橙的能量色偏。
 //   - bloom：光源的宽域辉光（镜头内散射 + 乳剂前向散射），近中性微暖。
 //   - headroom：肩部保护——高光先去饱和向暖白褪色（Portra / Pro 400H 的奶油高光），
 //     再把亮度软压到 0.90 以内腾出余量，让光晕加亮后仍走单调软肩收尾，高光层次不被
@@ -53,28 +53,11 @@ struct FilmOpticsParameters: Sendable, Equatable, Codable {
 // MARK: - 每片默认参数
 
 extension FilmPreset {
-    /// 光学性格与颗粒同源：电影负片（去碳背防光晕层）halation 最强，现代彩色负片肩部柔和，
-    /// 反转片保饱和。数值以保守可发布为基准，后续可按实拍校准微调。
+    /// 光学性格与颗粒同源：现代彩色负片肩部柔和，反转片保饱和。
+    /// 数值以保守可发布为基准，后续可按实拍校准微调。
     var filmOptics: FilmOpticsParameters {
+        if rawSimulation != nil { return .disabled }
         switch self {
-        case .kodakVision5219: // 500T：电影卷 + T 灯光片，夜景点光源 halation 标志性
-            return FilmOpticsParameters(
-                halationAmount: 0.42, halationRadius: 36, halationHue: 0.35,
-                bloomAmount: 0.30, bloomRadius: 70,
-                headroomAmount: 0.55, headroomShoulder: 0.62
-            )
-        case .kodakVision5203: // 50D：日光电影卷，细颗粒高分辨率，halation 适中
-            return FilmOpticsParameters(
-                halationAmount: 0.24, halationRadius: 30, halationHue: 0.40,
-                bloomAmount: 0.22, bloomRadius: 58,
-                headroomAmount: 0.55, headroomShoulder: 0.62
-            )
-        case .kodak5207: // 250D
-            return FilmOpticsParameters(
-                halationAmount: 0.28, halationRadius: 32, halationHue: 0.40,
-                bloomAmount: 0.24, bloomRadius: 60,
-                headroomAmount: 0.55, headroomShoulder: 0.62
-            )
         case .kodakPortra400: // 人像负片：柔和 bloom + 奶油肩部
             return FilmOpticsParameters(
                 halationAmount: 0.20, halationRadius: 30, halationHue: 0.50,
@@ -99,12 +82,7 @@ extension FilmPreset {
                 bloomAmount: 0.14, bloomRadius: 48,
                 headroomAmount: 0.28, headroomShoulder: 0.70
             )
-        case .harmanPhoenix200: // 无防光晕层的新派负片，halation 是卖点
-            return FilmOpticsParameters(
-                halationAmount: 0.45, halationRadius: 34, halationHue: 0.55,
-                bloomAmount: 0.22, bloomRadius: 58,
-                headroomAmount: 0.50, headroomShoulder: 0.64
-            )
+        default: return .disabled
         }
     }
 }

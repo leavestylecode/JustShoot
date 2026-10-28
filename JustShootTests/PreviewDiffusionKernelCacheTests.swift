@@ -30,7 +30,7 @@ final class PreviewDiffusionKernelCacheTests: XCTestCase {
         let a = try recipe(.fujiC200)
         let first = try await ready(cache, a)
         for _ in 0..<120 { XCTAssertTrue(cache.request(a)?.halation === first.halation) }
-        let b = try recipe(.kodakVision5219)
+        let b = try recipe(.kodakPortra400)
         let next = try await ready(cache, b)
         XCTAssertFalse(next.halation === first.halation)
         XCTAssertTrue(cache.request(a)?.halation === first.halation)
@@ -46,7 +46,7 @@ final class PreviewDiffusionKernelCacheTests: XCTestCase {
         let creations = OSAllocatedUnfairLock(initialState: [PreviewDiffusionKernelCache.Recipe]())
         let a = try recipe(.fujiC200)
         let b = try recipe(.fujiPro400H)
-        let c = try recipe(.harmanPhoenix200)
+        let c = try recipe(.kodakPortra400)
         let cache = PreviewDiffusionKernelCache { recipe in
             let isFirst = creations.withLock { $0.append(recipe); return $0.count == 1 }
             if isFirst {
@@ -145,6 +145,11 @@ final class PreviewDiffusionKernelCacheTests: XCTestCase {
                 let longEdge = max(size.0, size.1)
                 let scale = Float(max(small.width, small.height)) / Float(longEdge)
                 let actual = try recipe(preset, width: size.0, height: size.1)
+                if preset.rawSimulation != nil {
+                    XCTAssertNil(actual.halationSigma)
+                    XCTAssertNil(actual.bloomSigma)
+                    continue
+                }
                 XCTAssertEqual(actual.halationSigma, optics.radiusPixels(optics.halationRadius, forLongEdge: CGFloat(longEdge)) * 0.55 * scale)
                 XCTAssertEqual(actual.bloomSigma, optics.radiusPixels(optics.bloomRadius, forLongEdge: CGFloat(longEdge)) * 0.45 * scale)
             }

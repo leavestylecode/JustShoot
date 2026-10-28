@@ -1,0 +1,102 @@
+{
+  "baselineCommit": "2b40b39b269b694e1410f1b7d74929624c494144",
+  "legacyPreparationSourceSHA256": {
+    "FilmProcessor.swift": "6f919c5d701541a6a3e8b5a08d9a26bbc89eef9b213f2109c2215c5a1db70a25",
+    "FilmLUTCalibration.swift": "32e7ce5b66552c7e202d257e270cf19403545bf4e90ca92ef08bdb5a289589c2",
+    "CurveLUTComposer.swift": "b69494e147d1ec136823f816b1edb38a8be2870ae5aaf45c9fd97d1cd4871e79",
+    "CurvePreset.swift": "8d024547c0402b66461fc9e59026dbe5b0d13f28178ea8fdb68d06cd0ff0a5b6"
+  },
+  "method": "Python mirror of old loaded Float32 LUT (toe then portrait calibration) versus current LUT; trilinear interpolation in encoded sRGB",
+  "settings": "Same input. No auto exposure/AWB, user curves, optics or grain. Diagnostic comparison, not full camera output or paired film measurements.",
+  "photos": [
+    {
+      "scene": "人像",
+      "credit": "Eileen Collins / NASA",
+      "pixelSHA256": "a8c429c18afa7b0fd5673e598d73a21225d94c864a71bbb3885126fdecb41071"
+    },
+    {
+      "scene": "静物",
+      "credit": "Andreas Praefcke",
+      "pixelSHA256": "0ce2b51640b9c95f19617f03eabf40c3f0368589cc1ee1190b70966165ac184f"
+    },
+    {
+      "scene": "夜景",
+      "credit": "SpaceX",
+      "pixelSHA256": "3d4435cc745752b7f9724df88c6e18817de3ce7e3d2d71c55f85f7831e68f197"
+    }
+  ],
+  "stocks": [
+    {
+      "resourceName": "FujiC200",
+      "oldCompiledSHA256": "72006f2acf9eb1422bfa7b12b95b167f29a31c974994d497e0b4a5092ba355e2",
+      "oldLoadedDimension": 25,
+      "newDimension": 33,
+      "newCubeSHA256": "b65c2d622b8f56d9e5816a549008977aa9deb0b83ce3c1412408918662310507",
+      "oldPreparation": "shadow toe",
+      "output": "FujiC200.jpg"
+    },
+    {
+      "resourceName": "FujiPro400H",
+      "oldCompiledSHA256": "61822cef7db36cde2d99565a488f7cd8818e01a6814053760c3e6193eb8ef2e4",
+      "oldLoadedDimension": 33,
+      "newDimension": 33,
+      "newCubeSHA256": "6dd97c6876ac978515034404dea09b94dfaea51e37d1faee4951fca18af1c4c3",
+      "oldPreparation": "shadow toe then portrait calibration",
+      "output": "FujiPro400H.jpg"
+    },
+    {
+      "resourceName": "FujiProvia100F",
+      "oldCompiledSHA256": "e0b1d56d9b595240ea934157d63ab96d80ecf70c4e15c7289d170efc90ea4631",
+      "oldLoadedDimension": 25,
+      "newDimension": 33,
+      "newCubeSHA256": "0e966561060aaf417010a42f6697b61fbff01cc40bfd94ffcd23337fed1a5e9d",
+      "oldPreparation": "shadow toe",
+      "output": "FujiProvia100F.jpg"
+    },
+    {
+      "resourceName": "KodakPortra400",
+      "oldCompiledSHA256": "19b5c84409c381f2eefc9e5b16981423082fccd9f282c888f4afa20d9f4a4436",
+      "oldLoadedDimension": 33,
+      "newDimension": 33,
+      "newCubeSHA256": "1997a0033e753466fbb239cc03bde692a8f39558ae948e75336c3b6874c279b4",
+      "oldPreparation": "shadow toe then portrait calibration",
+      "output": "KodakPortra400.jpg"
+    },
+    {
+      "resourceName": "KodakVision5219",
+      "oldCompiledSHA256": "e1ec6e194b88e9fda792b74a669698e1f0557e8dbc43b6996d46b56ef8c74671",
+      "oldLoadedDimension": 25,
+      "newDimension": 33,
+      "newCubeSHA256": "2d6b4abbcf2858e79117f37e91056f178f92aae229da3d876699707e850e7672",
+      "oldPreparation": "shadow toe",
+      "output": "KodakVision5219.jpg"
+    },
+    {
+      "resourceName": "KodakVision5203",
+      "oldCompiledSHA256": "859fa0bc0f10419fd3f07671cefbf2e2bb69c2bfd782f6b335974d9f116381c3",
+      "oldLoadedDimension": 25,
+      "newDimension": 33,
+      "newCubeSHA256": "86df3063a8de90373d814fb1e91009c383cd76fdf8246f4432cbb7d393f2cefc",
+      "oldPreparation": "shadow toe",
+      "output": "KodakVision5203.jpg"
+    },
+    {
+      "resourceName": "Kodak5207",
+      "oldCompiledSHA256": "3d1e45d89a1c3e31d4abfb77270ad833e93b5ddeb32f347b0867c399d9b8935d",
+      "oldLoadedDimension": 25,
+      "newDimension": 33,
+      "newCubeSHA256": "6da7194cbef4c5ad210b5c989281aa0b20b962c5858ac41e58bb06fd1449bb67",
+      "oldPreparation": "shadow toe",
+      "output": "Kodak5207.jpg"
+    },
+    {
+      "resourceName": "HarmanPhoenix200",
+      "oldCompiledSHA256": "164e6db67dac7dc3b24b955cc62689152e187f3054eb1d0c51ae286148b5011e",
+      "oldLoadedDimension": 25,
+      "newDimension": 64,
+      "newCubeSHA256": "8bf88fdfec58d881fcf1569b1a766c4a36bb9a48d831750b16b1300b44ae546a",
+      "oldPreparation": "shadow toe",
+      "output": "HarmanPhoenix200.jpg"
+    }
+  ]
+}

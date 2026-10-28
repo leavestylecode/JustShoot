@@ -1,0 +1,10 @@
+{
+  "source": "https://github.com/DhaliwalX/fotufilm-engine",
+  "commit": "e15b09815a83b0e00ba9381b65d31d253667a1b1",
+  "selected": false,
+  "recipe": "referenceExposure / screen / 6500 K; no spatial effects; see PhoenixLUTBaker.swift",
+  "inputOrder": "33^3 grid red-fast, 5 anchors, 2048 random RNG seed 20261024, 1025 gray",
+  "permutationMaxError": 0,
+  "note": "Only this export recipe was compared; not a conclusion about all Fotufilm recipes",
+  "outputsSHA256": "e12939e8f44cff8fa471b48fd839641694aa5313e069d02d443274eea56f3150"
+}

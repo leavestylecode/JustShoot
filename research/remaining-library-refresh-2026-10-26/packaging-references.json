@@ -1,0 +1,1992 @@
+{
+  "archive": "https://github.com/dekuNukem/Film-Packaging",
+  "treeSHA": "bee2421aef2b179b33544235bdbeab949ae05ab0",
+  "images": [
+    {
+      "id": "00000_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00000_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00000_000.jpg",
+      "sha256": "58732ad1a11a54fc3523e96bf20e997c74add53c3cc7a41a6ee89117eeb2eea1"
+    },
+    {
+      "id": "00001_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00001_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00001_000.jpg",
+      "sha256": "11ef3aa2a212ce69d81e47e5f5262dd0593de4693ad17616f01dae16760d2e5c"
+    },
+    {
+      "id": "00002_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00002_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00002_000.jpg",
+      "sha256": "728c10a0aa7c0309457b71257a0372bbff2d87863ea8757d3dc39b355fd988e2"
+    },
+    {
+      "id": "00004_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00004_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00004_000.jpg",
+      "sha256": "81614275872b862bc3b0d8697203044202b4c6603ba9f5371a13be3e4d876182"
+    },
+    {
+      "id": "00005_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00005_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00005_000.jpg",
+      "sha256": "e40caf1588c12358d527c090e932a9a49be5cd00aaf31ed8d926b028c2bf82c2"
+    },
+    {
+      "id": "00006_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00006_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00006_000.jpg",
+      "sha256": "767d67393b61d8da91eba8787eb1610b11f601a06a876b7ba88ba174a4c8aa26"
+    },
+    {
+      "id": "00008_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00008_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00008_000.jpg",
+      "sha256": "93f931efd58091c87f697f997aab60c2c37727fd0ec2c233c303fbd446b50cdc"
+    },
+    {
+      "id": "00009_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00009_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00009_000.jpg",
+      "sha256": "afdab2368fea0c2b840102fa7462083b7cc861dcf03ab7658741a98eddc67e41"
+    },
+    {
+      "id": "00010_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00010_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00010_000.jpg",
+      "sha256": "e5d5165e79bca97c4cf302fd5fec2a275faa4374ed10625f03c15ae9a35c6450"
+    },
+    {
+      "id": "00011_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00011_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00011_000.jpg",
+      "sha256": "5e4263bd9d89177b9a33d5a6e0ad33658d4608ff1b69572678153f8380173c01"
+    },
+    {
+      "id": "00013_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00013_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00013_000.jpg",
+      "sha256": "efb4f6dd80309d7b3c01e7f96a6e5e1fa76d1cce8f930cfdc4ea8e0f2d804a2f"
+    },
+    {
+      "id": "00014_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00014_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00014_000.jpg",
+      "sha256": "17fb0e0c4fe8e5582a20dd790952b599a541401089d1102eaa3cea7f35f5e3a0"
+    },
+    {
+      "id": "00015_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00015_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00015_000.jpg",
+      "sha256": "05af261107ce7fe3e369f1775486a2759004cd19b1e6e90c5a6be5d260d00b52"
+    },
+    {
+      "id": "00016_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00016_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00016_000.jpg",
+      "sha256": "113090c57607383ceadd4517598049c348513c9a6693d5bc4fb5362940595cc4"
+    },
+    {
+      "id": "00018_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00018_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00018_000.jpg",
+      "sha256": "9c28de11aa2fb193c1244bf2d0d63814cbee29181304df9d4d442eee358077b5"
+    },
+    {
+      "id": "00019_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00019_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00019_000.jpg",
+      "sha256": "fa08d00490e8b294c232264903173c5c7fd7d95aed614d0bbc6c0552caf91c10"
+    },
+    {
+      "id": "00020_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00020_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00020_000.jpg",
+      "sha256": "dfef9010f52963d806260f1a180842973908818288146ed81e7be44691771d37"
+    },
+    {
+      "id": "00029_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00029_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00029_000.jpg",
+      "sha256": "26fdfbbf7166b1449570ffdbbc8f73da902e5d3f9db8592fc41d3ef7a789b36a"
+    },
+    {
+      "id": "00030_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00030_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00030_000.jpg",
+      "sha256": "9e6ddd56c3d1df5c0ea389e46ff8f02bf3ec1822db3ab7f504ac936992f190fa"
+    },
+    {
+      "id": "00031_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00031_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00031_000.jpg",
+      "sha256": "bc95aeff003ea40d756a6e6c7f6bde6ad30b7155d4403baaef03efafae443a02"
+    },
+    {
+      "id": "00033_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00033_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00033_000.jpg",
+      "sha256": "b19ac1f62de7a0856fb91d53bdfc4c337bc538a04660ac0f305bfcd5e597292e"
+    },
+    {
+      "id": "00036_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00036_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00036_000.jpg",
+      "sha256": "04d24a5303def3ea3e0ebe9855c0c7199fe88d52e7b91cdcf855b4167ca88eb9"
+    },
+    {
+      "id": "00038_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00038_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00038_000.jpg",
+      "sha256": "e90ecda176a2431deb89cae5726b1ec769aae3d10ac1ae49f1e46ef4602496d0"
+    },
+    {
+      "id": "00039_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00039_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00039_000.jpg",
+      "sha256": "bd59fed3a8a87d27c66d5d006ea89ce8f6c33be20f292eaad3e868a13cff9473"
+    },
+    {
+      "id": "00046_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00046_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00046_000.jpg",
+      "sha256": "3a2d146071cff154525bb9b79038b650e30b3d6fa499ff121604e0c8c6f51116"
+    },
+    {
+      "id": "00047_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00047_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00047_000.jpg",
+      "sha256": "adc22bc3da52e53ad2d95e0facf35c4f70b902285ec09cb557fd8ad2fc51901a"
+    },
+    {
+      "id": "00048_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00048_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00048_000.jpg",
+      "sha256": "49b56ae98ba0e68182d14c5984cd9363d9aeb6abcb78c69ac4b915d4f827e0a8"
+    },
+    {
+      "id": "00049_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00049_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00049_000.jpg",
+      "sha256": "2cf95a1e6a71d35bd45fe7926118f01fef9802e3a0de62dba3c871dd47409bf7"
+    },
+    {
+      "id": "00050_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00050_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00050_000.jpg",
+      "sha256": "12523e1e509f8b54bf06bd3e30c087cf9b4f023f71c6eaea188ad267af0bba19"
+    },
+    {
+      "id": "00051_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00051_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00051_000.jpg",
+      "sha256": "dab74148a74031996d637ea15a8f132a4f0064a89de4928a5c68cdbd51637a65"
+    },
+    {
+      "id": "00054_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00054_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00054_000.jpg",
+      "sha256": "3353e80df99c36702d209261afa0107690c41269269b2f58d2d8c2d3b4be33e5"
+    },
+    {
+      "id": "00057_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00057_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00057_000.jpg",
+      "sha256": "553cd4f941b63e7ed15e1b7262a921a6ab3bdb07de95f4b822f653dbc338733a"
+    },
+    {
+      "id": "00058_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00058_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00058_000.jpg",
+      "sha256": "79b4782e47e19dc7ca0b199c0d5df7f30f26a39039ccf2b933fd2288b8992dcf"
+    },
+    {
+      "id": "00059_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00059_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00059_000.jpg",
+      "sha256": "ee0e3791b04b6377bcd05ec542a298b69ec72cfa746262e57e5e7c59177b1b81"
+    },
+    {
+      "id": "00062_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00062_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00062_000.jpg",
+      "sha256": "01fc718507eff22a98af71e11df5f9bc8059df15fe9c0104f96a04a6d8274cb4"
+    },
+    {
+      "id": "00063_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00063_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00063_000.jpg",
+      "sha256": "12a4ebc30094c3fd72d0b66b2cb50dc7e31ebc9f6c977da6264cf4476679f67e"
+    },
+    {
+      "id": "00065_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00065_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00065_000.jpg",
+      "sha256": "d1fc5c56ed8127e40fdb993638d430467fd3330045b793f1441e582221c376ed"
+    },
+    {
+      "id": "00067_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00067_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00067_000.jpg",
+      "sha256": "bddd592ee0ce25079de7b668b73ebc94cd3f843ba4e3256db2702e6d557ecccc"
+    },
+    {
+      "id": "00070_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00070_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00070_000.jpg",
+      "sha256": "a14817447e217b5cf6b93f29ac1b30afe8feba37a6089a7c4f76e7dbcc277c71"
+    },
+    {
+      "id": "00071_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00071_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00071_000.jpg",
+      "sha256": "5146188e1f32361bb844a4713a11de55881e13b6749baa4868e220442a01cb75"
+    },
+    {
+      "id": "00072_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00072_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00072_000.jpg",
+      "sha256": "1a395388064e29bc927ca3d9418d1907729f4c918a51c3c35073aa9f0d5e075b"
+    },
+    {
+      "id": "00074_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00074_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00074_000.jpg",
+      "sha256": "787e88cc80c89dab2b941fff547df167df45489475c88f5ae8f8f4a60bf34bb3"
+    },
+    {
+      "id": "00076_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00076_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00076_000.jpg",
+      "sha256": "10f7ebc2828e581d7c62b5227d08a0da08713cf60ca9abc7a70e5aacf3ccd983"
+    },
+    {
+      "id": "00077_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00077_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00077_000.jpg",
+      "sha256": "60098fdcd20342384fed86563d4edd7134fd6ef4585ecac64f6e69b7e402d32f"
+    },
+    {
+      "id": "00078_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00078_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00078_000.jpg",
+      "sha256": "8a075c898076ec1871428d99c951210c58aa00a58e4436ba5d581a3d7a05d075"
+    },
+    {
+      "id": "00082_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00082_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00082_000.jpg",
+      "sha256": "54e34fdbd441d31e3f2cef8cacddf0eed86ef5bc1d4e6c1349c95b6595a7b4be"
+    },
+    {
+      "id": "00083_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00083_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00083_000.jpg",
+      "sha256": "d0eedc1f16c16c8ffbe9dd0508ace6ccf588129e388167841f8a8f69b604e30e"
+    },
+    {
+      "id": "00085_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00085_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00085_000.jpg",
+      "sha256": "31a759c22bc37dacad466a0cd3cc208d79c49f6ac8cd96fb6122c7cc67134112"
+    },
+    {
+      "id": "00090_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00090_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00090_000.jpg",
+      "sha256": "da5efe21e132321ce59de62a1daf4ab12dbef81310e486b7ee4040abc59ab384"
+    },
+    {
+      "id": "00092_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00092_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00092_000.jpg",
+      "sha256": "25bedaa9f6e9cab44e3fe3c724acf4070d49c9221628b67a7229089af4f9fc70"
+    },
+    {
+      "id": "00093_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00093_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00093_000.jpg",
+      "sha256": "7550c8766e0119e38b25ad10740ca4ffbbab085ad07f11fa76eecd2e4e024d6d"
+    },
+    {
+      "id": "00096_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00096_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00096_000.jpg",
+      "sha256": "221dba346d87ff0395b28ccfbf8bb83666fa9a2c3bc2efb8759ecea8be44e8fd"
+    },
+    {
+      "id": "00098_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00098_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00098_000.jpg",
+      "sha256": "d5be4a377eeb6ec6fadae8c14075fa74e88fcd21d6479623e94f80d46b3b6b10"
+    },
+    {
+      "id": "00101_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00101_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00101_000.jpg",
+      "sha256": "f2368c468e2b5a1e3e4682eb543b3a42d545c7be14fa20cc30a7581dbac44e2d"
+    },
+    {
+      "id": "00108_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00108_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00108_000.jpg",
+      "sha256": "84b2a5bb49fd8088c5693e147fe8f87ac18754d14763035ff63f149d80ae7093"
+    },
+    {
+      "id": "00109_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00109_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00109_000.jpg",
+      "sha256": "0ec19c7dfa20d8a80bc70c46d8665f4d27ebd2d4c234ea39b2bd7ceb195a33bf"
+    },
+    {
+      "id": "00110_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00110_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00110_000.jpg",
+      "sha256": "d1f1706ad7dd6244187dd22e292b13f5f8ffc427672e0469065c20cb48471561"
+    },
+    {
+      "id": "00111_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00111_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00111_000.jpg",
+      "sha256": "e1474d1b8877c59821673b7563d5494fc3ba8b831e36c9c6df163d677d67f81b"
+    },
+    {
+      "id": "00112_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00112_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00112_000.jpg",
+      "sha256": "87c7a015a3cdb09604b2ce36b977d4c0d44a89afa1f701e790e5f39170529d6b"
+    },
+    {
+      "id": "00115_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00115_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00115_000.jpg",
+      "sha256": "69dc16aa16d40c293e2fd4db2dbef4cf8374031a7a00f6fc08fb3d8e2769a394"
+    },
+    {
+      "id": "00122_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00122_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00122_000.jpg",
+      "sha256": "d747413787cc43997dfeed454334af22878a498eb57bb2a5d7d1968a985d3f1d"
+    },
+    {
+      "id": "00123_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00123_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00123_000.jpg",
+      "sha256": "1f7a2523299af7f10d0638be9dd459feddb49547dfef417ff5ecb2a8ee29a177"
+    },
+    {
+      "id": "00124_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00124_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00124_000.jpg",
+      "sha256": "b2ce8f4e06dcfd2779e43714f681cf251d644ac2b99f614960e6f90f75406104"
+    },
+    {
+      "id": "00125_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00125_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00125_000.jpg",
+      "sha256": "64d686cf391d6fad9d25fd53bc5f623788e02e589557b67522d4910ff39b0b7c"
+    },
+    {
+      "id": "00126_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00126_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00126_000.jpg",
+      "sha256": "d3888d85e670671ba6996889668f228eb830aab1c794805384ac0f7cf8885144"
+    },
+    {
+      "id": "00127_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00127_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00127_000.jpg",
+      "sha256": "b6622c93a1b430929a94f2f17741f65261aa72c18ce20ef7d8796303e1cda213"
+    },
+    {
+      "id": "00128_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00128_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00128_000.jpg",
+      "sha256": "af3c1045226bac399b49cb988ea938b65c2a01babc9adbd827fcdfcae703c19b"
+    },
+    {
+      "id": "00129_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00129_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00129_000.jpg",
+      "sha256": "d912f003a41e36961773ecfe157abc893e2d6531d9dfeb40a20db325d82a3a7f"
+    },
+    {
+      "id": "00130_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00130_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00130_000.jpg",
+      "sha256": "03d95b54e9e2b72cac338f04a048c9feec02487621943a16f3bdf85e02100431"
+    },
+    {
+      "id": "00131_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00131_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00131_000.jpg",
+      "sha256": "b1fa59280f121c9e37621bb279c1536ac706ea7fab93bf1e85255fa45fb6e801"
+    },
+    {
+      "id": "00132_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00132_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00132_000.jpg",
+      "sha256": "2ec1cc295778445989ae422cd3d60be305bd5d6e9822e6232638a4b2aa301324"
+    },
+    {
+      "id": "00133_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00133_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00133_000.jpg",
+      "sha256": "40c9c284f42646556ecb1c9541d8ead102879625d59489a0c69bc67c32ad20f4"
+    },
+    {
+      "id": "00134_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00134_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00134_000.jpg",
+      "sha256": "b9460dff0ac5b7a126de9730e3afa5238e5298e4d0fceebe9ac3464acedbc7d7"
+    },
+    {
+      "id": "00136_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00136_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00136_000.jpg",
+      "sha256": "42a36399cdc7b74a92782a5c04c4258d01262138f06f482c9b7f169cb28b3a7d"
+    },
+    {
+      "id": "00137_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00137_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00137_000.jpg",
+      "sha256": "8256c34582d6a20d2a4407195c82f902f281b1dd5795032c68aad5d2b7aea497"
+    },
+    {
+      "id": "00138_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00138_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00138_000.jpg",
+      "sha256": "3f1e3c123cc4b9dec9be6aba64e9944866e4e1fa5d29dbcd4891a08672c320ad"
+    },
+    {
+      "id": "00140_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00140_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00140_000.jpg",
+      "sha256": "daf01e6fd3ecd4640399b59e2ba420d0560b5cdfd3e7629906334fded0d1c12f"
+    },
+    {
+      "id": "00141_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00141_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00141_000.jpg",
+      "sha256": "7da8cb4715a19b3be9088eb97ca756d1d8a322b5b3a4024a9e6b952922e40370"
+    },
+    {
+      "id": "00143_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00143_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00143_000.jpg",
+      "sha256": "5ddf3e501cd595904ce71a441bbe45707debcc9ce97e7d9484d6826647dfb030"
+    },
+    {
+      "id": "00145_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00145_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00145_000.jpg",
+      "sha256": "e55fd5c4d22be762aebb2cc6a77e1497c052717b75a5f8688d9aeec216c85fc5"
+    },
+    {
+      "id": "00147_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00147_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00147_000.jpg",
+      "sha256": "f65baca62b952a225f90ec4fb2e0ad2f3a360b401e834d96f6546109bcc9c7e0"
+    },
+    {
+      "id": "00148_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00148_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00148_000.jpg",
+      "sha256": "6f1d00dd7373e33988bd21df4dda01cfcdd9531c40b1fbc615905b2fb4b721c1"
+    },
+    {
+      "id": "00151_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00151_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00151_000.jpg",
+      "sha256": "73740eda01a48b4b67d3ddeacba9ee62a471cb08484b8e102be5f83c4af9d935"
+    },
+    {
+      "id": "00152_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00152_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00152_000.jpg",
+      "sha256": "70d150a06877f9e94140b70ad1847c6c3f8a42e8e90e45c288893fdaeb8bd99f"
+    },
+    {
+      "id": "00156_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00156_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00156_000.jpg",
+      "sha256": "fbd57e5e9c296a082a059a3eb4115216bdce36db63106036719c5cc9416ea097"
+    },
+    {
+      "id": "00157_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00157_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00157_000.jpg",
+      "sha256": "0636b65c94d86473c2615e5ac8561d45759f9efe841458281b7b5a7621bba5df"
+    },
+    {
+      "id": "00158_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00158_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00158_000.jpg",
+      "sha256": "396d8134d0f3b4afd346f38da4256233c65f49367d9af21f5d798f0e0014cae0"
+    },
+    {
+      "id": "00159_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00159_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00159_000.jpg",
+      "sha256": "4d3c5520fb40738a0ffe9bb769d670fe0ae0dc346ef65b33ca22fdfcb658a29d"
+    },
+    {
+      "id": "00161_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00161_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00161_000.jpg",
+      "sha256": "6a15647dfcef00c907391c9ff92a77864fdcb2c7683a5228b5da04dd146fee16"
+    },
+    {
+      "id": "00162_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00162_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00162_000.jpg",
+      "sha256": "71d31a8dcea44c8e889357526e68bea0e9d876f3d8ae5ac0625cbe1d0767ffdc"
+    },
+    {
+      "id": "00163_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00163_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00163_000.jpg",
+      "sha256": "09cefd85dbec63e7373e3482f1bd60aeebd6f3e57b69a3bf1727c7f7a1de22a8"
+    },
+    {
+      "id": "00164_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00164_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00164_000.jpg",
+      "sha256": "c27c809a9dd13ce10118739d12fcf0482d8bd239e1e80f039bab6818f7d501e6"
+    },
+    {
+      "id": "00166_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00166_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00166_000.jpg",
+      "sha256": "fdcbb47aa934a054d17b846b11d8c7a6888684be3b69d1f4336722148d0d4872"
+    },
+    {
+      "id": "00168_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00168_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00168_000.jpg",
+      "sha256": "86d203ab13d66a15b42f979de27d2101785dc459b94b960291d4cf22170dcfc8"
+    },
+    {
+      "id": "00169_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00169_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00169_000.jpg",
+      "sha256": "e8286def9308989c58cd10ea9aaba3f2765bf4ed8e514a462d197600a9b5dd7d"
+    },
+    {
+      "id": "00170_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00170_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00170_000.jpg",
+      "sha256": "dff42002b7bc43e02f82bb3094b5bb8c9904cc58f8b9acf2f82c2ab669305e2a"
+    },
+    {
+      "id": "00173_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00173_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00173_000.jpg",
+      "sha256": "83706cd25e78fb1377deedc6b866f3e64ac7f8b5f31b72598cb8812c72def9bc"
+    },
+    {
+      "id": "00174_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00174_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00174_000.jpg",
+      "sha256": "00f3daf2f60b80b2b8af7fef99d5e48fcc2187deeefbcffeb05234d9cc5de6e1"
+    },
+    {
+      "id": "00179_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00179_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00179_000.jpg",
+      "sha256": "fd7d036db2341cc17e129b126d5b17fc3af880ef87e9baa38268f5a3434ff9d0"
+    },
+    {
+      "id": "00182_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00182_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00182_000.jpg",
+      "sha256": "bca90a5d858c8042d5a8d7411ffb81987b6e7c80666df470575c02f5339a743f"
+    },
+    {
+      "id": "00183_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00183_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00183_000.jpg",
+      "sha256": "145fd32505e4ca9367e459ab3bc46320d420396f530ea7735f5d29c4ff44a8e9"
+    },
+    {
+      "id": "00184_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00184_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00184_000.jpg",
+      "sha256": "71339031950dd6e4fe9372af280f5c58e5d21dd926a8b4789bd5eb0914d9b9f2"
+    },
+    {
+      "id": "00185_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00185_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00185_000.jpg",
+      "sha256": "8a262071fb874cfd6ddd938405fecbb3544f25cce2c76829c01f43690b0dc08d"
+    },
+    {
+      "id": "00186_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00186_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00186_000.jpg",
+      "sha256": "d08d58f21f447d1a640b1300e8c6ce14e45585795deaaeb2ddcab9a1b46f29ea"
+    },
+    {
+      "id": "00187_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00187_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00187_000.jpg",
+      "sha256": "47262d4d554f5ebf0605f15288fda14c777aea825fd9b1bb31897408416114f6"
+    },
+    {
+      "id": "00188_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00188_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00188_000.jpg",
+      "sha256": "bf50293966c699ed6bf075bced9266ba46c8dbbc23914dacdf741edf03565888"
+    },
+    {
+      "id": "00190_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00190_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00190_000.jpg",
+      "sha256": "fc8ca7507eab07dfbf8ca94b4b517fc4c2c23342d390e34f02c1bdcb52dc9d7a"
+    },
+    {
+      "id": "00191_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00191_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00191_000.jpg",
+      "sha256": "117241a3a914a74c61bd44cbb9ea0830378092cd6f001cf9d45ecbfd8c59c471"
+    },
+    {
+      "id": "00194_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00194_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00194_000.jpg",
+      "sha256": "0dc91c283fbc06531b2e8cfa4642fd66f9a0af277b5fbc6e0f01cf2c43cc8e16"
+    },
+    {
+      "id": "00195_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00195_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00195_000.jpg",
+      "sha256": "c593073de3678eb1f16972df2b77a0a8ea4eedce62f62daf637ac45a6236e6ec"
+    },
+    {
+      "id": "00196_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00196_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00196_000.jpg",
+      "sha256": "d6e6d11c61b073cd1a11e5e79f9602cea9efb72c6e88f527e3b642648c72b201"
+    },
+    {
+      "id": "00198_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00198_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00198_000.jpg",
+      "sha256": "3cc43aeead209909f32458bcf37f8b29e5c13aca648485b0d6d6e0c1d93076bb"
+    },
+    {
+      "id": "00204_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00204_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00204_000.jpg",
+      "sha256": "ac33072f86c038ffbc355ad2cb9451c07ea1a6ef83e1a1155d2383c322a36cb5"
+    },
+    {
+      "id": "00205_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00205_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00205_000.jpg",
+      "sha256": "02bae885fe88bf854811ea26a88a43b83da8717bfb0b284eaad743ef45bf4792"
+    },
+    {
+      "id": "00206_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00206_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00206_000.jpg",
+      "sha256": "62a7d9c2729f5e8bfcd436dc4253dc4ebb10cfa8606451996b43cc1f22b8e4ba"
+    },
+    {
+      "id": "00207_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00207_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00207_000.jpg",
+      "sha256": "c498f2d34eeaca4d107f1467c34f3ba02e395f8adcbb3b1412ddcf0652554035"
+    },
+    {
+      "id": "00208_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00208_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00208_000.jpg",
+      "sha256": "2b566bf85a12c3f8e7ce1dc7612f484214cd93f726c4bd88ff6c257fc94faa8d"
+    },
+    {
+      "id": "00210_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00210_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00210_000.jpg",
+      "sha256": "a5e028d67d679ab3e418bdafec67751e8e5168cd73d915d579ad01d3c37f15b3"
+    },
+    {
+      "id": "00211_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00211_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00211_000.jpg",
+      "sha256": "c128f37ff736f43bb0fce953209ccb37bd583d51705a3c2b848856c265536257"
+    },
+    {
+      "id": "00212_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00212_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00212_000.jpg",
+      "sha256": "4b8aeca7ccace4b8857fdc11d9a917b43137cefd3e875f3a28d0dd620db18fe8"
+    },
+    {
+      "id": "00213_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00213_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00213_000.jpg",
+      "sha256": "1d4fd9e7831ace8bb3ea25c66cc2afa541a2e6a029351aed23b49847e541020b"
+    },
+    {
+      "id": "00214_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00214_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00214_000.jpg",
+      "sha256": "0ae15d93135996e90657953921e820b7789229dab26792d9881eb52c0063ff40"
+    },
+    {
+      "id": "00215_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00215_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00215_000.jpg",
+      "sha256": "a1acaf5af4a76077c790619bd1120509d21b1739efb3e502cf5f372ef6068316"
+    },
+    {
+      "id": "00216_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00216_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00216_000.jpg",
+      "sha256": "aba669f7fe58e9dbf6026d7ef674d2a5621e8d3bf4fe66c02b198edb400f77c6"
+    },
+    {
+      "id": "00225_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00225_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00225_000.jpg",
+      "sha256": "edc1caf499f9df88acefec337e01095ad5c51824ecd93677e53233c489c71cdb"
+    },
+    {
+      "id": "00226_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00226_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00226_000.jpg",
+      "sha256": "c4f1c683b642871b373b8d9256e9b9a14079b2fbee138c490e368f1677b28f1b"
+    },
+    {
+      "id": "00227_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00227_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00227_000.jpg",
+      "sha256": "5c3d07a2e742495da0afce2d3ce98e67b97c3ab10a230b08c41b6d4571463d50"
+    },
+    {
+      "id": "00228_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00228_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00228_000.jpg",
+      "sha256": "3317f67e41fefccbfe09a93069a596e1fcf3718e3fb265cf6a17e493ff4311e1"
+    },
+    {
+      "id": "00236_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00236_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00236_000.jpg",
+      "sha256": "604ffeebd067b6f6882ff4a42def9758b137e8f91801332cb2c5c7845f58e985"
+    },
+    {
+      "id": "00254_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00254_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00254_000.jpg",
+      "sha256": "43377c5a3590a7216ce3d9673f083ad7b4c346e1b2b0e09796d6366442eab2ac"
+    },
+    {
+      "id": "00255_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00255_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00255_000.jpg",
+      "sha256": "19e4a19020e2c3931cb9136839589a2f6c890e0c8f1e7584c68a09ecf9752838"
+    },
+    {
+      "id": "00256_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00256_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00256_000.jpg",
+      "sha256": "c16380b44548afbfdbcc85b2348929584e680b8ed3839a6236b5876f39ac24ad"
+    },
+    {
+      "id": "00257_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00257_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00257_000.jpg",
+      "sha256": "7adb388a6c1e5568f63dc0227be71c33d17e184556410200eb09e9a1b6a1b884"
+    },
+    {
+      "id": "00258_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00258_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00258_000.jpg",
+      "sha256": "b220fd0aa553db9986015f80207ca25234b7062444888ceede16494038c389a9"
+    },
+    {
+      "id": "00259_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00259_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00259_000.jpg",
+      "sha256": "818cf8e018602aefc23169e695e2482585d48dcdfefd077368a30ce3ea24db3b"
+    },
+    {
+      "id": "00264_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00264_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00264_000.jpg",
+      "sha256": "26131472d129289498d90ffb4fd3b3885fa5e33e5a225bebebf8fa983aa3322e"
+    },
+    {
+      "id": "00265_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00265_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00265_000.jpg",
+      "sha256": "df0ade5feaaf77e5d80c74e85cdc6920777b8f5c2c2acf271594b22d6a5a80b2"
+    },
+    {
+      "id": "00266_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00266_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00266_000.jpg",
+      "sha256": "6226aace0df9c72d5b3eba15774fe6c8ba775d3a3ad8a8a64c7281a93e9ab44e"
+    },
+    {
+      "id": "00267_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00267_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00267_000.jpg",
+      "sha256": "c2ee7a24219d8742b78d68f3f1f70de567276d6ede568b07598614c1cb1fe2ea"
+    },
+    {
+      "id": "00268_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00268_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00268_000.jpg",
+      "sha256": "d475dd68f6994ceaee68d09576cc4618520c0a4787f708ac3e3d08c846b5017b"
+    },
+    {
+      "id": "00269_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00269_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00269_000.jpg",
+      "sha256": "52e29d7bd7f9b49385082bad399ee0ace7b952bbd1e9df6d94be546955114053"
+    },
+    {
+      "id": "00270_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00270_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00270_000.jpg",
+      "sha256": "026bedf49e4e09896ba280fec8bd3ca3ff1d470fb5d505453fbcd4ab0b1ad72f"
+    },
+    {
+      "id": "00272_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00272_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00272_000.jpg",
+      "sha256": "ed71f1df15bb9b6a6b050845c942bcad8c24a0b692a1a289a55a85127733f439"
+    },
+    {
+      "id": "00282_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00282_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00282_000.jpg",
+      "sha256": "a122614515fa45b40fa9019f4b97c2595d265824fe2e50196f1d47e71fc7a8a1"
+    },
+    {
+      "id": "00283_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00283_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00283_000.jpg",
+      "sha256": "76ce4a4893b8875d3d31c3a2aa3fc3ee7e95b154ac6b4ab84ef502c6a9261038"
+    },
+    {
+      "id": "00284_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00284_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00284_000.jpg",
+      "sha256": "48dee8c5e5e40eff7da7304a8e8c0004e78e7fbcaad6cafea7bd2c2be7f16471"
+    },
+    {
+      "id": "00285_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00285_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00285_000.jpg",
+      "sha256": "a8a3e69e35e6a1eac9dd6d9685331d31a1bdcb6849671deb5f2fc69187486a10"
+    },
+    {
+      "id": "00286_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00286_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00286_000.jpg",
+      "sha256": "f8b563c7e08eeb0ddc065008d63afca79c08b21b0cfca9fa8b1f9403cde3554d"
+    },
+    {
+      "id": "00287_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00287_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00287_000.jpg",
+      "sha256": "82fc58010df96ea0265da4799ac02e37736838e0286ebfec1342ee54ef90969f"
+    },
+    {
+      "id": "00288_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00288_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00288_000.jpg",
+      "sha256": "3c023e2a3ada00f32b216f63bfa3b16a9715f82714c98533809a833c038a2563"
+    },
+    {
+      "id": "00291_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00291_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00291_000.jpg",
+      "sha256": "5b9a63ca9a5a7658eca7c6015b44162fa7ebeb7d2171397fb8818bd74c5f9672"
+    },
+    {
+      "id": "00293_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00293_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00293_000.jpg",
+      "sha256": "d423ae034feabe802212907ce63b528adf9dab7d2148c46e0a9d8b923e0c895b"
+    },
+    {
+      "id": "00298_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00298_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00298_000.jpg",
+      "sha256": "6eb3b629ddd9b3344418018b5b57437540ed2fb980673f4c9f6d0c2bdf8608f4"
+    },
+    {
+      "id": "00300_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00300_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00300_000.jpg",
+      "sha256": "a2e854c91f57bbc71275f59138c109ea2136f0de1506555b63953fc899214c65"
+    },
+    {
+      "id": "00301_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00301_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00301_000.jpg",
+      "sha256": "284b4f13624c9b199cce4063c2f924874d511352851b765cf7eeef4b978d5c33"
+    },
+    {
+      "id": "00302_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00302_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00302_000.jpg",
+      "sha256": "944fdb27b50e26ee67e4641ef8b1b8fec4b4cbda5dd7a60e8806a3eea056b008"
+    },
+    {
+      "id": "00304_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00304_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00304_000.jpg",
+      "sha256": "a76db874653d0a611b788d9d53f226a47a50dc3bc980a44053e58b2beeb35da6"
+    },
+    {
+      "id": "00305_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00305_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00305_000.jpg",
+      "sha256": "cb3f79d70021dc718ceea8a877d00b497d745068d7e76511d646b2388ec5ecd4"
+    },
+    {
+      "id": "00306_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00306_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00306_000.jpg",
+      "sha256": "5616179274bd942e3518a988b70f07b556f73b4fbed5da900ee80f64b28491b5"
+    },
+    {
+      "id": "00309_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00309_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00309_000.jpg",
+      "sha256": "d9cfa0f10ff94033c9193a1dcac316f5335207156bcc91c776d186dd4c970f25"
+    },
+    {
+      "id": "00310_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00310_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00310_000.jpg",
+      "sha256": "0c6a32fc35fdb137b87c68d628abebc87894f1f6e0868994f6129ba2f88cda72"
+    },
+    {
+      "id": "00311_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00311_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00311_000.jpg",
+      "sha256": "d7ed2cafba9383c0cd7725700b98ef4779b72aca87aab4f66f4219872766244f"
+    },
+    {
+      "id": "00313_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00313_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00313_000.jpg",
+      "sha256": "d35904bd9282179c8ce63766fb1b3853ab28da035918fde913fde103a26e64f5"
+    },
+    {
+      "id": "00314_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00314_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00314_000.jpg",
+      "sha256": "03593b2713c408743148c694c0b09eba3fd89eb238869edcda235cedc7f7e474"
+    },
+    {
+      "id": "00316_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00316_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00316_000.jpg",
+      "sha256": "1eba8aa77c09d14135a65129fc7a77eaa4cf88be8302622bd1d156d1fd9168af"
+    },
+    {
+      "id": "00317_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00317_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00317_000.jpg",
+      "sha256": "39ab5d6d5a378abe02150aef45651f6cee110b46d8046da29a4093f74225e4ca"
+    },
+    {
+      "id": "00321_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00321_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00321_000.jpg",
+      "sha256": "8d4581afd581f8eaf87bcfd0458d96e44589f46f8ce66d6cae23da90addd8987"
+    },
+    {
+      "id": "00322_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00322_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00322_000.jpg",
+      "sha256": "901d8426f52a47e590cbc6f3e937133592e23d39319363892c0934897e99dbb7"
+    },
+    {
+      "id": "00323_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00323_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00323_000.jpg",
+      "sha256": "bd02454b83befed8f9d7d4cdf11058d5ede99422208b993c34eaf8af074c6e17"
+    },
+    {
+      "id": "00324_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00324_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00324_000.jpg",
+      "sha256": "21fb0763d28f5811994373f1941cd3a47cfde11293de20349a1d984d76be5b70"
+    },
+    {
+      "id": "00327_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00327_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00327_000.jpg",
+      "sha256": "3d7c1aea2b848b7f44aff4c6d3ffcb28f54cfa15d0cd6d8201232b2c2b5f1a5a"
+    },
+    {
+      "id": "00328_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00328_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00328_000.jpg",
+      "sha256": "ea23e7b928a0a061b34770f069dbc0d25066d96cce194f034144e07b882687a4"
+    },
+    {
+      "id": "00329_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00329_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00329_000.jpg",
+      "sha256": "ee7c6b1fb45a401a4ea0eaafe19ae4ed0ed29023ea301a8fa0c7224de16851e0"
+    },
+    {
+      "id": "00330_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00330_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00330_000.jpg",
+      "sha256": "36fd3c296bd8d9a2fd87fd9395553ee2885257507b5a4825047b738558f7f0b4"
+    },
+    {
+      "id": "00334_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00334_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00334_000.jpg",
+      "sha256": "557d4825b390975e36cfaadcd5ba5376d2ce667083264415b8768219e38d6e00"
+    },
+    {
+      "id": "00335_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00335_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00335_000.jpg",
+      "sha256": "76c69cbcdcfa3b9500d18a764f991765aae7f667e692c0abd8d0307ba2507501"
+    },
+    {
+      "id": "00336_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00336_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00336_000.jpg",
+      "sha256": "2c6a8d74f72426a588fd5c87b8f5bdaa3e91d3a9a80dcf4e6053d6789a8ce0c7"
+    },
+    {
+      "id": "00340_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00340_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00340_000.jpg",
+      "sha256": "c1014ef34c8a62161189b8aa33beac9d670622106ca6c73206cbf9c7121ce71d"
+    },
+    {
+      "id": "00342_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00342_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00342_000.jpg",
+      "sha256": "a08bb94eff7651ae4e44d9f92541deab71df7d6bd633703cb29cdf38ae1932b0"
+    },
+    {
+      "id": "00346_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00346_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00346_000.jpg",
+      "sha256": "16923f458f5d091c94c7a188239d5856aea873c23de88c479ea0e62f136a673c"
+    },
+    {
+      "id": "00347_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00347_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00347_000.jpg",
+      "sha256": "faa3e179d8c001a76cda1a30ad2664d65a2ccdb6139722ae9abac60aeeedea90"
+    },
+    {
+      "id": "00348_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00348_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00348_000.jpg",
+      "sha256": "fbf2b0d3e6cb29b2d76303d3a20d09d909cc8601ce5abab7451cffde270bf6c9"
+    },
+    {
+      "id": "00349_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00349_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00349_000.jpg",
+      "sha256": "cabcf1497a6f1ef0bad39ff364db567ebdbc83eb607c96ecd05acdd34d75c573"
+    },
+    {
+      "id": "00351_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00351_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00351_000.jpg",
+      "sha256": "d46392e48866ee57a5f11c297d84beb3df03679fe2467aad28aed5e1460d5024"
+    },
+    {
+      "id": "00352_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00352_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00352_000.jpg",
+      "sha256": "d98f02de8bb324c590603eabbaf5f64f2ebca419c6386ae0c13944c35d829280"
+    },
+    {
+      "id": "00354_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00354_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00354_000.jpg",
+      "sha256": "0a3c1764d07a825242efa10e96116b475f39749d2162a23cb3b1d67285df7970"
+    },
+    {
+      "id": "00355_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00355_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00355_000.jpg",
+      "sha256": "d67df926f418a5ae49196eaf042ffc71fbb2dd7ced5b52904cb02728353ecfbc"
+    },
+    {
+      "id": "00356_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00356_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00356_000.jpg",
+      "sha256": "4c45cc7a75fa8d80100086057f9afeedad10bc8bdede1840755968b76e64c799"
+    },
+    {
+      "id": "00357_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00357_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00357_000.jpg",
+      "sha256": "8a5ce6b5b457538410921e0eb65eeb9b011ca74281d2013f8497594ae40eb8d8"
+    },
+    {
+      "id": "00358_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00358_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00358_000.jpg",
+      "sha256": "e3a851cc07d3bd129c45ae1079510ad55d4cceae44f1ba6bd0059741d96b9c8c"
+    },
+    {
+      "id": "00359_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00359_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00359_000.jpg",
+      "sha256": "b14652e212ec1ef06c33184d3b5f828a18bf8e5fb087e661939819653a18b779"
+    },
+    {
+      "id": "00360_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00360_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00360_000.jpg",
+      "sha256": "d0c95a298767bc2edb674cad3b488ad914a7efad93eebbb40110857ac8d5663a"
+    },
+    {
+      "id": "00361_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00361_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00361_000.jpg",
+      "sha256": "e9efc33b7c8263684ca6635ced75daa1ffdd65e845d6b30c241d8e1c8ccd60fe"
+    },
+    {
+      "id": "00362_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00362_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00362_000.jpg",
+      "sha256": "c338e9fe267fa8e9d294d2e2b82d798749c70585954528fb2cf522d17fd077dc"
+    },
+    {
+      "id": "00363_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00363_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00363_000.jpg",
+      "sha256": "7da734bb16f0ef68a9c124a496f30906ed286a8b4f9407ab6cf1f12b5fa62548"
+    },
+    {
+      "id": "00364_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00364_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00364_000.jpg",
+      "sha256": "49c39e17241d3524b71ee7c58005693f00608ce82c08c4887765b474ab272e05"
+    },
+    {
+      "id": "00366_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00366_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00366_000.jpg",
+      "sha256": "9a8ee7b822c7a5c960886f12bb4d17da11abf48bbae698f6520c940c5cc4fe06"
+    },
+    {
+      "id": "00367_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00367_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00367_000.jpg",
+      "sha256": "55752da5f5cb2e1adfc826e5d2229e594913e3fa3ef27fe9f719aa993796927d"
+    },
+    {
+      "id": "00368_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00368_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00368_000.jpg",
+      "sha256": "3821a308c55ef6b3f65136478ee14ef1bb67aadab80a017414b48e4d7ba49c80"
+    },
+    {
+      "id": "00369_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00369_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00369_000.jpg",
+      "sha256": "9f582478a0054939d0a1eaef634777c2c038a0de3d68bb99efe81279503051a3"
+    },
+    {
+      "id": "00370_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00370_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00370_000.jpg",
+      "sha256": "600ad5043ade565a5418d0b65659c174af45f3022ff9fd9469734587f7d1aceb"
+    },
+    {
+      "id": "00371_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00371_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00371_000.jpg",
+      "sha256": "9a59554651c9cc27876e35919987ab00d0b95b1febb3ed93b551cb031d34c415"
+    },
+    {
+      "id": "00373_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00373_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00373_000.jpg",
+      "sha256": "71326c1c1d2dddbe36d73f5ebc3e68d2f815508828e38df2a28c573e732eb972"
+    },
+    {
+      "id": "00382_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00382_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00382_000.jpg",
+      "sha256": "32149d39ac7ab42785a9bb82356472f34abba08d49aa626c6435de9daa55fa8f"
+    },
+    {
+      "id": "00383_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00383_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00383_000.jpg",
+      "sha256": "790ac8eb132244c8fb0e984c9a26c5efd2baee7dc7812e9117a8cd96573d543e"
+    },
+    {
+      "id": "00384_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00384_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00384_000.jpg",
+      "sha256": "8726d582650bb9b9910110f1d05b147894e863eee0bb8850e5737566e73da7fd"
+    },
+    {
+      "id": "00385_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00385_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00385_000.jpg",
+      "sha256": "a5b4445c6df5a72ce9291cd2d19615284380f48a0d194afdc374b0caf8f4f5bd"
+    },
+    {
+      "id": "00386_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00386_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00386_000.jpg",
+      "sha256": "825b401b59bb9211e00147dbbb97883ba4488e126ac6cc8113c2eeab464239dd"
+    },
+    {
+      "id": "00387_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00387_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00387_000.jpg",
+      "sha256": "bc20b2e9c715a70bc4f48030c4f409dbcae3fee521ecd7185d2f476619c0283a"
+    },
+    {
+      "id": "00388_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00388_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00388_000.jpg",
+      "sha256": "a37736119bf4195bb0e87f6ffe26e2dc922c086dcf653dec0eaf2705d953ed21"
+    },
+    {
+      "id": "00389_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00389_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00389_000.jpg",
+      "sha256": "7d331308e326b56ae9a7d455774629b7dd2e1c1564f73dd8b89cf9fdd64db469"
+    },
+    {
+      "id": "00391_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00391_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00391_000.jpg",
+      "sha256": "ad28263f7bd68140ce9eb15be9e2a1a1ef8f94655e45bf7a80283234a4404b94"
+    },
+    {
+      "id": "00392_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00392_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00392_000.jpg",
+      "sha256": "e02ab1862958743b8b90c2139e9a822c656373fe0d4b650c57245f698e427cab"
+    },
+    {
+      "id": "00393_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00393_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00393_000.jpg",
+      "sha256": "4f5ebde31d83a4b3a15826b983e7b2dbac5a0636f8cf67bfae5ad830f4facf51"
+    },
+    {
+      "id": "00394_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00394_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00394_000.jpg",
+      "sha256": "71a3f64bf42049d4c04d495f02f26f249763b932770fe093eba3dca4ab167059"
+    },
+    {
+      "id": "00395_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00395_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00395_000.jpg",
+      "sha256": "0b6e9f28fcb579765a94b44920693528b923968e7310d7cf2e8f556de13b7681"
+    },
+    {
+      "id": "00396_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00396_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00396_000.jpg",
+      "sha256": "4bdefc74b5bcce8a2330d19db0a6b54b737bc1a813e1f811dd54f4e711b4ae42"
+    },
+    {
+      "id": "00397_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00397_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00397_000.jpg",
+      "sha256": "b4f089f7820ac9e7d2918c56100496c5ef389735a9e91860b45a483003c7e738"
+    },
+    {
+      "id": "00398_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00398_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00398_000.jpg",
+      "sha256": "33a4faeb9dc9983679816c4499ff6bf04e4244c4477bc743d6f62c106c62575e"
+    },
+    {
+      "id": "00399_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00399_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00399_000.jpg",
+      "sha256": "14530b9169f25d631012d347d7ae72f07899eb3b3b48eff16dce13e4c37214aa"
+    },
+    {
+      "id": "00400_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00400_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00400_000.jpg",
+      "sha256": "c22ea702377dfef76ca6c1f354001dcc5abee0c05698fe5be03de2f6e5cccea8"
+    },
+    {
+      "id": "00401_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00401_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00401_000.jpg",
+      "sha256": "765c44af39b2daeee71883a2eb99290f7d87eb1b37fc4e5a4d363f4bc1c065c8"
+    },
+    {
+      "id": "00402_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00402_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00402_000.jpg",
+      "sha256": "c538e35e2db994d3fca1bad40d7df597e74060089754140f589e642c5540f4bd"
+    },
+    {
+      "id": "00403_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00403_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00403_000.jpg",
+      "sha256": "8b5dfa520491db4aca86f26889afdc6244255c45dea0da2d96073a7b5a25cd06"
+    },
+    {
+      "id": "00405_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00405_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00405_000.jpg",
+      "sha256": "4029f82c907e5aa15d6541c5df7cf9676938f20941f1f103617f254d03c7325c"
+    },
+    {
+      "id": "00406_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00406_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00406_000.jpg",
+      "sha256": "31338d01fa2ce4f809ef463d03519d0f5d4c1ba5a0d8237094e0acc94cf529e1"
+    },
+    {
+      "id": "00408_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00408_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00408_000.jpg",
+      "sha256": "45feca3e010335c19957dde5e6df973b8f38162405dc7ff7a79f9de0cbaf287e"
+    },
+    {
+      "id": "00409_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00409_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00409_000.jpg",
+      "sha256": "68585e55975c9e14a43e44630e7935b28910a26948b10e2a840d256b61fe01d8"
+    },
+    {
+      "id": "00412_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00412_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00412_000.jpg",
+      "sha256": "4cd38d0b0e4164ce889892c68ae910dddc220b8def80f98011189a038b4f9f86"
+    },
+    {
+      "id": "00413_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00413_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00413_000.jpg",
+      "sha256": "aa2958a9b741d1b7180ca2bd82a79c72c6fcd6ffd760db05f26f16fde5b5b6c2"
+    },
+    {
+      "id": "00415_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00415_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00415_000.jpg",
+      "sha256": "9036e02f7c496330cea4a737e668efd193892e4db7281d2a9de4bf5cc200f4cd"
+    },
+    {
+      "id": "00416_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00416_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00416_000.jpg",
+      "sha256": "21638ca7a4111b0d44d170c125f83bd72d34d7deb535ee9ae88224f1623dd728"
+    },
+    {
+      "id": "00417_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00417_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00417_000.jpg",
+      "sha256": "f4f60440633cb6d69c421e449fc707acc2a5c44e442c44853701085ed8653970"
+    },
+    {
+      "id": "00418_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00418_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00418_000.jpg",
+      "sha256": "45c57d4ad00c4ea5536ff3b36a864f014ae2573b1dfb77af98787b319d7cb9f1"
+    },
+    {
+      "id": "00419_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00419_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00419_000.jpg",
+      "sha256": "955f68b41ef0728614bd51bc910dd46586a2297b2b9637044b036beabe8d7195"
+    },
+    {
+      "id": "00420_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00420_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00420_000.jpg",
+      "sha256": "33cc1c0c0d9b838aca7331fe30723909aa4630dbaf211314394f337812e8a4bd"
+    },
+    {
+      "id": "00422_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00422_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00422_000.jpg",
+      "sha256": "b416398d32d4f8c533bb011266cc98c3cd0513c1fa28eeacef3bf22b1f85233c"
+    },
+    {
+      "id": "00425_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00425_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00425_000.jpg",
+      "sha256": "05a9ceba7f9d637b2e623c8de9ae7d23c322bd8815959ae0ba3cd3ec891056ed"
+    },
+    {
+      "id": "00426_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00426_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00426_000.jpg",
+      "sha256": "1aa6fa449f00f25d42eac4bb46bee99cf08413291ca3c7529ff80b1f715aab48"
+    },
+    {
+      "id": "00427_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00427_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00427_000.jpg",
+      "sha256": "01d7b504778904c753ea417229d8c39d582866c119862b1c854cc370679a4312"
+    },
+    {
+      "id": "00428_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00428_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00428_000.jpg",
+      "sha256": "8c663ffd535168cb6b0b89d8ae18fa7be4249cbfa06d409135fbde10ef98077f"
+    },
+    {
+      "id": "00429_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00429_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00429_000.jpg",
+      "sha256": "1c75ed9e9ed794f0f50e88e0929f94c1caa859ac49a4ba3a9fb4c90fc0c74621"
+    },
+    {
+      "id": "00432_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00432_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00432_000.jpg",
+      "sha256": "b4b3729202b4ac78a03f0f9788f91a9647efa20fa8d6242ca1f0db6978d59568"
+    },
+    {
+      "id": "00434_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00434_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00434_000.jpg",
+      "sha256": "2dbfef35502fafb77d1e605aacbe9fa7f21aca0dd162b2de8ce881d7f638ecc7"
+    },
+    {
+      "id": "00435_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00435_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00435_000.jpg",
+      "sha256": "6db15a1283406bb111ef51df4e039556714f17a6fb8dd2aad9071846a945bb78"
+    },
+    {
+      "id": "00436_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00436_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00436_000.jpg",
+      "sha256": "73cae66257eb7a1cdf4079a9a80f586a8e833da5cfe3bebfc5950d636c3adc7c"
+    },
+    {
+      "id": "00437_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00437_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00437_000.jpg",
+      "sha256": "f8c88b2ccade0310d0e2417b8e210210bbe6473442bf366cbd54880be5078c26"
+    },
+    {
+      "id": "00438_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00438_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00438_000.jpg",
+      "sha256": "511f57ad6b7e28e6304451ceb53a44fd56bc8464bffd9b84cad98928a1cc865d"
+    },
+    {
+      "id": "00439_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00439_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00439_000.jpg",
+      "sha256": "ff03ead39283c9d3b7e7fe36228b4db7d371e4b2e02a7535de916d145913afb2"
+    },
+    {
+      "id": "00444_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00444_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00444_000.jpg",
+      "sha256": "87574ce2a01ccaaeb00d60470e51cec145bb1a10dfae745cf8a1ccf234574953"
+    },
+    {
+      "id": "00445_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00445_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00445_000.jpg",
+      "sha256": "a9acc6f3668a80e3ae313de7b58452293812f23a638d6e484cae18fa1347f6f9"
+    },
+    {
+      "id": "00447_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00447_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00447_000.jpg",
+      "sha256": "58ae24a3a01bec90a96c42a1b3a9cd2df154bdf4b2c1af0fc96b5821ad7eaf92"
+    },
+    {
+      "id": "00448_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00448_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00448_000.jpg",
+      "sha256": "b7fc8d76a29a4f2055e4c7a40bf871337a28c57f662cc0d5ff19f8b57509406f"
+    },
+    {
+      "id": "00449_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00449_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00449_000.jpg",
+      "sha256": "d611a80f3a8c8753e90adaf2607bf7e55b809b3ace9877744db4a7ee01da4081"
+    },
+    {
+      "id": "00450_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00450_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00450_000.jpg",
+      "sha256": "794f1c9a19a9c80d0ceea44230971b1d360982927d09dacadd279c83292f2f08"
+    },
+    {
+      "id": "00451_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00451_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00451_000.jpg",
+      "sha256": "612f993445655fd0c2ca7733443676cd92c674d3a896cead57450e7f31915912"
+    },
+    {
+      "id": "00452_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00452_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00452_000.jpg",
+      "sha256": "53cc17436872af73bcfbfdb9bd7723113dfb437cbd4817273e5355399c40a9a7"
+    },
+    {
+      "id": "00455_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00455_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00455_000.jpg",
+      "sha256": "102861c149a6fd98ac44a659506511f607bd3fb5365d8d29c5bbeefbdc934f57"
+    },
+    {
+      "id": "00456_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00456_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00456_000.jpg",
+      "sha256": "e3f605044e4e236f977c21042263befe3605ae549dbcd6ac8069ae74c1f7601e"
+    },
+    {
+      "id": "00457_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00457_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00457_000.jpg",
+      "sha256": "d2762ed7f548c3e3d2a5fafefa87453a4cd6a3ea78749ef7ebc28c5178fde230"
+    },
+    {
+      "id": "00460_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00460_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00460_000.jpg",
+      "sha256": "fcfb8800b0020dbad85f5ff64372ee64db59c398738593186b020760cadf63fb"
+    },
+    {
+      "id": "00463_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00463_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00463_000.jpg",
+      "sha256": "c5fc4a6fe84b52c348fdc3237d61b9e1ea7c092393f33fe105f9eab21859d6a1"
+    },
+    {
+      "id": "00464_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00464_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00464_000.jpg",
+      "sha256": "b30b17b2d9c0f50bcfbaf63dd05a717d7139c9eaec358c1020be67a3b1e71336"
+    },
+    {
+      "id": "00467_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00467_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00467_000.jpg",
+      "sha256": "8817fc77a47dbc31b28100ff008073204cb185c60f4df6e8fc6aef241e782c99"
+    },
+    {
+      "id": "00468_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00468_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00468_000.jpg",
+      "sha256": "4fb210711285e4073b2224dd935e7f2c9d0a8656d4af2a2b4aa800ce3009ca11"
+    },
+    {
+      "id": "00469_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00469_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00469_000.jpg",
+      "sha256": "bc61b07d8a32ffdb4223356b32fc8c60e719d8e474354ea0cd5d93f10e556d42"
+    },
+    {
+      "id": "00470_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00470_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00470_000.jpg",
+      "sha256": "3f100f53ef502f0fa54ea118753eac7dc82f30cc507148295ee13b59670c950b"
+    },
+    {
+      "id": "00471_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00471_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00471_000.jpg",
+      "sha256": "7c180730f29383fcee2908359638221774985cfe339c734502cfddd4bb5a3a38"
+    },
+    {
+      "id": "00472_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00472_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00472_000.jpg",
+      "sha256": "be3dc201841f274637940a23e04b50ade8b711a5c705004a3024f297e8fcd8e7"
+    },
+    {
+      "id": "00473_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00473_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00473_000.jpg",
+      "sha256": "ead857c760c6207c85ddb11a0fc9fb76d6bee37b379f5c30f8528b0eba8e3187"
+    },
+    {
+      "id": "00474_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00474_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00474_000.jpg",
+      "sha256": "dd1d7983364707e82d6adb6b05c5ae07d5028ca76e5b6f1f1409e4e573de56d7"
+    },
+    {
+      "id": "00475_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00475_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00475_000.jpg",
+      "sha256": "3cffee86dcb08b925ea0a550a26780b5550b34449997567495d93e6f70c30cdb"
+    },
+    {
+      "id": "00476_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00476_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00476_000.jpg",
+      "sha256": "859a6710434077bf219598f9f66b6284c52eacdf5711462b999659f2ef5e5b77"
+    },
+    {
+      "id": "00477_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00477_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00477_000.jpg",
+      "sha256": "5005c223daa71ea4ffb615c04c25a6d6cb207aeef2bcc466ef9a0b8d21a238a8"
+    },
+    {
+      "id": "00478_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00478_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00478_000.jpg",
+      "sha256": "405fdaf24e70ede84ff55eff3ac10e5c3be37e07083396b0e79b719a648edef4"
+    },
+    {
+      "id": "00479_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00479_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00479_000.jpg",
+      "sha256": "877ef85d473014770d24a0e31764c166da3b48b3a6244037e7cc6c20239f301a"
+    },
+    {
+      "id": "00480_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00480_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00480_000.jpg",
+      "sha256": "d2660c6db4f90a7cd55de0ef4bdd362973a152e72a5fd9580c65729faeaaa354"
+    },
+    {
+      "id": "00481_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00481_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00481_000.jpg",
+      "sha256": "0c8ac916d50067349f308eceff3844ccc8d20fcebad71de6d8dba9c4663fc60a"
+    },
+    {
+      "id": "00482_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00482_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00482_000.jpg",
+      "sha256": "ea03721668c983112eae268f761eebb1e59d9ae3bc348ef263c754b6ce5cce3f"
+    },
+    {
+      "id": "00483_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00483_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00483_000.jpg",
+      "sha256": "e584f8ee1d997360cd822fd88cff12a858e8ab50b047de267ff119e888abe525"
+    },
+    {
+      "id": "00485_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00485_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00485_000.jpg",
+      "sha256": "070556d195a87348d8f8a35d2aca0110c3e855f840c501ae5228ab302d2d9722"
+    },
+    {
+      "id": "00486_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00486_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00486_000.jpg",
+      "sha256": "701b8f53159f3641c6a0f065598a42ecd32ad080b2b7552dba727b01f20f32fc"
+    },
+    {
+      "id": "00487_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00487_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00487_000.jpg",
+      "sha256": "77fe57ddd58c17cbe3425423a98f39982bd8ffc796e93c48656b7e196fc7aa76"
+    },
+    {
+      "id": "00491_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00491_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00491_000.jpg",
+      "sha256": "d3448510926e44821f1c02559cce33acfeb1b7756715ff16acda2b947aeb2fdc"
+    },
+    {
+      "id": "00492_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00492_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00492_000.jpg",
+      "sha256": "7f747e0300ff10d206d953dbd33c359f569db0d138607513fc8ed6daf34f5195"
+    },
+    {
+      "id": "00493_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00493_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00493_000.jpg",
+      "sha256": "e7067dbac073674813425317d7ae958b6602639616ff66a52620756987fb858e"
+    },
+    {
+      "id": "00494_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00494_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00494_000.jpg",
+      "sha256": "efcc8c8e7a7ac34a0626255b857ecfa6c0b1c74f249850ffde722f6c97ce778d"
+    },
+    {
+      "id": "00495_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00495_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00495_000.jpg",
+      "sha256": "97ecf55e6df8f8398c6bf25819402e4a34df129be9035161572f3b3bf1057381"
+    },
+    {
+      "id": "00496_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00496_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00496_000.jpg",
+      "sha256": "2f7f833fe4a576046d1ac26af48bbc0a16cd26f01d1f77d245265dfcaf8627de"
+    },
+    {
+      "id": "00498_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00498_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00498_000.jpg",
+      "sha256": "edb309dc1a0d76bcc4c52587b747fb0300ee41d57568bc53d41c51fce26d7cf1"
+    },
+    {
+      "id": "00499_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00499_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00499_000.jpg",
+      "sha256": "d18dbaca4ea4ebbec185495f06460980099c65fb6a0847f32f5c3b6a3fca5b05"
+    },
+    {
+      "id": "00500_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00500_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00500_000.jpg",
+      "sha256": "394a70a778f0e1fb28e52ccfd833cda7ad02bab543e2d4cb7b30c30177765166"
+    },
+    {
+      "id": "00503_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00503_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00503_000.jpg",
+      "sha256": "846696876bf9484231cdfc93211244e136b7b6e2622c3d15c28145b72be95ea3"
+    },
+    {
+      "id": "00504_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00504_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00504_000.jpg",
+      "sha256": "7a0b677fbe5a49d5bb66636ff557af673bd316022641b25ff3bb07ad6f55188c"
+    },
+    {
+      "id": "00505_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00505_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00505_000.jpg",
+      "sha256": "ce306992ab203a3d1f3de34fded7af30f12b5ed24bc2b050ad9083ccd2c1f533"
+    },
+    {
+      "id": "00508_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00508_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00508_000.jpg",
+      "sha256": "eab6c9ebf06662a8351c92df8b02ff2a2cc257709ff14575998cf1d6955e82dc"
+    },
+    {
+      "id": "00511_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00511_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00511_000.jpg",
+      "sha256": "ac64c457fd4c39d8b3909d6cbe00dd7d588eefc83a1f0ae94b339a3513e2abb6"
+    },
+    {
+      "id": "00514_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00514_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00514_000.jpg",
+      "sha256": "7a7d85d426be54ec4cd536835dff2da996cab0ad6836eb2c9e0064a357b47eb8"
+    },
+    {
+      "id": "00515_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00515_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00515_000.jpg",
+      "sha256": "c7c3c0888be6c76ad2c7e830d00437ac4ababf2cc82d37febb8ced6bb9d6c6c2"
+    },
+    {
+      "id": "00516_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00516_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00516_000.jpg",
+      "sha256": "30aedb700c8ad1cfaae53c027bf2483872b72e60d9c8473a1914c1a510eb5b0b"
+    },
+    {
+      "id": "00517_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00517_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00517_000.jpg",
+      "sha256": "4e96131e72cf2159cafa22a510365dee1c8745b4d7f8b2a280a70be4740107d7"
+    },
+    {
+      "id": "00522_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00522_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00522_000.jpg",
+      "sha256": "f1f41de7738f3f71ecd029a797d3d83206fd034a2b3fd9d38e7fb3fa25559225"
+    },
+    {
+      "id": "00523_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00523_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00523_000.jpg",
+      "sha256": "37ce877493948db587bcc5fb7dabef1fe201517ff36f6fe5ca74e192d0196eb4"
+    },
+    {
+      "id": "00527_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00527_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00527_000.jpg",
+      "sha256": "9835b165685215c8752f5aa39aab56f746899a5e85ae502aef795becf04d661b"
+    },
+    {
+      "id": "00528_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00528_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00528_000.jpg",
+      "sha256": "5fb8d4c190b699a9b716ae2065ba3f6f5ee82e3992bb0ec02313232671938615"
+    },
+    {
+      "id": "00529_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00529_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00529_000.jpg",
+      "sha256": "e4c036a83b3208437389bd381d0672ace576fe968b9e21fa4dda0ae6c847a16c"
+    },
+    {
+      "id": "00530_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00530_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00530_000.jpg",
+      "sha256": "dc94e2f101b158c8d9c8a2c43da48eb3fbf3ed3e7954ce6c114ef8d7c1d9f0de"
+    },
+    {
+      "id": "00531_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00531_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00531_000.jpg",
+      "sha256": "a20ce964b15880442eaddb44e3a333090800f9d05f9109c467ac1aa3b8964cb0"
+    },
+    {
+      "id": "00532_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00532_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00532_000.jpg",
+      "sha256": "6697f1e0c92d73fa0d66a0f03de3a9191dc9780684f2ccac2e3c33d0390a7853"
+    },
+    {
+      "id": "00533_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00533_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00533_000.jpg",
+      "sha256": "8b517f821e40ed206dad2c8ed9f1e829f811ff4cf2a08845ec48399aba7e36f1"
+    },
+    {
+      "id": "00534_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00534_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00534_000.jpg",
+      "sha256": "f570e662bbe5857c15fd292df6de6c774d27ea71e7d97f2a177dc79c5874a826"
+    },
+    {
+      "id": "00535_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00535_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00535_000.jpg",
+      "sha256": "ad36911d055e8fb47b4e542803073acbff8534cc839c3dc686d0af06a5ee3e16"
+    },
+    {
+      "id": "00538_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00538_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00538_000.jpg",
+      "sha256": "34f0e256a1002c238052134f4dd06caa1348faa95bb77b3e05a8756b38a6ee8c"
+    },
+    {
+      "id": "00540_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00540_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00540_000.jpg",
+      "sha256": "58b6227731cd640a661462b15c248936a2a6624a65a1dbae36adf43f15d6f9d5"
+    },
+    {
+      "id": "00541_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00541_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00541_000.jpg",
+      "sha256": "c89c1e407752f8fc7aa115d03dcc69907b192fcedc0de1cbae56a074fa2cf3b3"
+    },
+    {
+      "id": "00544_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00544_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00544_000.jpg",
+      "sha256": "1a023f5a032df243e36c131a5456698903141447e05eb9e67827a985cacb2d41"
+    },
+    {
+      "id": "00545_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00545_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00545_000.jpg",
+      "sha256": "006b5d11e09ae4bfe025c9dfd4de3aa8a525b217306a41bbe3b6f51e500bacf7"
+    },
+    {
+      "id": "00547_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00547_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00547_000.jpg",
+      "sha256": "443f791749ec1e3b065a0e9534755390f1e72054271a06b603cb71f9cc53f7dc"
+    },
+    {
+      "id": "00548_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00548_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00548_000.jpg",
+      "sha256": "aed3ea3541382cdfdb3b0f670edcecac173cb998cbf62153c4cc833fc628f9d2"
+    },
+    {
+      "id": "00549_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00549_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00549_000.jpg",
+      "sha256": "63ea645e9db89dd1eca7a1ce6336415a87433a5e48eb6927e2dc73649f0da161"
+    },
+    {
+      "id": "00550_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00550_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00550_000.jpg",
+      "sha256": "8e96905a65cf3b3033bf79c48c39a56dbb66c1b946fab16bb4eaafeed6764fb3"
+    },
+    {
+      "id": "00552_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00552_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00552_000.jpg",
+      "sha256": "2cc38a97980d37792f21475d714bf3225c92ea51d77f7c5b80b51a575c55865d"
+    },
+    {
+      "id": "00553_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00553_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00553_000.jpg",
+      "sha256": "c7b9abb96cad0d27103f335d4ac50f7d6aeb37d40d571d084885ad0540a12228"
+    },
+    {
+      "id": "00555_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00555_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00555_000.jpg",
+      "sha256": "e8424376d4aad50af42a58869a0c3c64d181dd978c6ca75835ea22e6f13f17bc"
+    },
+    {
+      "id": "00558_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00558_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00558_000.jpg",
+      "sha256": "35adec4169b1c3a419416e0ea07b7e3a42f64b19e58c22e23a9c9e10e61b9f80"
+    },
+    {
+      "id": "00559_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00559_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00559_000.jpg",
+      "sha256": "a9a63b05891eba845e6111e42b14d950443c6efb41af10ce6e2241ff3d85be45"
+    },
+    {
+      "id": "00560_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00560_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00560_000.jpg",
+      "sha256": "11d6de7bba1a8098df194623c0fb94cbdb1e668b5439f5d81b040cd291b168b2"
+    },
+    {
+      "id": "00561_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00561_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00561_000.jpg",
+      "sha256": "dd4f69f4286248e389b33bf7718829314b6b9e35ee2162ae8a8f6d441f440ad5"
+    },
+    {
+      "id": "00563_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00563_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00563_000.jpg",
+      "sha256": "4e8cb40423675cff7f5f5eafc29f64b0dfeed5d1e31994c59a0d3b054ae8a7a4"
+    },
+    {
+      "id": "00564_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00564_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00564_000.jpg",
+      "sha256": "33446f1a688acef4ec99e6a2fce4564692f04e9810db2db984adf5ace22416c9"
+    },
+    {
+      "id": "00565_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00565_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/remaining-library-refresh-2026-10-26/references/00565_000.jpg",
+      "sha256": "fa0d83e91ffd786eef5666c0135175b336884e7077d16842437f0e04d83f0b1f"
+    }
+  ]
+}

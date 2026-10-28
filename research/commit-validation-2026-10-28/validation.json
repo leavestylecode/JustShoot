@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-28",
+  "scope": [
+    "Unified Apple RAW/processed/Live Photo display-sRGB LUT contract and imported LUT normalization",
+    "Skin/shadow refinement and retirement of selected LUT presets",
+    "Approved film packaging covers and 559-cover compression"
+  ],
+  "build": {
+    "status": "SUCCEEDED",
+    "durationMs": 10412,
+    "target": "simulator"
+  },
+  "tests": {
+    "status": "SUCCEEDED",
+    "durationMs": 30006,
+    "counts": {
+      "passed": 431,
+      "failed": 0,
+      "skipped": 3
+    },
+    "target": "simulator"
+  },
+  "testSkips": [
+    {
+      "suite": "PhotoDisplayRoundTripTests",
+      "test": "testRenderedHEICRoundTripsThroughPhotoLibrary",
+      "status": "skipped",
+      "durationMs": 11
+    },
+    {
+      "suite": "PhysicalCameraPipelineTests",
+      "test": "testRealProRAWThroughDurablePipelineAndPhotos",
+      "status": "skipped",
+      "durationMs": 1
+    },
+    {
+      "suite": "RawFilmPipelineTests",
+      "test": "testPublicAppleProRAWDevelopsToSRGBWhenExternalFixtureIsProvided",
+      "status": "skipped",
+      "durationMs": 1
+    }
+  ],
+  "performanceCheck": "NOT PASSED: one internal HEIF/CMPhoto priority inversion warning remains; see performance-validation.json",
+  "coverVerification": {
+    "count": 559,
+    "bytes": 54348069,
+    "allInstalledHashesMatch": true,
+    "libraryBindings": 550,
+    "captureCovers": 9,
+    "allOtherAppFilesMatchCompressionBaseline": true
+  },
+  "gitDiffCheckPassed": true,
+  "sourceDiagnosticExperimentsRemoved": true,
+  "physicalDeviceValidatedThisTurn": false,
+  "excludedLocalArtifacts": [
+    "Original downloads and extracted research LUT binaries",
+    "Captures, images and generated comparisons",
+    "Caches and transient generation responses"
+  ]
+}

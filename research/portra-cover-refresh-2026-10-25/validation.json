@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-25",
+  "project": "JustShoot.xcodeproj",
+  "scheme": "JustShoot",
+  "configuration": "Debug",
+  "simulator": "iPhone 17",
+  "os": "iOS 26.4.1 Simulator",
+  "build": {
+    "summary": {
+      "status": "SUCCEEDED",
+      "durationMs": 10476,
+      "target": "simulator"
+    },
+    "artifacts": {
+      "appPath": "/tmp/justshoot-raw-derived/Build/Products/Debug-iphonesimulator/JustShoot.app",
+      "bundleId": "leavestylecode.JustShoot",
+      "processId": 63046,
+      "simulatorId": "06CBF94A-F235-4319-A5F9-3548DDC86AD2",
+      "buildLogPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-10-25T05-12-10-132Z_pid9844_19c98205.log",
+      "runtimeLogPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/leavestylecode.JustShoot_2026-10-25T05-12-19-444Z_helperpid63036_ownerpid9844_93892cdf.log",
+      "osLogPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/leavestylecode.JustShoot_oslog_2026-10-25T05-12-20-605Z_helperpid63087_ownerpid9844_ddddd1d7.log"
+    },
+    "diagnostics": {
+      "warnings": [],
+      "errors": []
+    }
+  },
+  "tests": {
+    "summary": {
+      "status": "SUCCEEDED",
+      "durationMs": 8327,
+      "counts": {
+        "passed": 8,
+        "failed": 0,
+        "skipped": 0
+      },
+      "target": "simulator"
+    },
+    "artifacts": {
+      "buildLogPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-25T05-13-17-002Z_pid9844_5ed0187c.log",
+      "xcresultPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-25T05-13-17-002Z_pid9844_36efaded.xcresult",
+      "testProductsPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/test-products/test_sim_2026-10-25T05-13-17-002Z_pid9844_c6f8f4a0.xctestproducts"
+    },
+    "diagnostics": {
+      "warnings": [],
+      "errors": [],
+      "testFailures": []
+    }
+  },
+  "visualInspection": {
+    "screenshotSource": "/var/folders/7n/2347nkq95kx12xjm0d2vwn500000gn/T/screenshot_optimized_645e35f2-a0b3-441d-ba76-1c86d578639c.jpg",
+    "homeScreenshot": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/portra-cover-refresh-2026-10-25/home-simulator.jpg",
+    "comparison": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/portra-cover-refresh-2026-10-25/portra-before-after.jpg",
+    "groupPreview": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/portra-cover-refresh-2026-10-25/after-grid.jpg",
+    "thumbnailPreview": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/portra-cover-refresh-2026-10-25/thumbnail-grid.png",
+    "checks": [
+      "Home shows nine stock covers with correct names",
+      "New Portra cover visible at the existing grid size",
+      "110px contact sheet reviewed",
+      "Existing custom test filter retained"
+    ],
+    "limitation": "No camera behavior or physical device performance changes claimed; picker image preparation checked by regression tests."
+  },
+  "asset": {
+    "path": "JustShoot/Resources/cards/cover_kodak_portra_400.heic",
+    "colorSpace": "sRGB",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "format": "HEIC",
+    "quality": 60
+  },
+  "baselineCheck": {
+    "checked": 585,
+    "changed": [
+      "JustShoot/Models.swift"
+    ],
+    "added": [
+      "JustShoot/Resources/cards/cover_kodak_portra_400.heic"
+    ],
+    "unchanged": 584,
+    "originalCollectionImagesUnchanged": 550,
+    "existingEightFujifilmCoversUnchanged": true,
+    "cardsJsonAndLutTablesUnchanged": true
+  },
+  "gitDiffCheck": "passed"
+}

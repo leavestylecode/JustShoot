@@ -1,0 +1,32 @@
+[
+  {
+    "key": "provia",
+    "resource": "JustShoot/Resources/cards/cover_fuji_provia_100f.heic",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-133ac290-1c71-4383-adb5-28de5e2c3374.png"
+  },
+  {
+    "key": "velvia",
+    "resource": "JustShoot/Resources/cards/cover_fuji_velvia.heic",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-402530e4-697a-4d3a-b7bd-30001496c489.png"
+  },
+  {
+    "key": "astia",
+    "resource": "JustShoot/Resources/cards/cover_fuji_astia_100f.heic",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-fc98336f-d341-498a-b3b8-c04d25037f23.png"
+  },
+  {
+    "key": "acros",
+    "resource": "JustShoot/Resources/cards/cover_fuji_acros.heic",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-1c1fb248-439d-43a8-9d65-3cf62c3028fb.png"
+  },
+  {
+    "key": "c200",
+    "resource": "JustShoot/Resources/cards/cover_fuji_c200.heic",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d8f523f7-c0e4-490c-be5e-9265f5d6a15e.png"
+  },
+  {
+    "key": "pro400h",
+    "resource": "JustShoot/Resources/cards/cover_fuji_pro_400h.heic",
+    "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-08ca9ebc-8b40-4263-b9f2-3f0fe0fdb204.png"
+  }
+]

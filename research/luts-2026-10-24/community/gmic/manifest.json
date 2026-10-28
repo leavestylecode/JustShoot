@@ -1,0 +1,55 @@
+{
+  "retrieved_at": "2026-10-24",
+  "repository": "https://github.com/YahiaAngelo/Film-Luts",
+  "commit": "af957b631a304e6be94778b96cb3395de3438e9f",
+  "community_recommendation": "https://www.reddit.com/r/nofusion/comments/1pamein/an_indispensable_resource_for_free_film_luts/",
+  "files_unmodified": true,
+  "film_accuracy_verified": false,
+  "input_transfer_function_documented": false,
+  "app_redistribution_cleared": false,
+  "license_note": "Repository has an MIT license but its README disclaims ownership of the LUTs and says they may have third-party rights. Preserve this distinction; this acquisition does not establish permission to redistribute inside an app.",
+  "files": [
+    {
+      "file": "kodak_portra_400.cube",
+      "original_path": "luts/negative_new/kodak_portra_400.cube",
+      "url": "https://raw.githubusercontent.com/YahiaAngelo/Film-Luts/af957b631a304e6be94778b96cb3395de3438e9f/luts/negative_new/kodak_portra_400.cube",
+      "bytes": 131681,
+      "sha256": "d370833399f38de59f42386757b18832c68d10a8877c89ad7428e3791ad266d3"
+    },
+    {
+      "file": "kodak_portra_400_+.cube",
+      "original_path": "luts/negative_new/kodak_portra_400_+.cube",
+      "url": "https://raw.githubusercontent.com/YahiaAngelo/Film-Luts/af957b631a304e6be94778b96cb3395de3438e9f/luts/negative_new/kodak_portra_400_+.cube",
+      "bytes": 131582,
+      "sha256": "aa0175e243c1b5df122db2f53b6eb27ec037d208d631e23925fe79fa95ea4298"
+    },
+    {
+      "file": "kodak_portra_400_++.cube",
+      "original_path": "luts/negative_new/kodak_portra_400_++.cube",
+      "url": "https://raw.githubusercontent.com/YahiaAngelo/Film-Luts/af957b631a304e6be94778b96cb3395de3438e9f/luts/negative_new/kodak_portra_400_++.cube",
+      "bytes": 131777,
+      "sha256": "143d36a113f0f5d1654044a74503a9437270bfb26922b478805ec6f537b93871"
+    },
+    {
+      "file": "kodak_portra_400_-.cube",
+      "original_path": "luts/negative_new/kodak_portra_400_-.cube",
+      "url": "https://raw.githubusercontent.com/YahiaAngelo/Film-Luts/af957b631a304e6be94778b96cb3395de3438e9f/luts/negative_new/kodak_portra_400_-.cube",
+      "bytes": 131979,
+      "sha256": "26682ab713322b94c535acac8d879b8c3eb42ad9a3a7bcd619de6289b16cfc92"
+    },
+    {
+      "file": "README.md",
+      "original_path": "README.md",
+      "url": "https://raw.githubusercontent.com/YahiaAngelo/Film-Luts/af957b631a304e6be94778b96cb3395de3438e9f/README.md",
+      "bytes": 2975,
+      "sha256": "7054dda3eabaf1eeca1ea60d6e0661d0b40f6676d3179a1ea7540ff0fd2bbb92"
+    },
+    {
+      "file": "LICENSE",
+      "original_path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/YahiaAngelo/Film-Luts/af957b631a304e6be94778b96cb3395de3438e9f/LICENSE",
+      "bytes": 1062,
+      "sha256": "df194a15bf69c2dc16be81eddce0b1a6ee68d9fc418f33abc29952a4d6c9e878"
+    }
+  ]
+}

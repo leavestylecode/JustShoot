@@ -1,0 +1,988 @@
+{
+  "retrieved": "2026-10-24",
+  "sourcePage": "https://www.fujifilm-x.com/global/support/download/lut/",
+  "packageVersion": "1.10",
+  "pageLastUpdated": "2026-04-16",
+  "archive": "gfx-eterna-55-3d-lut-v110.zip",
+  "archiveSHA256": "febfc7050999620651ca0cf162bf8b499970ef270b4da632765b61b958cf7940",
+  "validation": {
+    "zipCRC": "pass",
+    "cubeCount": 56,
+    "finite": "pass",
+    "expectedRowCounts": "pass",
+    "outputRangeZeroToOne": "pass",
+    "rawFilesModified": false
+  },
+  "files": [
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log/F-Log_LUT_overview_Ver.2.1E.pdf",
+      "bytes": 68497,
+      "sha256": "03fcff2e8bb676bdf63873be98e6e38cd23c3bc831e15cbb94e3a6ad1f9976bd"
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log/FLog_to_ETERNA-BB_33grid_V.1.00.cube",
+      "bytes": 970466,
+      "sha256": "1309a7d4bf10f2d7aa381523890ae8a695fec1a8ea3f9643c76a5c4e38b993f7",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog_to_ETERNA-BB",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log to ETERNA BLEACH BYPASS",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log/FLog_to_ETERNA_33grid_V.1.00.cube",
+      "bytes": 970449,
+      "sha256": "84a4b62c105b2c6999281d35bb7b23a91198c715d783a82230b16e3fb9b9498c",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog_to_ETERNA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log to ETERNA",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log/FLog_to_FLog-709_33grid_V.1.00.cube",
+      "bytes": 970429,
+      "sha256": "4228a450900f6501f53e9171c9276e480a5fc08306b32b5dcd011628fbce8135",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog_to_FLog-709",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log to F-Log",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log/FLog_to_WDR-709_33grid_V.1.00.cube",
+      "bytes": 970443,
+      "sha256": "a7bb7b5b32c36537e50cf757a4d3395f8b3ea7c8c4d836c0b50f1471157241cc",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog_to_WDR",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log to Wide Dynamic Range curve",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/F-Log2_LUT_overview_Ver.2.1E.pdf",
+      "bytes": 73732,
+      "sha256": "2c557ed6ef6a2b7baa1a9db57ac13b7309d47c7e58ed70cedb180b1741c2c7bf"
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/FLog2_to_ACROS_33grid_V.1.00.cube",
+      "bytes": 970449,
+      "sha256": "14b0c3644c1f81391aa79ca5bd8c33a4b50844f525295574ce2af9237d021930",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_ACROS",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to ACROS",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/FLog2_to_ASTIA_33grid_V.1.00.cube",
+      "bytes": 970449,
+      "sha256": "c019934ee9e3fe9abadd6dfdc03d1013bbd6ba4277f6bd505d340d2730b1b83d",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_ASTIA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to ASTIA",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/FLog2_to_CLASSIC-CHROME_33grid_V.1.00.cube",
+      "bytes": 970467,
+      "sha256": "b68c8f4b38da958388931c34ce9eb5c09a495e8c37e654537d534dfd8f023b75",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_CLASSIC-CHROME",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to CLASSIC CHROME",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/FLog2_to_CLASSIC-Neg._33grid_V.1.00.cube",
+      "bytes": 970463,
+      "sha256": "f3db5fe777c3a64e998b8ada64ff8cc2e61f9b44538fd7c550733d1c55c197c5",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_CLASSIC-Neg.",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to CLASSIC Neg.",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/FLog2_to_ETERNA-BB_33grid_V.1.00.cube",
+      "bytes": 970468,
+      "sha256": "61404637816b57af5af17c82efc4b1349ab0f30a143795779b216b623b487ec3",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_ETERNA-BB",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to ETERNA BLEACH BYPASS",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/FLog2_to_ETERNA_33grid_V.1.00.cube",
+      "bytes": 970451,
+      "sha256": "4fe74f18d88b81124b688a218d9be4ac23c41d467430ec31cfe5d70aa2de5bb8",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_ETERNA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to ETERNA",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/FLog2_to_FLog2-709_33grid_V.1.00.cube",
+      "bytes": 970433,
+      "sha256": "b8cca403d9448c7855e5e02ba8a067281376269c269bab12afb0d3bc66c651ae",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_FLog2-709",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to F-Log2",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/FLog2_to_PRO-Neg.Std_33grid_V.1.00.cube",
+      "bytes": 970461,
+      "sha256": "a2fe3a8a1730c8428d1878a7628c45a452c8031990e13fb4b9680d3cc4fb9680",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_PRO-Neg.Std",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to PRO Neg.Std",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/FLog2_to_PROVIA_33grid_V.1.00.cube",
+      "bytes": 970451,
+      "sha256": "6b603a266584f19a988a352bc311ea64192fe460ed3493fe97aeef5afbe8a239",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_PROVIA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to PROVIA",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/FLog2_to_REALA-ACE_33grid_V.1.00.cube",
+      "bytes": 970457,
+      "sha256": "99d30c17b9246130fe0b4ae37e0207adb811e39ce4eb092f9186072173982749",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 0.999813,
+      "headers": [
+        "title:FLog2_to_REALA-ACE",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to REALA ACE",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/FLog2_to_Velvia_33grid_V.1.00.cube",
+      "bytes": 970451,
+      "sha256": "1e7cea327d920e50dcfafeb16e463d596cf7940ab211f8b5b66ebf91769e0de6",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_Velvia",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to Velvia",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2/FLog2_to_WDR-709_33grid_V.1.00.cube",
+      "bytes": 970445,
+      "sha256": "db95d527328930ea22120fc1ed987d2caaabaee41a214ed4715846583003c096",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_WDR",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to Wide Dynamic Range curve",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/F-Log2C_LUT_overview_Ver.2.1E.pdf",
+      "bytes": 73862,
+      "sha256": "c8ab95896bbecfa3cba51f82e3ac7adc2660cc31636edfca9bd0562884417979"
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/FLog2C_to_ACROS_33grid_V.1.00.cube",
+      "bytes": 970452,
+      "sha256": "5311db0829e35bc6b1218ea7737732d5ecef3ef2c0bcd8569d9a5ca0bc5dc208",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_ACROS",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to ACROS",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/FLog2C_to_ASTIA_33grid_V.1.00.cube",
+      "bytes": 970452,
+      "sha256": "8478ad92f275c86cd27ad1530c4a3f02d682a6f962c69a248266e74f245d1289",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_ASTIA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to ASTIA",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/FLog2C_to_CLASSIC-CHROME_33grid_V.1.00.cube",
+      "bytes": 970470,
+      "sha256": "922182088e8ba42fd627dca3ab2622401158fe861bf06ad9e5c4239f51c9a37b",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_CLASSIC-CHROME",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to CLASSIC CHROME",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/FLog2C_to_CLASSIC-Neg._33grid_V.1.00.cube",
+      "bytes": 970466,
+      "sha256": "2aea8841704e59abde711db68d75dbd7b06b1a6380cfe56eea187e09b1c1ff43",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_CLASSIC-Neg.",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to CLASSIC Neg.",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/FLog2C_to_ETERNA-BB_33grid_V.1.00.cube",
+      "bytes": 970471,
+      "sha256": "05be042e8ab4aa187cf08abb01ddbfee38f218c87464297d4eddba7e32ca974b",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_ETERNA-BB",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to ETERNA BLEACH BYPASS",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/FLog2C_to_ETERNA_33grid_V.1.00.cube",
+      "bytes": 970454,
+      "sha256": "db1601fee97ff2127b31a75b8ff1c28147406e22855f9c70076e27d35543bfea",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_ETERNA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to ETERNA",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/FLog2C_to_FLog2C-709_33grid_V.1.00.cube",
+      "bytes": 970438,
+      "sha256": "c3884bd268c0f9f29fa1e27d0f01f78e045205fa961980fbbfdf8884d8b77037",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_FLog2C-709",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to F-Log2C",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/FLog2C_to_PRO-Neg.Std_33grid_V.1.00.cube",
+      "bytes": 970464,
+      "sha256": "10d2e83725075a933c7130af2653aa8671ccf746d0ed10c7785cee78d658c61e",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_PRO-Neg.Std",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to PRO Neg.Std",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/FLog2C_to_PROVIA_33grid_V.1.00.cube",
+      "bytes": 970454,
+      "sha256": "dbcb2d683194b64275a9437febd2b22532bd452154e7ae0db012de1121f77b2e",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_PROVIA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to PROVIA",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/FLog2C_to_REALA-ACE_33grid_V.1.00.cube",
+      "bytes": 970460,
+      "sha256": "80896400f0f3a200542b139905136657ae97a1299de96a6f79df5a8d748fef30",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 0.999916,
+      "headers": [
+        "title:FLog2C_to_REALA-ACE",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to REALA ACE",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/FLog2C_to_Velvia_33grid_V.1.00.cube",
+      "bytes": 970454,
+      "sha256": "1d4b92c31b9c1014ebf52ec23cc9e57b7fac8256e258448de76c979930609b60",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_Velvia",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to Velvia",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/33Grid/F-Log2C/FLog2C_to_WDR-709_33grid_V.1.10.cube",
+      "bytes": 970448,
+      "sha256": "b8a92446a1de7093c3af9101ceef535b52abfe2357780f883e0482a19e078c6c",
+      "dimension": 33,
+      "rows": 35937,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_WDR",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to Wide Dynamic Range curve",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.10"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log/F-Log_LUT_overview_Ver.2.1E.pdf",
+      "bytes": 68497,
+      "sha256": "03fcff2e8bb676bdf63873be98e6e38cd23c3bc831e15cbb94e3a6ad1f9976bd"
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log/FLog_to_ETERNA-BB_65grid_V.1.00.cube",
+      "bytes": 7415042,
+      "sha256": "6dced49d1f3b30023f05932f27dd133a06bb60ca8833573c0228400ab786a9db",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog_to_ETERNA-BB",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log to ETERNA BLEACH BYPASS",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log/FLog_to_ETERNA_65grid_V.1.00.cube",
+      "bytes": 7415025,
+      "sha256": "7e15325fe31c0564e280a0913b82098aab6533650c68c61679a4309511299d27",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog_to_ETERNA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log to ETERNA",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log/FLog_to_FLog-709_65grid_V.1.00.cube",
+      "bytes": 7415005,
+      "sha256": "1d0814fd62a8efe5f4426bc59b7aa65bc3d18f4b2c47c40404f07137a09dbb7c",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog_to_FLog-709",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log to F-Log",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log/FLog_to_WDR-709_65grid_V.1.00.cube",
+      "bytes": 7415019,
+      "sha256": "a0e1a665223ca01c4017675cac08f37a6d78adeb1d3efe4d2c12bdfb7a576105",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog_to_WDR",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log to Wide Dynamic Range curve",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/F-Log2_LUT_overview_Ver.2.1E.pdf",
+      "bytes": 73732,
+      "sha256": "2c557ed6ef6a2b7baa1a9db57ac13b7309d47c7e58ed70cedb180b1741c2c7bf"
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_ACROS_65grid_V.1.00.cube",
+      "bytes": 7415025,
+      "sha256": "1e7b6c1b05924c5bdb9f2e922e962dcb608f2df15f38e628a9aac3a646293da4",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_ACROS",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to ACROS",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_ASTIA_65grid_V.1.00.cube",
+      "bytes": 7415025,
+      "sha256": "164871904f39c581e5ad51bd69f254cd268b7e3d77bad6a17a54c7b22f5bcc27",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_ASTIA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to ASTIA",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_CLASSIC-CHROME_65grid_V.1.00.cube",
+      "bytes": 7415043,
+      "sha256": "43f7fc5f262eaa2525c0de805ad7fa50f5b77d85873840ae48ab2a07a6b36ff9",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_CLASSIC-CHROME",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to CLASSIC CHROME",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_CLASSIC-Neg._65grid_V.1.00.cube",
+      "bytes": 7415039,
+      "sha256": "f890a58d2ae278703aa09e73d6037a32cb925a6d90414292da7675e12b7dd3c9",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_CLASSIC-Neg.",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to CLASSIC Neg.",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_ETERNA-BB_65grid_V.1.00.cube",
+      "bytes": 7415044,
+      "sha256": "367024b32ca0f263e2122febd1b83a024d2ffc232a1770f8e061432468ffd5a6",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_ETERNA-BB",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to ETERNA BLEACH BYPASS",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_ETERNA_65grid_V.1.00.cube",
+      "bytes": 7415027,
+      "sha256": "5c0a909c021e114adc1d1c9c8d085264db303f235d2a285f8543019062edc944",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_ETERNA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to ETERNA",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_FLog2-709_65grid_V.1.00.cube",
+      "bytes": 7415009,
+      "sha256": "16fd6b1f65cb0c7bceb7068f8ca8e1f289460e66597b12756bd4fe0af1c56a0f",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_FLog2-709",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to F-Log2",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_PRO-Neg.Std_65grid_V.1.00.cube",
+      "bytes": 7415036,
+      "sha256": "3cf531162720aa31ac09609f3dec5aca7680a4c07887cbc8502468533b434cdc",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_PRONeg.Std",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to PRO Neg.Std",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_PROVIA_65grid_V.1.00.cube",
+      "bytes": 7415027,
+      "sha256": "322d1fc83072ebd4ba73287f32b88bf7fc71582ea03da459fa976a3eb6cdc68f",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_PROVIA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to PROVIA",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_REALA-ACE_65grid_V.1.00.cube",
+      "bytes": 7415033,
+      "sha256": "a57a8473d666eda294ca3c32886af7708d7097d185c20240a290e3c2a0cb7c2b",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 0.999906,
+      "headers": [
+        "title:FLog2_to_REALA-ACE",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to REALA ACE",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_Velvia_65grid_V.1.00.cube",
+      "bytes": 7415027,
+      "sha256": "80a9ac219c30e9d1c230bd157d96ab25c2e6052de3bad7dc650823de65a0ac77",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_Velvia",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to Velvia",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2/FLog2_to_WDR-709_65grid_V.1.00.cube",
+      "bytes": 7415021,
+      "sha256": "9f478280c8c77d11ac15d7eb0625e32a1c7005cafaa1a89b1a2c74c7f3ad7bc2",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2_to_WDR",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2 to Wide Dynamic Range curve",
+        "Gamut:F-Gamut to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/F-Log2C_LUT_overview_Ver.2.1E.pdf",
+      "bytes": 73862,
+      "sha256": "c8ab95896bbecfa3cba51f82e3ac7adc2660cc31636edfca9bd0562884417979"
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/FLog2C_to_ACROS_65grid_V.1.00.cube",
+      "bytes": 7415028,
+      "sha256": "e3bfa0a86289bec89ee237d5309850636b89f744dce8efc40b4884e78d0ce35b",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_ACROS",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to ACROS",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/FLog2C_to_ASTIA_65grid_V.1.00.cube",
+      "bytes": 7415028,
+      "sha256": "3d97725207307ab88fd3cf3680745b257f11f8fb9bc17c4a72f1e725f65792d7",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_ASTIA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to ASTIA",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/FLog2C_to_CLASSIC-CHROME_65grid_V.1.00.cube",
+      "bytes": 7415046,
+      "sha256": "0facba9d21fd9cf8e4f5115c539d313345f70a10fc226a966871b1307e6e2b70",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_CLASSIC-CHROME",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to CLASSIC CHROME",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/FLog2C_to_CLASSIC-Neg._65grid_V.1.00.cube",
+      "bytes": 7415042,
+      "sha256": "e2258ae8ec0adff65b193e4ae9effa598e4818e9264ff3512118d0868c2c6b14",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_CLASSIC-Neg.",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to CLASSIC Neg.",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/FLog2C_to_ETERNA-BB_65grid_V.1.00.cube",
+      "bytes": 7415047,
+      "sha256": "c538fe12c8d97f9a0f7391daf4a130484d4ddbf35dfaad21541a2f80f3d1e635",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_ETERNA-BB",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to ETERNA BLEACH BYPASS",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/FLog2C_to_ETERNA_65grid_V.1.00.cube",
+      "bytes": 7415030,
+      "sha256": "0c073d61aa5ef5f52682b148b2a6ef97262a29023d90335f804ac83524e858cf",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_ETERNA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to ETERNA",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/FLog2C_to_FLog2C-709_65grid_V.1.00.cube",
+      "bytes": 7415015,
+      "sha256": "aea1f4b7a0856b627206c14150666b2f00b47f1ab8a7a3b3b172ca3c66b31dba",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_FLog2C-709",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to F-Log2C",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/FLog2C_to_PRO-Neg.Std_65grid_V.1.00.cube",
+      "bytes": 7415040,
+      "sha256": "7b153987a48fcde0e696c97111effc90960a3bd77bd4b870311c907a22d37d64",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_PRO-Neg.Std",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to PRO Neg.Std",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/FLog2C_to_PROVIA_65grid_V.1.00.cube",
+      "bytes": 7415030,
+      "sha256": "a1fb0cb782aee11c7028003f74bc13a38e670fd604afc75081cfb3afe21a5a95",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_PROVIA",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to PROVIA",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/FLog2C_to_REALA-ACE_65grid_V.1.00.cube",
+      "bytes": 7415036,
+      "sha256": "f39235dc0efc52a972f645f1a4986c5fc8e8fb4cefdf2df38a4646967a9d419b",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 0.999916,
+      "headers": [
+        "title:FLog2C_to_REALA-ACE",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to REALA ACE",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/FLog2C_to_Velvia_65grid_V.1.00.cube",
+      "bytes": 7415030,
+      "sha256": "309e20256431ef9d27afcde147287ab8d89dcba11fc1f57d8621496f27488c8b",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_Velvia",
+        "model:GFX ETERNA 55",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to Velvia",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.00"
+      ]
+    },
+    {
+      "file": "extracted/gfx-eterna-55-3d-lut-v110/65Grid/F-Log2C/FLog2C_to_WDR-709_65grid_V.1.10.cube",
+      "bytes": 7415024,
+      "sha256": "5ce5dcff50a9fba00b975db65a76f4aaac53de68111d37d461ce8c2775896752",
+      "dimension": 65,
+      "rows": 274625,
+      "min": 0.0,
+      "max": 1.0,
+      "headers": [
+        "title:FLog2C_to_WDR",
+        "FUJIFILM Corporation",
+        "Gamma:F-Log2C to Wide Dynamic Range curve",
+        "Gamut:F-GamutC to ITU-R BT.709",
+        "Version:1.10"
+      ]
+    }
+  ]
+}

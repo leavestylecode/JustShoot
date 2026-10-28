@@ -1,0 +1,126 @@
+内置胶片 LUT 替换记录 — 2026-10-24
+
+当前结果
+八款 .cube 和 .jslut 全部替换。按用户最终要求，以视觉效果为先，匹配项目编码 sRGB 输入。
+没有因缺少 App 分发许可而排除视觉候选。未查到可直接替换八款的整套厂家官方 sRGB LUT。
+当前内置采用社区来源；这是此前已获取并检查的候选中选定的版本，不代表全网公认第一。
+早期 README.md、audit.json、lut-analysis.png 描述替换前状态。
+
+补充核对：富士官方原包
+2026-10-24 经用户指出，补充下载并核验富士官网 GFX ETERNA 55 Ver.1.10 原包
+（官网更新日期 2026-04-16）。此前没有获取核对这套原包，来源调查存在遗漏。
+https://www.fujifilm-x.com/global/support/download/lut/
+official/fujifilm/ 保存官方 ZIP、原样解压文件、技术资料及逐文件 SHA-256 清单。
+完整包包含 56 个 .cube：33³ 和 65³ 各 28 个。F-Log2 / F-Log2 C 两类各有
+10 种胶片模拟及 2 种基础转换，另有 F-Log 下的 ETERNA / ETERNA BB 与基础转换。
+10 种模拟为 PROVIA、Velvia、ASTIA、CLASSIC CHROME、REALA ACE、PRO Neg. Std、
+CLASSIC Neg.、ETERNA、ETERNA BLEACH BYPASS、ACROS；这份包没有 C200 或 Pro 400H。
+PROVIA 是官方数码相机胶片模拟，不能将其直接标成 Provia 100F 实体胶片测量模型。
+官方 PROVIA 表要求 F-Log2 + F-Gamut 或 F-Log2 C + F-Gamut C 输入，输出 BT.709。
+App 当前色表流程使用编码 sRGB，直接覆盖资源不符合官方输入要求。
+本次获取没有覆盖 App 当前 LUT，亦未证明官方表在 iPhone 已处理照片上更好。
+接入前需设计并验证输入/输出转换；sRGB 反解不能恢复相机先前处理损失的场景信息。
+详情见 official/fujifilm/README.txt 和 inventory.json。
+
+用户随后明确目标为 RAW 显影后直接应用转换版 LUT 并输出 sRGB。
+已用 scripts/bake_fujifilm_raw_luts.py 将 10 款官方模拟封装为自包含 CLF：
+输入场景线性 Rec.2020 / D65，输出编码 sRGB；输入/输出曲线已离线烘焙。
+运行时无需独立 F-Log2 阶段；65³ 官方节点原样保留，HDR 输入通过 halfDomain 查表。
+derived/apple-raw-fujifilm/ 保存转换版与数值验证；尚未接通 App 的 RAW 采集和新渲染器。
+
+选定版本
+Fuji C200          -> Spectral Film LUT / C200 + Fuji Crystal Archive Pro PDII，33³
+Fuji Pro 400H      -> Spectral Film LUT / Pro 400H + Fuji Crystal Archive Pro PDII，33³
+Fuji Provia 100F   -> Spectral Film LUT / Provia 100F 直接投影，不叠加负片相纸，33³
+Kodak Portra 400   -> Spectral Film LUT / Portra 400 + Portra Endura，33³
+Kodak Vision3 5219 -> Spectral Film LUT / Vision3 500T 5219 + Kodak 2383，33³
+Kodak Vision3 5203 -> Spectral Film LUT / Vision3 50D 5203 + Kodak 2383，33³
+Kodak 5207        -> Spectral Film LUT / Vision3 250D 5207 + Kodak 2383，33³
+Harman Phoenix 200 -> Bicyclelad / Punchy & Crunchy v2，作者原始 64³，不重采样
+
+七款光谱模型
+https://github.com/JanLohse/spectral_film_lut
+固定提交 bcbcfc6861f49cc706dc5d00ea048e4853060aab。
+https://janlohse.github.io/spectral_film_lut/
+模型使用厂家公开数据表的数字化数据，包含曝光、光谱、负片与相纸/投影过程。
+公开数据与层间作用仍有近似，不是 iPhone 实拍标定。作者声明保留在
+SpectralFilmLUT-LICENSE.txt；完整参数、源文件和色表哈希见 LUTProvenance.json。
+
+Phoenix 的来源与选择理由
+https://bicyclelad.com/harman-phoenix-200-lightroom-preset-v2/
+https://bicyclelad.com/content/files/2024/01/phoenix-lut.zip
+作者用 Leica M7 胶片和 Leica M10-P 数码同场同参数拍摄匹配，提供 Flat 和 Punchy 两版。
+胶片按 ISO 100/160 曝光，不能说这是 ISO 200 标准曝光下的统一效果，亦未做 iPhone 对拍。
+本次人像、咖啡与夜景样图中，Punchy 比 Flat 少一些绿色暗部偏色，更适合直接作为默认。
+保留 lut/phoenix200-punchy.cube 内容，仅改变 App 资源名。SHA-256：
+8bf88fdfec58d881fcf1569b1a766c4a36bb9a48d831750b16b1300b44ae546a。
+作者压缩包 Neutral_64.png 带 sRGB 标记；LUT 不包含局部蒙版、颗粒或空间锐化。
+
+实际获取和比较的候选
+RawTherapee 官方站点托管的社区 Hald 集合：
+https://rawtherapee.com/shared/HaldCLUT.zip
+https://rawpedia.pixls.us/film_simulation/
+已获取原始 144³ Hald，没有把 GitHub 的 13³ 转换版放大冒充高精度。
+比较 Portra 400 2、Fuji 400H 2、Fuji Provia 100F；原文件与哈希在 community/rawtherapee/。
+相同样图下，Portra 的 SFL 版肤色较温和、红色较收敛；400H 的 SFL 版较柔和；
+Provia 的 SFL 版红色饱和度较克制。这是本次选择 SFL 的主观视觉理由，
+不是由几张样图证明真实胶片还原精度。少量社区推荐也不能当作网络共识。
+https://www.reddit.com/r/Rawtherapee/comments/1o3763x/
+
+Phoenix 还比较 Bicyclelad Flat 与 Fotufilm 的 Phoenix 200 模型：
+https://github.com/DhaliwalX/fotufilm-engine
+提交 e15b09815a83b0e00ba9381b65d31d253667a1b1。
+测试配方 referenceExposure / screen / 6500 K，关闭空间、颗粒与局部影调运算。
+输入解码 sRGB 后转 Rec.2020，输出线性 Display P3 转 sRGB，使用模型 SDR shoulder。
+该配方在本次处理过的照片输入上对比过强，人像高光损失明显，未选用。
+这仅评价这一导出配方，不代表 Fotufilm 其它配方。community/fotufilm/ 保留包装器与探针；
+没有 Fotufilm 代码进入 App。
+
+查到但没有获得可实测文件的付费候选
+ANDP Portra 400 有 sRGB 版本和社区推荐；mckc 有 C200、400H、Provia 的 Log/Rec709 包；
+Mastin Labs 有 C200；Juan Melara FilmUnlimited 有部分 Vision3 工作流。
+未执行购买，不能评价其文件是否优于选定版本，未把宣传图当作统一输入对照。
+https://www.andpfilmstyles.com/product/kodak-portra-400/
+https://www.mckc.video/luts/p/fujifilm-film-emulation-luts
+https://mastinlabs.com/products/lifestyle-everyday-video-luts
+https://juan-melara.squarespace.com/blog/print-film-emulation-luts-for-download
+Kodak 2383 单独印片 LUT 不等于 Vision3 负片模拟；F-Log 转换也不等于 C200 或 Pro 400H。
+
+视觉材料
+all-films-selected.jpg：八款当前 LUT；每组左边输入、右边所选 LUT。
+KodakPortra400-candidates.jpg / FujiPro400H-candidates.jpg / FujiProvia100F-candidates.jpg：
+输入、旧原始 LUT、SFL、RawTherapee 四列对照。
+HarmanPhoenix200-candidates.jpg：输入、旧原始 LUT、Bicyclelad Flat、Punchy。
+Phoenix-finalists-candidates.jpg：输入、Flat、Punchy、上述 Fotufilm 配方。
+replacement-comparison.png：旧/新原始 LUT 灰阶响应；加权编码 RGB 不等于线性亮度。
+图片使用 scikit-image 示例：Eileen Collins/NASA、Andreas Praefcke、SpaceX。
+同一输入，无自动曝光、白平衡、App 颗粒与光学效果，亦非实拍胶片对照。
+
+运行时变更
+移除所有旧 shadow toe 和旧 Portra / Pro400H 手工亮度校正，保留新 LUT 本身的影调。
+预编译二进制加载、缓存、后台准备沿用现有流程，无 UI 中的模型计算或研究文件读取。
+导入 LUT 保持原始字节；历史拍摄任务仍使用任务冻结的 LUT/配方。
+胶片枚举、存储标识、卡片关联、用户曲线和颗粒/光学参数未更改。
+七张 33³ 二进制各约 0.55 MiB，Phoenix 64³ 约 4 MiB；未测量真机性能。
+
+导出精度与复现
+6500 K、曝光 0、各自 color masking，编码 sRGB 输入/输出，无额外风格调节。
+33³ 对未烘焙模型 Delta E00 P95 约 0.28–0.50；这是导出误差，不是与真实胶片的色差。
+部分模型暗端有微小加权编码 RGB 倒退，最严重单步约 0.000091（1024 阶）；未私自修表。
+完整记录见 App 资源 LUTProvenance.json、LUTValidation.json。
+1. 在独立 Python 3.12 环境安装 scripts/lut-requirements.txt。
+2. Spectral Film LUT checkout 固定上述提交，已跟踪文件无修改。
+3. python scripts/bake_film_luts.py --source /path/to/spectral_film_lut --phoenix /path/to/lut/phoenix200-punchy.cube
+4. python scripts/compile_luts.py
+5. python scripts/compile_luts.py --check
+诊断图用 render_selected.py 重建；额外依赖 scikit-image==0.25.2、Pillow==13.0.0。
+原八款 .cube/.jslut 和基础提交保存在 bundled-before-replacement.zip，可逐款回滚。
+当前验证结果见 VERIFICATION.txt。
+
+新增替换前后对照
+before-after/all-eight-before-after.jpg 为八款总览，每组左旧右新。
+before-after/ 中有每款人像、静物、夜景高清对照。旧版从备份二进制读取，
+按当时 Swift 代码复现 toe 和 Portra/400H 校正；新版直接读取当前色表。
+两边无曝光/AWB 调整、用户曲线、光学或颗粒。不是完整相机成片对比。
+render_before_after.py 可复现；manifest.json 记录旧基础提交与处理源码哈希。
+全部图片另打包到 LUT-before-after-comparisons.zip。

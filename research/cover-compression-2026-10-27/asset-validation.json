@@ -1,0 +1,22 @@
+{
+  "installed": 559,
+  "changedFiles": 559,
+  "beforeBytes": 92332039,
+  "afterBytes": 54348069,
+  "libraryCount": 550,
+  "captureCoverCount": 9,
+  "dimensions": [
+    1024,
+    1024
+  ],
+  "ICC": "sRGB",
+  "source": "Original approved PNG masters; no generational recompression.",
+  "scopeAudit": "Only cover image bytes changed. Catalog, bindings, source code, LUTs and all other app files match the starting baseline.",
+  "allHashesMatched": true,
+  "visualReview": "quality-review.json",
+  "runtimeValidationComplete": true,
+  "savedBytes": 37983970,
+  "savedPercent": 41.14,
+  "runtimeValidation": "runtime-validation.json",
+  "bundleResourceCheck": "bundle-resource-check.json"
+}

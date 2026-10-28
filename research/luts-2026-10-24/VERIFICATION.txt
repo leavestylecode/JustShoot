@@ -1,0 +1,54 @@
+验证记录 — 2026-10-24，当前八款替换版本
+
+环境
+XcodeBuildMCP；JustShoot.xcodeproj / JustShoot / Debug。
+iPhone 17 模拟器，iOS 26.4，UUID 06CBF94A-F235-4319-A5F9-3548DDC86AD2。
+DerivedData 位于 /tmp/justshoot-lut-replacement-derived。
+未使用真机；没有宣称设备性能、实际拍摄或实片匹配已验证。
+
+最终完整测试
+test_sim：395 passed / 0 failed / 1 skipped；共发现 396 项，用时 37.9 秒。
+跳过项 PhotoDisplayRoundTripTests.testRenderedHEICRoundTripsThroughPhotoLibrary：
+模拟器照片库未授权，未为本次 LUT 更换改变权限。
+Swift 编译没有新增警告；原始构建日志包含 Apple 工具的
+“Metadata extraction skipped, no AppIntents.framework dependency found”提示，
+MCP diagnostics 的 warnings / errors 列表为空。
+测试日志：
+/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-24T12-43-39-195Z_pid9844_ecbfcad2.log
+结果包：
+/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-24T12-43-39-195Z_pid9844_f3292f0a.xcresult
+
+与本次变更直接相关的覆盖
+- 八款来源清单、完整覆盖、原始 .cube SHA-256、模型作者声明随包存在。
+- 八款二进制加载与原始 .cube 解析后的 Float32 色表一致，不叠加旧 toe/人像曲线。
+- 数值有限并处于 0–1；维度为七款 33³ 与 Phoenix 64³。
+- Core Image 的 sRGB 参考色匹配：七款对比未烘焙模型，Phoenix 对比作者原表插值。
+- Phoenix 的 .cube 与作者原始 64³ 文件哈希相同，不重采样。
+- 与内置 LUT 同名的用户导入文件仍保持原始色表。
+- FilmInputProtectionTests 的 Metal / Core Image 对照扩展到全部八款。
+- 现有解析、持久化、配方冻结、并发、缓存与预览等回归测试随完整套件通过。
+初轮新测试曾因测试夹具误用 flatMap 而失败；修复为显式 [Float] 扁平化后，
+专门重跑与以上最终完整套件均通过。不是通过放宽颜色误差容限处理失败。
+
+构建与运行
+build_run_sim：成功，安装并启动 bundle leavestylecode.JustShoot。
+构建诊断 warnings=[] / errors=[]，用时 6.5 秒。
+日志：
+/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-10-24T12-44-48-472Z_pid9844_8c44d340.log
+已读取 UI 快照并视觉检查 Film Library：卡片与导航正常，没有启动错误。
+当前截图保存在本目录 simulator-library.jpg。这项检查不代表模拟器完成真实相机拍摄。
+
+离线资源与视觉检查
+scripts/compile_luts.py --check：8/8 通过。
+生成 all-films-selected.jpg、替换后的八款灰阶图并逐图检查；
+Portra、400H、Provia 与 RawTherapee 原始 144³ Hald 比较；
+Phoenix Flat / Punchy / Fotufilm referenceExposure 导出配方比较。
+这些样图不含 App 光学和颗粒，也不属于配对实片验证。
+SFL 33³ 导出模型近似误差 Delta E00 P95 为 0.28–0.50；
+Phoenix 保留原作者 64³ 文件，无重采样误差。不是对真实胶片误差的测量。
+
+工作区
+保留原有 Localizable.xcstrings 用户修改，文件 SHA-256 应为：
+2a063362eb7d9b1b826e6f9cb59127181f5bc65300a5a814f372f85504f86be5。
+模型、Python 环境、Halide 与构建产物在 /tmp 或外部工具目录；
+研究下载与对比图在 research/，没有进入 App 资源。

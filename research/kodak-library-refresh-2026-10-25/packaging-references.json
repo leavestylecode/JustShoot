@@ -1,0 +1,888 @@
+{
+  "archive": "https://github.com/dekuNukem/Film-Packaging",
+  "treeSHA": "bee2421aef2b179b33544235bdbeab949ae05ab0",
+  "images": [
+    {
+      "id": "00017_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00017_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00017_000.jpg",
+      "sha256": "9b7f189677542a8e6cc5ea7a9f42652645ca79c703b0211187bf8ebfe4ab00d4"
+    },
+    {
+      "id": "00021_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00021_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00021_000.jpg",
+      "sha256": "c354ce2bcb2d11a8e6352ad4c36f1bf37f774e8be04e25263f30692e5bd3ba8e"
+    },
+    {
+      "id": "00024_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00024_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00024_000.jpg",
+      "sha256": "aa063414997d91d0799118ab1b291c773eb84628dcc069914fb351f061a4bf59"
+    },
+    {
+      "id": "00025_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00025_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00025_000.jpg",
+      "sha256": "7b7ce7679a552983457edc4f1a864e0bf686aec25e06dfd482bfc09b855d2c01"
+    },
+    {
+      "id": "00026_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00026_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00026_000.jpg",
+      "sha256": "18ab5d3bda665127aa019b3e650e7e5a981ed874eb2ff2d0ff50871666b73ae7"
+    },
+    {
+      "id": "00027_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00027_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00027_000.jpg",
+      "sha256": "06d65bc8fab67b8d1fd5a5a6fe1deece09eff3032a6b30386db5b8595ebc6f5d"
+    },
+    {
+      "id": "00028_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00028_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00028_000.jpg",
+      "sha256": "e8c237d8b6e127fdc5fe9964aa1cc1663e2a224e2e2aba94400c94f8c1a3da7d"
+    },
+    {
+      "id": "00035_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00035_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00035_000.jpg",
+      "sha256": "b1c089839e4145085b27329d7e707768a665d3bf6e2e743b7110e97caa8851bf"
+    },
+    {
+      "id": "00037_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00037_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00037_000.jpg",
+      "sha256": "07e67e8ee14319414cbf20479494ebe1d41221d9520337335d67d99e54829c6c"
+    },
+    {
+      "id": "00041_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00041_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00041_000.jpg",
+      "sha256": "2a38f9aca5de03313c1bed1901730cbad3268806e2ea6b344b04cd695e43d6fc"
+    },
+    {
+      "id": "00042_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00042_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00042_000.jpg",
+      "sha256": "d62648156568c5646daa4db7201f9f259e4eba28b704d723b7aac9fc6e98bb85"
+    },
+    {
+      "id": "00043_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00043_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00043_000.jpg",
+      "sha256": "b04034538a94f964691995f1cb3a93778d1bf25840bec58b2f9688a7c835d8e5"
+    },
+    {
+      "id": "00045_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00045_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00045_000.jpg",
+      "sha256": "7265d86a7c10d56363e2a6a2e4cd3e964d980ca7072d2d118ddead55dda5f949"
+    },
+    {
+      "id": "00052_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00052_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00052_000.jpg",
+      "sha256": "2e0c46bd26b5f34b5e4d4780d4663324427560d30df7c8a0b7a139580b6c92c1"
+    },
+    {
+      "id": "00060_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00060_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00060_000.jpg",
+      "sha256": "602ba3063dd2c1d004d71826e3d0293564bd405e8220e540f96a43ef5d5973bb"
+    },
+    {
+      "id": "00064_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00064_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00064_000.jpg",
+      "sha256": "0f7011fcc551897a959ab8bf54c6baeac563ee969a1332def95bd3b0ce8888c5"
+    },
+    {
+      "id": "00066_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00066_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00066_000.jpg",
+      "sha256": "1dc00fd3c69fbe98c2535a06d504b81f1ce5ba9680dd004a80721c33ba382eb9"
+    },
+    {
+      "id": "00068_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00068_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00068_000.jpg",
+      "sha256": "214d5fb61d4fe08ef3385284ebc12d06a8a6c3c6d358141920d6e1dbe13cca95"
+    },
+    {
+      "id": "00069_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00069_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00069_000.jpg",
+      "sha256": "96d04d34124c244e92d45dd3e29467411829c15e7a1321098dc75962b5f9bf9d"
+    },
+    {
+      "id": "00079_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00079_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00079_000.jpg",
+      "sha256": "237159fd27165a1665c401fc97c635b8cf276dd08e902c53faa9e500dca11eff"
+    },
+    {
+      "id": "00080_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00080_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00080_000.jpg",
+      "sha256": "3a62e95dd9fc9ea032dc69ca52764c8b0d58dbe4c232019a2944ae353950a256"
+    },
+    {
+      "id": "00081_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00081_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00081_000.jpg",
+      "sha256": "e66c25518f5cef2ce8301adfd5decdc7505206154c797d9ba63535bd20cecec9"
+    },
+    {
+      "id": "00084_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00084_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00084_000.jpg",
+      "sha256": "2a0a92d6e1a3117f1bb419c68e62c251bea110ba08baeb5804900e9f984945a0"
+    },
+    {
+      "id": "00086_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00086_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00086_000.jpg",
+      "sha256": "bd5ee31fd7b74ee8aa9482984e83ab05f234d2b6881abf6aeda05d5b53fea5c6"
+    },
+    {
+      "id": "00088_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00088_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00088_000.jpg",
+      "sha256": "d7004ef7c8cafe8ca8aa5cbf053d39c1bb1637b8cf640aed5db5862ab559c220"
+    },
+    {
+      "id": "00089_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00089_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00089_000.jpg",
+      "sha256": "ee6942864b129d14eb06b87005d9ecf62e94b8cc0c798fefe770aa64519e8331"
+    },
+    {
+      "id": "00091_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00091_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00091_000.jpg",
+      "sha256": "c4d4fac464256be68f987a7e8f009b7464a2138ba381dcea9ae907e00c4a39b6"
+    },
+    {
+      "id": "00094_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00094_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00094_000.jpg",
+      "sha256": "45ba05ebbbf5bfa94462c2a26613e56fedb3d0216e1f0b565d3b10ec890e29d0"
+    },
+    {
+      "id": "00095_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00095_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00095_000.jpg",
+      "sha256": "486cf4f910c4b0193b5371d524f310232134f3b0e4d5d4b41f820aaf8dd1d871"
+    },
+    {
+      "id": "00097_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00097_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00097_000.jpg",
+      "sha256": "8bd62d346f82b9a8f56247a067de7deb994ebda1c822632ed8887f4d0ae6288d"
+    },
+    {
+      "id": "00099_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00099_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00099_000.jpg",
+      "sha256": "211c0eaf5e3efc5391ff6d814823c6c2f0eca1b3dd474291db1ff0d943fa4459"
+    },
+    {
+      "id": "00100_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00100_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00100_000.jpg",
+      "sha256": "58d4eece4a89acbd11eb179f014e9c90b1619b18abccaa67c9c4063bfd53604f"
+    },
+    {
+      "id": "00102_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00102_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00102_000.jpg",
+      "sha256": "bde82ffedbfe7242a77a1568ab5ec2b14623da3f1b2957dbc6731548d71b4761"
+    },
+    {
+      "id": "00103_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00103_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00103_000.jpg",
+      "sha256": "0473df5fbf5b21ab09b171c60a3266d76ad6a54d0fa773fb6b3a3be49552ea0c"
+    },
+    {
+      "id": "00104_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00104_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00104_000.jpg",
+      "sha256": "5b954f41282b53afb8f28197ad1da0aa2471ea53caad643a2377573d83ff4086"
+    },
+    {
+      "id": "00105_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00105_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00105_000.jpg",
+      "sha256": "fc4d4b20c2649bf3493d8ea47919846b2c037f83f15f5b0318a356fed029cdb6"
+    },
+    {
+      "id": "00106_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00106_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00106_000.jpg",
+      "sha256": "545d86ce6fdb2f20ed81a8ddebde2b45171fddf7202fceef4c83e0ce796ddadf"
+    },
+    {
+      "id": "00107_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00107_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00107_000.jpg",
+      "sha256": "d2976c95173b2a53ea8faedae8157660c694bde188193109e43231f2e276ced5"
+    },
+    {
+      "id": "00113_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00113_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00113_000.jpg",
+      "sha256": "7ffa46e823bdf3c5c32e40351fc5f657514006b378220173acc105035623e99d"
+    },
+    {
+      "id": "00114_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00114_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00114_000.jpg",
+      "sha256": "4b0c692c0cee912174f6839a11f395d73c70822adc3df810e7a097b9548af829"
+    },
+    {
+      "id": "00119_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00119_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00119_000.jpg",
+      "sha256": "6f82a60fc7acdda35473cb183f094431086bbcc6626956e2db50e84ef8e2e658"
+    },
+    {
+      "id": "00120_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00120_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00120_000.jpg",
+      "sha256": "329dad1ef214a316cee916ed87a3efbb2b32983bc77ad2e00910f784714568af"
+    },
+    {
+      "id": "00121_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00121_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00121_000.jpg",
+      "sha256": "a95632caa724dd29c42e39e164a3f8a567264c55836f9d6faf2def724719df8d"
+    },
+    {
+      "id": "00135_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00135_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00135_000.jpg",
+      "sha256": "a1db5178e63b5234348ccf1ebef0f8a594cba5455438236c416a3f06adef6375"
+    },
+    {
+      "id": "00142_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00142_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00142_000.jpg",
+      "sha256": "10a297aad84daecaab2cc4db070d347b0c223aa598e8a43e9d46bb57b07fa967"
+    },
+    {
+      "id": "00144_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00144_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00144_000.jpg",
+      "sha256": "c5edb9628cfd98722ba51da705934d9ecae707c8a9a34d83cffdf5e2abafcc76"
+    },
+    {
+      "id": "00146_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00146_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00146_000.jpg",
+      "sha256": "00d8486aad826ed6a84f010bdd092378a4345051259110a5c2b6bb5a9ea65d15"
+    },
+    {
+      "id": "00149_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00149_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00149_000.jpg",
+      "sha256": "20db9fd472022e12dca869f595938346886862baeeee2fae878d0240e2d0fbc5"
+    },
+    {
+      "id": "00153_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00153_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00153_000.jpg",
+      "sha256": "3a1760383499d371077389233d6d2ddc344ff6778b7c18efddb798eabb4708a9"
+    },
+    {
+      "id": "00154_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00154_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00154_000.jpg",
+      "sha256": "e9c54b77fbcac21a4acc7251e0459e7f3f3bdfe5d3ec8e688a53a8d4848eebca"
+    },
+    {
+      "id": "00155_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00155_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00155_000.jpg",
+      "sha256": "312258099370dae8405b6a208bc6605ca2674c2825dd22ea6badfc5bf2588353"
+    },
+    {
+      "id": "00160_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00160_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00160_000.jpg",
+      "sha256": "99ad9160ee4bed98c0ece04d5f978af83edf8ec30278eab3025cc67f057f92fb"
+    },
+    {
+      "id": "00172_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00172_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00172_000.jpg",
+      "sha256": "8cc84072f9d292d095703163d10174d2ad99abb029cea492e4f8d79c3322239e"
+    },
+    {
+      "id": "00175_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00175_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00175_000.jpg",
+      "sha256": "1d6566c788c447f27fed23950610daa173cc747e882514abfa6a82fc6fa6cdb1"
+    },
+    {
+      "id": "00176_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00176_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00176_000.jpg",
+      "sha256": "857b664d8dcb3b5b3d43140522dfe25fb89fb87bc326f29629fc31ed2098f972"
+    },
+    {
+      "id": "00178_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00178_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00178_000.jpg",
+      "sha256": "3bf7f5a5a1f2890d4ddb0ed884e09899aaa64422788ae3d8c8f4bcd37179b013"
+    },
+    {
+      "id": "00180_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00180_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00180_000.jpg",
+      "sha256": "45e931406c6426b76afee921e0d260760e48db6a00c6aa628152532071a69918"
+    },
+    {
+      "id": "00181_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00181_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00181_000.jpg",
+      "sha256": "0708634ca5a8bb54e6b8cead5ccbc314a1f7ddb72d5f160abb9eaa96422e685b"
+    },
+    {
+      "id": "00189_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00189_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00189_000.jpg",
+      "sha256": "47012b496610866c469294c4c6a9a6d546782c8e944b5f3a14248e61f5a020c1"
+    },
+    {
+      "id": "00192_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00192_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00192_000.jpg",
+      "sha256": "7f496cdf62e57d72fbab56c5f8bfbd66fd3697b712fabbca7dbbd67a017b6a46"
+    },
+    {
+      "id": "00193_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00193_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00193_000.jpg",
+      "sha256": "a8dff27219878d2575a8d629dc7fa611b8b41ea347d97a05b5a119ff2a0ce334"
+    },
+    {
+      "id": "00200_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00200_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00200_000.jpg",
+      "sha256": "001509133ee8d2656896f26eac85e04a31b87fb96da76abfc18c8f42ea0a10d9"
+    },
+    {
+      "id": "00201_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00201_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00201_000.jpg",
+      "sha256": "778fc7d56714538a1b99226008500fb2477d9e777738eada5d55e63e670d19a7"
+    },
+    {
+      "id": "00203_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00203_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00203_000.jpg",
+      "sha256": "becf2235dd381d56f34f80c1d037ea529ddabfe5b79c43f57fafcd4806a0badc"
+    },
+    {
+      "id": "00223_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00223_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00223_000.jpg",
+      "sha256": "3c5f2b5797d2061b30ac2367948be8524e3bb194ce0f56f58781588339978de6"
+    },
+    {
+      "id": "00224_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00224_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00224_000.jpg",
+      "sha256": "9a79215cc44e08905a6703520ff4d808dcfbc1fb2dc015e8d7b44b89ce4847b9"
+    },
+    {
+      "id": "00233_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00233_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00233_000.jpg",
+      "sha256": "b2b86d1624fa6ed6736336792907c97574dbc0f911847b2bc6b97ac0d8050f64"
+    },
+    {
+      "id": "00234_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00234_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00234_000.jpg",
+      "sha256": "a839d86eb68d5d69a0a9e8c5b1405eedde107dcfd2f2d9d8edaa6e1c45df0cde"
+    },
+    {
+      "id": "00235_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00235_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00235_000.jpg",
+      "sha256": "c4dd4cc346167a8ef55dc3efb3f3ac39a508748eef05a1eebcb560b5808942a2"
+    },
+    {
+      "id": "00237_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00237_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00237_000.jpg",
+      "sha256": "ffb4919c9307355670eb4bd01c85cd0098c30a03b3d7caa4d7dce339c1d2c66e"
+    },
+    {
+      "id": "00238_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00238_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00238_000.jpg",
+      "sha256": "bccd4d7ebf45800c1e44acb1da85a4b9d7eb848b57716e0db907031835e084e6"
+    },
+    {
+      "id": "00239_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00239_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00239_000.jpg",
+      "sha256": "c3347ef8b803a40caab8d17c537ce400d8b65528548f38171a9263a330eaa150"
+    },
+    {
+      "id": "00240_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00240_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00240_000.jpg",
+      "sha256": "5e9dd24c0b0fb7a1b79ce506150d842227372d59751d4b3bfd24df836ebce3c9"
+    },
+    {
+      "id": "00241_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00241_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00241_000.jpg",
+      "sha256": "ba49f3f244e43b44e22a274f7ca15e61ebb0df9f3b74ba286a1483d62ef621b7"
+    },
+    {
+      "id": "00242_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00242_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00242_000.jpg",
+      "sha256": "c10cc0b8129316c6a2eef595c799f4395cc86afee23816922be9b8b0b2a0391a"
+    },
+    {
+      "id": "00243_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00243_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00243_000.jpg",
+      "sha256": "2e2c40e611207a985a4c91cf37de55824db47511031fcf7e10a2d7fa539b71c8"
+    },
+    {
+      "id": "00244_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00244_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00244_000.jpg",
+      "sha256": "dd5820c047bb8fa7734100d248e7674d3b7d0a4b7d4700cec129913a329eca58"
+    },
+    {
+      "id": "00245_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00245_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00245_000.jpg",
+      "sha256": "33a55907de063067767ba8135d384d6ec1433ed7f6b6ad4c4e093c5d729f3910"
+    },
+    {
+      "id": "00246_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00246_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00246_000.jpg",
+      "sha256": "9e1e0a913d30fe8c11ae46e0df6363eb6abbe721306c2fc2c9c2752354e325d9"
+    },
+    {
+      "id": "00251_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00251_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00251_000.jpg",
+      "sha256": "f32012bcc946704e234fde0e366e364bd3c49a80309d56ee1a368aebf2561f78"
+    },
+    {
+      "id": "00252_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00252_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00252_000.jpg",
+      "sha256": "39a0b84d237b135374033c12df8374736b68cf2045b8559b1ef79b5ae713e8ff"
+    },
+    {
+      "id": "00253_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00253_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00253_000.jpg",
+      "sha256": "d3b5a49b33da7381a1ba122c7f1157acd6f9120141f8ed2201c780d1244c3141"
+    },
+    {
+      "id": "00260_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00260_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00260_000.jpg",
+      "sha256": "f209bd61786387a37ec6ccb29049e4da1fdc5d3382da19e5ff1655ca60bb1336"
+    },
+    {
+      "id": "00261_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00261_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00261_000.jpg",
+      "sha256": "e2d309dce0ef02a6e481797d2fb78fe61901369f3d747ed029a476a260c4a57b"
+    },
+    {
+      "id": "00262_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00262_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00262_000.jpg",
+      "sha256": "b1b37e6bbe05330a848ee1d0a638a8b6b1aba4c9ce022c7c6ba4b3272b7f7d8a"
+    },
+    {
+      "id": "00263_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00263_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00263_000.jpg",
+      "sha256": "b36fbcb5723b7415548c8e912a40a9f15dda30731a4ff310dc0a40efb289b203"
+    },
+    {
+      "id": "00271_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00271_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00271_000.jpg",
+      "sha256": "2df944ff8caff118afbdcc130c149a839a1bbc6861bece625884c93ae92e93c8"
+    },
+    {
+      "id": "00273_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00273_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00273_000.jpg",
+      "sha256": "d39140c3c388b4efa64443387d49db29e5b5b8e924a991fc7d65eb5157beb7e2"
+    },
+    {
+      "id": "00274_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00274_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00274_000.jpg",
+      "sha256": "9b705b0e3de2f3374f37d7d7b9d8548082eec4ac54372c0bf7349108d76164b7"
+    },
+    {
+      "id": "00275_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00275_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00275_000.jpg",
+      "sha256": "dcb47e790fbd674b7170da32239a1a16b0e1e1bcaa40950716d074a3f80bd2ce"
+    },
+    {
+      "id": "00276_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00276_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00276_000.jpg",
+      "sha256": "a9ed91368829093d1d601150f190e1b1a244dc86df469f76b7bac70af4946bb3"
+    },
+    {
+      "id": "00278_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00278_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00278_000.jpg",
+      "sha256": "7e4cdadd7ef21943e6052e104c3bb79128c4b4ba1f54755726bf25877539b048"
+    },
+    {
+      "id": "00279_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00279_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00279_000.jpg",
+      "sha256": "72c2cc150571876945d5c471aae1322e55a2c3c7da9b7ff82f05e7f3c7db4a4d"
+    },
+    {
+      "id": "00280_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00280_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00280_000.jpg",
+      "sha256": "a0e51db5365e8099df4731d90dc211a81d617577f5cd1b01859bc34bdff71df5"
+    },
+    {
+      "id": "00294_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00294_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00294_000.jpg",
+      "sha256": "578e9163faa253daa435311ccdb9670003d70f279ad2ddfd7adf46dd984e8380"
+    },
+    {
+      "id": "00295_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00295_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00295_000.jpg",
+      "sha256": "a5f7cc006853d55ae78748fd3bb61d230d60e48a9ba0dd4c5355bc2aa6a4e241"
+    },
+    {
+      "id": "00296_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00296_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00296_000.jpg",
+      "sha256": "998d52514b25fc91ea82151982904566dac7df177ef183fdc95838eb87dd0b78"
+    },
+    {
+      "id": "00297_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00297_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00297_000.jpg",
+      "sha256": "4e5e8f7bf49bd249839d8ca60a8282b58c0d2442ecf8af14767f6be45dae985b"
+    },
+    {
+      "id": "00299_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00299_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00299_000.jpg",
+      "sha256": "b96f606b36c4a64ba8316b464d8bc16a3f4e16e6ba80c449fd4337ccf9ad6361"
+    },
+    {
+      "id": "00303_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00303_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00303_000.jpg",
+      "sha256": "d9905c48f315571a364ff9b5f0649715c027ef388e073167f07265f2c1249613"
+    },
+    {
+      "id": "00320_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00320_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00320_000.jpg",
+      "sha256": "f2ae429e90ffa0bce26182a12544cbdd39850896ea9c992915b09603f34cc08a"
+    },
+    {
+      "id": "00325_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00325_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00325_000.jpg",
+      "sha256": "8336e036172f832f8ceee40fce1a1dc49715c697e8cf063bc60e5e1e4532c195"
+    },
+    {
+      "id": "00326_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00326_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00326_000.jpg",
+      "sha256": "72a55e6bdbc9f670407622919910e6ff1f90d66e58e57c0eacde461303eafd41"
+    },
+    {
+      "id": "00331_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00331_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00331_000.jpg",
+      "sha256": "33baf178b5b235a40a3e33f3aa445d49320709d9d98da6f95af65a4cd24dd177"
+    },
+    {
+      "id": "00332_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00332_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00332_000.jpg",
+      "sha256": "40454398da06fd6e6d0f225d9b918826eb1c0d5c15f96938e0ebe812c6044a4d"
+    },
+    {
+      "id": "00333_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00333_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00333_000.jpg",
+      "sha256": "7f26a4be27290d2cd5e0fe62b8f5f27617d54ebbd60cbd9b3435280424ef97c4"
+    },
+    {
+      "id": "00337_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00337_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00337_000.jpg",
+      "sha256": "f435c251bd363f25c3d1314fa3b6516330374f3447d15ab0aadeff6e91d592f7"
+    },
+    {
+      "id": "00338_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00338_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00338_000.jpg",
+      "sha256": "8d6a3db4a90c5733590c8ca5b548e5306d58662d791318ef9a4e76f6551ff6f3"
+    },
+    {
+      "id": "00345_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00345_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00345_000.jpg",
+      "sha256": "96dc119f11f07cc94b5ecf9702c843b34bd0544221929d583d57a3d999bd2aa4"
+    },
+    {
+      "id": "00353_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00353_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00353_000.jpg",
+      "sha256": "f2c251403fad200a49dc12709f806c849bc848765bb05c87f0f73e3f56ca6bf0"
+    },
+    {
+      "id": "00365_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00365_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00365_000.jpg",
+      "sha256": "314bd0a14640b7bb3f2d89d6f4e97571e7a40f0e50e3605aaf7875a57888082f"
+    },
+    {
+      "id": "00381_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00381_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00381_000.jpg",
+      "sha256": "f6a744eee0f9a09087a345950dad077de7a69c93d16348c579549462fdbcdb45"
+    },
+    {
+      "id": "00390_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00390_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00390_000.jpg",
+      "sha256": "6052060ce6ec1ae946ed94114e29bd23a434e2b52d156ac030d6ee6f62a07f99"
+    },
+    {
+      "id": "00410_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00410_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00410_000.jpg",
+      "sha256": "c696aacfcaa182d5b89a4e9f0a1877c7e99f91eb5ec27b09ceb8f47bc28ca36a"
+    },
+    {
+      "id": "00411_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00411_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00411_000.jpg",
+      "sha256": "e919384eacbef2ad23f549d450d53bb67350ce53baeafad1830a6b90c7796765"
+    },
+    {
+      "id": "00414_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00414_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00414_000.jpg",
+      "sha256": "99a250b014c905f25e8a799380984b0e0287299fdbf594c69f70072893e663f6"
+    },
+    {
+      "id": "00423_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00423_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00423_000.jpg",
+      "sha256": "c0faeb024e77d5b8baf34b5d9247d7ec580e532460f30221b76e358bfa11cbce"
+    },
+    {
+      "id": "00424_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00424_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00424_000.jpg",
+      "sha256": "af1d83bb417dfc2a17bffcc9890dbaf578a32a2c5ee83faee5fafb7d68ec6cdd"
+    },
+    {
+      "id": "00430_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00430_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00430_000.jpg",
+      "sha256": "95c6ae2b4649427b5f3293cb61d9b6dbeb51ff04a93fa11b5f303bd73304bd41"
+    },
+    {
+      "id": "00431_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00431_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00431_000.jpg",
+      "sha256": "74eb0b14bdd53b61a658434a2b6b9c1469bc7e0c6127ae842833f336ad1b885b"
+    },
+    {
+      "id": "00433_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00433_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00433_000.jpg",
+      "sha256": "1c1c1df52dcbd64bb138a81328f7e76ed884a342925a3104f3117eaa38d2dcfc"
+    },
+    {
+      "id": "00440_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00440_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00440_000.jpg",
+      "sha256": "6aa5174f86730f373ba68286a4b2ff5c525f063af22ad7876afeceee044b6538"
+    },
+    {
+      "id": "00441_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00441_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00441_000.jpg",
+      "sha256": "54abf9172f25395fc3e17ba375e33097e38fedc04cf74136643a1e1663b45c10"
+    },
+    {
+      "id": "00442_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00442_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00442_000.jpg",
+      "sha256": "1db2c062ad87fdc91e96346fb217cda9412bd3020e9eb2e80e3b5c26824c7e60"
+    },
+    {
+      "id": "00443_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00443_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00443_000.jpg",
+      "sha256": "1e2a5c1f933e5b9f6115072086fc02e10e808a58d470bb2d87197f1cc927ce3f"
+    },
+    {
+      "id": "00446_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00446_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00446_000.jpg",
+      "sha256": "016ac3d5ec5ce70911571571764aada1394110c2ec916c43cda1263425239f8f"
+    },
+    {
+      "id": "00453_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00453_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00453_000.jpg",
+      "sha256": "d9280ae1384babfac4443cc5ad413855459f723bcc05543d41b3db34a90bc83a"
+    },
+    {
+      "id": "00454_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00454_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00454_000.jpg",
+      "sha256": "6e25faf44a7bfcdaeecef39c0b995aecce0600888ec46f8e589248bb0a15a0be"
+    },
+    {
+      "id": "00458_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00458_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00458_000.jpg",
+      "sha256": "8ae04312adbff6cc81479ec8ed443cfd96dd2625c6fc5c205dad4ae6cf5486fc"
+    },
+    {
+      "id": "00459_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00459_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00459_000.jpg",
+      "sha256": "c0bf96f8e8cf5e63da6726663269f58fd8245ddafa024f892a616c93efbccea6"
+    },
+    {
+      "id": "00462_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00462_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00462_000.jpg",
+      "sha256": "d7e6a4a51d9e764e095f11a08c4b488a087915032522baa416a7bcfd41c554fe"
+    },
+    {
+      "id": "00484_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00484_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00484_000.jpg",
+      "sha256": "586d8743936955446f78e8087596224a43ec0ba74271e6db9c650abf632a60a9"
+    },
+    {
+      "id": "00489_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00489_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00489_000.jpg",
+      "sha256": "45d466ea50b6890cf6512851ccdd5e3022deb2a37eff95d2126cb5f2624c73ab"
+    },
+    {
+      "id": "00501_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00501_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00501_000.jpg",
+      "sha256": "e800db9393ece758458de55e68e432820a3680d9d5a67538cc7543734ebd6838"
+    },
+    {
+      "id": "00502_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00502_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00502_000.jpg",
+      "sha256": "314866c0dfb9217757095f85b755e5eed6caf8a1236d998230651d6398d9232e"
+    },
+    {
+      "id": "00509_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00509_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00509_000.jpg",
+      "sha256": "6df443b997bbf333565bb4bdaff216281c96ca4a6128dffb5a79b5ef12a3a5b9"
+    },
+    {
+      "id": "00519_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00519_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00519_000.jpg",
+      "sha256": "0d41505186516c77700dc426a65a3640614d70fcfa4778d664bf5366c268ea80"
+    },
+    {
+      "id": "00520_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00520_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00520_000.jpg",
+      "sha256": "0448db7e9fcb96c5b37329425a3a780853b39be4143d498a622abc0d7434935b"
+    },
+    {
+      "id": "00521_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00521_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00521_000.jpg",
+      "sha256": "c0d89ed5988ced40a4dd95aa4823b5f036e717d97e882fb1cbafe8fddd68b08c"
+    },
+    {
+      "id": "00536_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00536_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00536_000.jpg",
+      "sha256": "47ab7d26682fd1b6e55cc4622c9d3512d2bf1300471d49a7f07dc8123295d6ad"
+    },
+    {
+      "id": "00537_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00537_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00537_000.jpg",
+      "sha256": "d83fb4482fc17e4591c6903de67cad536f1eb7543db49dcfcc4e5ba0f63c0bd0"
+    },
+    {
+      "id": "00539_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00539_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00539_000.jpg",
+      "sha256": "eb8d5023342565b134df71d06ad1f320be5eaab51682122f9e72980480bdf95a"
+    },
+    {
+      "id": "00542_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00542_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00542_000.jpg",
+      "sha256": "c98189a5ccfac55307cbc51d0b31d439a33b354e370992bafbad9cedf555f9be"
+    },
+    {
+      "id": "00543_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00543_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00543_000.jpg",
+      "sha256": "ddfd94d9320e1129cdf4531cd3901a34e6618cc5c5e71ce97559b2c64c1446b1"
+    },
+    {
+      "id": "00546_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00546_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00546_000.jpg",
+      "sha256": "ce7db274e34811a1c93182ccba658e370db65f9cb45f7d494b1eb3c99459d70c"
+    },
+    {
+      "id": "00557_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00557_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00557_000.jpg",
+      "sha256": "7d761bf741db31c0e2798e0055ab27c9827df806ae6aa9fbb33b2ae3ed5004d9"
+    },
+    {
+      "id": "00562_000",
+      "url": "https://raw.githubusercontent.com/dekuNukem/Film-Packaging/master/film_packaging/lowres/00562_000.jpg",
+      "path": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/references/00562_000.jpg",
+      "sha256": "014b73c6d554b743a726f62243746fcc245308d1f61487fc9bdc4ec6446c6211"
+    }
+  ]
+}

@@ -1,0 +1,435 @@
+{
+  "packagingPagesReviewed": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14
+  ],
+  "beforeFindings": [
+    "Large technical format values compete with product title.",
+    "Repeated generic fan/rainbow icons do not consistently match original packaging.",
+    "Brand and product proportions vary substantially across existing covers."
+  ],
+  "designRules": [
+    "Preserve exact edition palette and historical typography.",
+    "Compact brand, prominent stock name and one small technical footer.",
+    "Uniform flat printed paper finish, margins and visual weight."
+  ],
+  "finalPagesReviewed": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14
+  ],
+  "refinementQueue": [],
+  "recoveryReviewComplete": true,
+  "recoveredSelections": [
+    "00048_000",
+    "00009_000"
+  ],
+  "refinementsResolved": [
+    {
+      "id": "00011_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-aae30acd-f1d2-498e-b2ab-5fd342caaf3e.png"
+    },
+    {
+      "id": "00048_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-4ad376ea-9621-4432-9ecb-b8db9a271b01.png"
+    },
+    {
+      "id": "00009_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-9014a89a-3225-4dea-9d37-aef3a8e5a188.png"
+    },
+    {
+      "id": "00015_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-87315b06-2351-4e70-b088-8bfaaa39604d.png"
+    },
+    {
+      "id": "00057_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-5d0d9ea1-006d-4001-be58-c0d02059e055.png"
+    },
+    {
+      "id": "00108_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-be6a7705-be29-4f14-8f14-17943673822c.png"
+    },
+    {
+      "id": "00008_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-1fae4291-f87e-48e5-8335-625e999a39a3.png"
+    },
+    {
+      "id": "00082_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-210889fb-d53d-45f1-a66d-269553c08f11.png"
+    },
+    {
+      "id": "00098_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-124280c7-c8b2-44e8-a580-4310e2f50c84.png"
+    },
+    {
+      "id": "00090_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-587e74a8-8086-4566-bc49-60db17d5a9c4.png"
+    },
+    {
+      "id": "00111_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-dacd5275-9691-44a4-85bb-f9089101fef9.png"
+    },
+    {
+      "id": "00125_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f07310ed-bf20-4957-a124-f55f2cf04ee6.png"
+    },
+    {
+      "id": "00126_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-009e747f-685b-4ea6-bdfd-4eba871687d4.png"
+    },
+    {
+      "id": "00127_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a511fd69-2dd2-4715-94b1-f7f28e7c49c1.png"
+    },
+    {
+      "id": "00174_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-c0e1ca8d-e85a-4397-bed9-c3d8dfb9cb89.png"
+    },
+    {
+      "id": "00185_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-3773003a-ec17-4db5-a394-c4df58e4de50.png"
+    },
+    {
+      "id": "00186_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-8ba07e91-3222-4d5c-825c-bbab5c97ac74.png"
+    },
+    {
+      "id": "00188_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-2fef9119-a2fb-4e48-950d-f1317762059e.png"
+    },
+    {
+      "id": "00226_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-9801431f-a721-487e-8972-33c097cb75df.png"
+    },
+    {
+      "id": "00236_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a0638bcf-e0c7-4179-9286-c741d37796a8.png"
+    },
+    {
+      "id": "00265_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-da77c8ca-06f9-4143-a868-0ce15d40091b.png"
+    },
+    {
+      "id": "00288_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-054a1a6d-1117-48b9-800f-2abf6a94ab4d.png"
+    },
+    {
+      "id": "00291_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-231899b8-cff9-49be-b46b-2478ce552789.png"
+    },
+    {
+      "id": "00322_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-8f6cb7e6-2c87-40f4-b67b-563f76f5c038.png"
+    },
+    {
+      "id": "00323_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-8431d0be-0197-4cd6-acc2-594b4c2aea07.png"
+    },
+    {
+      "id": "00285_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-16848099-e77f-46c8-abad-00af5cdea002.png"
+    },
+    {
+      "id": "00283_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e711815f-4d4e-4168-b270-e00083fc94e6.png"
+    },
+    {
+      "id": "00396_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-1316e223-b14e-468f-aef9-7e87986b5e60.png"
+    },
+    {
+      "id": "00406_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-763411fb-1734-47f9-bff3-d67039199be9.png"
+    },
+    {
+      "id": "00416_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-dc2aab12-198b-41ae-80a2-ca0772b5a647.png"
+    },
+    {
+      "id": "00361_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a545490e-39da-4212-863f-b60c32af1c1f.png"
+    },
+    {
+      "id": "00415_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-51485018-d59d-4391-8c00-b519a82c9149.png"
+    },
+    {
+      "id": "00438_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-7af05d12-39a8-4d09-b42b-83007ae0d5a0.png"
+    },
+    {
+      "id": "00455_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-95d8e978-e3ed-49bf-bd4e-8ea6019f5321.png"
+    },
+    {
+      "id": "00464_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a139b97a-18fe-47ef-89b2-dddb38cff21b.png"
+    },
+    {
+      "id": "00468_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e8ae7fd4-f9ac-40a3-8df1-79a487525ca1.png"
+    },
+    {
+      "id": "00473_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-0255a604-1169-42f1-8c46-41693dd6c560.png"
+    },
+    {
+      "id": "00476_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-afa77bc1-7905-4f74-921c-7d148228970f.png"
+    },
+    {
+      "id": "00478_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e173a327-33f3-43bc-a27e-a638d601aa6d.png"
+    },
+    {
+      "id": "00479_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-306f6ad5-6351-4ac3-a4b8-82855c0daf13.png"
+    },
+    {
+      "id": "00480_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-75b5ab32-217d-4319-94e2-8b4285b425de.png"
+    },
+    {
+      "id": "00481_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a4b94618-6e61-48f2-8a34-16c36955a92a.png"
+    },
+    {
+      "id": "00482_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a5434319-a0dd-4e86-860f-17dae6ca7ae4.png"
+    },
+    {
+      "id": "00485_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-9273a36e-adaf-491c-bffd-60226069688c.png"
+    },
+    {
+      "id": "00486_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-4cf781c5-365c-4668-8657-c536ee9bb294.png"
+    },
+    {
+      "id": "00487_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-1672b9ba-f3d0-45b8-852f-50bef4d7d77e.png"
+    },
+    {
+      "id": "00496_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-f5c3457d-7bf5-4d8d-8a3b-0eeea50e417e.png"
+    },
+    {
+      "id": "00500_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a700f897-1ecb-4907-986c-2a9328a181d9.png"
+    },
+    {
+      "id": "00505_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-0c228a41-00d0-4e5b-949c-10633cdc088e.png"
+    },
+    {
+      "id": "00514_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d7efb50d-7904-4cec-be82-466f282332ad.png"
+    },
+    {
+      "id": "00517_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a4f53e8c-7de7-429c-8391-302df5903dc8.png"
+    },
+    {
+      "id": "00523_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-0250aa13-1738-402b-b97b-b5ff64f02d48.png"
+    },
+    {
+      "id": "00535_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-2ac3534e-4372-4067-8477-f658565b76d5.png"
+    },
+    {
+      "id": "00538_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-2daf7df9-6ac8-46ef-a7b3-d87a8c659e81.png"
+    },
+    {
+      "id": "00540_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-e7b18893-0f98-43e9-96d9-0016bdc1f9ae.png"
+    },
+    {
+      "id": "00541_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ce51312a-c38f-4f4b-864b-6aee9ee0420b.png"
+    },
+    {
+      "id": "00544_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-957c63a6-55cc-4572-95ea-80de3f93b649.png"
+    },
+    {
+      "id": "00550_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-6c9f5c60-7de5-497b-82cb-6e338a160bb9.png"
+    },
+    {
+      "id": "00555_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-d85aa8c4-741d-4fdc-b625-84b6d3b57630.png"
+    },
+    {
+      "id": "00558_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ee196753-8008-43fd-8555-2cdd47d7fdac.png"
+    },
+    {
+      "id": "00436_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-7b58d92b-aa1d-4d34-a23e-637bfe39a081.png"
+    },
+    {
+      "id": "00420_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-db6de4f6-9571-40d7-8c3b-c68fb05fe0be.png"
+    },
+    {
+      "id": "00434_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-a3ece79b-fd8b-442a-9f7a-a8a00c2e3dab.png"
+    },
+    {
+      "id": "00445_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-460b1431-c612-4ec5-841a-367065a7c1bd.png"
+    },
+    {
+      "id": "00451_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-76490537-f50c-40e8-9a1e-0a6e911f408f.png"
+    },
+    {
+      "id": "00463_000",
+      "source": "/Users/leavestyle/.codex/generated_images/01a16dbb-b5d2-78e1-9195-24f14f709b3c/exec-ad5c0441-51fe-4713-a10b-d55a26239a3a.png"
+    }
+  ],
+  "complete": true,
+  "interimOverviewPagesReviewed": [
+    1,
+    2,
+    3
+  ],
+  "approvedSourceCount": 331,
+  "pendingCorrections": [],
+  "interimMixedHarmonyReviews": [
+    {
+      "installedCount": 122,
+      "board": "interim-harmony-122.jpg",
+      "finding": "Reviewed at 144px alongside six accepted Kodak and Fujifilm covers. Stock names remain legible, authentic motifs and palette give variety within the shared hierarchy. No correction needed."
+    },
+    {
+      "installedCount": 146,
+      "board": "interim-harmony-146.jpg",
+      "finding": "Reviewed 12 newly installed covers at 144px alongside six accepted Kodak and Fujifilm covers. Product names remain distinct, compact headers and tiny footer keep a shared hierarchy. Historical script flourishes retain their natural proportions and lighter ink weight."
+    },
+    {
+      "installedCount": 200,
+      "board": "interim-harmony-200-recent-24.jpg",
+      "finding": "Reviewed 24 recent installed covers at 144px beside six accepted Kodak/Fujifilm covers. Color identities remain distinct, long maker headers stay secondary, names are readable and no further correction is needed for this board."
+    },
+    {
+      "installedCount": 224,
+      "file": "interim-harmony-224-recent-24.jpg",
+      "review": "Reviewed 24 recent covers with six accepted Kodak/Fuji covers at 144px. Balanced hierarchy, margins and ink weight; original edition graphics and distinct palettes retained. No additional correction needed in this sample."
+    },
+    {
+      "installedCount": 237,
+      "file": "interim-harmony-237-recent-24.jpg",
+      "review": "Reviewed 24 recent high-ID installed covers plus six accepted Kodak/Fuji cards at 144px. Balanced margins, title hierarchy and visual weight across photographic, typographic and graphic packaging; no additional correction needed in this sample."
+    },
+    {
+      "installedCount": 237,
+      "file": "interim-harmony-237.jpg",
+      "review": "Reviewed all eleven newly installed covers alongside six accepted Kodak/Fuji references at 144px, including low-ID retry completions IsopanISS, Delta100 and PhoenixII. Brand/stock hierarchy and colour weight are balanced; no correction needed."
+    },
+    {
+      "installedCount": 250,
+      "file": "interim-harmony-250.jpg",
+      "review": "Reviewed thirteen newly installed covers with six accepted Kodak/Fuji cards. Repeated Agfa orange/navy family stays coherent; OptiColour halftone, historical HP3 and framed Studio Film retain genuine identities with balanced title hierarchy and margins."
+    },
+    {
+      "installedCount": 262,
+      "file": "interim-harmony-262.jpg",
+      "review": "Visually reviewed twelve new covers at 144px with six accepted Kodak/Fuji cards. Lucky silver/red and black/green identities, navy GT24, photographic Potsdam and kraft Arista remain distinct within balanced title hierarchy and clean margins. No further correction needed."
+    },
+    {
+      "installedCount": 274,
+      "file": "interim-harmony-274.jpg",
+      "review": "Reviewed twelve new installed cards beside six accepted Kodak/Fuji covers at 144px. Photographic Photocité, patterned Street Candy, restrained CineStill and historical Agfa plates retain clear stock names, shared margins and balanced visual weight. No correction needed."
+    },
+    {
+      "installedCount": 286,
+      "file": "interim-harmony-286.jpg",
+      "review": "Reviewed twelve new cards with six accepted Kodak/Fuji cards at 144px. Photographic Lomo, illustrative EDO/SantaColor/FPP and typographic Rollei/Candido/ORWO remain distinct with readable stock hierarchy and clean shared print finish. No correction needed."
+    },
+    {
+      "installedCount": 298,
+      "file": "interim-harmony-298.jpg",
+      "review": "Viewed twelve new cards with six accepted Kodak/Fuji cards at144px. Blue/yellow FP4 editions, orange/cyan OptiColour, historical Foma/Foton and minimal ORWO maintain readable names and a coherent clean-print finish. No further correction needed."
+    },
+    {
+      "installedCount": 310,
+      "file": "interim-harmony-310.jpg",
+      "review": "Reviewed twelve new cards with six accepted Kodak/Fuji cards at144px. ORWO vertical/horizontal panels, historical HP3/Superchrom and photographic Lomo retain edition identity with coherent clean printing and clear title hierarchy. No correction needed."
+    },
+    {
+      "installedCount": 320,
+      "file": "interim-harmony-320.jpg",
+      "review": "Reviewed ten newly installed cards with six accepted Kodak/Fuji covers at144px. Azure format pair, Rollei pair, photographic Showa/Lomo and three Polaroid editions remain clear and balanced, preserving exact edition colours and motifs. No correction needed."
+    }
+  ],
+  "additionalEditionRechecks": [
+    {
+      "id": "00078_000",
+      "finding": "Older LomoChrome Purple XR edition rechecked against its own packaging: genuine pink forest and purple panel retained. Footer omits ISO rather than asserting a single speed; no correction required."
+    }
+  ],
+  "coverSpellingChecks": {
+    "ids": [
+      "00475_000",
+      "00548_000"
+    ],
+    "packagingReads": "POTSDAM 100",
+    "referencesVisuallyChecked": true,
+    "artworkPromptCorrected": true,
+    "catalogTitleUntouched": true
+  },
+  "sourceMetadataDiscrepancies": [
+    {
+      "id": "00535_000",
+      "field": "process",
+      "catalogValue": "BW",
+      "packagingEvidence": "Clearly printed ORWO COLOR; unsupported BW removed from cover footer. Catalog metadata preserved by scope guard."
+    }
+  ],
+  "finalContactSheetReview": {
+    "reviewedCount": 331,
+    "pages": 14,
+    "result": "passed",
+    "findings": [
+      "All selected sources and final 1024px sRGB assets reviewed, including corrected historical labels and final retry sources.",
+      "Product names remain readable in the compact grid; header, hero stock name and technical footer have consistent visual weight.",
+      "Exact-edition palettes, authentic photos, seals and printed motifs retain individual packaging identity without generic decoration.",
+      "No further corrections identified across pages 1–14."
+    ]
+  },
+  "refinementQueueHistory": [
+    "00011_000: reduce standalone 120 format; retain authentic printed APX shadow (resolved)",
+    "00015_000: remove duplicate Kentmere wordmark and oversized K",
+    "00008_000: flatten Lomography brand plaque; remove dimensional shadow",
+    "00108_000: remove cracked and worn border; preserve historical print identity",
+    "00009_000: shrink ILFORD header to match approved library hierarchy",
+    "00057_000: remove duplicate Alien Film; make 5222/XX the hero",
+    "00127_000: remove duplicate FOMA lettering; make Ortho 400 the hero"
+  ]
+}

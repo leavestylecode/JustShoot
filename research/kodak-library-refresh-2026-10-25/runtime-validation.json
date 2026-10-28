@@ -1,0 +1,75 @@
+{
+  "completedDate": "2026-10-26",
+  "project": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot.xcodeproj",
+  "scheme": "JustShoot",
+  "configuration": "Debug",
+  "simulator": {
+    "name": "iPhone 17",
+    "id": "06CBF94A-F235-4319-A5F9-3548DDC86AD2",
+    "iOS": "26.4.1"
+  },
+  "build": {
+    "tool": "XcodeBuildMCP build_run_sim",
+    "status": "passed",
+    "warnings": 0,
+    "errors": 0,
+    "durationMilliseconds": 15909,
+    "log": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-10-26T07-34-56-615Z_pid72393_925fe37e.log"
+  },
+  "tests": {
+    "tool": "XcodeBuildMCP test_sim",
+    "passed": 18,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 0,
+    "durationMilliseconds": 10138,
+    "suites": {
+      "FilmCardCatalogIndexTests": 4,
+      "FilmCardImageCacheTests": 6,
+      "FilmPresetCoverPreparationTests": 6,
+      "FilmPresetCatalogTests": 2
+    },
+    "log": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-26T07-35-36-311Z_pid72393_9ed28008.log",
+    "resultBundle": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-26T07-35-36-312Z_pid72393_2579181a.xcresult"
+  },
+  "uiChecks": [
+    {
+      "check": "Kodak Library brand filter",
+      "status": "passed",
+      "visibleCount": 147,
+      "screenshot": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/library-top.jpg"
+    },
+    {
+      "check": "Grid top and bottom assets load with readable stock labels",
+      "status": "passed",
+      "screenshots": [
+        "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/library-top.jpg",
+        "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/library-bottom.jpg"
+      ]
+    },
+    {
+      "check": "Kodak + Blue color filter matches updated catalog",
+      "status": "passed",
+      "visibleCount": 5,
+      "screenshot": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/library-blue-filter.jpg"
+    },
+    {
+      "check": "Ektachrome E100 detail cover and metadata",
+      "status": "passed",
+      "metadata": [
+        "ISO 100",
+        "35mm",
+        "E-6",
+        "36exp",
+        "Single Pack"
+      ],
+      "screenshot": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/kodak-library-refresh-2026-10-25/library-detail-e100.jpg"
+    },
+    {
+      "check": "Restore full Kodak filter after inspection",
+      "status": "passed",
+      "visibleCount": 147
+    }
+  ],
+  "scope": "Asset-only refresh. Simulator validation; no physical-device performance or RAW capture claims."
+}

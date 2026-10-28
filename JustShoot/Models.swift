@@ -219,27 +219,22 @@ extension AnyKeyPath: @retroactive @unchecked Sendable {}
 
 // MARK: - Film presets
 enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
+    case fujiRawVelvia, fujiRawASTIA, fujiRawClassicChrome, fujiRawClassicNeg, fujiRawACROS
     case fujiC200
     case fujiPro400H
     case fujiProvia100F
     case kodakPortra400
-    case kodakVision5219 // 500T
-    case kodakVision5203 // 50D
-    case kodak5207       // 250D
-    case harmanPhoenix200
 
     var id: String { rawValue }
 
     var displayName: String {
+        if let simulation = rawSimulation { return "FUJIFILM " + simulation.displayName }
         switch self {
         case .fujiC200: return "Fuji C200"
         case .fujiPro400H: return "Fuji Pro 400H"
         case .fujiProvia100F: return "Fuji Provia 100F"
         case .kodakPortra400: return "Kodak Portra 400"
-        case .kodakVision5219: return "Kodak Vision3 500T (5219)"
-        case .kodakVision5203: return "Kodak Vision3 50D (5203)"
-        case .kodak5207: return "Kodak 250D (5207)"
-        case .harmanPhoenix200: return "Harman Phoenix 200"
+        default: return rawValue
         }
     }
 
@@ -249,40 +244,41 @@ enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
         case .fujiPro400H: return 400
         case .fujiProvia100F: return 100
         case .kodakPortra400: return 400
-        case .kodakVision5219: return 500
-        case .kodakVision5203: return 50
-        case .kodak5207: return 250
-        case .harmanPhoenix200: return 200
+        default: return 100 // Simulation presets have no physical film ISO rating.
         }
     }
 
     var lutResourceName: String {
+        if let simulation = rawSimulation { return simulation.resourceName }
         switch self {
         case .fujiC200: return "FujiC200"
         case .fujiPro400H: return "FujiPro400H"
         case .fujiProvia100F: return "FujiProvia100F"
         case .kodakPortra400: return "KodakPortra400"
-        case .kodakVision5219: return "KodakVision5219"
-        case .kodakVision5203: return "KodakVision5203"
-        case .kodak5207: return "Kodak5207"
-        case .harmanPhoenix200: return "HarmanPhoenix200"
+        default: return rawValue
         }
     }
 
-    /// Filename of the bundled film-card image used as this preset's cover.
-    /// Hand-picked from `Resources/cards/*.heic` to match each LUT's stock —
-    /// 5203 falls back to CineStill 50D since the catalog has no Kodak-branded
-    /// Vision3 50D card.
-    var libraryCardImage: String {
+    /// Matching packaging or a dedicated cover based on the stock's researched identity.
+    var libraryCardImage: String? {
+        if let simulation = rawSimulation { return simulation.libraryCardImage }
         switch self {
-        case .fujiC200:         return "00202_000.heic"
-        case .fujiPro400H:      return "00022_000.heic"
-        case .fujiProvia100F:   return "00055_000.heic"
-        case .kodakPortra400:   return "00200_000.heic"
-        case .kodakVision5219:  return "00185_000.heic"
-        case .kodakVision5203:  return "00254_000.heic"
-        case .kodak5207:        return "00001_000.heic"
-        case .harmanPhoenix200: return "00004_000.heic"
+        case .fujiC200: return "cover_fuji_c200.heic"
+        case .fujiPro400H: return "cover_fuji_pro_400h.heic"
+        case .kodakPortra400: return "cover_kodak_portra_400.heic"
+        default: return nil
+        }
+    }
+
+    var rawSimulation: FujifilmSimulation? {
+        switch self {
+        case .fujiProvia100F: return .provia
+        case .fujiRawVelvia: return .velvia
+        case .fujiRawASTIA: return .astia
+        case .fujiRawClassicChrome: return .classicChrome
+        case .fujiRawClassicNeg: return .classicNeg
+        case .fujiRawACROS: return .acros
+        default: return nil
         }
     }
 }
@@ -352,6 +348,11 @@ enum FilmSource: Hashable, Identifiable {
     case preset(FilmPreset)
     case custom(id: UUID, displayName: String, iso: Float, fileName: String)
 
+    var rawSimulation: FujifilmSimulation? {
+        if case .preset(let preset) = self { return preset.rawSimulation }
+        return nil
+    }
+
     var id: String {
         switch self {
         case .preset(let p): return p.rawValue
@@ -384,7 +385,7 @@ enum FilmSource: Hashable, Identifiable {
     /// FilmProcessor 缓存键
     var lutCacheKey: String {
         switch self {
-        case .preset(let p): return p.lutResourceName
+        case .preset(let p): return p.lutResourceName + FilmLookRefinement.cacheSuffix
         case .custom(let id, _, _, _): return "custom_\(id.uuidString)"
         }
     }

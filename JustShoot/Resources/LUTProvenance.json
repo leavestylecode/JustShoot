@@ -1,0 +1,411 @@
+{
+  "schemaVersion": 2,
+  "revision": "community-srgb-20261024",
+  "modelSource": "https://github.com/JanLohse/spectral_film_lut",
+  "modelSourceCommit": "bcbcfc6861f49cc706dc5d00ea048e4853060aab",
+  "modelLicense": "MIT",
+  "modelLicenseFile": "SpectralFilmLUT-LICENSE.txt",
+  "input": "Encoded sRGB, unit domain",
+  "output": "Encoded sRGB: Rec.709 primaries and sRGB transfer function, unit domain",
+  "limitations": "Sources and rendering methods vary by stock. Not manufacturer endorsed or a measured iPhone/film match. sRGB decoding cannot undo the camera ISP or reconstruct scene radiance. Selection prioritizes appearance; no claim of universal best or community consensus.",
+  "packages": {
+    "numpy": "2.2.6",
+    "scipy": "1.16.3",
+    "colour-science": "0.4.6",
+    "numba": "0.62.1",
+    "matplotlib": "3.10.7"
+  },
+  "stocks": [
+    {
+      "resourceName": "FujiC200",
+      "status": "communityModel",
+      "source": "https://github.com/JanLohse/spectral_film_lut",
+      "film": "Fuji C200",
+      "print": "Fuji Crystal Archive Pro PDII",
+      "dimension": 33,
+      "sha256": "b65c2d622b8f56d9e5816a549008977aa9deb0b83ce3c1412408918662310507",
+      "settings": {
+        "mode": "full",
+        "input_colorspace": "sRGB",
+        "output_gamut": "Rec. 709",
+        "gamma_func": "sRGB",
+        "exp_kelvin": 6500,
+        "projector_kelvin": 6500,
+        "tint": 0.0,
+        "exp_comp": 0.0,
+        "color_masking": 1.0,
+        "red_light": 0.0,
+        "green_light": 0.0,
+        "blue_light": 0.0,
+        "sat_adjust": 1.0,
+        "shadow_comp": 0.0,
+        "push_pull": 0.0,
+        "white_clip": true,
+        "white_balance": 1,
+        "inversion": false,
+        "idealized_curve": false,
+        "apd_intermediate": false,
+        "upsampling_method": "SFL upsampling"
+      },
+      "modelFiles": {
+        "negative_film.fuji_c200": "82c1ffe21ac631445f56a1b46f820d5962164819ddb74edccc42b85b0b0b1e1a",
+        "print_film.fuji_ca_pdII": "dc82bf7d28b1c36f426e851af8830c87e2b375d4bf16135126fb996785b7f8a3"
+      },
+      "referenceSamples": [
+        {
+          "input": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output": [
+            0.036075085401535034,
+            0.06289301067590714,
+            0.07998118549585342
+          ]
+        },
+        {
+          "input": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "output": [
+            0.868602454662323,
+            0.8653385043144226,
+            0.8628541231155396
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "output": [
+            0.5773511528968811,
+            0.5747691988945007,
+            0.5743923187255859
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.25,
+            0.75
+          ],
+          "output": [
+            0.6426405906677246,
+            0.3391823172569275,
+            0.713020384311676
+          ]
+        },
+        {
+          "input": [
+            0.75,
+            0.5,
+            0.25
+          ],
+          "output": [
+            0.7906128764152527,
+            0.5130625367164612,
+            0.08858601003885269
+          ]
+        }
+      ]
+    },
+    {
+      "resourceName": "FujiPro400H",
+      "status": "communityModel",
+      "source": "https://github.com/JanLohse/spectral_film_lut",
+      "film": "Fuji Pro 400H",
+      "print": "Fuji Crystal Archive Pro PDII",
+      "dimension": 33,
+      "sha256": "6dd97c6876ac978515034404dea09b94dfaea51e37d1faee4951fca18af1c4c3",
+      "settings": {
+        "mode": "full",
+        "input_colorspace": "sRGB",
+        "output_gamut": "Rec. 709",
+        "gamma_func": "sRGB",
+        "exp_kelvin": 6500,
+        "projector_kelvin": 6500,
+        "tint": 0.0,
+        "exp_comp": 0.0,
+        "color_masking": 1.0,
+        "red_light": 0.0,
+        "green_light": 0.0,
+        "blue_light": 0.0,
+        "sat_adjust": 1.0,
+        "shadow_comp": 0.0,
+        "push_pull": 0.0,
+        "white_clip": true,
+        "white_balance": 1,
+        "inversion": false,
+        "idealized_curve": false,
+        "apd_intermediate": false,
+        "upsampling_method": "SFL upsampling"
+      },
+      "modelFiles": {
+        "negative_film.fuji_pro_400h": "f16563f3fc9947ea05f0c10cd8620efb9b42ca9ac6a5723291d399762af89171",
+        "print_film.fuji_ca_pdII": "dc82bf7d28b1c36f426e851af8830c87e2b375d4bf16135126fb996785b7f8a3"
+      },
+      "referenceSamples": [
+        {
+          "input": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output": [
+            0.06672787666320801,
+            0.09125592559576035,
+            0.11001480370759964
+          ]
+        },
+        {
+          "input": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "output": [
+            0.8624333143234253,
+            0.8441667556762695,
+            0.8300526738166809
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "output": [
+            0.5760086178779602,
+            0.5708548426628113,
+            0.5673443675041199
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.25,
+            0.75
+          ],
+          "output": [
+            0.5991617441177368,
+            0.3528425395488739,
+            0.6880318522453308
+          ]
+        },
+        {
+          "input": [
+            0.75,
+            0.5,
+            0.25
+          ],
+          "output": [
+            0.7869511842727661,
+            0.5218334197998047,
+            0.15530139207839966
+          ]
+        }
+      ]
+    },
+    {
+      "resourceName": "FujiProvia100F",
+      "status": "communityModel",
+      "source": "https://github.com/JanLohse/spectral_film_lut",
+      "film": "Fuji Provia 100F",
+      "print": null,
+      "dimension": 33,
+      "sha256": "0e966561060aaf417010a42f6697b61fbff01cc40bfd94ffcd23337fed1a5e9d",
+      "settings": {
+        "mode": "full",
+        "input_colorspace": "sRGB",
+        "output_gamut": "Rec. 709",
+        "gamma_func": "sRGB",
+        "exp_kelvin": 6500,
+        "projector_kelvin": 6500,
+        "tint": 0.0,
+        "exp_comp": 0.0,
+        "color_masking": 0.3,
+        "red_light": 0.0,
+        "green_light": 0.0,
+        "blue_light": 0.0,
+        "sat_adjust": 1.0,
+        "shadow_comp": 0.0,
+        "push_pull": 0.0,
+        "white_clip": true,
+        "white_balance": 1,
+        "inversion": false,
+        "idealized_curve": false,
+        "apd_intermediate": false,
+        "upsampling_method": "SFL upsampling"
+      },
+      "modelFiles": {
+        "reversal_film.fuji_provia_100f": "fccb65db0ceb804479d1a64f639a6d225c90bed6bce3ae7a5d7e2f4e43e2b4aa"
+      },
+      "referenceSamples": [
+        {
+          "input": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output": [
+            0.007104504853487015,
+            0.010554241947829723,
+            0.013113976456224918
+          ]
+        },
+        {
+          "input": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "output": [
+            0.9329816699028015,
+            0.9344504475593567,
+            0.9369841814041138
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "output": [
+            0.5024288296699524,
+            0.5227383971214294,
+            0.5348246693611145
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.25,
+            0.75
+          ],
+          "output": [
+            0.5414198637008667,
+            0.29777660965919495,
+            0.6573145985603333
+          ]
+        },
+        {
+          "input": [
+            0.75,
+            0.5,
+            0.25
+          ],
+          "output": [
+            0.74983149766922,
+            0.5716145634651184,
+            0.273640513420105
+          ]
+        }
+      ]
+    },
+    {
+      "resourceName": "KodakPortra400",
+      "status": "communityModel",
+      "source": "https://github.com/JanLohse/spectral_film_lut",
+      "film": "Kodak Portra 400",
+      "print": "Kodak Portra Endura Paper",
+      "dimension": 33,
+      "sha256": "1997a0033e753466fbb239cc03bde692a8f39558ae948e75336c3b6874c279b4",
+      "settings": {
+        "mode": "full",
+        "input_colorspace": "sRGB",
+        "output_gamut": "Rec. 709",
+        "gamma_func": "sRGB",
+        "exp_kelvin": 6500,
+        "projector_kelvin": 6500,
+        "tint": 0.0,
+        "exp_comp": 0.0,
+        "color_masking": 1.0,
+        "red_light": 0.0,
+        "green_light": 0.0,
+        "blue_light": 0.0,
+        "sat_adjust": 1.0,
+        "shadow_comp": 0.0,
+        "push_pull": 0.0,
+        "white_clip": true,
+        "white_balance": 1,
+        "inversion": false,
+        "idealized_curve": false,
+        "apd_intermediate": false,
+        "upsampling_method": "SFL upsampling"
+      },
+      "modelFiles": {
+        "negative_film.kodak_portra_400": "d106bac4d95834be6e696b89b40e9341792341a45172e61ffde273d3d763c682",
+        "print_film.kodak_portra_endura": "b22ddb129fa4bf2eb47cf49e98d691db783065a8a8b261fb7e92dd01c50855a4"
+      },
+      "referenceSamples": [
+        {
+          "input": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output": [
+            0.11207776516675949,
+            0.07834234088659286,
+            0.07897324115037918
+          ]
+        },
+        {
+          "input": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "output": [
+            0.8944042921066284,
+            0.9139837622642517,
+            0.9326180219650269
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "output": [
+            0.552628755569458,
+            0.559380829334259,
+            0.5672258734703064
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.25,
+            0.75
+          ],
+          "output": [
+            0.6988783478736877,
+            0.48065102100372314,
+            0.8293531537055969
+          ]
+        },
+        {
+          "input": [
+            0.75,
+            0.5,
+            0.25
+          ],
+          "output": [
+            0.8009503483772278,
+            0.4751881957054138,
+            0.07426872104406357
+          ]
+        }
+      ]
+    }
+  ]
+}

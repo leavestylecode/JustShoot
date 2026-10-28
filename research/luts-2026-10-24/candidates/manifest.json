@@ -1,0 +1,80 @@
+{
+  "status": "Research candidates, not a measured match to real Portra or an iPhone camera profile.",
+  "source": "https://github.com/JanLohse/spectral_film_lut",
+  "commit": "bcbcfc6861f49cc706dc5d00ea048e4853060aab",
+  "source_license": "MIT",
+  "input": "Encoded sRGB, unit domain; inverse sRGB transfer applied inside model.",
+  "output": "Encoded sRGB (Rec.709 primaries + sRGB transfer), unit domain.",
+  "limitation": "Decoding display sRGB does not undo Apple's scene tone mapping or reconstruct scene radiance.",
+  "settings": {
+    "mode": "full",
+    "input_colorspace": "sRGB",
+    "output_gamut": "Rec. 709",
+    "gamma_func": "sRGB",
+    "exp_kelvin": 6500,
+    "projector_kelvin": 6500,
+    "tint": 0.0,
+    "exp_comp": 0.0,
+    "color_masking": 1.0,
+    "red_light": 0.0,
+    "green_light": 0.0,
+    "blue_light": 0.0,
+    "sat_adjust": 1.0,
+    "shadow_comp": 0.0,
+    "push_pull": 0.0,
+    "white_clip": true,
+    "white_balance": 1,
+    "inversion": false,
+    "idealized_curve": false,
+    "apd_intermediate": false,
+    "upsampling_method": "SFL upsampling"
+  },
+  "packages": {
+    "numpy": "2.2.6",
+    "scipy": "1.16.3",
+    "colour-science": "0.4.6",
+    "matplotlib": "3.10.7",
+    "numba": "0.62.1"
+  },
+  "luts": [
+    {
+      "file": "Portra400_PortraEndura_sRGB_33.cube",
+      "paper": "Kodak Portra Endura Paper",
+      "dimension": 33,
+      "sha256": "7d10894712561615d5f0b08cd9adbc9815056ebb0e06f8780ccbfbca480e9eed",
+      "rgba_float32_bytes": 574992,
+      "fidelity_against": "Unbaked model at 2048 seeded random RGBs + 1025 gray samples; not real film.",
+      "rgb_rmse": 0.0020772958551005458,
+      "rgb_max_absolute_error": 0.0467001357911086,
+      "deltaE2000_median": 0.06450790911912918,
+      "deltaE2000_p95": 0.3730520009994507,
+      "deltaE2000_max": 3.1551153659820557
+    },
+    {
+      "file": "Portra400_PortraEndura_sRGB_65.cube",
+      "paper": "Kodak Portra Endura Paper",
+      "dimension": 65,
+      "sha256": "0f9cbea780bd320314c3569138040a0ffe03e817dc4df583ea654ae610fd4e5e",
+      "rgba_float32_bytes": 4394000,
+      "fidelity_against": "Unbaked model at 2048 seeded random RGBs + 1025 gray samples; not real film.",
+      "rgb_rmse": 0.0007595726381604741,
+      "rgb_max_absolute_error": 0.014507636837198204,
+      "deltaE2000_median": 0.01909228041768074,
+      "deltaE2000_p95": 0.12454600632190704,
+      "deltaE2000_max": 1.0165131092071533
+    },
+    {
+      "file": "Portra400_EnduraPremier_sRGB_33.cube",
+      "paper": "Kodak Endura Premier Paper",
+      "dimension": 33,
+      "sha256": "082f16a01a5cac2a38cc02c52eee06a3a3e41553d9aa602f5579397086cafec5",
+      "rgba_float32_bytes": 574992,
+      "fidelity_against": "Unbaked model at 2048 seeded random RGBs + 1025 gray samples; not real film.",
+      "rgb_rmse": 0.0028056053534262133,
+      "rgb_max_absolute_error": 0.043592210239411094,
+      "deltaE2000_median": 0.0749303326010704,
+      "deltaE2000_p95": 0.4774778485298157,
+      "deltaE2000_max": 3.1556646823883057
+    }
+  ]
+}

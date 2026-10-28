@@ -1,0 +1,1051 @@
+{
+  "date": "2026-10-25",
+  "scope": "Offline SDR scenes and renderer regression only. No newly captured iPhone scenes or device performance measurement in this run.",
+  "defaults": {
+    "project": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot.xcodeproj",
+    "scheme": "JustShoot",
+    "configuration": "Debug",
+    "simulator": "iPhone 17",
+    "os": "26.4.1"
+  },
+  "simulator": {
+    "passed": 423,
+    "failed": 0,
+    "skipped": 3,
+    "warnings": 0,
+    "log": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-24T16-16-05-681Z_pid9844_a24f8580.log",
+    "resultBundle": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-24T16-16-05-681Z_pid9844_bb87a635.xcresult",
+    "skips": [
+      "Photos not authorized in simulator: HEIC Photos round trip",
+      "Physical camera validation opt-in not set",
+      "Optional external public ProRAW sample not provided"
+    ]
+  },
+  "appLaunch": {
+    "status": "passed",
+    "processId": 88913,
+    "buildLog": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-10-24T16-18-49-929Z_pid9844_4caa7448.log",
+    "inspection": "Simulator Film Library loaded; camera appearance cannot be assessed from simulator."
+  },
+  "rendererParity": {
+    "scope": "Identical quantized sRGB input; graded stage only. Does not compare video ISP with RAW development.",
+    "comparisonCount": 102,
+    "sceneRenderCount": 51,
+    "pixelsCompared": 22003712,
+    "maximumAbsoluteRGB": 0.0022250414,
+    "maximumMeanAbsoluteRGB": 0.0006810455136777213,
+    "maximumMetalVsCPUProbeRGB": 0.0003143549,
+    "maximumCoreImageVsCPUProbeRGB": 0.0019031524,
+    "thresholds": {
+      "maximumRGB": 0.00392156862745098,
+      "meanRGB": 0.000980392156862745,
+      "CPUProbeMaximumRGB": 0.00392156862745098
+    },
+    "shaderInputPrecisionExperiment": {
+      "sameContextBeforeMaximum": 0.0027815998,
+      "sameContextAfterMaximum": 0.0022250414,
+      "change": "Sample camera texture to float rather than half before lookup; source remains 8-bit."
+    },
+    "comparisons": [
+      {
+        "film": "fujiRawVelvia",
+        "scene": "stress-skin",
+        "maximum": 0.0018025045,
+        "mean": 0.000268011233439817,
+        "metal_reference_max": 0.00022995472,
+        "ci_reference_max": 0.0018026168,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawVelvia",
+        "scene": "stress-daylight",
+        "maximum": 0.0016796589,
+        "mean": 0.0002920487611390854,
+        "metal_reference_max": 0.00023317337,
+        "ci_reference_max": 0.0011870861,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawVelvia",
+        "scene": "stress-night",
+        "maximum": 0.0018212795,
+        "mean": 0.00017927428442969054,
+        "metal_reference_max": 0.00018626451,
+        "ci_reference_max": 0.0013215989,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawVelvia",
+        "scene": "skin",
+        "maximum": 0.0021014214,
+        "mean": 0.000393562540983929,
+        "metal_reference_max": 0.0002694726,
+        "ci_reference_max": 0.0016294718,
+        "pixels": 262144
+      },
+      {
+        "film": "fujiRawVelvia",
+        "scene": "daylight",
+        "maximum": 0.0020507574,
+        "mean": 0.00047638852293499203,
+        "metal_reference_max": 0.00027096272,
+        "ci_reference_max": 0.0016757678,
+        "pixels": 393216
+      },
+      {
+        "film": "fujiRawVelvia",
+        "scene": "night",
+        "maximum": 0.0022250414,
+        "mean": 0.00029833105600695394,
+        "metal_reference_max": 0.00025987625,
+        "ci_reference_max": 0.0017540909,
+        "pixels": 614400
+      },
+      {
+        "film": "fujiRawASTIA",
+        "scene": "stress-skin",
+        "maximum": 0.0018815994,
+        "mean": 0.0005140681170511622,
+        "metal_reference_max": 0.00021588802,
+        "ci_reference_max": 0.0016078901,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawASTIA",
+        "scene": "stress-daylight",
+        "maximum": 0.0019998886,
+        "mean": 0.00048333410472878313,
+        "metal_reference_max": 0.00025582314,
+        "ci_reference_max": 0.0012641549,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawASTIA",
+        "scene": "stress-night",
+        "maximum": 0.0018516183,
+        "mean": 0.0002789287310633881,
+        "metal_reference_max": 0.00024688244,
+        "ci_reference_max": 0.0013191833,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawASTIA",
+        "scene": "skin",
+        "maximum": 0.0020775795,
+        "mean": 0.0004247548898637284,
+        "metal_reference_max": 0.00026756525,
+        "ci_reference_max": 0.0017561316,
+        "pixels": 262144
+      },
+      {
+        "film": "fujiRawASTIA",
+        "scene": "daylight",
+        "maximum": 0.0020794868,
+        "mean": 0.0005140469268856264,
+        "metal_reference_max": 0.0002682805,
+        "ci_reference_max": 0.0016824305,
+        "pixels": 393216
+      },
+      {
+        "film": "fujiRawASTIA",
+        "scene": "night",
+        "maximum": 0.002209723,
+        "mean": 0.0006132144161625616,
+        "metal_reference_max": 0.00025105476,
+        "ci_reference_max": 0.0019031524,
+        "pixels": 614400
+      },
+      {
+        "film": "fujiRawClassicChrome",
+        "scene": "stress-skin",
+        "maximum": 0.0018093642,
+        "mean": 0.0003634711449270374,
+        "metal_reference_max": 0.0002616644,
+        "ci_reference_max": 0.0014887026,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawClassicChrome",
+        "scene": "stress-daylight",
+        "maximum": 0.0018922985,
+        "mean": 0.0004584046639592998,
+        "metal_reference_max": 0.00018966198,
+        "ci_reference_max": 0.0017079917,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawClassicChrome",
+        "scene": "stress-night",
+        "maximum": 0.0019358993,
+        "mean": 0.00024891999983841134,
+        "metal_reference_max": 0.00027287006,
+        "ci_reference_max": 0.0016224682,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawClassicChrome",
+        "scene": "skin",
+        "maximum": 0.0021101236,
+        "mean": 0.0004713057264086699,
+        "metal_reference_max": 0.00027418137,
+        "ci_reference_max": 0.0016621947,
+        "pixels": 262144
+      },
+      {
+        "film": "fujiRawClassicChrome",
+        "scene": "daylight",
+        "maximum": 0.002075076,
+        "mean": 0.0005484208338062895,
+        "metal_reference_max": 0.00027364492,
+        "ci_reference_max": 0.0015359521,
+        "pixels": 393216
+      },
+      {
+        "film": "fujiRawClassicChrome",
+        "scene": "night",
+        "maximum": 0.0021101236,
+        "mean": 0.0004838889242234422,
+        "metal_reference_max": 0.0002554059,
+        "ci_reference_max": 0.0018418137,
+        "pixels": 614400
+      },
+      {
+        "film": "fujiRawRealaAce",
+        "scene": "stress-skin",
+        "maximum": 0.0019130707,
+        "mean": 0.0004436067296940867,
+        "metal_reference_max": 0.00018310547,
+        "ci_reference_max": 0.0015254319,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawRealaAce",
+        "scene": "stress-daylight",
+        "maximum": 0.0017023087,
+        "mean": 0.00046823275806673337,
+        "metal_reference_max": 0.00021737814,
+        "ci_reference_max": 0.0014731288,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawRealaAce",
+        "scene": "stress-night",
+        "maximum": 0.0019131042,
+        "mean": 0.00022176106180419689,
+        "metal_reference_max": 0.00014871359,
+        "ci_reference_max": 0.0014910102,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawRealaAce",
+        "scene": "skin",
+        "maximum": 0.0020356178,
+        "mean": 0.00042775365174167285,
+        "metal_reference_max": 0.00027042627,
+        "ci_reference_max": 0.0017578602,
+        "pixels": 262144
+      },
+      {
+        "film": "fujiRawRealaAce",
+        "scene": "daylight",
+        "maximum": 0.0021178126,
+        "mean": 0.0005003538421116301,
+        "metal_reference_max": 0.00027167797,
+        "ci_reference_max": 0.0017501861,
+        "pixels": 393216
+      },
+      {
+        "film": "fujiRawRealaAce",
+        "scene": "night",
+        "maximum": 0.0021178126,
+        "mean": 0.0005595980818541256,
+        "metal_reference_max": 0.00025379658,
+        "ci_reference_max": 0.0017758287,
+        "pixels": 614400
+      },
+      {
+        "film": "fujiRawProNegStd",
+        "scene": "stress-skin",
+        "maximum": 0.0017570257,
+        "mean": 0.000504339574149526,
+        "metal_reference_max": 0.00020873547,
+        "ci_reference_max": 0.0011274735,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawProNegStd",
+        "scene": "stress-daylight",
+        "maximum": 0.00182724,
+        "mean": 0.0005116121631848122,
+        "metal_reference_max": 0.00026088953,
+        "ci_reference_max": 0.0012592077,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawProNegStd",
+        "scene": "stress-night",
+        "maximum": 0.001887083,
+        "mean": 0.00036357014513062796,
+        "metal_reference_max": 0.00017976761,
+        "ci_reference_max": 0.0017131418,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawProNegStd",
+        "scene": "skin",
+        "maximum": 0.0019937754,
+        "mean": 0.00044895879509199155,
+        "metal_reference_max": 0.00026530027,
+        "ci_reference_max": 0.001630187,
+        "pixels": 262144
+      },
+      {
+        "film": "fujiRawProNegStd",
+        "scene": "daylight",
+        "maximum": 0.0020775795,
+        "mean": 0.000535338107106684,
+        "metal_reference_max": 0.0002695322,
+        "ci_reference_max": 0.0016553998,
+        "pixels": 393216
+      },
+      {
+        "film": "fujiRawProNegStd",
+        "scene": "night",
+        "maximum": 0.0022250414,
+        "mean": 0.0005734065417661959,
+        "metal_reference_max": 0.00025045872,
+        "ci_reference_max": 0.0018582265,
+        "pixels": 614400
+      },
+      {
+        "film": "fujiRawClassicNeg",
+        "scene": "stress-skin",
+        "maximum": 0.0018873215,
+        "mean": 0.00041434952693938004,
+        "metal_reference_max": 0.00024312735,
+        "ci_reference_max": 0.0014665753,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawClassicNeg",
+        "scene": "stress-daylight",
+        "maximum": 0.0017763674,
+        "mean": 0.0004384564368441109,
+        "metal_reference_max": 0.00023800135,
+        "ci_reference_max": 0.0015497465,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawClassicNeg",
+        "scene": "stress-night",
+        "maximum": 0.0018860698,
+        "mean": 0.00022088163067716474,
+        "metal_reference_max": 0.00013452768,
+        "ci_reference_max": 0.0015034676,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawClassicNeg",
+        "scene": "skin",
+        "maximum": 0.002147615,
+        "mean": 0.00040205254560810033,
+        "metal_reference_max": 0.0002734065,
+        "ci_reference_max": 0.0016123056,
+        "pixels": 262144
+      },
+      {
+        "film": "fujiRawClassicNeg",
+        "scene": "daylight",
+        "maximum": 0.0020679235,
+        "mean": 0.0005155391205170377,
+        "metal_reference_max": 0.00027000904,
+        "ci_reference_max": 0.0015095398,
+        "pixels": 393216
+      },
+      {
+        "film": "fujiRawClassicNeg",
+        "scene": "night",
+        "maximum": 0.0021552444,
+        "mean": 0.0005341001629310919,
+        "metal_reference_max": 0.00027924776,
+        "ci_reference_max": 0.0016614156,
+        "pixels": 614400
+      },
+      {
+        "film": "fujiRawETERNA",
+        "scene": "stress-skin",
+        "maximum": 0.0019159317,
+        "mean": 0.0005509105926648772,
+        "metal_reference_max": 0.000200212,
+        "ci_reference_max": 0.0013208691,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawETERNA",
+        "scene": "stress-daylight",
+        "maximum": 0.0018024445,
+        "mean": 0.0005764063953771862,
+        "metal_reference_max": 0.00024598837,
+        "ci_reference_max": 0.001374519,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawETERNA",
+        "scene": "stress-night",
+        "maximum": 0.0018624105,
+        "mean": 0.0005231631287567021,
+        "metal_reference_max": 0.00022792816,
+        "ci_reference_max": 0.0014853133,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawETERNA",
+        "scene": "skin",
+        "maximum": 0.0022078156,
+        "mean": 0.0005054418310099044,
+        "metal_reference_max": 0.0002670884,
+        "ci_reference_max": 0.0016959906,
+        "pixels": 262144
+      },
+      {
+        "film": "fujiRawETERNA",
+        "scene": "daylight",
+        "maximum": 0.0021790862,
+        "mean": 0.0005233304417405647,
+        "metal_reference_max": 0.0002644062,
+        "ci_reference_max": 0.0016495585,
+        "pixels": 393216
+      },
+      {
+        "film": "fujiRawETERNA",
+        "scene": "night",
+        "maximum": 0.0021637678,
+        "mean": 0.0005313854827897696,
+        "metal_reference_max": 0.00024926662,
+        "ci_reference_max": 0.0018162503,
+        "pixels": 614400
+      },
+      {
+        "film": "fujiRawEternaBB",
+        "scene": "stress-skin",
+        "maximum": 0.0018517375,
+        "mean": 0.0004636452115770832,
+        "metal_reference_max": 0.00017595291,
+        "ci_reference_max": 0.0012727878,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawEternaBB",
+        "scene": "stress-daylight",
+        "maximum": 0.0017802715,
+        "mean": 0.0004951513819075141,
+        "metal_reference_max": 0.0001950264,
+        "ci_reference_max": 0.0017092228,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawEternaBB",
+        "scene": "stress-night",
+        "maximum": 0.0018282831,
+        "mean": 0.0002910833651791715,
+        "metal_reference_max": 0.00024574995,
+        "ci_reference_max": 0.001675822,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawEternaBB",
+        "scene": "skin",
+        "maximum": 0.002043128,
+        "mean": 0.0004310325871822081,
+        "metal_reference_max": 0.00027394295,
+        "ci_reference_max": 0.0016259551,
+        "pixels": 262144
+      },
+      {
+        "film": "fujiRawEternaBB",
+        "scene": "daylight",
+        "maximum": 0.0020228028,
+        "mean": 0.0004809511587415827,
+        "metal_reference_max": 0.00027096272,
+        "ci_reference_max": 0.0015401989,
+        "pixels": 393216
+      },
+      {
+        "film": "fujiRawEternaBB",
+        "scene": "night",
+        "maximum": 0.0020718575,
+        "mean": 0.0005648250110512423,
+        "metal_reference_max": 0.00023502111,
+        "ci_reference_max": 0.0017909138,
+        "pixels": 614400
+      },
+      {
+        "film": "fujiRawACROS",
+        "scene": "stress-skin",
+        "maximum": 0.0017356272,
+        "mean": 0.0004811434453131369,
+        "metal_reference_max": 0.00014674664,
+        "ci_reference_max": 0.0015018415,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawACROS",
+        "scene": "stress-daylight",
+        "maximum": 0.0017490988,
+        "mean": 0.00044061669996153796,
+        "metal_reference_max": 0.00015342236,
+        "ci_reference_max": 0.0014164699,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawACROS",
+        "scene": "stress-night",
+        "maximum": 0.0016697049,
+        "mean": 0.00026791019786287507,
+        "metal_reference_max": 0.0002156496,
+        "ci_reference_max": 0.00060955435,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiRawACROS",
+        "scene": "skin",
+        "maximum": 0.002159655,
+        "mean": 0.00041179045857497876,
+        "metal_reference_max": 0.0002527833,
+        "ci_reference_max": 0.0017337911,
+        "pixels": 262144
+      },
+      {
+        "film": "fujiRawACROS",
+        "scene": "daylight",
+        "maximum": 0.0021595955,
+        "mean": 0.0005450127196664489,
+        "metal_reference_max": 0.00025123358,
+        "ci_reference_max": 0.0016192198,
+        "pixels": 393216
+      },
+      {
+        "film": "fujiRawACROS",
+        "scene": "night",
+        "maximum": 0.002128899,
+        "mean": 0.0006064750991517561,
+        "metal_reference_max": 0.00022876263,
+        "ci_reference_max": 0.0016274038,
+        "pixels": 614400
+      },
+      {
+        "film": "fujiC200",
+        "scene": "stress-skin",
+        "maximum": 0.0017255023,
+        "mean": 0.0005172487435629591,
+        "metal_reference_max": 0.00028020144,
+        "ci_reference_max": 0.0015507564,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiC200",
+        "scene": "stress-daylight",
+        "maximum": 0.0018896386,
+        "mean": 0.0005112694610337106,
+        "metal_reference_max": 0.00020349026,
+        "ci_reference_max": 0.0015485585,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiC200",
+        "scene": "stress-night",
+        "maximum": 0.0018300936,
+        "mean": 0.0006078117615591813,
+        "metal_reference_max": 0.00021773577,
+        "ci_reference_max": 0.001600124,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiC200",
+        "scene": "skin",
+        "maximum": 0.0020852685,
+        "mean": 0.0005488650005294934,
+        "metal_reference_max": 0.00028181076,
+        "ci_reference_max": 0.0015485585,
+        "pixels": 262144
+      },
+      {
+        "film": "fujiC200",
+        "scene": "daylight",
+        "maximum": 0.0020073056,
+        "mean": 0.0005236875345941724,
+        "metal_reference_max": 0.00028681755,
+        "ci_reference_max": 0.0017048717,
+        "pixels": 393216
+      },
+      {
+        "film": "fujiC200",
+        "scene": "night",
+        "maximum": 0.0021618605,
+        "mean": 0.0005296473328078517,
+        "metal_reference_max": 0.0002604723,
+        "ci_reference_max": 0.001797542,
+        "pixels": 614400
+      },
+      {
+        "film": "fujiPro400H",
+        "scene": "stress-skin",
+        "maximum": 0.0018449351,
+        "mean": 0.0005579666903940961,
+        "metal_reference_max": 0.0002515912,
+        "ci_reference_max": 0.0013186559,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiPro400H",
+        "scene": "stress-daylight",
+        "maximum": 0.0017866492,
+        "mean": 0.0004946818529181959,
+        "metal_reference_max": 0.00023412704,
+        "ci_reference_max": 0.0014281496,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiPro400H",
+        "scene": "stress-night",
+        "maximum": 0.0018523159,
+        "mean": 0.0004554555689537665,
+        "metal_reference_max": 0.00022184849,
+        "ci_reference_max": 0.0012512505,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiPro400H",
+        "scene": "skin",
+        "maximum": 0.0020967126,
+        "mean": 0.0004910214707744368,
+        "metal_reference_max": 0.00031417608,
+        "ci_reference_max": 0.0016940832,
+        "pixels": 262144
+      },
+      {
+        "film": "fujiPro400H",
+        "scene": "daylight",
+        "maximum": 0.002037406,
+        "mean": 0.0005156268889392221,
+        "metal_reference_max": 0.00030303,
+        "ci_reference_max": 0.0016323328,
+        "pixels": 393216
+      },
+      {
+        "film": "fujiPro400H",
+        "scene": "night",
+        "maximum": 0.0021123886,
+        "mean": 0.0005697224865096157,
+        "metal_reference_max": 0.00027406216,
+        "ci_reference_max": 0.0017031878,
+        "pixels": 614400
+      },
+      {
+        "film": "fujiProvia100F",
+        "scene": "stress-skin",
+        "maximum": 0.0018959646,
+        "mean": 0.00045534467388582317,
+        "metal_reference_max": 0.00023430586,
+        "ci_reference_max": 0.0012097992,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiProvia100F",
+        "scene": "stress-daylight",
+        "maximum": 0.0018305779,
+        "mean": 0.0004936924700587042,
+        "metal_reference_max": 0.00023186207,
+        "ci_reference_max": 0.0013545877,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiProvia100F",
+        "scene": "stress-night",
+        "maximum": 0.0019264221,
+        "mean": 0.00030942879610999324,
+        "metal_reference_max": 0.00023925304,
+        "ci_reference_max": 0.0017904788,
+        "pixels": 8192
+      },
+      {
+        "film": "fujiProvia100F",
+        "scene": "skin",
+        "maximum": 0.0020794868,
+        "mean": 0.000436614617040032,
+        "metal_reference_max": 0.0002720356,
+        "ci_reference_max": 0.001660401,
+        "pixels": 262144
+      },
+      {
+        "film": "fujiProvia100F",
+        "scene": "daylight",
+        "maximum": 0.0020871758,
+        "mean": 0.0004921604488714099,
+        "metal_reference_max": 0.0002720356,
+        "ci_reference_max": 0.0016472936,
+        "pixels": 393216
+      },
+      {
+        "film": "fujiProvia100F",
+        "scene": "night",
+        "maximum": 0.0021082163,
+        "mean": 0.000607089262367124,
+        "metal_reference_max": 0.00026881695,
+        "ci_reference_max": 0.0018613636,
+        "pixels": 614400
+      },
+      {
+        "film": "kodakPortra400",
+        "scene": "stress-skin",
+        "maximum": 0.001664944,
+        "mean": 0.000553764645398284,
+        "metal_reference_max": 0.00026404858,
+        "ci_reference_max": 0.0016477257,
+        "pixels": 8192
+      },
+      {
+        "film": "kodakPortra400",
+        "scene": "stress-daylight",
+        "maximum": 0.0018309988,
+        "mean": 0.0005466061532691432,
+        "metal_reference_max": 0.00025725365,
+        "ci_reference_max": 0.0016477257,
+        "pixels": 8192
+      },
+      {
+        "film": "kodakPortra400",
+        "scene": "stress-night",
+        "maximum": 0.0018691123,
+        "mean": 0.0006810455136777213,
+        "metal_reference_max": 0.00019907951,
+        "ci_reference_max": 0.0016663149,
+        "pixels": 8192
+      },
+      {
+        "film": "kodakPortra400",
+        "scene": "skin",
+        "maximum": 0.0021099448,
+        "mean": 0.0005540035021548798,
+        "metal_reference_max": 0.00029671192,
+        "ci_reference_max": 0.0016477257,
+        "pixels": 262144
+      },
+      {
+        "film": "kodakPortra400",
+        "scene": "daylight",
+        "maximum": 0.0021701455,
+        "mean": 0.0005070693054184024,
+        "metal_reference_max": 0.0002939701,
+        "ci_reference_max": 0.0016787648,
+        "pixels": 393216
+      },
+      {
+        "film": "kodakPortra400",
+        "scene": "night",
+        "maximum": 0.002223909,
+        "mean": 0.0005650645108976783,
+        "metal_reference_max": 0.00028449297,
+        "ci_reference_max": 0.0018618479,
+        "pixels": 614400
+      },
+      {
+        "film": "kodakVision5219",
+        "scene": "stress-skin",
+        "maximum": 0.0018003732,
+        "mean": 0.0005718579110786474,
+        "metal_reference_max": 0.00021415949,
+        "ci_reference_max": 0.001585044,
+        "pixels": 8192
+      },
+      {
+        "film": "kodakVision5219",
+        "scene": "stress-daylight",
+        "maximum": 0.0017644167,
+        "mean": 0.0005368247478448515,
+        "metal_reference_max": 0.00023293495,
+        "ci_reference_max": 0.0014647674,
+        "pixels": 8192
+      },
+      {
+        "film": "kodakVision5219",
+        "scene": "stress-night",
+        "maximum": 0.0018193126,
+        "mean": 0.0005511076266581464,
+        "metal_reference_max": 0.0002425313,
+        "ci_reference_max": 0.0014886111,
+        "pixels": 8192
+      },
+      {
+        "film": "kodakVision5219",
+        "scene": "skin",
+        "maximum": 0.002052553,
+        "mean": 0.0005138269624668604,
+        "metal_reference_max": 0.00027656555,
+        "ci_reference_max": 0.0015515685,
+        "pixels": 262144
+      },
+      {
+        "film": "kodakVision5219",
+        "scene": "daylight",
+        "maximum": 0.002022922,
+        "mean": 0.0004919644181416376,
+        "metal_reference_max": 0.0002783537,
+        "ci_reference_max": 0.0016510189,
+        "pixels": 393216
+      },
+      {
+        "film": "kodakVision5219",
+        "scene": "night",
+        "maximum": 0.0020925403,
+        "mean": 0.0005521038517672928,
+        "metal_reference_max": 0.00027561188,
+        "ci_reference_max": 0.001774889,
+        "pixels": 614400
+      },
+      {
+        "film": "kodakVision5203",
+        "scene": "stress-skin",
+        "maximum": 0.0017058104,
+        "mean": 0.0006333050026417671,
+        "metal_reference_max": 0.00021541119,
+        "ci_reference_max": 0.0015322627,
+        "pixels": 8192
+      },
+      {
+        "film": "kodakVision5203",
+        "scene": "stress-daylight",
+        "maximum": 0.0019305348,
+        "mean": 0.0005870342638445436,
+        "metal_reference_max": 0.0002412796,
+        "ci_reference_max": 0.0014925003,
+        "pixels": 8192
+      },
+      {
+        "film": "kodakVision5203",
+        "scene": "stress-night",
+        "maximum": 0.0018020999,
+        "mean": 0.0006708576732611012,
+        "metal_reference_max": 0.0002297163,
+        "ci_reference_max": 0.0017142091,
+        "pixels": 8192
+      },
+      {
+        "film": "kodakVision5203",
+        "scene": "skin",
+        "maximum": 0.0021790862,
+        "mean": 0.0005851770174653362,
+        "metal_reference_max": 0.0002822876,
+        "ci_reference_max": 0.001684308,
+        "pixels": 262144
+      },
+      {
+        "film": "kodakVision5203",
+        "scene": "daylight",
+        "maximum": 0.0020927787,
+        "mean": 0.0004900633476382489,
+        "metal_reference_max": 0.00029730797,
+        "ci_reference_max": 0.0015915632,
+        "pixels": 393216
+      },
+      {
+        "film": "kodakVision5203",
+        "scene": "night",
+        "maximum": 0.0021312237,
+        "mean": 0.0005748346259696923,
+        "metal_reference_max": 0.00028330088,
+        "ci_reference_max": 0.0016584992,
+        "pixels": 614400
+      },
+      {
+        "film": "kodak5207",
+        "scene": "stress-skin",
+        "maximum": 0.0017777691,
+        "mean": 0.0005400458436876457,
+        "metal_reference_max": 0.00028896332,
+        "ci_reference_max": 0.0013684114,
+        "pixels": 8192
+      },
+      {
+        "film": "kodak5207",
+        "scene": "stress-daylight",
+        "maximum": 0.0018232455,
+        "mean": 0.0005460482983229061,
+        "metal_reference_max": 0.00020432472,
+        "ci_reference_max": 0.001243786,
+        "pixels": 8192
+      },
+      {
+        "film": "kodak5207",
+        "scene": "stress-night",
+        "maximum": 0.001804173,
+        "mean": 0.0006480361168238838,
+        "metal_reference_max": 0.00021612644,
+        "ci_reference_max": 0.0015973188,
+        "pixels": 8192
+      },
+      {
+        "film": "kodak5207",
+        "scene": "skin",
+        "maximum": 0.0020496845,
+        "mean": 0.0005665679491831573,
+        "metal_reference_max": 0.0002990365,
+        "ci_reference_max": 0.0014864206,
+        "pixels": 262144
+      },
+      {
+        "film": "kodak5207",
+        "scene": "daylight",
+        "maximum": 0.0020977855,
+        "mean": 0.0004699577004372044,
+        "metal_reference_max": 0.00031161308,
+        "ci_reference_max": 0.0018069744,
+        "pixels": 393216
+      },
+      {
+        "film": "kodak5207",
+        "scene": "night",
+        "maximum": 0.0021330118,
+        "mean": 0.0005341614937105988,
+        "metal_reference_max": 0.00026655197,
+        "ci_reference_max": 0.0017082305,
+        "pixels": 614400
+      },
+      {
+        "film": "harmanPhoenix200",
+        "scene": "stress-skin",
+        "maximum": 0.00032687187,
+        "mean": 6.096075715807577e-05,
+        "metal_reference_max": 0.00022798777,
+        "ci_reference_max": 0.00012229383,
+        "pixels": 8192
+      },
+      {
+        "film": "harmanPhoenix200",
+        "scene": "stress-daylight",
+        "maximum": 0.00034594536,
+        "mean": 7.611007216231276e-05,
+        "metal_reference_max": 0.00022339821,
+        "ci_reference_max": 0.00013661385,
+        "pixels": 8192
+      },
+      {
+        "film": "harmanPhoenix200",
+        "scene": "stress-night",
+        "maximum": 0.00030767918,
+        "mean": 4.8251158744960776e-05,
+        "metal_reference_max": 0.00022429228,
+        "ci_reference_max": 0.00013840199,
+        "pixels": 8192
+      },
+      {
+        "film": "harmanPhoenix200",
+        "scene": "skin",
+        "maximum": 0.00038307905,
+        "mean": 9.334670554039803e-05,
+        "metal_reference_max": 0.00027650595,
+        "ci_reference_max": 0.00013494492,
+        "pixels": 262144
+      },
+      {
+        "film": "harmanPhoenix200",
+        "scene": "daylight",
+        "maximum": 0.0003735423,
+        "mean": 9.980895440422601e-05,
+        "metal_reference_max": 0.0003143549,
+        "ci_reference_max": 0.0001487732,
+        "pixels": 393216
+      },
+      {
+        "film": "harmanPhoenix200",
+        "scene": "night",
+        "maximum": 0.00044715405,
+        "mean": 6.36396022848847e-05,
+        "metal_reference_max": 0.0002592802,
+        "ci_reference_max": 0.00015684962,
+        "pixels": 614400
+      }
+    ]
+  },
+  "grain": {
+    "response": "balanced_area_v3",
+    "reference": "4000-pixel frame reduced by box average, fixed seed, flat encoded-sRGB 0.5, grain sizes 1 / 1.235 / 2; no general pixel equality or performance claim",
+    "oldPreviewDeviationRatioRange": [
+      1.0662073716542706,
+      4.534813998532273
+    ],
+    "newPreviewDeviationRatioRange": [
+      0.9962477724232548,
+      1.0118076765451196
+    ],
+    "metalCoreImageFinishMaxRGB": 0.00024271011,
+    "areaComparisons": [
+      {
+        "size": 1.0,
+        "reduction": 2.0,
+        "old_ratio": 1.3950277101092035,
+        "new_ratio": 0.9982018347627389
+      },
+      {
+        "size": 1.0,
+        "reduction": 4.0,
+        "old_ratio": 2.426867937440358,
+        "new_ratio": 1.0023156093435157
+      },
+      {
+        "size": 1.0,
+        "reduction": 8.0,
+        "old_ratio": 4.534813998532273,
+        "new_ratio": 0.9995108817643167
+      },
+      {
+        "size": 1.235,
+        "reduction": 2.0,
+        "old_ratio": 1.0788893031271343,
+        "new_ratio": 0.9962477724232548
+      },
+      {
+        "size": 1.235,
+        "reduction": 4.0,
+        "old_ratio": 1.9270093502171266,
+        "new_ratio": 0.9996457097079218
+      },
+      {
+        "size": 1.235,
+        "reduction": 8.0,
+        "old_ratio": 3.6748417534990216,
+        "new_ratio": 1.0044698100863407
+      },
+      {
+        "size": 2.0,
+        "reduction": 2.0,
+        "old_ratio": 1.0662073716542706,
+        "new_ratio": 0.9995106605930361
+      },
+      {
+        "size": 2.0,
+        "reduction": 4.0,
+        "old_ratio": 1.4473032518704454,
+        "new_ratio": 1.004497279400973
+      },
+      {
+        "size": 2.0,
+        "reduction": 8.0,
+        "old_ratio": 2.506127758459859,
+        "new_ratio": 1.0118076765451196
+      }
+    ],
+    "compatibility": "Frozen legacy_v1 and balanced_v2 parameters retain their original sampling and tone behavior."
+  },
+  "resources": {
+    "LUTTablesRewrittenThisRun": false,
+    "artifactDirectory": "/Users/leavestyle/.codex/visualizations/2026/10/24/01a16dbb-b5d2-78e1-9195-24f14f709b3c/offline-lut-scenes-2026-10-25",
+    "sourceAndLUTHashes": "offline-scene-metrics.json"
+  },
+  "checks": {
+    "pythonAST": "passed",
+    "json": "passed",
+    "preservedExistingLocalizationEntries": true,
+    "gitDiffCheck": "passed"
+  }
+}

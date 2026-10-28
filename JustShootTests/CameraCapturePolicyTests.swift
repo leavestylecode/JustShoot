@@ -10,7 +10,7 @@ final class CameraCapturePolicyTests: XCTestCase {
         XCTAssertTrue(CameraCapturePolicy(defaults: defaults).safeShutterEnabled)
         for oldQuality in ["maximum", "high", "standard", "compact"] {
             defaults.set(oldQuality, forKey: "photoOutputQuality")
-            XCTAssertEqual(CameraCapturePolicy(defaults: defaults).qualityPrioritization, .balanced)
+            XCTAssertEqual(CameraCapturePolicy(defaults: defaults).qualityPrioritization, .quality)
         }
         defaults.set(false, forKey: "safeShutterLimitEnabled")
         XCTAssertFalse(CameraCapturePolicy(defaults: defaults).safeShutterEnabled)
@@ -18,7 +18,7 @@ final class CameraCapturePolicyTests: XCTestCase {
 
     func testAutomaticCaptureRespectsOutputCapability() {
         let policy = CameraCapturePolicy(safeShutterEnabled: true)
-        XCTAssertEqual(policy.qualityPrioritization(supportedMax: .quality), .balanced)
+        XCTAssertEqual(policy.qualityPrioritization(supportedMax: .quality), .quality)
         XCTAssertEqual(policy.qualityPrioritization(supportedMax: .balanced), .balanced)
         XCTAssertEqual(policy.qualityPrioritization(supportedMax: .speed), .speed)
     }
