@@ -97,7 +97,7 @@ struct CameraView: View {
                         Group {
                             // 镜头切换过渡底衬：系统合成预览层（Apple 官方推荐的预览显示路径），
                             // 切镜头时拿到系统 crossfade 而非停帧。常态完全被上层 Metal 预览盖住
-                            //（opacity 0）；主帧流停顿的窗口内由 PreviewUnderlayBlender 把上层淡出、
+                            //（opacity 0）；镜头切换停顿的窗口内由 PreviewUnderlayBlender 把上层淡出、
                             // 露出这层实时画面。见 MetalPreview.swift 与 LensTransitionCompositor.swift。
                             CameraPreviewUnderlayView(manager: cameraManager)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -747,7 +747,7 @@ struct CameraView: View {
             try? await Task.sleep(for: .milliseconds(100))
             shutterPressed = false
         }
-        guard let captureID = await capturePipeline.reserve(lutBytes: capturedLUT.data.count + (capturedRawLUT?.data.count ?? 0), id: requestedID) else {
+        guard let captureID = await capturePipeline.reserve(lutBytes: capturedLUT.byteCount + (capturedRawLUT?.data.count ?? 0), id: requestedID) else {
             cameraManager.cancelCaptureAdmission(admission)
             isShutterBusy = false
             return

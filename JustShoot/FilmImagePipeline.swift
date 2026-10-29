@@ -15,8 +15,10 @@ enum FilmImagePipeline {
     /// on its serial video queue. The cube and color space stay fixed across every frame.
     final class LUTFilter {
         private let filter: CIFilter
+        let preparedMaterial: FilmMaterialRenderer.Prepared?
 
         init?(lut: CubeLUT) {
+            preparedMaterial = lut.material.map(FilmMaterialRenderer.Prepared.init)
             guard let filter = CIFilter(name: "CIColorCubeWithColorSpace") else { return nil }
             filter.setValue(lut.dimension, forKey: "inputCubeDimension")
             filter.setValue(lut.data, forKey: "inputCubeData")
@@ -48,6 +50,10 @@ enum FilmImagePipeline {
         guard cancellation?.isCancelled != true else { return nil }
         let responded = FilmChromaticRenderer.applying(to: image, gain: chromaticGain,
                                                       protectHighlights: protectChromaticHighlights)
+        if let material = lut?.material.map(FilmMaterialRenderer.Prepared.init) ?? lutFilter?.preparedMaterial {
+            return FilmMaterialRenderer.stages(image: responded, prepared: material,
+                optics: optics, grain: grain, seed: grainSeed, cancellation: cancellation)
+        }
         let graded: CIImage
         if let lutFilter {
             guard let output = lutFilter.applying(to: responded) else { return nil }

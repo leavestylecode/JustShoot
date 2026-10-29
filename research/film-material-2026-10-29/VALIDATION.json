@@ -1,0 +1,239 @@
+{
+  "date": "2026-10-29",
+  "scope": "First phase: new Portra 400 + Portra Endura captures. Existing Apple SDR RAW development retained; other looks, imports and legacy frozen jobs retain their prior rendering.",
+  "context": {
+    "project": "/Users/leavestyle/Dev/ios/JustShoot/JustShoot.xcodeproj",
+    "scheme": "JustShoot",
+    "configuration": "Debug",
+    "simulator": "iPhone 17",
+    "simulatorId": "06CBF94A-F235-4319-A5F9-3548DDC86AD2",
+    "iOS": "26.4",
+    "physicalDevice": null
+  },
+  "regression": {
+    "summary": {
+      "status": "SUCCEEDED",
+      "durationMs": 98825,
+      "counts": {
+        "passed": 465,
+        "failed": 0,
+        "skipped": 5
+      },
+      "target": "simulator"
+    },
+    "artifacts": {
+      "buildLogPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-29T09-55-58-895Z_pid74694_0bf50fce.log",
+      "xcresultPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-29T09-55-58-895Z_pid74694_8401a91e.xcresult",
+      "testProductsPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/test-products/test_sim_2026-10-29T09-55-58-896Z_pid74694_6c97ef21.xctestproducts"
+    },
+    "diagnostics": {
+      "warnings": [
+        {
+          "message": "-[JustShootTests.CaptureSchedulingTests testSlowFinalizationDoesNotBlockReadyPhotoAndWaitersStayBounded] : [Internal] Thread running at User-initiated quality-of-service class waiting on a lower QoS thread running at Utility quality-of-service class. Investigate ways to avoid priority inversions",
+          "location": "<unknown>:0"
+        }
+      ],
+      "errors": [],
+      "testFailures": []
+    },
+    "skipped": [
+      {
+        "suite": "CaptureLivePhotoRoundTripTests",
+        "test": "testProcessedLivePhotoSavesOnePairedAssetAndLoadsForPlayback",
+        "status": "skipped",
+        "durationMs": 50
+      },
+      {
+        "suite": "PhotoDisplayRoundTripTests",
+        "test": "testFilmAdjustmentUpdatesTheSameAssetAndKeepsTheOriginal",
+        "status": "skipped",
+        "durationMs": 7
+      },
+      {
+        "suite": "PhotoDisplayRoundTripTests",
+        "test": "testRenderedHEICRoundTripsThroughPhotoLibrary",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhysicalCameraPipelineTests",
+        "test": "testRealCaptureThroughDurablePipelineAndPhotos",
+        "status": "skipped",
+        "durationMs": 3
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testPublicAppleProRAWDevelopsToSRGBWhenExternalFixtureIsProvided",
+        "status": "skipped",
+        "durationMs": 1
+      }
+    ],
+    "materialTests": [
+      {
+        "suite": "FilmMaterialTests",
+        "test": "testCurvesWhiteBalanceAndTextureUploadRetainMaterialAndBudget",
+        "status": "passed",
+        "durationMs": 959
+      },
+      {
+        "suite": "FilmMaterialTests",
+        "test": "testDensityGrainIsDeterministicAndPassesThroughPaper",
+        "status": "passed",
+        "durationMs": 437
+      },
+      {
+        "suite": "FilmMaterialTests",
+        "test": "testHalationAffectsSurroundingExposureBeforeFilmAndCancellationStopsRendering",
+        "status": "passed",
+        "durationMs": 379
+      },
+      {
+        "suite": "FilmMaterialTests",
+        "test": "testJournalFreezesMaterialAndRejectsMissingOrTamperedPayloadWithoutChangingLegacyJobs",
+        "status": "passed",
+        "durationMs": 842
+      },
+      {
+        "suite": "FilmMaterialTests",
+        "test": "testMaterialLiveVideoEncodesWithFrozenTablesAndStillImageTime",
+        "status": "passed",
+        "durationMs": 1154
+      },
+      {
+        "suite": "FilmMaterialTests",
+        "test": "testMaterialRendersDevelopedDNGWithFrozenWhiteBalanceCurveAndOrientation",
+        "status": "passed",
+        "durationMs": 9812
+      },
+      {
+        "suite": "FilmMaterialTests",
+        "test": "testMetalPreviewMatchesStillAndLiveFilterIncludingWhiteBalanceCurveAndDensityGrain",
+        "status": "passed",
+        "durationMs": 80
+      },
+      {
+        "suite": "FilmMaterialTests",
+        "test": "testOptionalSDRPhotographsMatchStillAndLiveWithFullMaterialEffects",
+        "status": "passed",
+        "durationMs": 1969
+      },
+      {
+        "suite": "FilmMaterialTests",
+        "test": "testTwoStageColorMatchesIndependentUnbakedModelAndWorkingSpaces",
+        "status": "passed",
+        "durationMs": 319
+      },
+      {
+        "suite": "FilmMaterialTests",
+        "test": "testUnknownMaterialVersionAndCorruptTablesAreRejected",
+        "status": "passed",
+        "durationMs": 299
+      }
+    ]
+  },
+  "knownRuntimeWarning": {
+    "explanation": "CaptureSchedulingTests QoS warning reproduces with the pre-migration test-products package. It remains unresolved; focused isolated scheduling reruns pass without the warning.",
+    "preMigrationProducts": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/test-products/test_sim_2026-10-29T08-26-16-525Z_pid25317_bf1002f0.xctestproducts",
+    "preMigrationRun": {
+      "buildLogPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-29T09-47-48-999Z_pid74694_d7f8193d.log",
+      "xcresultPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-29T09-47-49-000Z_pid74694_b6f1c43c.xcresult",
+      "testProductsPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/test-products/test_sim_2026-10-29T08-26-16-525Z_pid25317_bf1002f0.xctestproducts"
+    },
+    "baselineSummary": {
+      "status": "FAILED",
+      "durationMs": 99915,
+      "counts": {
+        "passed": 454,
+        "failed": 1,
+        "skipped": 5
+      },
+      "target": "simulator"
+    },
+    "baselineWarnings": [
+      {
+        "message": "-[JustShootTests.CaptureSchedulingTests testSlowFinalizationDoesNotBlockReadyPhotoAndWaitersStayBounded] : [Internal] Thread running at User-initiated quality-of-service class waiting on a lower QoS thread running at Utility quality-of-service class. Investigate ways to avoid priority inversions",
+        "location": "<unknown>:0"
+      }
+    ],
+    "baselineFailures": [
+      {
+        "suite": "CaptureAsyncFlowTests",
+        "test": "testDurableCheckpointAndNextCaptureDoNotWaitForPhotosImport",
+        "message": "XCTUnwrap failed: expected non-nil value of type \"CapturePreview\"",
+        "location": "/Users/leavestyle/Dev/ios/JustShoot/JustShootTests/CaptureAsyncFlowTests.swift:66"
+      },
+      {
+        "suite": "CaptureAsyncFlowTests",
+        "test": "testDurableCheckpointAndNextCaptureDoNotWaitForPhotosImport()",
+        "message": "XCTUnwrap failed: expected non-nil value of type \"CapturePreview\""
+      }
+    ]
+  },
+  "rendering": {
+    "modelSource": "https://github.com/JanLohse/spectral_film_lut",
+    "sourceCommit": "bcbcfc6861f49cc706dc5d00ea048e4853060aab",
+    "license": "MIT",
+    "resourceBytes": 8788000,
+    "reproducibility": "Both 65^3 binary tables and the JSON manifest were regenerated into /tmp/justshoot-material-reproduction and matched bundled files byte for byte.",
+    "modelComparison": {
+      "samples": 6145,
+      "deltaE2000Median": 0.05573657527565956,
+      "deltaE2000P95": 0.19612567126750946,
+      "deltaE2000Max": 1.1206575632095337,
+      "scope": "Table interpolation vs pinned unbaked model, excluding optics, grain and refinement. Not physical-film accuracy."
+    },
+    "metalVsCoreImage": {
+      "maximumNoGrain": 0.00022828579,
+      "maximumWithGrain": 0.00034987926,
+      "scope": "Same quantized inputs with manual white balance, tint and matte curve; optics disabled to isolate table and density grain parity."
+    },
+    "photographs": {
+      "directory": "/Users/leavestyle/.codex/visualizations/2026/10/29/01a186b3-7bb7-7dd0-98e3-a011a42a8680/material-comparison",
+      "contactSheet": "comparison.png",
+      "scenes": [
+        "skin",
+        "daylight",
+        "night"
+      ],
+      "scope": "Existing SDR sources with fixed parameters, full Core Image optics/grain and identical still/Live-filter output. Sources cited in PLAN.txt and the earlier refinement study."
+    }
+  },
+  "checks": {
+    "gitDiffCheck": "passed",
+    "bakeScriptPyCompile": "passed",
+    "manualWhiteBalanceCache": "Regression checks retention within the existing 16 MiB budget, including a user curve.",
+    "frozenRecovery": "Material payload SHA-256, unknown-version/table/corruption rejection, legacy nil payload and photo-time update preservation covered."
+  },
+  "limitations": [
+    "No physical-device camera, PhotoKit/Live Photo pairing, frame-time, memory or thermal measurement.",
+    "Display-referred sRGB input is an approximation, not reconstructed scene radiance. Values outside the v1 domain clamp at LUT boundaries.",
+    "Density grain amplitude is empirical. No claim of measured Portra grain or superior match to physical film.",
+    "Metal preview diffusion remains downsampled; the per-pixel numeric parity measurement excludes diffusion."
+  ],
+  "simulatorInspection": {
+    "status": "build_and_launch_passed",
+    "buildRun": {
+      "summary": {
+        "status": "SUCCEEDED",
+        "durationMs": 17002,
+        "target": "simulator"
+      },
+      "artifacts": {
+        "appPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/DerivedData/JustShoot-e1e9f4485b3c/Build/Products/Debug-iphonesimulator/JustShoot.app",
+        "bundleId": "leavestylecode.JustShoot",
+        "processId": 27657,
+        "simulatorId": "06CBF94A-F235-4319-A5F9-3548DDC86AD2",
+        "buildLogPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-10-29T09-57-47-228Z_pid74694_1b032f4f.log",
+        "runtimeLogPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/leavestylecode.JustShoot_2026-10-29T09-58-01-237Z_helperpid27613_ownerpid74694_a3df2f2d.log",
+        "osLogPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/leavestylecode.JustShoot_oslog_2026-10-29T09-58-03-629Z_helperpid27705_ownerpid74694_ffdd99da.log"
+      },
+      "diagnostics": {
+        "warnings": [],
+        "errors": []
+      }
+    },
+    "observed": "Film Library loaded with covers, labels and bottom navigation visible.",
+    "screenshot": "/Users/leavestyle/.codex/visualizations/2026/10/29/01a186b3-7bb7-7dd0-98e3-a011a42a8680/material-comparison/simulator-startup.jpg",
+    "interactionLimitation": "XcodeBuildMCP snapshot_ui returned zero interaction targets despite the visible app screenshot. Portra entry navigation could not be verified through the available UI controls; camera output requires physical-device validation."
+  }
+}

@@ -455,7 +455,12 @@ struct FilmCurve: Identifiable, Hashable, Sendable {
                 rgba[index + 2] = CurveMath.sample(previewData.blue, at: rgba[index + 2])
             }
         }
-        return CubeLUT(data: data, dimension: source.dimension)
+        var result = CubeLUT(data: data, dimension: source.dimension)
+        if var material = lut.material {
+            material.finish = FilmMaterial.Table(applied(to: material.finish.cube))
+            result.material = material
+        }
+        return result
     }
 
     static func builtIn(_ preset: CurvePreset) -> FilmCurve {

@@ -1,0 +1,58 @@
+Physical-device recheck, 2026-10-29 14:46:51 UTC
+Input: user-supplied diagnostic export ending 14:48:54 UTC.
+Analyze run E37A34AF only; the export also retains two older application runs.
+Device: iPhone18,2, iOS 27.2.0, Debug.
+Revision: 2026-10-29-capture-preview-stability.
+User confirmed this run was launched from Xcode with the debugger attached.
+
+Five captures, measured in the supplied device trace:
+Capture   storage probe   storage admission total   tap -> native exposure
+1              0.4 ms                2811.9 ms                 2840.6 ms
+2              0.1 ms                   4.3 ms                   19.4 ms
+3              0.2 ms                   4.7 ms                    9.3 ms
+4              0.6 ms                  19.9 ms                   36.9 ms
+5              0.8 ms                  21.8 ms                   47.6 ms
+
+The storage probe for capture 1 finishes at run_ms=10172.6. Its MainActor
+continuation ends the surrounding admission span only at run_ms=12983.1.
+The approximately 2.81 s difference is not time spent querying disk capacity.
+The same interval includes a main-queue recovery delay of 1959 ms. The queue
+probe samples do not cover every instant of the stall, so 1959 ms is not a
+complete measurement of the first blocked interval.
+
+The application still has startup/early-interaction main-queue stalls:
+- Startup recovery reports 1020 ms before a camera is registered.
+- First capture recovery reports 1959 ms.
+- Further recoveries report 938, 907, 1159 and 1133 ms near initial focal changes.
+- The first 35 -> 50 mm change fails its 1200 ms settle deadline, although the
+  device diagnostic at failure shows zoom=4.167 and ramping=false. Delayed
+  observation/grace evaluation is a possibility; this trace alone cannot prove
+  how long the hardware was stable. Do not remove the safety gate based on this.
+- No main_queue_stall, main_queue_recovered or watchdog_gap events occur after
+  run_ms=27000 through export at run_ms=122239.4.
+
+Preview:
+- Only one underlay reveal/conceal pair in the latest run, after the explicit
+  100 -> 24 mm lens switch at run_ms=32962.5. Reveal begins at 33012.0 and
+  conceal is recorded at 33595.4. This is the permitted lens-transition path.
+- No reveal/conceal occurs during the first ordinary capture's long stall.
+- Preview performance-window median is 29.9 submitted fps. Median GPU-window
+  average is 2.01 ms. Early stalls produce windows as low as 0.3 fps; this is
+  not evidence that all preview behavior is smooth throughout this run.
+
+Interpretation:
+- The fast capacity path and ordinary-capture opacity policy work in this run.
+- First-use main-thread blocking remains and can delay both exposure and lens
+  settling. The main task is now identifying its stack, not optimizing another
+  capacity estimate or reducing film-render quality.
+- The cameras=... value is the last named diagnostic stage, not a sampled
+  stack. In particular auto_white_balance_reading does not prove that AWB
+  conversion blocks MainActor; the current conversion runs on the hardware queue.
+- Debugger attachment is confirmed by the user. It is a relevant test condition,
+  but is not proof that LLDB caused the stalls. Repeat a cold launch after
+  stopping the Xcode session and opening the app from the phone's Home Screen.
+  Capture immediately, take several more photos, switch focal lengths, and
+  export a fresh diagnostic log. If the stall remains, obtain a Time Profiler
+  recording/main-thread stack before selecting the next production change.
+
+No application source changes or new build/test results in this log-analysis step.

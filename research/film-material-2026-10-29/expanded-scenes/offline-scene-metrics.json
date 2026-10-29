@@ -1,0 +1,1182 @@
+{
+  "method": "Same image, WB/tint neutral, default curve, same preset optics/grain and fixed seed 123; legacy RGB LUT vs material v1. Other presets unchanged.",
+  "limits": [
+    "This is an SDR implementation comparison, not a SpektraLab render comparison or a calibrated film-scan comparison.",
+    "Existing input clipping/retouching/noise/halation is baked into the source and cannot be recovered.",
+    "No physical-device capture, RAW camera calibration or performance measurement.",
+    "RGB differences and grain residuals quantify change, not photographic quality."
+  ],
+  "changeMarkerDefinition": {
+    "tileSizePixels": 64,
+    "meanAbsoluteRGBCodeThreshold": 4,
+    "purpose": "Numerical location aid only; threshold is not a visibility or quality criterion."
+  },
+  "scenes": {
+    "portrait-daylight": {
+      "size": [
+        1638,
+        2048
+      ],
+      "meanAbsoluteRGBCodeDifference": 2.4832046031951904,
+      "p95AbsoluteRGBCodeDifference": 6.999999523162842,
+      "sha256": {
+        "input": "d630736a1cf2423a86ff3ad475be64f32f07f703745549185420758de66291f2",
+        "legacy": "f76e3ade9cdc526b130ce1ae81f9b10f11a0714073db5e8d64f05ddd65321a8b",
+        "material": "5f20cdcd14dfe1ad9b4be6cb7e9eb95bd0cfe8f6ec42d69a2979a55a00a41c08",
+        "legacy-color": "2a2c747145812fc8e8cebe380c519f340aa6e9b7c87031f346c4cb25804a27cb",
+        "material-color": "dbd5dee793b6713db762ec88fb11d22dc0fe75f9687f71b4f8d1f5c3b081dd7b",
+        "legacy-optics": "a7a1afac2e7be3f76103feaab8fc4676a2128d55566345c9516a47f63ce433cf",
+        "material-optics": "a839e6a192058a9f314eacf45cc18b42d94bd97de07f61c37613e9ee62519894"
+      },
+      "stageDifferences": {
+        "full": {
+          "meanAbsoluteRGBCodeDifference": 2.4832027871578655,
+          "p95AbsoluteRGBCodeDifference": 7.0,
+          "maximumAbsoluteRGBCodeDifference": 15,
+          "markedAreaPercent": 40.18238705738706
+        },
+        "color": {
+          "meanAbsoluteRGBCodeDifference": 0.23994581807081808,
+          "p95AbsoluteRGBCodeDifference": 1.0,
+          "maximumAbsoluteRGBCodeDifference": 7,
+          "markedAreaPercent": 0.0
+        },
+        "optics": {
+          "meanAbsoluteRGBCodeDifference": 2.3227469506766383,
+          "p95AbsoluteRGBCodeDifference": 7.0,
+          "maximumAbsoluteRGBCodeDifference": 16,
+          "markedAreaPercent": 40.13278388278388
+        }
+      },
+      "inputWhiteMask": {
+        "definition": "All three input sRGB channels > 245/255; same pixels in all branches.",
+        "pixelCount": 70,
+        "meanRGB8BitCodes": {
+          "input": [
+            254.91428571939468,
+            252.1142858862877,
+            252.77142870426178
+          ],
+          "legacy": [
+            214.70000240206718,
+            215.28571665287018,
+            214.98571667075157
+          ],
+          "material": [
+            214.01428815722466,
+            215.05714523792267,
+            214.84285953640938
+          ],
+          "legacy-color": [
+            228.12857303023338,
+            232.31428706645966,
+            237.285715341568
+          ],
+          "material-color": [
+            227.9857158958912,
+            232.28571563959122,
+            237.18571534752846
+          ],
+          "legacy-optics": [
+            214.98571667075157,
+            215.600002348423,
+            215.24285951256752
+          ],
+          "material-optics": [
+            214.00000244379044,
+            214.97143095731735,
+            214.84285953640938
+          ]
+        }
+      },
+      "legacy": {
+        "encodedLumaP01P50P99": [
+          0.08201333589553833,
+          0.3389753063455224,
+          0.8576862829923629
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.7943863272666931,
+          "midtones": 1.0276405811309814,
+          "highlights": 1.0216094255447388
+        }
+      },
+      "material": {
+        "encodedLumaP01P50P99": [
+          0.0859349042892456,
+          0.33991923048794265,
+          0.8355772647023202
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.1697019338607788,
+          "midtones": 0.513046383857727,
+          "highlights": 0.46082815527915955
+        }
+      }
+    },
+    "portrait-backlit": {
+      "size": [
+        1463,
+        2048
+      ],
+      "meanAbsoluteRGBCodeDifference": 4.237471103668213,
+      "p95AbsoluteRGBCodeDifference": 12.999999046325684,
+      "sha256": {
+        "input": "6367d620b583ac759624fbede08268ce12191fc68e3187041c90afdcb1ddfe92",
+        "legacy": "29f8d31238eb989b467228fda600ce31fa0860bb0ed2e2aaa36b3cbedbab1c3b",
+        "material": "bfd6afabbffedfce246701cc0effe6ceb5445ca26da6c49d073a0f7d5fc88336",
+        "legacy-color": "d295e4196b3a0c994a92a21839f4afce03aec6303b9ef71e010b46de4ecdfed3",
+        "material-color": "334d28964b3380ba745eeb4e8c0107aa2de96a185f04f4e73aa349e4ad81ad7a",
+        "legacy-optics": "7280f22e10748ac00cc4a05a924aa8b5e39d841837b67b792c5c193ad969a354",
+        "material-optics": "8da23460fd512c132992ae3a67f0269f90cf47960060c957e36f9840e2110f53"
+      },
+      "stageDifferences": {
+        "full": {
+          "meanAbsoluteRGBCodeDifference": 4.237467559167806,
+          "p95AbsoluteRGBCodeDifference": 13.0,
+          "maximumAbsoluteRGBCodeDifference": 34,
+          "markedAreaPercent": 42.22701640464798
+        },
+        "color": {
+          "meanAbsoluteRGBCodeDifference": 0.30481454880097975,
+          "p95AbsoluteRGBCodeDifference": 1.0,
+          "maximumAbsoluteRGBCodeDifference": 8,
+          "markedAreaPercent": 0.0
+        },
+        "optics": {
+          "meanAbsoluteRGBCodeDifference": 4.147924854750513,
+          "p95AbsoluteRGBCodeDifference": 13.0,
+          "maximumAbsoluteRGBCodeDifference": 33,
+          "markedAreaPercent": 42.09031100478469
+        }
+      },
+      "inputWhiteMask": {
+        "definition": "All three input sRGB channels > 245/255; same pixels in all branches.",
+        "pixelCount": 1063354,
+        "meanRGB8BitCodes": {
+          "input": [
+            254.15302622991206,
+            254.11162233490083,
+            254.07529106826968
+          ],
+          "legacy": [
+            226.69529224884297,
+            222.92237865575024,
+            221.58231230431366
+          ],
+          "material": [
+            214.05387913639257,
+            215.1774522162766,
+            214.99999580124202
+          ],
+          "legacy-color": [
+            227.97161971749904,
+            232.81100217458845,
+            237.79976479156085
+          ],
+          "material-color": [
+            227.81129964550158,
+            232.79990991434687,
+            237.7905806445901
+          ],
+          "legacy-optics": [
+            226.77131584510687,
+            222.844984866763,
+            221.77488880075262
+          ],
+          "material-optics": [
+            214.00000244379044,
+            215.0000023841858,
+            214.9999995629242
+          ]
+        }
+      },
+      "legacy": {
+        "encodedLumaP01P50P99": [
+          0.08760235517024993,
+          0.578162375395,
+          0.885121575474739
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.8338490724563599,
+          "midtones": 1.0886138677597046,
+          "highlights": 0.9515113234519958
+        }
+      },
+      "material": {
+        "encodedLumaP01P50P99": [
+          0.0859349042892456,
+          0.5801639433652163,
+          0.8459419699668884
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.2411368489265442,
+          "midtones": 0.6029082536697388,
+          "highlights": 0.323756605386734
+        }
+      }
+    },
+    "portrait-window": {
+      "size": [
+        1358,
+        2048
+      ],
+      "meanAbsoluteRGBCodeDifference": 4.022210121154785,
+      "p95AbsoluteRGBCodeDifference": 10.999999046325684,
+      "sha256": {
+        "input": "fbe83a06088ffe23b12b154e91f376a34f503dd6fa3d2bfd34dfce85532a3bb2",
+        "legacy": "d1fad2fe5359e59e6ef6c7d7b52e24cddc699cfd5f147240f1515c1bb8503113",
+        "material": "d9ae6aa74b0203c8f637e201a59d9ba6b00d674ba984776e3536c7b711a529c8",
+        "legacy-color": "78041b851b5fe9c7c598d0dca7c09cea98ee9cce9ea34944323fb2efdae0529f",
+        "material-color": "f2341a73ad00321f16766d49f39f2d4ce14d33845b83e2e5ef5ab47c3663d858",
+        "legacy-optics": "f253cd906e7225303bd9a14bec6ebc74bdde7f3ecf8049a422a66eec8164100f",
+        "material-optics": "d5c6354bfd36537b032869f7a7a4cc8f6495d5b1de12637ad4354f6ec3d85689"
+      },
+      "stageDifferences": {
+        "full": {
+          "meanAbsoluteRGBCodeDifference": 4.022207208632486,
+          "p95AbsoluteRGBCodeDifference": 11.0,
+          "maximumAbsoluteRGBCodeDifference": 20,
+          "markedAreaPercent": 49.63181148748159
+        },
+        "color": {
+          "meanAbsoluteRGBCodeDifference": 0.26250966015433236,
+          "p95AbsoluteRGBCodeDifference": 1.0,
+          "maximumAbsoluteRGBCodeDifference": 8,
+          "markedAreaPercent": 0.0
+        },
+        "optics": {
+          "meanAbsoluteRGBCodeDifference": 3.940852409141814,
+          "p95AbsoluteRGBCodeDifference": 11.0,
+          "maximumAbsoluteRGBCodeDifference": 21,
+          "markedAreaPercent": 49.63181148748159
+        }
+      },
+      "inputWhiteMask": {
+        "definition": "All three input sRGB channels > 245/255; same pixels in all branches.",
+        "pixelCount": 285540,
+        "meanRGB8BitCodes": {
+          "input": [
+            249.36725536130336,
+            248.70374766113028,
+            249.30752643021333
+          ],
+          "legacy": [
+            226.0173723235629,
+            222.25630929915812,
+            221.02745176926584
+          ],
+          "material": [
+            214.05389331401108,
+            215.17605126351526,
+            215.0000023841858
+          ],
+          "legacy-color": [
+            226.6060603882152,
+            231.35354557137737,
+            236.44735699291488
+          ],
+          "material-color": [
+            226.17871223129592,
+            231.3088127870436,
+            236.3568933154604
+          ],
+          "legacy-optics": [
+            225.9217464975053,
+            222.13833984481823,
+            220.94387679350905
+          ],
+          "material-optics": [
+            214.00000244379044,
+            215.0000023841858,
+            215.0000023841858
+          ]
+        }
+      },
+      "legacy": {
+        "encodedLumaP01P50P99": [
+          0.08534823924154042,
+          0.8100768740653991,
+          0.8803662816405295
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.8060183525085449,
+          "midtones": 1.1094691753387451,
+          "highlights": 0.9905140995979309
+        }
+      },
+      "material": {
+        "encodedLumaP01P50P99": [
+          0.0859349042892456,
+          0.7977976591110228,
+          0.8451082445263862
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.2013542652130127,
+          "midtones": 0.6780297160148621,
+          "highlights": 0.3771898150444031
+        }
+      }
+    },
+    "cafe-sunlight": {
+      "size": [
+        2048,
+        1360
+      ],
+      "meanAbsoluteRGBCodeDifference": 1.839789628982544,
+      "p95AbsoluteRGBCodeDifference": 7.999999523162842,
+      "sha256": {
+        "input": "f2f3074efa7ec035888f94c8f5612bdc1d2e7f42f030bb0c7eea1965da57c453",
+        "legacy": "e7fd85a0b419b6cfd563864c4eeba7e619c541c9d4756d9fd58677ce25baf9d5",
+        "material": "455efc67b98edd67c44de6f1c0e020da3c25aece76064670d7acb984847d1f9e",
+        "legacy-color": "ad280e95263d8a56b1f6ba5b93d103e5d1c4be3c08b22f757f8b8c18d351479f",
+        "material-color": "49fbb49a643bf43c45c6ac4ce30e41470cfada25b90ca6fd5e18ef1d4e091abe",
+        "legacy-optics": "5fa806fcafb838a49593a5434cb1b16ca6f8f5f6e3ef9c92475d547671c5e063",
+        "material-optics": "b3fc2cfae6d603c419936f92abd96df2b6d068227a8cddcf073e91a51e4e10c3"
+      },
+      "stageDifferences": {
+        "full": {
+          "meanAbsoluteRGBCodeDifference": 1.8397895364200367,
+          "p95AbsoluteRGBCodeDifference": 8.0,
+          "maximumAbsoluteRGBCodeDifference": 22,
+          "markedAreaPercent": 16.323529411764707
+        },
+        "color": {
+          "meanAbsoluteRGBCodeDifference": 0.26899402094822306,
+          "p95AbsoluteRGBCodeDifference": 1.0,
+          "maximumAbsoluteRGBCodeDifference": 5,
+          "markedAreaPercent": 0.0
+        },
+        "optics": {
+          "meanAbsoluteRGBCodeDifference": 1.6333018583409926,
+          "p95AbsoluteRGBCodeDifference": 8.0,
+          "maximumAbsoluteRGBCodeDifference": 22,
+          "markedAreaPercent": 16.323529411764707
+        }
+      },
+      "inputWhiteMask": {
+        "definition": "All three input sRGB channels > 245/255; same pixels in all branches.",
+        "pixelCount": 24939,
+        "meanRGB8BitCodes": {
+          "input": [
+            254.88090942608065,
+            250.77845969265957,
+            247.77645497965668
+          ],
+          "legacy": [
+            226.03685164012794,
+            222.00786114287524,
+            220.4345022407046
+          ],
+          "material": [
+            214.04936288032064,
+            215.16672918767284,
+            214.99623318757017
+          ],
+          "legacy-color": [
+            227.97686515775925,
+            231.74714441496903,
+            235.7764556949124
+          ],
+          "material-color": [
+            227.96519668738534,
+            231.77268673671534,
+            235.7667921163553
+          ],
+          "legacy-optics": [
+            226.15429820275745,
+            222.08516977133195,
+            220.4713521522978
+          ],
+          "material-optics": [
+            213.9999623459541,
+            215.0000023841858,
+            214.99667426376988
+          ]
+        }
+      },
+      "legacy": {
+        "encodedLumaP01P50P99": [
+          0.0859349042892456,
+          0.2794470703557133,
+          0.8741905957341194
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.7922270894050598,
+          "midtones": 1.0449458360671997,
+          "highlights": 1.0159612894058228
+        }
+      },
+      "material": {
+        "encodedLumaP01P50P99": [
+          0.08873961000442505,
+          0.2799050988867879,
+          0.8423035388112068
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.15867924690246582,
+          "midtones": 0.5686163306236267,
+          "highlights": 0.44908392429351807
+        }
+      }
+    },
+    "cafe-night": {
+      "size": [
+        1365,
+        2048
+      ],
+      "meanAbsoluteRGBCodeDifference": 0.8330937623977661,
+      "p95AbsoluteRGBCodeDifference": 2.0000016689300537,
+      "sha256": {
+        "input": "91b70e8cda82446ea6b9761b5af5deea4384b9d390a1607570d450ab87ca7bf3",
+        "legacy": "cca2fbd13e95d2eb5faa6e420ad64f05d899ceca40bb8881d65c7ce6a5a70817",
+        "material": "136565834fa90ebedd99e20f4ccf771ae63dcd45cc0c6dad0f389662998249f4",
+        "legacy-color": "5874bd6620d356aae19b9cadfda7de6de1384b535a01f67ba00bc3023d2e5119",
+        "material-color": "4360d6c39e635e41d584d11bd49fb289e152ac3c237474fd71a45fc015b25d23",
+        "legacy-optics": "89155267c81e9e232c62276559db704a6cd7135ddfbd4dce67fa33609f226292",
+        "material-optics": "6b785e212babb362595081b4130d0f3738b0f1995fe2f5a87af7ad634a5cac6d"
+      },
+      "stageDifferences": {
+        "full": {
+          "meanAbsoluteRGBCodeDifference": 0.8330941411019536,
+          "p95AbsoluteRGBCodeDifference": 2.0,
+          "maximumAbsoluteRGBCodeDifference": 27,
+          "markedAreaPercent": 1.1721611721611722
+        },
+        "color": {
+          "meanAbsoluteRGBCodeDifference": 0.3377717443147131,
+          "p95AbsoluteRGBCodeDifference": 1.0,
+          "maximumAbsoluteRGBCodeDifference": 8,
+          "markedAreaPercent": 0.0
+        },
+        "optics": {
+          "meanAbsoluteRGBCodeDifference": 0.5805983621413309,
+          "p95AbsoluteRGBCodeDifference": 2.0,
+          "maximumAbsoluteRGBCodeDifference": 27,
+          "markedAreaPercent": 0.8791208791208791
+        }
+      },
+      "inputWhiteMask": {
+        "definition": "All three input sRGB channels > 245/255; same pixels in all branches.",
+        "pixelCount": 69,
+        "meanRGB8BitCodes": {
+          "input": [
+            252.39130450331646,
+            251.86956540397975,
+            249.65217423179874
+          ],
+          "legacy": [
+            219.36232096475104,
+            218.08695872192797,
+            217.17391529808873
+          ],
+          "material": [
+            214.00000244379044,
+            215.0869589007419,
+            214.89855311487034
+          ],
+          "legacy-color": [
+            227.27536397135776,
+            231.84058109055394,
+            236.4782619735469
+          ],
+          "material-color": [
+            227.202900207561,
+            231.86956659607264,
+            236.24637792939726
+          ],
+          "legacy-optics": [
+            219.33333545923233,
+            218.02898771089056,
+            217.1304370398107
+          ],
+          "material-optics": [
+            213.94203143275303,
+            215.0000023841858,
+            214.8695676093516
+          ]
+        }
+      },
+      "legacy": {
+        "encodedLumaP01P50P99": [
+          0.08201333589553833,
+          0.09796706201881171,
+          0.8302039316892623
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.7902792096138,
+          "midtones": 1.0900471210479736,
+          "highlights": 1.0436222553253174
+        }
+      },
+      "material": {
+        "encodedLumaP01P50P99": [
+          0.0859349042892456,
+          0.09682980718463659,
+          0.8204258930563926
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.13153453171253204,
+          "midtones": 0.6208371520042419,
+          "highlights": 0.5109875798225403
+        }
+      }
+    },
+    "forest": {
+      "size": [
+        2048,
+        1323
+      ],
+      "meanAbsoluteRGBCodeDifference": 2.239039182662964,
+      "p95AbsoluteRGBCodeDifference": 8.999999046325684,
+      "sha256": {
+        "input": "88e225173e5f948830326801fd26081e0bb9057449d46df4da5c5446828aac07",
+        "legacy": "e69ae001f126e3fe29f0b4d48332318823b358d58c8f25d452decde7340815b1",
+        "material": "8b76025ae85a1c9b789352d1b1452ba7f664f398248dd0d4573b82e3c0c0e7c7",
+        "legacy-color": "c556628c5d66351c9610e6abb1bae40a61271e66165ec9386430f25e8d595b7e",
+        "material-color": "6f57c38f61d992444a046162e94016083afa0d6766849cb9630d5cf720cf70e5",
+        "legacy-optics": "6a13e396e2a49a7c1ec0db143c9348618c9811c6e41fc2fbbb98f2543bc9ce7a",
+        "material-optics": "ec31ccd48c18d514fa8e203a3df383dfabde1cfb6fba8218a5370691f4b5763b"
+      },
+      "stageDifferences": {
+        "full": {
+          "meanAbsoluteRGBCodeDifference": 2.239037599993701,
+          "p95AbsoluteRGBCodeDifference": 9.0,
+          "maximumAbsoluteRGBCodeDifference": 33,
+          "markedAreaPercent": 17.384731670445955
+        },
+        "color": {
+          "meanAbsoluteRGBCodeDifference": 0.2390141024581129,
+          "p95AbsoluteRGBCodeDifference": 1.0,
+          "maximumAbsoluteRGBCodeDifference": 10,
+          "markedAreaPercent": 0.0
+        },
+        "optics": {
+          "meanAbsoluteRGBCodeDifference": 2.070151954010771,
+          "p95AbsoluteRGBCodeDifference": 9.0,
+          "maximumAbsoluteRGBCodeDifference": 33,
+          "markedAreaPercent": 17.384731670445955
+        }
+      },
+      "inputWhiteMask": {
+        "definition": "All three input sRGB channels > 245/255; same pixels in all branches.",
+        "pixelCount": 5488,
+        "meanRGB8BitCodes": {
+          "input": [
+            249.19642891734838,
+            249.37718692406708,
+            251.54336755297015
+          ],
+          "legacy": [
+            222.50838386084962,
+            219.9801405713114,
+            219.18823099752166
+          ],
+          "material": [
+            214.04300535667915,
+            215.1321087903058,
+            214.99708693246453
+          ],
+          "legacy-color": [
+            226.60003813591842,
+            231.63028564950338,
+            237.0408173969814
+          ],
+          "material-color": [
+            226.3217947122698,
+            231.52806262352635,
+            236.96446900503062
+          ],
+          "legacy-optics": [
+            222.52205004079303,
+            219.98323823876527,
+            219.20262604039542
+          ],
+          "material-optics": [
+            213.9985447179298,
+            215.0000023841858,
+            214.99745136392968
+          ]
+        }
+      },
+      "legacy": {
+        "encodedLumaP01P50P99": [
+          0.08481804161071776,
+          0.44269255458712575,
+          0.8736400075316428
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.807099461555481,
+          "midtones": 1.109375,
+          "highlights": 1.0032625198364258
+        }
+      },
+      "material": {
+        "encodedLumaP01P50P99": [
+          0.0859349042892456,
+          0.448723139294982,
+          0.8423035388112068
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.14369553327560425,
+          "midtones": 0.6623730659484863,
+          "highlights": 0.406634658575058
+        }
+      }
+    },
+    "flowers": {
+      "size": [
+        2048,
+        1365
+      ],
+      "meanAbsoluteRGBCodeDifference": 2.8591079711914062,
+      "p95AbsoluteRGBCodeDifference": 11.000000953674316,
+      "sha256": {
+        "input": "5365555f8dae318b5ef81bfce899e508a8a10c03dafb98c8fa4dfe3a4d673067",
+        "legacy": "44414abff7c9772bc3ae7f22542a588c3c71e980f6a494d5cedac6de921c6158",
+        "material": "c4a0e010ea7ccfca8605dd883378a8ec800012aa2572262dda7d7d3ffc4b8a19",
+        "legacy-color": "523c82eaefb77cb4fd0af7dd647431c5a4cf746aa7e87f131998bca61d06fc43",
+        "material-color": "92463bdcdffa06a33273c4b3c6f11c9cdab25c31357c901355820cd496a7411c",
+        "legacy-optics": "94390dd55e42948ce5f8f800abad6f8012837e59751d9c20602f9f34e0813b2e",
+        "material-optics": "3b364014065287d628c06872f6f1dc63566839b5029123fa6996b0b724aaade3"
+      },
+      "stageDifferences": {
+        "full": {
+          "meanAbsoluteRGBCodeDifference": 2.8591105292277166,
+          "p95AbsoluteRGBCodeDifference": 11.0,
+          "maximumAbsoluteRGBCodeDifference": 65,
+          "markedAreaPercent": 24.90842490842491
+        },
+        "color": {
+          "meanAbsoluteRGBCodeDifference": 0.21209542410714285,
+          "p95AbsoluteRGBCodeDifference": 1.0,
+          "maximumAbsoluteRGBCodeDifference": 9,
+          "markedAreaPercent": 0.0
+        },
+        "optics": {
+          "meanAbsoluteRGBCodeDifference": 2.689287264384921,
+          "p95AbsoluteRGBCodeDifference": 11.0,
+          "maximumAbsoluteRGBCodeDifference": 64,
+          "markedAreaPercent": 23.882783882783883
+        }
+      },
+      "inputWhiteMask": {
+        "definition": "All three input sRGB channels > 245/255; same pixels in all branches.",
+        "pixelCount": 6246,
+        "meanRGB8BitCodes": {
+          "input": [
+            253.53602314201487,
+            252.32660918912558,
+            253.46397703679906
+          ],
+          "legacy": [
+            222.78274287450898,
+            220.03730595841876,
+            219.0861372671141
+          ],
+          "material": [
+            214.04851348796907,
+            215.13304752515097,
+            214.98607347051075
+          ],
+          "legacy-color": [
+            227.79186841647976,
+            232.41482683449382,
+            237.5355437883211
+          ],
+          "material-color": [
+            227.5819740966177,
+            232.32693058613054,
+            237.47662608450014
+          ],
+          "legacy-optics": [
+            222.81780531238067,
+            220.0589197899835,
+            219.131286159716
+          ],
+          "material-optics": [
+            213.99904182905425,
+            215.0000023841858,
+            214.98719418770298
+          ]
+        }
+      },
+      "legacy": {
+        "encodedLumaP01P50P99": [
+          0.15703765259981153,
+          0.6169357053413987,
+          0.8504094206809998
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.9884035587310791,
+          "midtones": 1.1609396934509277,
+          "highlights": 1.0898135900497437
+        }
+      },
+      "material": {
+        "encodedLumaP01P50P99": [
+          0.1258077976142765,
+          0.6198086463466286,
+          0.8299521669983864
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.3236986994743347,
+          "midtones": 0.671840250492096,
+          "highlights": 0.6874192357063293
+        }
+      }
+    },
+    "neon": {
+      "size": [
+        2048,
+        1365
+      ],
+      "meanAbsoluteRGBCodeDifference": 1.810045838356018,
+      "p95AbsoluteRGBCodeDifference": 6.999999523162842,
+      "sha256": {
+        "input": "958383e6722d9cfa1b3fbe942a131e17d284032c692b168b41c720cf9816c0fc",
+        "legacy": "fd90ac43aff7e2431cf3978aec911ce4de472b69295f4e6c0466d8bb41cc044a",
+        "material": "7b0bb7eea025b4df520534b31ae01981730731308dc573cf58f8ef6d9c4bc817",
+        "legacy-color": "15f7c099ef8ff1c7a2da75d37c14fa528954dcd919c40286c3ad7bcfb3c531f6",
+        "material-color": "3b424bff439998b7e6d363471a63daceb159ffc29195af7d16919b57d60127e2",
+        "legacy-optics": "337a6ce1ac4fcdb213a78452982cebc99e3850e79eba00c9b453e348f6380c44",
+        "material-optics": "c41c65f6957390415d573793c353fd0a889efa5f3dca503eb57da115deaea092"
+      },
+      "stageDifferences": {
+        "full": {
+          "meanAbsoluteRGBCodeDifference": 1.8100451198107448,
+          "p95AbsoluteRGBCodeDifference": 7.0,
+          "maximumAbsoluteRGBCodeDifference": 35,
+          "markedAreaPercent": 10.451007326007327
+        },
+        "color": {
+          "meanAbsoluteRGBCodeDifference": 0.2803411649114774,
+          "p95AbsoluteRGBCodeDifference": 1.0,
+          "maximumAbsoluteRGBCodeDifference": 8,
+          "markedAreaPercent": 0.0
+        },
+        "optics": {
+          "meanAbsoluteRGBCodeDifference": 1.6312162555326617,
+          "p95AbsoluteRGBCodeDifference": 7.0,
+          "maximumAbsoluteRGBCodeDifference": 35,
+          "markedAreaPercent": 10.451007326007327
+        }
+      },
+      "inputWhiteMask": {
+        "definition": "All three input sRGB channels > 245/255; same pixels in all branches.",
+        "pixelCount": 7296,
+        "meanRGB8BitCodes": {
+          "input": [
+            254.0937500540167,
+            250.5785364477503,
+            250.05797726825173
+          ],
+          "legacy": [
+            220.56496915775108,
+            218.49945392998816,
+            217.5830614407498
+          ],
+          "material": [
+            214.03947612564815,
+            215.07346729208766,
+            214.91022717023856
+          ],
+          "legacy-color": [
+            227.88020994979888,
+            231.77014941092287,
+            236.43160746641163
+          ],
+          "material-color": [
+            227.71299504748495,
+            231.74726015790122,
+            236.35279716409156
+          ],
+          "legacy-optics": [
+            220.55784196519343,
+            218.50342871045302,
+            217.5827873179591
+          ],
+          "material-optics": [
+            213.99630178611628,
+            214.99972826139512,
+            214.91283133675
+          ]
+        }
+      },
+      "legacy": {
+        "encodedLumaP01P50P99": [
+          0.08818902180194856,
+          0.1302094183668494,
+          0.8660643217086791
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.8121039867401123,
+          "midtones": 1.077192783355713,
+          "highlights": 1.0130542516708374
+        }
+      },
+      "material": {
+        "encodedLumaP01P50P99": [
+          0.08902274724245073,
+          0.12431686436980964,
+          0.8420204015731811
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.1945178508758545,
+          "midtones": 0.5702176690101624,
+          "highlights": 0.4263198673725128
+        }
+      }
+    },
+    "skin": {
+      "size": [
+        512,
+        512
+      ],
+      "meanAbsoluteRGBCodeDifference": 1.7084074020385742,
+      "p95AbsoluteRGBCodeDifference": 6.999999523162842,
+      "sha256": {
+        "input": "d46a4a7e7d7e6a4e7d0c59c0d273f3d49b9cc88957dfebfea1d3eff1b1f60139",
+        "legacy": "11095bab38cf862091f0785c9646faf209cc7c10c2dfb8c718d5f970501a9226",
+        "material": "6b7d43c80565609a970373cc0721a1f4fe176edad58e03bc8905f1fe5551a89a",
+        "legacy-color": "a370e87fcb458649f0ae401f3558ef820d88620e53ff9cd3fba3c8fae48a08d6",
+        "material-color": "ac15e5dd346ab8658db47038b0f80e03347f34b0902de940dd487210413706cf",
+        "legacy-optics": "c238bcab8df50a8c9304278ed29000390e5ab6ec88315975c4b91e9b1c7bd241",
+        "material-optics": "86417c3c8a23b4b214e7c32fb5bdf5574f4ecb5f4fd742485a6ada6520aeb290"
+      },
+      "stageDifferences": {
+        "full": {
+          "meanAbsoluteRGBCodeDifference": 1.7084070841471355,
+          "p95AbsoluteRGBCodeDifference": 7.0,
+          "maximumAbsoluteRGBCodeDifference": 42,
+          "markedAreaPercent": 7.8125
+        },
+        "color": {
+          "meanAbsoluteRGBCodeDifference": 0.2134373982747396,
+          "p95AbsoluteRGBCodeDifference": 1.0,
+          "maximumAbsoluteRGBCodeDifference": 8,
+          "markedAreaPercent": 0.0
+        },
+        "optics": {
+          "meanAbsoluteRGBCodeDifference": 1.6803868611653645,
+          "p95AbsoluteRGBCodeDifference": 7.0,
+          "maximumAbsoluteRGBCodeDifference": 42,
+          "markedAreaPercent": 7.8125
+        }
+      },
+      "inputWhiteMask": {
+        "definition": "All three input sRGB channels > 245/255; same pixels in all branches.",
+        "pixelCount": 2535,
+        "meanRGB8BitCodes": {
+          "input": [
+            253.95187382973157,
+            253.12307703495026,
+            252.93609479757455
+          ],
+          "legacy": [
+            225.25562307467828,
+            221.71440040606717,
+            220.45286201972226
+          ],
+          "material": [
+            214.00000244379044,
+            215.00079133877387,
+            214.99881895230365
+          ],
+          "legacy-color": [
+            227.9191337640469,
+            232.618541767964,
+            237.5057209638449
+          ],
+          "material-color": [
+            227.87061305687976,
+            232.57988299314792,
+            237.45049414267905
+          ],
+          "legacy-optics": [
+            225.24576114232724,
+            221.73215188429907,
+            220.43826635984274
+          ],
+          "material-optics": [
+            214.00000244379044,
+            215.0000023841858,
+            214.99881895230365
+          ]
+        }
+      },
+      "legacy": {
+        "encodedLumaP01P50P99": [
+          0.0859349042892456,
+          0.49144628027975557,
+          0.8694353018999099
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.3317197561264038,
+          "midtones": 0.5287049412727356,
+          "highlights": 0.5018478631973267
+        }
+      },
+      "material": {
+        "encodedLumaP01P50P99": [
+          0.0859349042892456,
+          0.49342824094593524,
+          0.8423035388112068
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.10805416852235794,
+          "midtones": 0.3524872064590454,
+          "highlights": 0.27356550097465515
+        }
+      }
+    },
+    "daylight": {
+      "size": [
+        512,
+        768
+      ],
+      "meanAbsoluteRGBCodeDifference": 1.1556957960128784,
+      "p95AbsoluteRGBCodeDifference": 5.999999523162842,
+      "sha256": {
+        "input": "784d848ee8c112f02e221d17520d41f1be4db293506a9b42b96fc7b59895b160",
+        "legacy": "46bfa8e539b1a99a9fdd80d9d5ccd9b4d4ab4f74cf5b5230170e8d83d41a56a2",
+        "material": "bde89227a83e63e02cb72d835c7076e3f4dd65db8e50aa7229575fba24f8de7c",
+        "legacy-color": "ba362214bd7b02f47b14e4d087c81ff7de34e8efb08abfecd6228126a5ee7ba4",
+        "material-color": "461fcabbb9d0e63f02603f4e1270451356b8733dac4f1d20c8a0e12f6f319fc7",
+        "legacy-optics": "dd293d5a73d402bc9bbb09dba40addadf6555ba30bc97976d774da6b58f5334b",
+        "material-optics": "5148d604fc6d7cb6677304ee0204b4b5dffc840badae471718168cb71b587474"
+      },
+      "stageDifferences": {
+        "full": {
+          "meanAbsoluteRGBCodeDifference": 1.1556955973307292,
+          "p95AbsoluteRGBCodeDifference": 6.0,
+          "maximumAbsoluteRGBCodeDifference": 27,
+          "markedAreaPercent": 7.291666666666667
+        },
+        "color": {
+          "meanAbsoluteRGBCodeDifference": 0.30261315239800346,
+          "p95AbsoluteRGBCodeDifference": 1.0,
+          "maximumAbsoluteRGBCodeDifference": 7,
+          "markedAreaPercent": 0.0
+        },
+        "optics": {
+          "meanAbsoluteRGBCodeDifference": 1.097871568467882,
+          "p95AbsoluteRGBCodeDifference": 6.0,
+          "maximumAbsoluteRGBCodeDifference": 27,
+          "markedAreaPercent": 6.25
+        }
+      },
+      "inputWhiteMask": {
+        "definition": "All three input sRGB channels > 245/255; same pixels in all branches.",
+        "pixelCount": 2,
+        "meanRGB8BitCodes": {
+          "input": [
+            255.0,
+            255.0,
+            255.0
+          ],
+          "legacy": [
+            214.5000024139881,
+            215.50000235438347,
+            215.0000023841858
+          ],
+          "material": [
+            214.00000244379044,
+            215.0000023841858,
+            215.0000023841858
+          ],
+          "legacy-color": [
+            228.0000016093254,
+            233.00000131130219,
+            238.00000101327896
+          ],
+          "material-color": [
+            228.0000016093254,
+            233.00000131130219,
+            238.00000101327896
+          ],
+          "legacy-optics": [
+            215.0000023841858,
+            216.00000232458115,
+            215.0000023841858
+          ],
+          "material-optics": [
+            214.00000244379044,
+            215.0000023841858,
+            215.0000023841858
+          ]
+        }
+      },
+      "legacy": {
+        "encodedLumaP01P50P99": [
+          0.09796706201881171,
+          0.4701592238008976,
+          0.8441553034067154
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.5105019211769104,
+          "midtones": 0.6429934501647949,
+          "highlights": 0.608248770236969
+        }
+      },
+      "material": {
+        "encodedLumaP01P50P99": [
+          0.09516235630363226,
+          0.4721796158373356,
+          0.8279702063322067
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.1371499001979828,
+          "midtones": 0.45975273847579956,
+          "highlights": 0.35385602712631226
+        }
+      }
+    },
+    "night": {
+      "size": [
+        960,
+        640
+      ],
+      "meanAbsoluteRGBCodeDifference": 0.9920586347579956,
+      "p95AbsoluteRGBCodeDifference": 4.999999523162842,
+      "sha256": {
+        "input": "771bc4dbdc2d99b2e7ca649a39115c0cf119a0fa2e82881cb2652accea49d641",
+        "legacy": "de2bee17d869a9b716d13c62672a4fd2e4800bdb0dbbd8e4989ffaaa4aab890b",
+        "material": "16a6f1df754804921cec66f09c9d2ebc956a147a55ddfe00ec660a3de6a9085e",
+        "legacy-color": "798415879334159912b0f86053ab68d3cea048775eaabab56d45c04e44682c3e",
+        "material-color": "72a2fff0e411b460fcec671b06548630f639ec904c1a6fb3d7dc9afc62c54dc1",
+        "legacy-optics": "46606d766ece8433fd28edcb349fc9d91799d8d6733181ef2d351ba1d17c4a4b",
+        "material-optics": "f255c87e01c0a550aae57096cce068f35c7ab11904c51582bdd2c48747ace61e"
+      },
+      "stageDifferences": {
+        "full": {
+          "meanAbsoluteRGBCodeDifference": 0.9920583767361111,
+          "p95AbsoluteRGBCodeDifference": 5.0,
+          "maximumAbsoluteRGBCodeDifference": 41,
+          "markedAreaPercent": 5.333333333333334
+        },
+        "color": {
+          "meanAbsoluteRGBCodeDifference": 0.19826497395833334,
+          "p95AbsoluteRGBCodeDifference": 1.0,
+          "maximumAbsoluteRGBCodeDifference": 5,
+          "markedAreaPercent": 0.0
+        },
+        "optics": {
+          "meanAbsoluteRGBCodeDifference": 0.8563275824652777,
+          "p95AbsoluteRGBCodeDifference": 5.0,
+          "maximumAbsoluteRGBCodeDifference": 41,
+          "markedAreaPercent": 5.333333333333334
+        }
+      },
+      "inputWhiteMask": {
+        "definition": "All three input sRGB channels > 245/255; same pixels in all branches.",
+        "pixelCount": 12245,
+        "meanRGB8BitCodes": {
+          "input": [
+            254.4018783533315,
+            254.5803185223608,
+            253.8655778544686
+          ],
+          "legacy": [
+            224.571418718544,
+            221.3500224221916,
+            220.1389159202673
+          ],
+          "material": [
+            214.0002474417342,
+            215.04761365125404,
+            214.99959405427956
+          ],
+          "legacy-color": [
+            227.87423599820178,
+            232.81282288227922,
+            237.70339016938217
+          ],
+          "material-color": [
+            227.81486482983368,
+            232.79387637462943,
+            237.58840446778345
+          ],
+          "legacy-optics": [
+            224.56112880490662,
+            221.34528579527915,
+            220.12985099634867
+          ],
+          "material-optics": [
+            213.99951244790293,
+            215.0000023841858,
+            214.9996757202608
+          ]
+        }
+      },
+      "legacy": {
+        "encodedLumaP01P50P99": [
+          0.08201333589553833,
+          0.09880078745931387,
+          0.872523144853115
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.5203198194503784,
+          "midtones": 0.6923462748527527,
+          "highlights": 0.6702845692634583
+        }
+      },
+      "material": {
+        "encodedLumaP01P50P99": [
+          0.0859349042892456,
+          0.09796706201881171,
+          0.8423035388112068
+        ],
+        "allChannelsNearBlackPercent": 0.0,
+        "anyChannelNearWhitePercent": 0.0,
+        "grainResidualRMSIn8BitCodesByInputBand": {
+          "shadows": 0.09817326068878174,
+          "midtones": 0.41226714849472046,
+          "highlights": 0.3227388262748718
+        }
+      }
+    }
+  }
+}

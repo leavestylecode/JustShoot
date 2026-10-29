@@ -2,6 +2,29 @@
 
 SwiftUI film camera for iOS 26 and later. Build with Xcode 27 using the `JustShoot` scheme.
 
+New Portra 400 captures use a versioned Portra/Endura material pipeline: developed-sRGB input
+adjustment → exposure diffusion → film layer-density LUT → density-domain grain → print/scan LUT
+→ bounded portrait refinement → user curve and output headroom. Preview, stills and Live Photo
+share its math and frozen parameters. Other looks and legacy capture jobs retain their existing
+RGB-LUT pipeline. The first phase preserves Apple SDR RAW development; it does not claim calibrated
+scene radiance or a measured match to physical film. The migration plan and validation are in
+[research/film-material-2026-10-29/PLAN.txt](research/film-material-2026-10-29/PLAN.txt).
+
+The material performance follow-up preserves the accepted softer highlight/contrast treatment.
+Exact identity input and finish tables use domain-clamping fast paths in both Metal and Core Image,
+reducing default material color lookups from four to two. White-balance and curve variants reuse
+the same immutable density/print preview textures through a bounded weak lookup pool; the existing
+32 MiB/eight-recipe cache still charges each recipe conservatively. Runtime table tokens are not
+serialized, and frozen recipe bytes and versions are unchanged. All 11 full-effect scene PNGs
+are byte-identical to the pre-optimization material renders. This establishes output preservation
+and reduced work, not measured device frame-rate, memory-footprint or thermal gains. Details are in
+[research/film-material-2026-10-29/performance/REVIEW.txt](research/film-material-2026-10-29/performance/REVIEW.txt).
+
+Capture admission checks immediate free space on a dedicated bounded queue, with reclaimable-space
+fallback when needed. Ordinary capture stalls retain the last graded preview; the system preview
+underlay is limited to lens transitions. Regression and supplied physical-device log results are in
+[the capture stability review](research/film-material-2026-10-29/performance/capture-stability-review.txt).
+
 ## Interaction priorities
 
 Performance and fluid interaction take priority. Use visual previews and concise labels;
@@ -74,7 +97,7 @@ New film chromatic recipes protect LUT input after linear-light temperature gain
 
 Bundled Portra 400 and Pro 400H receive a gentler output-luma calibration before user curves: lower midtones open slightly and the steep middle response is reduced. A common chroma scale preserves RGB hue direction and keeps nodes in gamut. These two tables are prepared on a 33³ grid once during loading; other stocks retain their existing tone tables and imported LUTs retain their original bytes. Calibration remains provisional pending physical-device skin, backlight and mixed-light comparisons; native camera sharpening and tone mapping still contribute to the processed source.
 
-New Portra 400 and Pro 400H captures use the frozen `balanced_v2` grain response. The fine-noise share decreases from 28% to 18%, overall amount decreases by 6%, and a smooth shadow weight reduces the deepest texture further. Positive and negative deviations use equal bounded amplitude, avoiding the former tendency to brighten dark regions and darken highlights. Pure black/white channels stay fixed. Preview, stills and Live frames share this implementation and deterministic seeds. Other stocks, imported LUTs and pending recipes without the optional grain `response` field retain the original algorithm; encoding diagnostics include `grain_response`.
+Legacy Portra 400 and Pro 400H recipes can retain the frozen `balanced_v2` grain response. The fine-noise share decreases from 28% to 18%, overall amount decreases by 6%, and a smooth shadow weight reduces the deepest texture further. Positive and negative deviations use equal bounded amplitude, avoiding the former tendency to brighten dark regions and darken highlights. Pure black/white channels stay fixed. Preview, stills and Live frames share this implementation and deterministic seeds. Recipes without the optional grain `response` field retain the original algorithm; encoding diagnostics include `grain_response`. Current Portra material captures use the density-domain algorithm described above, while current RGB captures use the area-matched grain recipe.
 
 Pro 400H also receives a localized dark-gray refinement after the first calibration: a quadratic lift of at most 0.0065 in display luma, with about 6% less contrast around 0.15. A smooth lower taper preserves the black endpoint; the adjustment reaches zero with zero slope at 0.30, leaving brighter LUT nodes untouched without a compensating contrast spike. It adds no spatial blur or capture-policy changes. This refinement follows the supplied backlit desk photographs; its appearance on skin and other lighting remains unverified.
 

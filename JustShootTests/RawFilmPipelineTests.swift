@@ -397,7 +397,7 @@ final class RawFilmPipelineTests: XCTestCase {
 
 /// Minimal uncompressed, three-channel linear DNG for decoder/metadata regression tests.
 /// It is synthetic, and cannot validate an iPhone sensor profile or ProRAW capture quality.
-private enum LinearDNGFixture {
+enum LinearDNGFixture {
     static func make(orientation: UInt16 = 1, baselineExposure: Int32 = 0) -> Data {
         func shorts(_ values: [UInt16]) -> Data { values.reduce(into: Data()) { data, value in
             var value = value.littleEndian; withUnsafeBytes(of: &value) { data.append(contentsOf: $0) }

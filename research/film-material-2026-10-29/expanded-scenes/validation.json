@@ -1,0 +1,53 @@
+{
+  "context": {
+    "project": "JustShoot.xcodeproj",
+    "scheme": "JustShoot",
+    "configuration": "Debug",
+    "simulator": "iPhone 17",
+    "iOS": "26.4"
+  },
+  "summary": {
+    "status": "SUCCEEDED",
+    "durationMs": 51948,
+    "counts": {
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    "target": "simulator"
+  },
+  "artifacts": {
+    "buildLogPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-10-29T10-10-28-448Z_pid74694_a14df3be.log",
+    "xcresultPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-10-29T10-10-28-448Z_pid74694_5518e270.xcresult",
+    "testProductsPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/test-products/test_sim_2026-10-29T10-10-28-448Z_pid74694_5b58e35c.xctestproducts"
+  },
+  "diagnostics": {
+    "warnings": [],
+    "errors": [],
+    "testFailures": []
+  },
+  "test": "FilmMaterialTests/testOptionalSDRPhotographsMatchStillAndLiveWithFullMaterialEffects",
+  "sceneCount": 11,
+  "exportCount": 77,
+  "assertions": [
+    "Every scene renders identical floating-point pixels through the still and Live Photo filter paths for full preset effects.",
+    "Every output float is finite and within [0,1.0001].",
+    "All normalized input hashes and all 77 PNG output dimensions verified by comparison script."
+  ],
+  "reviewToolValidation": {
+    "date": "2026-10-29",
+    "scope": "Review HTML, difference metrics and documentation only; no app parameters or exported PNGs changed.",
+    "renderHashesVerified": 77,
+    "browserChecks": [
+      "Full-frame old/new buttons report the correct visible branch.",
+      "Automatic alternation visibly reaches both actual image branches; effect changes stop the timer.",
+      "100% stage width equals source PNG width (1358 pixels for window portrait).",
+      "Color-only window comparison has zero marked tiles and an explicit no-threshold-crossing legend.",
+      "Full window comparison has 337 marked tiles; markers hide and disable for original-input base.",
+      "Marker rectangles only localize 64x64-pixel block MAE >=4/255; they are not a quality or visibility criterion.",
+      "Browser console has no warnings or errors."
+    ],
+    "simulatorRerun": false,
+    "screenshot": "/Users/leavestyle/.codex/visualizations/2026/10/29/01a186b3-7bb7-7dd0-98e3-a011a42a8680/material-expanded/review/browser-difference-review.jpg"
+  }
+}

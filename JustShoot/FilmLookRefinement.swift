@@ -35,6 +35,11 @@ enum FilmLookRefinement {
         return config
     }
 
+    static func parameters(for preset: FilmPreset) throws -> SIMD4<Float> {
+        guard let profile = try configuration.get().profiles[preset.rawValue] else { throw CubeLUT.ParseError.malformed }
+        return SIMD4(profile.shadowRetention, profile.skinHue, profile.skinChroma, profile.skinLightness)
+    }
+
     static func applying(to original: CubeLUT, preset: FilmPreset) throws -> CubeLUT {
         let config = try configuration.get()
         guard let profile = config.profiles[preset.rawValue] else { throw CubeLUT.ParseError.malformed }

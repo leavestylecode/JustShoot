@@ -5,7 +5,7 @@ import CoreGraphics
 //
 // 目标（以用户体验为唯一验收标准）：
 //   1. 焦段切换的取景平滑、单调、无回摆；
-//   2. 主帧流停顿时预览不冻结——必须有别的源在动；
+//   2. 镜头切换停顿时由系统底衬覆盖过渡；普通拍照停顿保留最后的胶片帧；
 //   3. 稳态回到纯主源渲染（胶片分级所见即所得）；
 //   4. 任何一层失效都优雅退化为现状，绝不允许黑屏或冻结加深。
 //
@@ -17,7 +17,7 @@ import CoreGraphics
 //   - 底衬源：系统 AVCaptureVideoPreviewLayer——Apple 官方文档推荐的标准预览显示层，
 //     由 AVFoundation 在服务进程自行合成。虚拟设备切镜头时它拿到系统的 crossfade
 //     合成流而非停帧（系统相机同款显示路径），且不参与会话连接结构、不改
-//     sessionPreset、对照片采集链路零影响。主帧龄超过阈值时把主源淡出、露出底衬的
+//     sessionPreset、对照片采集链路零影响。镜头切换中主帧龄超过阈值时把主源淡出、露出底衬的
 //     实时画面，恢复后淡回。
 //   - 已否决的替代路径：AVCaptureMultiCamSession 双流自做 alpha 混合（2026-10-07
 //     用户决定不采用——它是社区逆向系统行为的推断手法而非 Apple 推荐：MultiCam 的
@@ -38,18 +38,9 @@ import CoreGraphics
 
 /// 主源（Metal 胶片渲染视图）与底衬源（系统预览层）之间的透明度混合状态机。
 ///
-/// 输入是主帧龄：正常 30fps 下帧龄在 0–33ms 抖动；跨镜头切换时升到数百 ms～2.5s；
-/// 照片后处理负载峰值也会饿死主源帧流。规则：
-///   - 帧龄 > `staleThreshold`（150ms）→ 目标透明度 0（淡出主源，露出底衬的实时画面）；
-///   - 帧龄 < `resumeThreshold`（50ms，连续两帧到达）→ 目标透明度 1（淡回主源）；
-///   - 中间带保持当前值（滞回，避免在阈值附近抖动）；
-///   - 底衬不可用（未挂载 / 未配置）→ 恒为 1，行为与单流现状完全一致。
-///
-/// 停顿阈值必须高于「压力节流帧率的节距」：后处理负载恰恰会把预览流节流到
-/// 15fps（66ms 节距）——阈值一旦踩在节距上，每个帧间隙都判停顿，分级层与未分级
-/// 底衬会按帧率节拍反复脉动（66ms 版本的真实观感回归）。底衬由系统进程合成、
-/// 不受本进程负载影响，是第三方能拿到的「半个系统相机路径」；未分级画面只在
-/// 停顿窗口可见——比冻结好。
+/// 镜头切换期间，帧龄 > 150ms 淡出、< 50ms 淡回，中间带保持当前值。
+/// 底衬不可用或没有镜头切换时，主源恒为 1；拍照/后处理引起的停帧不得露出未调色画面。
+/// 150ms 阈值高于压力节流到 15fps 的 66ms 帧距，避免在切换窗口内按帧率反复脉动。
 struct PreviewUnderlayBlender: Sendable, Equatable {
     /// 主源当前透明度 [0,1]。1 = 纯主源（稳态），0 = 纯底衬（停顿窗口中段）。
     private(set) var metalOpacity: CGFloat = 1
@@ -58,7 +49,7 @@ struct PreviewUnderlayBlender: Sendable, Equatable {
     /// LUT——纯淡出会让分级↔未分级在切换窗口跳变两次(用户感知的「LUT 有无闪烁」)。
     /// 过渡期把冻结的分级帧保留为半透明层叠在实时底衬上,色调全程连续;代价是过渡
     /// 期轻微重影(运动中的变焦画面会掩盖大半)。0 = 纯底衬(旧行为);由
-    /// CameraManager 在切换进行中(遮罩窗口或 ramp 未 settle)时抬高,稳态归零。
+    /// CameraManager 在切换进行中(遮罩窗口或 ramp 未 settle)时抬高。
     var transitionFloor: CGFloat = 0
 
     private var lastUpdate: CFTimeInterval = 0
@@ -71,8 +62,9 @@ struct PreviewUnderlayBlender: Sendable, Equatable {
 
     /// 每个渲染帧调用一次（MetalPreview.Coordinator.draw → CameraManager）。
     /// - Returns: 主源应使用的透明度。
-    mutating func update(mainFrameAge: TimeInterval, underlayAvailable: Bool, now: CFTimeInterval) -> CGFloat {
-        guard underlayAvailable else {
+    mutating func update(mainFrameAge: TimeInterval, underlayAvailable: Bool,
+                         lensTransitionActive: Bool, now: CFTimeInterval) -> CGFloat {
+        guard underlayAvailable, lensTransitionActive else {
             metalOpacity = 1
             lastUpdate = now
             return 1

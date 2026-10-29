@@ -1,0 +1,57 @@
+Capture and preview stability — 2026-10-29
+
+Observed in the supplied physical-device Debug log (iPhone18,2 / iOS 27.2.0):
+- Fuji Raw Velvia, grain disabled, optics disabled. This trace does not implicate
+  the new Portra material stages.
+- First shutter: acknowledgement 2.8 ms; storage-check interval 3931.9 ms;
+  tap to native exposure about 3943.6 ms.
+- Second shutter: storage-check interval 1147.0 ms; tap to native exposure
+  about 2314.9 ms. Delays also occur outside the storage-check interval.
+- GPU averages about 1 ms, with no GPU errors or backpressure drops.
+- Repeated preview_underlay_blend reveal contribution=1.00 events occur
+  during ordinary capture stalls with focal_seq=0. They expose the ungraded
+  system preview; conceal events restore the film look.
+- Main-queue stalls and a watchdog scheduling gap are present. There is no
+  stack sample, so the entire delay cannot be attributed to a volume API.
+
+Changes:
+- Require an active lens transition before fading the graded preview. Capture
+  and background-processing stalls retain the last graded frame. Lens handoff
+  support and its tint floor remain in place.
+- Check immediate free capacity first. Query reclaimable important-usage
+  capacity only when necessary. Keep the journal quota, reservations, 128 MiB
+  free-space margin and fallback behavior for purgeable storage.
+- Run volume queries on one dedicated operation queue, separate from the
+  journal actor, MainActor, cooperative executor and image decode queue.
+- Split capture_storage_check into storage_budget and storage_probe spans;
+  record probe queue wait and main_thread status. Revision marker:
+  camera_revision=2026-10-29-capture-preview-stability.
+- No changes to film color, highlight treatment, render resolution or encoding.
+
+Validation:
+- XcodeBuildMCP, JustShoot.xcodeproj / JustShoot / Debug / iPhone 17, iOS 26.4.
+- Focused regression: 27 passed, 0 failed, 0 skipped.
+- Full suite: 473 passed, 0 failed, 6 skipped.
+- Seven new regressions cover capture-stall opacity, lens-transition exit,
+  immediate/reclaimable capacity, free-space margin, fresh capacity readings,
+  and UI/recovery responsiveness while a capacity probe is deliberately blocked.
+- The pre-existing CaptureSchedulingTests QoS warning remains; no new compiler
+  warnings. Build/run and film-library simulator screenshot inspection passed.
+
+Physical-device follow-up (user-supplied logs, iPhone18,2 / iOS 27.2.0):
+- E37A34AF, 14:46:51 UTC, debugger attached as confirmed by the user:
+  capacity probes take 0.1–0.8 ms, but the first exposure still takes 2840.6 ms
+  because the MainActor continuation is delayed after the query finishes.
+  Ordinary capture stalls no longer reveal the ungraded preview underlay.
+  Details: device-recheck-144851.txt.
+- 50B33BEC, 15:03:29 UTC, seven captures: first tap to exposure 58.3 ms,
+  subsequent taps 9.5–35.8 ms; no main-queue stall or watchdog-gap events.
+  Nine explicit focal changes succeed. All four underlay reveal/conceal pairs
+  follow lens changes, with no ordinary-capture reveal. Preview window median
+  is 29.4 submitted fps. Details: device-recheck-150329.txt.
+- The newer trace does not record debugger attachment; configuration and scene
+  differ across runs. These observations establish successful operation in the
+  latest run, not a controlled speedup or proof that LLDB caused earlier stalls.
+- Remaining work: lens changes may expose the ungraded underlay for 0.4–0.6 s;
+  background completion takes 3.6–6.7 s. If seconds-long main-thread stalls
+  recur, obtain a physical-device time-profiler stack before choosing a fix.

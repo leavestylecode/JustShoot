@@ -50,11 +50,19 @@ actor ColorTemperatureLUT {
             return existing
         }
         let result = try autoreleasepool { try bake(base: base, adjustment: resolved) }
-        cache.insert(result, forKey: key, cost: result.data.count)
+        cache.insert(result, forKey: key, cost: result.byteCount)
         return result
     }
 
     private func bake(base: CubeLUT, adjustment recipe: ResolvedCameraColorAdjustment) throws -> CubeLUT {
+        if var material = base.material {
+            // The material renderer consumes its input table, never the reference RGB cube.
+            // Avoid a second 65³ bake and keep adjusted material entries within the cache budget.
+            material.input = FilmMaterial.Table(try bake(base: material.input.cube, adjustment: recipe))
+            var result = base
+            result.material = material
+            return result
+        }
         let dimension = max(65, base.dimension)
         guard (2...CubeLUT.maximumDimension).contains(dimension),
               base.data.count == base.dimension * base.dimension * base.dimension * 4 * MemoryLayout<Float>.stride else {

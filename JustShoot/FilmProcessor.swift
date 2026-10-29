@@ -117,6 +117,7 @@ final class FilmProcessor: Sendable {
     func prepareRawRendering() throws {
         _ = renderingContext(raw: true)
         try RawFilmRenderer.prepare()
+        try FilmMaterialRenderer.prepare()
     }
 
     /// Initializes the shared still-render CIContext and effect kernels before capture admission. This performs
@@ -291,7 +292,7 @@ final class FilmProcessor: Sendable {
             do {
                 let data = try Data(contentsOf: compiledURL, options: .mappedIfSafe)
                 let cube = try Self.decodeCompiledLUT(data)
-                _ = lock.withLock { $0.luts.insert(cube, forKey: resourceName, cost: cube.data.count) }
+                _ = lock.withLock { $0.luts.insert(cube, forKey: resourceName, cost: cube.byteCount) }
                 totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=binary bytes=\(data.count)")
                 return cube
             } catch {
@@ -313,7 +314,7 @@ final class FilmProcessor: Sendable {
             let parseTimer = Log.perf("lut_text_parse", logger: Log.lut)
             let cube = try Self.parseCubeFile(text)
             parseTimer.end("name=\(resourceName) dim=\(cube.dimension)")
-            _ = lock.withLock { $0.luts.insert(cube, forKey: resourceName, cost: cube.data.count) }
+            _ = lock.withLock { $0.luts.insert(cube, forKey: resourceName, cost: cube.byteCount) }
             totalTimer.end("name=\(resourceName) dim=\(cube.dimension) source=text")
             return cube
         } catch {
@@ -347,7 +348,7 @@ final class FilmProcessor: Sendable {
                 // Existing imported files retain their historical sRGB interpretation.
                 cube = try Self.parseCubeFile(Self.readCubeText(from: url))
             }
-            _ = lock.withLock { $0.luts.insert(cube, forKey: cacheKey, cost: cube.data.count) }
+            _ = lock.withLock { $0.luts.insert(cube, forKey: cacheKey, cost: cube.byteCount) }
             return cube
         } catch {
             Log.lut.error("lut_custom_parse_failed key=\(cacheKey, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
@@ -395,7 +396,7 @@ final class FilmProcessor: Sendable {
         if let url = lock.withLock({ $0.fileSources.value(forKey: cacheKey) }) {
             return try? loadCubeLUTFromFile(url: url, cacheKey: cacheKey)
         }
-        if cacheKey.hasSuffix(FilmLookRefinement.cacheSuffix),
+        if (cacheKey.hasSuffix(FilmLookRefinement.cacheSuffix) || cacheKey.hasSuffix(FilmMaterial.revision)),
            let preset = FilmPreset.allCases.first(where: { FilmSource.preset($0).lutCacheKey == cacheKey }) {
             return try? loadLUT(source: .preset(preset))
         }
@@ -412,7 +413,7 @@ final class FilmProcessor: Sendable {
         }
         let timer = Log.perf("lut_curve_compose", logger: Log.lut)
         let composed = curve.applied(to: base)
-        _ = lock.withLock { $0.luts.insert(composed, forKey: composedKey, cost: composed.data.count) }
+        _ = lock.withLock { $0.luts.insert(composed, forKey: composedKey, cost: composed.byteCount) }
         timer.end("curve=\(curve.id) dim=\(composed.dimension)")
         return composed
     }
@@ -428,8 +429,10 @@ final class FilmProcessor: Sendable {
             } else {
                 let original = try loadCubeLUT(resourceName: p.lutResourceName)
                 let timer = Log.perf("lut_look_refine", logger: Log.lut)
-                base = try FilmLookRefinement.applying(to: original, preset: p)
-                _ = lock.withLock { $0.luts.insert(base, forKey: baseKey, cost: base.data.count) }
+                var refined = try FilmLookRefinement.applying(to: original, preset: p)
+                refined.material = try FilmMaterial.load(preset: p)
+                base = refined
+                _ = lock.withLock { $0.luts.insert(base, forKey: baseKey, cost: base.byteCount) }
                 timer.end("film=\(p.rawValue) revision=\(FilmLookRefinement.revision) dim=\(base.dimension)")
             }
         case .custom(_, _, _, let fileName):

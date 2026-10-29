@@ -43,48 +43,67 @@ final class LensTransitionCompositorTests: XCTestCase {
 
     func testUnderlayUnavailablePinsMainSourceOpaque() {
         var blender = PreviewUnderlayBlender()
-        let opacity = blender.update(mainFrameAge: 2.0, underlayAvailable: false, now: 10)
+        let opacity = blender.update(mainFrameAge: 2.0, underlayAvailable: false, lensTransitionActive: true, now: 10)
         XCTAssertEqual(opacity, 1)
         XCTAssertEqual(blender.metalOpacity, 1)
+    }
+
+    func testCaptureStallsNeverExposeTheUngradedUnderlay() {
+        var blender = PreviewUnderlayBlender()
+        // Replay alternating fresh frames and the 1–4 s gaps from the device report.
+        for (tick, age) in [0.02, 1.02, 0.01, 3.93, 0.03, 1.16, 0.08].enumerated() {
+            XCTAssertEqual(blender.update(mainFrameAge: age, underlayAvailable: true,
+                lensTransitionActive: false, now: Double(tick)), 1)
+        }
+    }
+
+    func testEndingLensTransitionRestoresFilmEvenIfAnotherCaptureStallStarts() {
+        var blender = PreviewUnderlayBlender()
+        blender.transitionFloor = LensTransitionPremask.tintFloor
+        _ = blender.update(mainFrameAge: 1, underlayAvailable: true,
+            lensTransitionActive: true, now: 1)
+        XCTAssertLessThan(blender.metalOpacity, 1, "Lens handoffs still use the underlay")
+        XCTAssertEqual(blender.update(mainFrameAge: 1, underlayAvailable: true,
+            lensTransitionActive: false, now: 1.02), 1)
     }
 
     func testStaleMainStreamRevealsUnderlayAndSaturates() {
         var blender = PreviewUnderlayBlender()
         // 正常帧节距（30fps，帧龄 ≤ 33ms）不触发
-        XCTAssertEqual(blender.update(mainFrameAge: 0.02, underlayAvailable: true, now: 0), 1)
+        XCTAssertEqual(blender.update(mainFrameAge: 0.02, underlayAvailable: true, lensTransitionActive: true, now: 0), 1)
         // 停顿：帧龄超阈值，开始淡出
-        let fading = blender.update(mainFrameAge: 0.3, underlayAvailable: true, now: 0.05)
+        let fading = blender.update(mainFrameAge: 0.3, underlayAvailable: true, lensTransitionActive: true, now: 0.05)
         XCTAssertLessThan(fading, 1)
         XCTAssertGreaterThan(fading, 0)
         // 淡入时长远小于跨镜头停顿时长（数百 ms～2.5s），充分到达纯底衬
-        let revealed = blender.update(mainFrameAge: 0.6, underlayAvailable: true, now: 0.5)
+        let revealed = blender.update(mainFrameAge: 0.6, underlayAvailable: true, lensTransitionActive: true, now: 0.5)
         XCTAssertEqual(revealed, 0, accuracy: 0.0001)
     }
 
     func testResumedMainStreamConcealsUnderlay() {
         var blender = PreviewUnderlayBlender()
-        _ = blender.update(mainFrameAge: 0.5, underlayAvailable: true, now: 2.0)
-        XCTAssertEqual(blender.update(mainFrameAge: 0.5, underlayAvailable: true, now: 2.2), 0, accuracy: 0.0001)
+        _ = blender.update(mainFrameAge: 0.5, underlayAvailable: true, lensTransitionActive: true, now: 2.0)
+        XCTAssertEqual(blender.update(mainFrameAge: 0.5, underlayAvailable: true, lensTransitionActive: true, now: 2.2), 0, accuracy: 0.0001)
         // 主帧流恢复（连续新帧，帧龄回常态）
-        let rising = blender.update(mainFrameAge: 0.03, underlayAvailable: true, now: 2.4)
+        let rising = blender.update(mainFrameAge: 0.03, underlayAvailable: true, lensTransitionActive: true, now: 2.4)
         XCTAssertGreaterThan(rising, 0)
         XCTAssertLessThan(rising, 1)
-        let restored = blender.update(mainFrameAge: 0.03, underlayAvailable: true, now: 3.0)
+        let restored = blender.update(mainFrameAge: 0.03, underlayAvailable: true, lensTransitionActive: true, now: 3.0)
         XCTAssertEqual(restored, 1, accuracy: 0.0001)
     }
 
     func testHysteresisBandHoldsCurrentOpacity() {
         var blender = PreviewUnderlayBlender()
-        _ = blender.update(mainFrameAge: 0.02, underlayAvailable: true, now: 0)
+        _ = blender.update(mainFrameAge: 0.02, underlayAvailable: true, lensTransitionActive: true, now: 0)
         // 滞回带（50ms–150ms）：既不算停顿也不算恢复，保持当前值，阈值附近不抖动
-        XCTAssertEqual(blender.update(mainFrameAge: 0.08, underlayAvailable: true, now: 0.5), 1, accuracy: 0.0001)
+        XCTAssertEqual(blender.update(mainFrameAge: 0.08, underlayAvailable: true, lensTransitionActive: true, now: 0.5), 1, accuracy: 0.0001)
 
         var blended = PreviewUnderlayBlender()
-        _ = blended.update(mainFrameAge: 0.4, underlayAvailable: true, now: 1.0)
-        _ = blended.update(mainFrameAge: 0.4, underlayAvailable: true, now: 1.2)
+        _ = blended.update(mainFrameAge: 0.4, underlayAvailable: true, lensTransitionActive: true, now: 1.0)
+        _ = blended.update(mainFrameAge: 0.4, underlayAvailable: true, lensTransitionActive: true, now: 1.2)
         XCTAssertEqual(blended.metalOpacity, 0, accuracy: 0.0001)
         // 停顿末尾帧龄开始回落但未过恢复线：仍保持纯底衬
-        XCTAssertEqual(blended.update(mainFrameAge: 0.1, underlayAvailable: true, now: 1.3), 0, accuracy: 0.0001)
+        XCTAssertEqual(blended.update(mainFrameAge: 0.1, underlayAvailable: true, lensTransitionActive: true, now: 1.3), 0, accuracy: 0.0001)
     }
 
     func testThrottledFrameRatesDoNotTrigger() {
@@ -92,7 +111,7 @@ final class LensTransitionCompositorTests: XCTestCase {
         // 阈值一旦踩在节距上，分级层与未分级底衬会按帧率节拍反复脉动（66ms 版本的观感回归）。
         var blender = PreviewUnderlayBlender()
         for tick in stride(from: 0.0, through: 2.0, by: 1.0) {
-            let opacity = blender.update(mainFrameAge: 0.066, underlayAvailable: true, now: tick)
+            let opacity = blender.update(mainFrameAge: 0.066, underlayAvailable: true, lensTransitionActive: true, now: tick)
             XCTAssertEqual(opacity, 1, accuracy: 0.0001)
         }
     }
@@ -104,29 +123,29 @@ final class LensTransitionCompositorTests: XCTestCase {
         // 保留的分级帧压住「有 LUT↔无 LUT」的色调跳变
         var blender = PreviewUnderlayBlender()
         blender.transitionFloor = 0.35
-        XCTAssertEqual(blender.update(mainFrameAge: 0.02, underlayAvailable: true, now: 0), 1)
-        let tinted = blender.update(mainFrameAge: 0.6, underlayAvailable: true, now: 0.5)
+        XCTAssertEqual(blender.update(mainFrameAge: 0.02, underlayAvailable: true, lensTransitionActive: true, now: 0), 1)
+        let tinted = blender.update(mainFrameAge: 0.6, underlayAvailable: true, lensTransitionActive: true, now: 0.5)
         XCTAssertEqual(tinted, 0.35, accuracy: 0.0001)
         // 帧流恢复后仍回到纯主源(floor 不影响恢复);间隔取 0.1s(增量步进 0.5,
         // 0.35+0.5 仍在过渡中,二进制精确值避开整比间隔)
-        let restored = blender.update(mainFrameAge: 0.03, underlayAvailable: true, now: 0.6)
+        let restored = blender.update(mainFrameAge: 0.03, underlayAvailable: true, lensTransitionActive: true, now: 0.6)
         XCTAssertGreaterThan(restored, 0.35)
         XCTAssertLessThan(restored, 1)
     }
 
     func testTransitionFloorOfZeroReproducesLegacyBehavior() {
-        // floor=0(稳态)与旧版行为逐值一致——稳态停顿(拍照负载)仍走纯底衬
+        // A zero floor retains the legacy blend within an explicitly allowed transition.
         var blender = PreviewUnderlayBlender()
         blender.transitionFloor = 0
-        _ = blender.update(mainFrameAge: 0.02, underlayAvailable: true, now: 0)
-        XCTAssertEqual(blender.update(mainFrameAge: 0.6, underlayAvailable: true, now: 0.5), 0, accuracy: 0.0001)
+        _ = blender.update(mainFrameAge: 0.02, underlayAvailable: true, lensTransitionActive: true, now: 0)
+        XCTAssertEqual(blender.update(mainFrameAge: 0.6, underlayAvailable: true, lensTransitionActive: true, now: 0.5), 0, accuracy: 0.0001)
     }
 
     func testTransitionFloorInvalidatedWithoutUnderlay() {
         // 底衬不可用时无视 floor:主源恒 1(无染色层可言)
         var blender = PreviewUnderlayBlender()
         blender.transitionFloor = 0.35
-        XCTAssertEqual(blender.update(mainFrameAge: 2.0, underlayAvailable: false, now: 1), 1)
+        XCTAssertEqual(blender.update(mainFrameAge: 2.0, underlayAvailable: false, lensTransitionActive: true, now: 1), 1)
     }
 
     // MARK: - 跨镜头预遮罩决策

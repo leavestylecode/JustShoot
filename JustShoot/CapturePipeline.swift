@@ -91,7 +91,7 @@ final class CapturePipeline: ObservableObject {
         let spaceCheck = trace.span("capture_storage_check")
         guard queueState.reserve(id, bytes: 128 * 1_024 * 1_024 + Int64(lutBytes), maximumJobs: CaptureJournal.maximumJobs) else { return nil }
         updateCounts()
-        let hasSpace = await worker.hasRoom(for: queueState.reservedBytes)
+        let hasSpace = await worker.hasRoom(for: queueState.reservedBytes, trace: trace)
         spaceCheck.end(hasSpace ? "ok" : "insufficient_space")
         guard hasSpace else {
             cancelReservation(id)
@@ -284,6 +284,8 @@ private actor CaptureWorker {
     private let container: ModelContainer
     private let deletionGate: CaptureDeletionGate
     private let journal: CaptureJournal
+    private let storageWork = BlockingImageWork(maximumConcurrentOperations: 1,
+        label: "com.justshoot.capture-storage")
     private let storeDeferredProxy: @Sendable (Data, CaptureRecipe) async throws -> String
     private let finalizeDeferredPhoto: @Sendable (String, DeferredPhotoState) async throws -> Data
     private weak var owner: CapturePipeline?
@@ -310,12 +312,30 @@ private actor CaptureWorker {
         self.owner = owner
     }
 
-    func hasRoom(for bytes: Int64) -> Bool {
-        do { return try journal.hasRoom(for: bytes) }
+    func hasRoom(for bytes: Int64, trace: DiagnosticTrace) async -> Bool {
+        do {
+            guard try trace.measure("capture_storage_budget", { try journal.hasJournalRoom(for: bytes) }) else { return false }
+        }
         catch {
             Diagnostics.emit("capture_storage_check_error", fields: Diagnostics.errorFields(error))
             return false
         }
+        let journal = journal
+        let queuedAt = ProcessInfo.processInfo.systemUptime
+        // Capacity APIs can synchronously wait for a system service. Give them a bounded
+        // queue of their own, away from MainActor, the cooperative executor and image decodes.
+        return await storageWork.run {
+            let probe = trace.span("capture_storage_probe",
+                "queue_wait_ms=\((ProcessInfo.processInfo.systemUptime - queuedAt) * 1_000) main_thread=\(Thread.isMainThread)")
+            do {
+                let available = try journal.hasVolumeRoom(for: bytes)
+                probe.end(available ? "ok" : "insufficient_space")
+                return available
+            } catch {
+                probe.end("error", Diagnostics.errorFields(error))
+                return false
+            }
+        } ?? false
     }
 
     func enqueue(_ result: CaptureResult, recipe: CaptureRecipe, lut: CubeLUT, rawLUT: RawFilmLUT? = nil) async throws {

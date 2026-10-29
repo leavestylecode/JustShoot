@@ -53,6 +53,8 @@ struct CaptureRecipe: Codable, Sendable {
     let photoDisplayTime: Double?
     var raw: RawCaptureRecipe? = nil
     var plan: PhotoCapturePlan? = nil
+    /// Absent on legacy jobs. If present, recovery requires the frozen material payload.
+    var materialSHA256: String? = nil
 
     var requiresRawLUT: Bool { raw?.requiresRawLUT == true }
 
@@ -60,7 +62,7 @@ struct CaptureRecipe: Codable, Sendable {
         Self(id: id, captureDate: captureDate, filterName: filterName, displayLabel: displayLabel,
             focalLength: focalLength, outputQuality: outputQuality, profile: profile, grainSeed: grainSeed,
             location: location, lutDimension: lutDimension, chromaticSceneCCT: chromaticSceneCCT,
-            photoDisplayTime: time, raw: raw, plan: plan)
+            photoDisplayTime: time, raw: raw, plan: plan, materialSHA256: materialSHA256)
     }
 }
 
@@ -123,10 +125,32 @@ struct CaptureJournal: Sendable {
 
     let root: URL
     private let storage = CaptureStorageLedger()
+    enum CapacityKind: Sendable { case immediate, importantUsage }
+    private let capacityReader: @Sendable (URL, CapacityKind) throws -> Int64?
     var cachedStorageBytes: Int64? { storage.bytes }
     var storageScanCount: Int { storage.scanCount }
 
-    init(root: URL) { self.root = root }
+    init(root: URL) {
+        self.init(root: root, capacityReader: Self.readVolumeCapacity)
+    }
+
+    init(root: URL, capacityReader: @escaping @Sendable (URL, CapacityKind) throws -> Int64?) {
+        self.root = root
+        self.capacityReader = capacityReader
+    }
+
+    private static func readVolumeCapacity(at root: URL, kind: CapacityKind) throws -> Int64? {
+        // A fresh URL prevents URL resource caching from reusing an earlier capacity reading.
+        let volume = URL(fileURLWithPath: root.path, isDirectory: true)
+        switch kind {
+        case .immediate:
+            return try volume.resourceValues(forKeys: [.volumeAvailableCapacityKey])
+                .volumeAvailableCapacity.map(Int64.init)
+        case .importantUsage:
+            return try volume.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+                .volumeAvailableCapacityForImportantUsage
+        }
+    }
 
     static let maximumJobs = 16
     static let maximumBytes: Int64 = 1_024 * 1_024 * 1_024
@@ -199,6 +223,7 @@ struct CaptureJournal: Sendable {
             let required = job.rendered
                 ? ["rendered.image"] + (job.hasRenderedMovie ? ["rendered.mov"] : [])
                 : ["original.image", "lut.bin"] + (job.recipe.requiresRawLUT ? ["raw-lut.bin"] : [])
+                    + (job.recipe.materialSHA256 != nil ? ["material.bin"] : [])
                     + (job.hasSourceMovie ? ["source.mov"] : [])
             guard required.allSatisfy({ fm.fileExists(atPath: directory.appendingPathComponent($0).path) }) else {
                 issue(.missingResources)
@@ -232,6 +257,7 @@ struct CaptureJournal: Sendable {
                   staging.lastPathComponent == "staging-" + job.id.uuidString,
                   fm.fileExists(atPath: staging.appendingPathComponent("original.image").path),
                   fm.fileExists(atPath: staging.appendingPathComponent("lut.bin").path),
+                  job.recipe.materialSHA256 == nil || fm.fileExists(atPath: staging.appendingPathComponent("material.bin").path),
                   !job.recipe.requiresRawLUT || fm.fileExists(atPath: staging.appendingPathComponent("raw-lut.bin").path),
                   !job.hasSourceMovie || fm.fileExists(atPath: staging.appendingPathComponent("source.mov").path),
                   !fm.fileExists(atPath: directory(for: job.id).path) else { continue }
@@ -312,17 +338,31 @@ struct CaptureJournal: Sendable {
     }
 
     func hasRoom(for bytes: Int64) throws -> Bool {
+        try hasJournalRoom(for: bytes) && hasVolumeRoom(for: bytes)
+    }
+
+    func hasJournalRoom(for bytes: Int64) throws -> Bool {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        guard try (storage.bytes ?? diskUsage()) + bytes <= Self.maximumBytes else { return false }
-        let available = try root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-            .volumeAvailableCapacityForImportantUsage
-        return available.map { $0 >= bytes + 128 * 1_024 * 1_024 } ?? true
+        return try (storage.bytes ?? diskUsage()) + bytes <= Self.maximumBytes
+    }
+
+    func hasVolumeRoom(for bytes: Int64) throws -> Bool {
+        let required = bytes + 128 * 1_024 * 1_024
+        // Avoid asking the storage service to estimate reclaimable capacity on every shutter
+        // tap. Keep that fallback for low-space volumes so purgeable space still counts.
+        if let immediate = try? capacityReader(root, .immediate), immediate >= required { return true }
+        let available = try capacityReader(root, .importantUsage)
+        return available.map { $0 >= required } ?? true
     }
 
     func stage(recipe: CaptureRecipe, imageData: Data, movieURL: URL?, lut: CubeLUT, rawLUT: RawFilmLUT? = nil, reserved: Bool = false,
         awaitingCaptureCompletion: Bool = false, pendingMovieURL: URL? = nil,
         deferredPhoto: DeferredPhotoState? = nil) throws -> CaptureJob {
         guard recipe.lutDimension == lut.dimension else { throw JournalError.invalidJob }
+        let materialData = try lut.material?.encoded()
+        var frozenRecipe = recipe
+        frozenRecipe.materialSHA256 = materialData.map(FilmMaterial.digest)
+        guard recipe.materialSHA256 == nil || recipe.materialSHA256 == frozenRecipe.materialSHA256 else { throw JournalError.invalidJob }
         if let deferredPhoto {
             guard recipe.raw == nil, movieURL == nil, pendingMovieURL == nil,
                   recipe.plan?.capturesLivePhoto != true,
@@ -353,7 +393,7 @@ struct CaptureJournal: Sendable {
         if !reserved {
             let movieBytes = movieURL.flatMap { try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize } ?? 0
             guard try jobs().count < Self.maximumJobs,
-                  try hasRoom(for: Int64(imageData.count) + Int64(lut.data.count) + Int64(rawLUT?.data.count ?? 0) + Int64(movieBytes)) else {
+                  try hasRoom(for: Int64(imageData.count) + Int64(lut.data.count) + Int64(materialData?.count ?? 0) + Int64(rawLUT?.data.count ?? 0) + Int64(movieBytes)) else {
                 throw JournalError.full
             }
         }
@@ -366,13 +406,14 @@ struct CaptureJournal: Sendable {
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
         try write(imageData, to: staging.appendingPathComponent("original.image"))
         try write(lut.data, to: staging.appendingPathComponent("lut.bin"))
+        if let materialData { try write(materialData, to: staging.appendingPathComponent("material.bin")) }
         if let rawLUT { try write(rawLUT.data, to: staging.appendingPathComponent("raw-lut.bin")) }
         if let movieURL {
             let destination = staging.appendingPathComponent("source.mov")
             if !fm.fileExists(atPath: destination.path) { try fm.copyItem(at: movieURL, to: destination) }
             try fm.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: destination.path)
         }
-        let job = CaptureJob(recipe: recipe, hasSourceMovie: movieURL != nil,
+        let job = CaptureJob(recipe: frozenRecipe, hasSourceMovie: movieURL != nil,
             awaitingCaptureCompletion: awaitingCaptureCompletion ? true : nil, pendingMovieURL: pendingMovieURL,
             deferredPhoto: deferredPhoto)
         try write(JSONEncoder().encode(job), to: staging.appendingPathComponent("manifest.json"))
@@ -419,7 +460,15 @@ struct CaptureJournal: Sendable {
     }
 
     func lut(for job: CaptureJob) throws -> CubeLUT {
-        try CubeLUT.validated(data: Data(contentsOf: file("lut.bin", for: job.id)), dimension: job.recipe.lutDimension)
+        var lut = try CubeLUT.validated(data: Data(contentsOf: file("lut.bin", for: job.id)), dimension: job.recipe.lutDimension)
+        if let expected = job.recipe.materialSHA256 {
+            let url = file("material.bin", for: job.id)
+            guard try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? Int.max <= FilmMaterial.maximumBytes else { throw JournalError.invalidJob }
+            let data = try Data(contentsOf: url, options: .mappedIfSafe)
+            guard FilmMaterial.digest(data) == expected else { throw JournalError.invalidJob }
+            lut.material = try FilmMaterial.decode(data)
+        }
+        return lut
     }
 
     func rawLUT(for job: CaptureJob) throws -> RawFilmLUT? {

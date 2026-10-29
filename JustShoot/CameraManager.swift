@@ -2107,16 +2107,16 @@ class CameraManager: NSObject, ObservableObject {
             mainFrameAge = .infinity
         }
         let underlayAvailable = previewUnderlayLayer != nil && sessionConfigured
-        // 切换过渡期(遮罩窗口或 ramp 未 settle)启用染色层下限:底衬是系统合成画面、
-        // 拿不到 LUT,纯淡出会让「有 LUT↔无 LUT」在切换窗口跳变两次(用户感知的
-        // 闪烁);保留 35% 冻结分级帧压住色调,代价是过渡期轻微重影。稳态归零——
-        // 拍照后处理饿死帧流的停顿仍走纯底衬(画面实时性优先,那时用户注意力不在取景上)。
-        underlayBlender.transitionFloor =
-            (CFAbsoluteTimeGetCurrent() < underlayFlipMaskUntil || lensCaptureGate.isTransitioning)
-            ? LensTransitionPremask.tintFloor : 0
+        // An ordinary capture stall must keep the graded frame opaque. The ungraded
+        // system stream may cover a lens handoff, but cannot replace the film look
+        // whenever disk/system work briefly delays the video delegate.
+        let lensTransitionActive = CFAbsoluteTimeGetCurrent() < underlayFlipMaskUntil
+            || lensCaptureGate.isTransitioning
+        underlayBlender.transitionFloor = LensTransitionPremask.tintFloor
         let opacity = underlayBlender.update(
             mainFrameAge: mainFrameAge,
             underlayAvailable: underlayAvailable,
+            lensTransitionActive: lensTransitionActive,
             now: CFAbsoluteTimeGetCurrent()
         )
         recordPreviewUnderlayBlend(1 - opacity, frameAge: mainFrameAge)

@@ -1,0 +1,260 @@
+{
+  "date": "2026-10-29",
+  "look": "JustShoot Kodak Portra 400 + Portra Endura material v1",
+  "comparison": "Same image, WB/tint neutral, default curve, same preset optics/grain and fixed seed 123; legacy RGB LUT vs material v1. Other presets unchanged.",
+  "input_contract": "Developed encoded sRGB [0,1]; native existing fixture sizes, new inputs bounded to 2048px long edge. Grain compared only at each scene's common size.",
+  "limits": [
+    "This is an SDR implementation comparison, not a SpektraLab render comparison or a calibrated film-scan comparison.",
+    "Existing input clipping/retouching/noise/halation is baked into the source and cannot be recovered.",
+    "No physical-device capture, RAW camera calibration or performance measurement.",
+    "RGB differences and grain residuals quantify change, not photographic quality."
+  ],
+  "scene_count": 11,
+  "new_scene_count": 8,
+  "scenes": [
+    {
+      "id": "portrait-daylight",
+      "pexels_id": 35670147,
+      "source_url": "https://www.pexels.com/photo/35670147/",
+      "download_url": "https://images.pexels.com/photos/35670147/pexels-photo-35670147.jpeg?auto=compress&cs=tinysrgb&w=2048",
+      "width": 1638,
+      "height": 2048,
+      "sha256": "de5cfa6b5b56ec7ddd53f252bedaf173cc75b97a95ec6c64bd49e2a4c8a95666",
+      "label": "自然光人像",
+      "author": "Okiki Onipede",
+      "group": "portraits",
+      "input": "portrait-daylight.png",
+      "crop": {
+        "center": [
+          0.5,
+          0.45
+        ],
+        "size": 256
+      },
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "note": "Already developed and possibly edited SDR stock photograph, not a RAW reference; Pexels CDN requested tinysrgb and 2048px width, then ICC-converted to sRGB and bounded to 2048px long edge without exposure or white-balance fitting."
+    },
+    {
+      "id": "portrait-backlit",
+      "pexels_id": 29525150,
+      "source_url": "https://www.pexels.com/photo/29525150/",
+      "download_url": "https://images.pexels.com/photos/29525150/pexels-photo-29525150.jpeg?auto=compress&cs=tinysrgb&w=2048",
+      "width": 1463,
+      "height": 2048,
+      "sha256": "ddcdd86f9172502245095d4d6bd035deca87a020ca1f547f86ca33c0224bac7e",
+      "label": "逆光人像",
+      "author": "Mustapha Damilola",
+      "group": "portraits",
+      "input": "portrait-backlit.png",
+      "crop": {
+        "center": [
+          0.57,
+          0.37
+        ],
+        "size": 256
+      },
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "note": "Already developed and possibly edited SDR stock photograph, not a RAW reference; Pexels CDN requested tinysrgb and 2048px width, then ICC-converted to sRGB and bounded to 2048px long edge without exposure or white-balance fitting."
+    },
+    {
+      "id": "portrait-window",
+      "pexels_id": 20781046,
+      "source_url": "https://www.pexels.com/photo/20781046/",
+      "download_url": "https://images.pexels.com/photos/20781046/pexels-photo-20781046.jpeg?auto=compress&cs=tinysrgb&w=2048",
+      "width": 1358,
+      "height": 2048,
+      "sha256": "3f8bf47aaa153c47f2df8035bd1d108dab39f069ac202e081d8366b122bd3a20",
+      "label": "窗边人像",
+      "author": "YIMING TANG",
+      "group": "portraits",
+      "input": "portrait-window.png",
+      "crop": {
+        "center": [
+          0.55,
+          0.3
+        ],
+        "size": 256
+      },
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "note": "Already developed and possibly edited SDR stock photograph, not a RAW reference; Pexels CDN requested tinysrgb and 2048px width, then ICC-converted to sRGB and bounded to 2048px long edge without exposure or white-balance fitting."
+    },
+    {
+      "id": "cafe-sunlight",
+      "pexels_id": 18405036,
+      "source_url": "https://www.pexels.com/photo/18405036/",
+      "download_url": "https://images.pexels.com/photos/18405036/pexels-photo-18405036.jpeg?auto=compress&cs=tinysrgb&w=2048",
+      "width": 2048,
+      "height": 1360,
+      "sha256": "cb56b0ad221c755a5ae320d32e24dd34f6a1c6cf096b4860e22f20525136a0f1",
+      "label": "室内强逆光",
+      "author": "Dũng Phạm",
+      "group": "light",
+      "input": "cafe-sunlight.png",
+      "crop": {
+        "center": [
+          0.57,
+          0.18
+        ],
+        "size": 256
+      },
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "note": "Already developed and possibly edited SDR stock photograph, not a RAW reference; Pexels CDN requested tinysrgb and 2048px width, then ICC-converted to sRGB and bounded to 2048px long edge without exposure or white-balance fitting."
+    },
+    {
+      "id": "cafe-night",
+      "pexels_id": 18859074,
+      "source_url": "https://www.pexels.com/photo/18859074/",
+      "download_url": "https://images.pexels.com/photos/18859074/pexels-photo-18859074.jpeg?auto=compress&cs=tinysrgb&w=2048",
+      "width": 1365,
+      "height": 2048,
+      "sha256": "3e47f54dd360b0e5ddaf21d61b09a4b9794a542f89f4b202e2b5e78f5eb4ca05",
+      "label": "室内混合光",
+      "author": "Szymon Shields",
+      "group": "night",
+      "input": "cafe-night.png",
+      "crop": {
+        "center": [
+          0.5,
+          0.57
+        ],
+        "size": 256
+      },
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "note": "Already developed and possibly edited SDR stock photograph, not a RAW reference; Pexels CDN requested tinysrgb and 2048px width, then ICC-converted to sRGB and bounded to 2048px long edge without exposure or white-balance fitting."
+    },
+    {
+      "id": "forest",
+      "pexels_id": 443446,
+      "source_url": "https://www.pexels.com/photo/443446/",
+      "download_url": "https://images.pexels.com/photos/443446/pexels-photo-443446.jpeg?auto=compress&cs=tinysrgb&w=2048",
+      "width": 2048,
+      "height": 1323,
+      "sha256": "1a8c7bc150d34f8a0deebf434a0a7a73b5947a017d371c236b674cafc8cf84d1",
+      "label": "湖泊与绿植",
+      "author": null,
+      "group": "nature",
+      "input": "forest.png",
+      "crop": {
+        "center": [
+          0.44,
+          0.52
+        ],
+        "size": 256
+      },
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "note": "Already developed and possibly edited SDR stock photograph, not a RAW reference; Pexels CDN requested tinysrgb and 2048px width, then ICC-converted to sRGB and bounded to 2048px long edge without exposure or white-balance fitting."
+    },
+    {
+      "id": "flowers",
+      "pexels_id": 462118,
+      "source_url": "https://www.pexels.com/photo/462118/",
+      "download_url": "https://images.pexels.com/photos/462118/pexels-photo-462118.jpeg?auto=compress&cs=tinysrgb&w=2048",
+      "width": 2048,
+      "height": 1365,
+      "sha256": "cf58575b23e3ba3c2b3022185daf6fe68b1ce60437cf448bf89a7844a6471566",
+      "label": "高饱和花卉",
+      "author": null,
+      "group": "nature",
+      "input": "flowers.png",
+      "crop": {
+        "center": [
+          0.67,
+          0.57
+        ],
+        "size": 256
+      },
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "note": "Already developed and possibly edited SDR stock photograph, not a RAW reference; Pexels CDN requested tinysrgb and 2048px width, then ICC-converted to sRGB and bounded to 2048px long edge without exposure or white-balance fitting."
+    },
+    {
+      "id": "neon",
+      "pexels_id": 2506923,
+      "source_url": "https://www.pexels.com/photo/2506923/",
+      "download_url": "https://images.pexels.com/photos/2506923/pexels-photo-2506923.jpeg?auto=compress&cs=tinysrgb&w=2048",
+      "width": 2048,
+      "height": 1365,
+      "sha256": "ab547c922d173c5a502f88dfefb774a8769796f2de4cb489f71d80b06e018548",
+      "label": "霓虹街道",
+      "author": null,
+      "group": "night",
+      "input": "neon.png",
+      "crop": {
+        "center": [
+          0.55,
+          0.43
+        ],
+        "size": 256
+      },
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "note": "Already developed and possibly edited SDR stock photograph, not a RAW reference; Pexels CDN requested tinysrgb and 2048px width, then ICC-converted to sRGB and bounded to 2048px long edge without exposure or white-balance fitting."
+    },
+    {
+      "id": "skin",
+      "source_url": "https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.astronaut",
+      "license": "NASA public domain",
+      "note": "Existing developed SDR fixture",
+      "width": 512,
+      "height": 512,
+      "sha256": "ad25237fe28f989a969c813419429e384c1acff72787503a9a63ac72edddc71c",
+      "label": "原有人像",
+      "author": "NASA / Eileen Collins",
+      "group": "light",
+      "input": "skin.png",
+      "crop": {
+        "center": [
+          0.42,
+          0.32
+        ],
+        "size": 180
+      }
+    },
+    {
+      "id": "daylight",
+      "source_url": "https://r0k.us/graphics/kodak/kodim19.html",
+      "license": "Kodak test suite usage; see original source",
+      "note": "EKTACHROME 64 Pro PhotoCD derivative: already has film rendering, not neutral digital input or film truth",
+      "width": 512,
+      "height": 768,
+      "sha256": "95da6f7182b1dbfbc0a2eeeba96a3b3ff4b0b84bb375236b4d37dd226cca3db0",
+      "label": "灯塔与天空",
+      "author": "Alan Fink / Kodak Image 19",
+      "group": "nature",
+      "input": "daylight.png",
+      "crop": {
+        "center": [
+          0.5,
+          0.35
+        ],
+        "size": 256
+      }
+    },
+    {
+      "id": "night",
+      "source_url": "https://commons.wikimedia.org/wiki/File:2011-03-11_night_in_Taipei.jpg",
+      "license": "CC0",
+      "note": "Existing developed sRGB JPEG, ISO 1000",
+      "width": 960,
+      "height": 640,
+      "sha256": "05fcceceb7c00221b51aa71a78a8ae637555345af613ad5a8f3061e3e6d2ce34",
+      "label": "台北夜景",
+      "author": "╬ಠ益ಠ) / Wikimedia Commons",
+      "group": "night",
+      "input": "night.png",
+      "crop": {
+        "center": [
+          0.55,
+          0.35
+        ],
+        "size": 256
+      }
+    }
+  ]
+}

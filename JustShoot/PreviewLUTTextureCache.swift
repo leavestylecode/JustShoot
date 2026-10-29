@@ -7,6 +7,16 @@ struct PreviewLUTTexture: @unchecked Sendable {
     let texture: any MTLTexture
     let dimension: Int
     let byteCount: Int
+    var material: PreviewFilmMaterial? = nil
+}
+
+struct PreviewFilmMaterial: @unchecked Sendable {
+    let density: any MTLTexture
+    let paper: any MTLTexture
+    let finish: any MTLTexture
+    let maximum: SIMD3<Float>
+    let refinement: SIMD4<Float>
+    let identityFlags: UInt32
 }
 
 /// A separate serial worker keeps uploads out of drawing and out of the image-decoder queue.
@@ -20,13 +30,49 @@ final class PreviewLUTTextureCache: Sendable {
     private let cache: OSAllocatedUnfairLock<ByteBudgetLRU<String, PreviewLUTTexture>>
     private let upload: @Sendable (String, CubeLUT) -> PreviewLUTTexture?
 
+    /// Weak entries reuse tables already owned by a recipe or an in-flight frame.
+    /// They add no GPU retention outside the existing recipe byte/entry budget.
+    private final class MaterialTablePool: Sendable {
+        private final class Entry: @unchecked Sendable {
+            weak var texture: (any MTLTexture)?
+            let dimension: Int
+            let byteCount: Int
+
+            init(_ value: PreviewLUTTexture) {
+                texture = value.texture
+                dimension = value.dimension
+                byteCount = value.byteCount
+            }
+        }
+        private let entries: OSAllocatedUnfairLock<ByteBudgetLRU<UUID, Entry>>
+
+        init(maximumEntries: Int) {
+            entries = OSAllocatedUnfairLock(initialState: ByteBudgetLRU(
+                maximumBytes: 0, maximumEntries: maximumEntries))
+        }
+
+        func upload(key: String, table: FilmMaterial.Table) -> PreviewLUTTexture? {
+            // Used only during background preparation, never by the draw callback.
+            entries.withLock { cache in
+                if let entry = cache.value(forKey: table.textureIdentifier), let texture = entry.texture {
+                    return PreviewLUTTexture(key: key, texture: texture,
+                        dimension: entry.dimension, byteCount: entry.byteCount)
+                }
+                guard let value = PreviewLUTTextureCache.upload(key: key, lut: table.cube) else { return nil }
+                cache.insert(Entry(value), forKey: table.textureIdentifier, cost: 0)
+                return value
+            }
+        }
+    }
+
     init(worker: BlockingImageWork = BlockingImageWork(maximumConcurrentOperations: 1, label: "com.justshoot.preview-lut-upload"),
          maximumBytes: Int = 32 * 1_024 * 1_024, maximumEntries: Int = 8,
-         upload: @escaping @Sendable (String, CubeLUT) -> PreviewLUTTexture? = PreviewLUTTextureCache.upload) {
+         upload: (@Sendable (String, CubeLUT) -> PreviewLUTTexture?)? = nil) {
         self.worker = worker
         cache = OSAllocatedUnfairLock(initialState: ByteBudgetLRU(
             maximumBytes: maximumBytes, maximumEntries: maximumEntries))
-        self.upload = upload
+        let tables = MaterialTablePool(maximumEntries: min(max(0, maximumEntries), 32) * 4)
+        self.upload = upload ?? { key, lut in Self.upload(key: key, lut: lut, tables: tables) }
     }
 
     func prepare(key: String, lut: CubeLUT) async throws -> PreviewLUTTexture {
@@ -48,6 +94,23 @@ final class PreviewLUTTextureCache: Sendable {
     }
 
     static func upload(key: String, lut: CubeLUT) -> PreviewLUTTexture? {
+        upload(key: key, lut: lut, tables: nil)
+    }
+
+    private static func upload(key: String, lut: CubeLUT, tables: MaterialTablePool?) -> PreviewLUTTexture? {
+        if let material = lut.material {
+            func table(_ value: FilmMaterial.Table) -> PreviewLUTTexture? {
+                if let tables { return tables.upload(key: key, table: value) }
+                return upload(key: key, lut: value.cube)
+            }
+            guard let input = table(material.input), let density = table(material.density),
+                  let paper = table(material.print), let finish = table(material.finish) else { return nil }
+            return PreviewLUTTexture(key: key, texture: input.texture, dimension: input.dimension,
+                byteCount: input.byteCount + density.byteCount + paper.byteCount + finish.byteCount,
+                material: PreviewFilmMaterial(density: density.texture, paper: paper.texture, finish: finish.texture,
+                    maximum: material.densityMaximum, refinement: material.refinement,
+                    identityFlags: (material.input.isIdentity ? 1 : 0) | (material.finish.isIdentity ? 2 : 0)))
+        }
         guard let device = PreviewMetalResources.shared.device else { return nil }
         let startedAt = ProcessInfo.processInfo.systemUptime
         let dimension = lut.dimension

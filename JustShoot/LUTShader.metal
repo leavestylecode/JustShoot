@@ -1,6 +1,7 @@
 #include <metal_stdlib>
 #include "FilmGrainMath.h"
 #include "FilmOpticsMath.h"
+#include "FilmMaterialMath.h"
 using namespace metal;
 
 // Parameters passed from CPU for preview rendering
@@ -31,10 +32,22 @@ struct PreviewParams {
     float chromaticGainB;
     float chromaticHighlightProtection;
     float grainResponse;
+    float materialDensityDimension;
+    float materialPrintDimension;
+    float materialFinishDimension;
+    float materialMaximumR;
+    float materialMaximumG;
+    float materialMaximumB;
+    float materialRefineX;
+    float materialRefineY;
+    float materialRefineZ;
+    float materialRefineW;
+    uint materialIdentityFlags; // bit 0: input, bit 1: finish
 };
 
 
-// Stage 1: geometry + LUT + headroom. Energy is extracted AFTER grading in every renderer.
+// Stage 1: geometry + material input mapping, or legacy RGB grading/headroom.
+// Extract highlight energy from that branch's output before spatial diffusion.
 kernel void previewLUT(
     texture2d<float, access::sample> input [[texture(0)]],
     texture3d<float, access::sample> lut [[texture(1)]],
@@ -71,12 +84,42 @@ kernel void previewLUT(
     );
     float dim = float(params.lutDimension);
     float3 coordinate = color * ((dim - 1.0) / dim) + 0.5 / dim;
-    float3 display = justShootApplyHeadroom(lut.sample(linearSampler, coordinate).rgb,
-                                           params.headroomAmount, params.headroomShoulder);
+    float3 looked = (params.materialIdentityFlags & 1u) != 0
+        ? clamp(color, 0.0, 1.0) : lut.sample(linearSampler, coordinate).rgb;
+    float3 display = params.materialDensityDimension > 0 ? looked
+        : justShootApplyHeadroom(looked, params.headroomAmount, params.headroomShoulder);
     float luminance = dot(display, float3(0.2126, 0.7152, 0.0722));
     float weight = justShootOpticsHighlightWeight(luminance, params.highlightThreshold);
     graded.write(half4(half3(display), 1), gid);
     energy.write(half4(half(weight)), gid);
+}
+
+kernel void previewMaterialFinish(
+    texture2d<half, access::read> exposed [[texture(0)]],
+    texture2d<half, access::sample> halo [[texture(1)]],
+    texture2d<half, access::sample> bloom [[texture(2)]],
+    texture2d<half, access::write> output [[texture(3)]],
+    texture3d<float, access::sample> density [[texture(4)]],
+    texture3d<float, access::sample> paper [[texture(5)]],
+    texture3d<float, access::sample> finish [[texture(6)]],
+    constant PreviewParams &p [[buffer(0)]], uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= output.get_width() || gid.y >= output.get_height()) return;
+    constexpr sampler s(filter::linear, address::clamp_to_edge);
+    float2 uv = (float2(gid) + 0.5) / float2(output.get_width(), output.get_height());
+    float3 source = justShootMaterialExposure(float3(exposed.read(gid).rgb),
+        float(halo.sample(s, uv).r), float(bloom.sample(s, uv).r), p.halationAmount, p.halationHue, p.bloomAmount);
+    float dim = p.materialDensityDimension;
+    float3 d = density.sample(s, clamp(source, 0.0, 1.0) * ((dim - 1.0) / dim) + 0.5 / dim).rgb;
+    d = justShootMaterialGrain(d, float3(p.materialMaximumR, p.materialMaximumG, p.materialMaximumB),
+        float2(gid) + 0.5, p.grainAmount, p.grainSize, p.grainChroma, p.grainSeed & 0x00FFFFFFu);
+    dim = p.materialPrintDimension;
+    float3 color = paper.sample(s, d * ((dim - 1.0) / dim) + 0.5 / dim).rgb;
+    color = justShootMaterialRefine(clamp(source, 0.0, 1.0), color,
+        float4(p.materialRefineX, p.materialRefineY, p.materialRefineZ, p.materialRefineW));
+    dim = p.materialFinishDimension;
+    color = (p.materialIdentityFlags & 2u) != 0 ? clamp(color, 0.0, 1.0)
+        : finish.sample(s, color * ((dim - 1.0) / dim) + 0.5 / dim).rgb;
+    output.write(half4(half3(justShootApplyHeadroom(color, p.headroomAmount, p.headroomShoulder)), 1), gid);
 }
 
 // Stage 2 follows the same Gaussian energy diffusion/composite/grain order as Core Image.

@@ -1,0 +1,72 @@
+JustShoot 分段胶片材质迁移，2026-10-29
+
+目标
+保留快速拍摄和实时预览架构，引入胶片层密度中间结果，让颗粒经过相纸响应，
+让光晕在胶片转换之前参与曝光。首轮只迁移 Portra 400 + Portra Endura。
+不以算法复杂度或名称判断真实胶片准确度，不宣称未测量的设备性能收益。
+
+最新视觉取向（用户于 2026-10-29 确认）
+用户认可逆光参考图中新流程的高光与整体柔和感，将其视为正向改动。
+后续以当前新流程成像为保留基准；不能为性能优化或恢复旧版白点而改变这一取向。
+先减少不改变成像的查询与资源重复，参数校准作为独立、有参考图的后续工作。
+本次性能优化与逐图保真结果见 performance/REVIEW.txt。
+
+本轮实现
+1. 使用现有 MIT Spectral Film LUT，固定提交
+   bcbcfc6861f49cc706dc5d00ea048e4853060aab。
+   scripts/bake_film_material.py 导出 mode=negative 和 mode=print；关闭 ADX 编码。
+   每通道输出是扣除片基后的层激活密度，按各自 d_max 归一化，而不是 RGB 或 ADX。
+   两张 65^3 Float32 表共 8,788,000 字节；校验哈希写入资源清单。
+   MIT 署名许可沿用 Resources/SpectralFilmLUT-LICENSE.txt；不引入 SpektraLab 应用代码。
+2. FilmMaterial 保存输入校正、密度、相纸和最终曲线四张表与材料元数据。
+   白平衡只作用于输入表；原有肤色/阴影 refinement 在相纸之后作用；用户曲线最后作用。
+   保留 RGB cube 作为旧流程的参考，新的预设缓存键带 #material-v1。材质预设的手动
+   白平衡只烘焙输入表，不重复修改未使用的 RGB 参考；含用户曲线的条目仍可进入 16 MiB 缓存。
+3. FilmMaterialMath.h 为 Metal 预览和 Core Image 共用密度颗粒、曝光扩散、肤色/阴影数学。
+   光晕和柔光对线性化的输入加能量，再进入胶片表；不再使用旧的输出域软肩合成。
+   颗粒换算成密度单位后加入，再经过相纸/扫描。颗粒幅度是经验值，未经真实 Portra 标定。
+   原有面积匹配幅度与画幅归一化尺度继续使用。
+4. Metal 首段准备输入与高光能量；第二段融合密度、颗粒、相纸、refinement、曲线。
+   沿用已有降采样模糊、纹理池、后台上传与有界缓存。缓存成本包括所有材质表。
+   Live Photo 的 immutable bitmap tables 随 filter 准备一次，逐帧复用。
+5. 拍摄任务在 staging 中冻结 material.bin，manifest 保存 SHA-256；缺失、篡改或未知
+   版本不能降级为另一个 look。视频时间更新保留该摘要。旧任务没有材质字段，继续读取
+   自己冻结的 LUT 字节，不会因为 preset 更新自动获得新材质效果。
+6. 新流程不增加面向用户的暗房开关，相纸固定在预设内。
+
+数值验证
+资源清单 PortraEndura-material-v1.json 保存 4096 个固定随机颜色与 2049 个灰阶输入
+对未烘焙原始模型的误差，以及独立计算的灰阶/肤色/天空/绿植/灯光参考。
+当前中位 DeltaE00=0.0557366，P95=0.196126，最大=1.120658。
+这些数字不包含光晕、颗粒、refinement；不代表实拍胶片准确度。
+FilmMaterialTests 检查模型参考、RAW/SDR工作色彩空间一致性、Metal/CI一致性、
+静态/Live filter一致性、实际视频编码、合成 DNG 的方向/色彩空间/编码、随机种子、
+光晕空间影响、缓存与恢复兼容性。DNG 测试不代表真实 iPhone 传感器或 ProRAW 色彩标定。
+完整构建与测试记录另见 VALIDATION.json。
+
+复现与图像检查
+Python 依赖沿用 research/luts-2026-10-24/requirements.txt。
+固定上游源码后运行：
+python scripts/bake_film_material.py --source <固定提交的源码目录> --output <临时输出目录>
+本轮重新生成的两个二进制和 JSON 清单均与打包文件逐字节相同。
+XcodeBuildMCP 默认值为 JustShoot.xcodeproj / JustShoot / Debug / iPhone 17 / iOS 26.4。
+可选测试环境 JUSTSHOOT_SCENE_FIXTURES 指向规范化 SDR PNG 目录（遍历全部 PNG）；
+JUSTSHOOT_MATERIAL_EXPORT 指向对照图输出目录。
+三组照片使用相同输入、颗粒种子和参数。新旧流程整体色彩保持接近；这些 SDR 样本
+只用于检查空间效果、异常色偏和静态/视频一致性，不能证明实拍胶片匹配程度。
+样本来源沿用 research/luts-2026-10-25/refinement/README.md：NASA astronaut、
+Kodak Image 19，以及 CC0 的 2011-03-11 night in Taipei。
+后续扩大至 11 个场景的对照、复现方法与新暴露的高光白点问题，见
+expanded-scenes/REVIEW.txt。扩大样本后不能宣称当前默认效果已全面优于旧版。
+
+后续阶段（尚未实现，不能与本轮混称为完整光谱迁移）
+A. 补实拍 iPhone 预览/HEIF/ProRAW 同机位参考，锁定曝光、白平衡并记录 DNG baseline。
+   将 RAW 中的曝光参考、局部增益和非线性显影单独标定，建立新输入合同。
+   当前 v1 明确接受显示参照的编码 sRGB [0,1]；反解 sRGB 不会恢复场景辐射值。
+   光晕引起的超域值在 v1 输入表边界收敛；保留 HDR 高光需新版本输入整形表和标定。
+B. 基于同一模型扩展 C200、Pro400H 等负片；正片与富士数字模拟单独设计。
+   导入的任意 RGB LUT 不推断不存在的物理负片密度。
+C. 有参照后再引入密度相关颗粒校准、层间空间扩散、多相纸和摄影曝光控制。
+   不把欠曝后提亮等同于拍摄曝光变化，不按每张照片峰值归一化消掉曝光响应。
+D. 真机记录帧耗时、峰值内存、发热和全尺寸保存时间；比较预览降采样模糊与成片。
+   没有真机数据前不宣称当前默认参数最优、帧率更高或比 SpektraLab 更真实。

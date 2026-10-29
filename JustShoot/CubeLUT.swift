@@ -3,6 +3,8 @@ import Foundation
 struct CubeLUT: Sendable {
     let data: Data
     let dimension: Int
+    var material: FilmMaterial? = nil
+    var byteCount: Int { data.count + (material?.byteCount ?? 0) }
 
     enum ParseError: LocalizedError {
         case malformed

@@ -82,7 +82,10 @@ final class FilmSceneParityTests: XCTestCase {
         let queue = try XCTUnwrap(device.makeCommandQueue())
         for preset in FilmPreset.allCases {
             let source = FilmSource.preset(preset)
-            let lut = try await FilmCapturePreparation.shared.displayLUT(source: source, curve: .builtIn(.none))
+            let prepared = try await FilmCapturePreparation.shared.displayLUT(source: source, curve: .builtIn(.none))
+            // This test isolates the original RGB cube. Material stages have independent
+            // full-pipeline Metal/CI and unbaked-model coverage in FilmMaterialTests.
+            let lut = CubeLUT(data: prepared.data, dimension: prepared.dimension)
             let descriptor = MTLTextureDescriptor()
             descriptor.textureType = .type3D
             descriptor.pixelFormat = .rgba32Float

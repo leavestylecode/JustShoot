@@ -38,6 +38,7 @@ final class PreviewMetalResources: @unchecked Sendable {
         let device: any MTLDevice
         let computePipeline: any MTLComputePipelineState
         let finishPipeline: any MTLComputePipelineState
+        let materialFinishPipeline: any MTLComputePipelineState
     }
     /// Created once on the preparation queue. Texture-cache operations and MPS encoding
     /// remain on MainActor; command buffers retain their own frame leases through completion.
@@ -45,6 +46,7 @@ final class PreviewMetalResources: @unchecked Sendable {
         let device: any MTLDevice
         let computePipeline: any MTLComputePipelineState
         let finishPipeline: any MTLComputePipelineState
+        let materialFinishPipeline: any MTLComputePipelineState
         let commandQueue: any MTLCommandQueue
         let textureCache: CVMetalTextureCache
         let energyDownsampler: MPSImageBilinearScale
@@ -100,7 +102,7 @@ final class PreviewMetalResources: @unchecked Sendable {
               let cache else { throw PreparationError.rendererUnavailable }
         queue.label = "com.justshoot.preview"
         let renderer = RendererResources(device: ready.device, computePipeline: ready.computePipeline,
-            finishPipeline: ready.finishPipeline, commandQueue: queue, textureCache: cache,
+            finishPipeline: ready.finishPipeline, materialFinishPipeline: ready.materialFinishPipeline, commandQueue: queue, textureCache: cache,
             energyDownsampler: MPSImageBilinearScale(device: ready.device))
         state.withLock { $0.renderer = renderer }
         Diagnostics.emit("preview_renderer_resources_prepared",
@@ -113,12 +115,14 @@ final class PreviewMetalResources: @unchecked Sendable {
             guard let device = MTLCreateSystemDefaultDevice() else { throw PreparationError.metalUnavailable }
             guard let library = device.makeDefaultLibrary(),
                   let function = library.makeFunction(name: "previewLUT"),
-                  let finishFunction = library.makeFunction(name: "previewFinish") else {
+                  let finishFunction = library.makeFunction(name: "previewFinish"),
+                  let materialFunction = library.makeFunction(name: "previewMaterialFinish") else {
                 throw PreparationError.shaderUnavailable
             }
             let ready = try Ready(device: device,
                 computePipeline: device.makeComputePipelineState(function: function),
-                finishPipeline: device.makeComputePipelineState(function: finishFunction))
+                finishPipeline: device.makeComputePipelineState(function: finishFunction),
+                materialFinishPipeline: device.makeComputePipelineState(function: materialFunction))
             state.withLock { $0.ready = ready }
         } catch {
             Log.session.error("metal_prepare_failed")
@@ -266,7 +270,7 @@ final class CameraPreviewMetalView: MTKView {
 //
 // AVCaptureVideoPreviewLayer 是 AVFoundation 官方文档推荐的标准预览显示层，由系统在
 // 服务进程自行合成：虚拟设备切镜头时它拿到系统的 crossfade 合成流而非停帧（系统相机
-// 同款显示路径）。把它垫在 Metal 预览之下，主帧流停顿的窗口由 PreviewUnderlayBlender
+// 同款显示路径）。把它垫在 Metal 预览之下，镜头切换停顿的窗口由 PreviewUnderlayBlender
 // 把主源淡出、露出这层实时画面，过渡结束后淡回胶片分级渲染。不参与会话连接结构、
 // 不改 sessionPreset、零采集链路影响（设计记录见 LensTransitionCompositor.swift）。
 
@@ -380,6 +384,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         private var commandQueue: (any MTLCommandQueue)?
         private var computePipeline: (any MTLComputePipelineState)?
         private var finishPipeline: (any MTLComputePipelineState)?
+        private var materialFinishPipeline: (any MTLComputePipelineState)?
         private let targetPool = PreviewTargetPool<PreviewTargets>(maximumCount: 3)
         private var energyDownsampler: MPSImageBilinearScale?
         private let completionGate = PreviewRenderCompletionGate()
@@ -460,6 +465,17 @@ struct RealtimePreviewView: UIViewRepresentable {
             var chromaticGainB: Float
             var chromaticHighlightProtection: Float
             var grainResponse: Float
+            var materialDensityDimension: Float = 0
+            var materialPrintDimension: Float = 0
+            var materialFinishDimension: Float = 0
+            var materialMaximumR: Float = 0
+            var materialMaximumG: Float = 0
+            var materialMaximumB: Float = 0
+            var materialRefineX: Float = 0
+            var materialRefineY: Float = 0
+            var materialRefineZ: Float = 0
+            var materialRefineW: Float = 0
+            var materialIdentityFlags: UInt32 = 0
         }
 
         /// 色温响应增益的低通平滑：WB 读数 0.5s 采样 + 100K 量化，直接跳变会在预览上
@@ -487,6 +503,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             commandQueue = resources.commandQueue
             computePipeline = resources.computePipeline
             finishPipeline = resources.finishPipeline
+            materialFinishPipeline = resources.materialFinishPipeline
             textureCache = resources.textureCache
             energyDownsampler = resources.energyDownsampler
             view.delegate = self
@@ -535,7 +552,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             // 过渡计划（每 vsync 拉一次，即使没有新帧也要执行——淡出/淡回正发生在停顿窗口，
             // 那时恰无新帧）：crop = 扩展数字变焦倍率（帧对齐后的渲染侧上限作分母，见
             // PreviewCropCeilingSynchronizer）；metalOpacity = 停顿窗口内淡出本视图、露出
-            // 系统预览底衬，恢复后淡回（见 LensTransitionCompositor.swift 设计记录）。
+            // 系统预览底衬，恢复后淡回；普通拍照停顿保持胶片层不透明。
             let transitionPlan = manager?.previewTransitionPlan() ?? (crop: 1, metalOpacity: 1)
             // Entry readiness needs a real GPU frame behind its opaque loading overlay.
             // UIKit must not suppress this view through the ordinary lens-transition fade.
@@ -754,6 +771,20 @@ struct RealtimePreviewView: UIViewRepresentable {
                 grainResponse: grain.shaderResponse
             )
 
+            if let material = preparedLUT.material {
+                params.materialDensityDimension = Float(material.density.width)
+                params.materialPrintDimension = Float(material.paper.width)
+                params.materialFinishDimension = Float(material.finish.width)
+                params.materialMaximumR = material.maximum.x
+                params.materialMaximumG = material.maximum.y
+                params.materialMaximumB = material.maximum.z
+                params.materialRefineX = material.refinement.x
+                params.materialRefineY = material.refinement.y
+                params.materialRefineZ = material.refinement.z
+                params.materialRefineW = material.refinement.w
+                params.materialIdentityFlags = material.identityFlags
+            }
+
             // 编码 compute 命令
             guard let encoder = commandBuffer.makeComputeCommandEncoder() else {
                 flow?.skipped(.encoder)
@@ -783,7 +814,19 @@ struct RealtimePreviewView: UIViewRepresentable {
                 inflightSemaphore.signal()
                 return
             }
-            composite.setComputePipelineState(finishPipeline)
+            if let material = preparedLUT.material {
+                guard let materialFinishPipeline else {
+                    flow?.skipped(.pipeline)
+                    inflightSemaphore.signal()
+                    return
+                }
+                composite.setComputePipelineState(materialFinishPipeline)
+                composite.setTexture(material.density, index: 4)
+                composite.setTexture(material.paper, index: 5)
+                composite.setTexture(material.finish, index: 6)
+            } else {
+                composite.setComputePipelineState(finishPipeline)
+            }
             composite.setTexture(targets.graded, index: 0)
             composite.setTexture(optics.halationAmount > 0.0001 ? targets.halation : targets.energy, index: 1)
             composite.setTexture(optics.bloomAmount > 0.0001 ? targets.bloom : targets.energy, index: 2)
