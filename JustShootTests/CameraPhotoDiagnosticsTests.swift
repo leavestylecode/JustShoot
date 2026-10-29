@@ -18,7 +18,10 @@ final class CameraPhotoDiagnosticsTests: XCTestCase {
             kCGImagePropertyExifDictionary as String: [
                 kCGImagePropertyExifFocalLength as String: 6.76,
                 kCGImagePropertyExifFocalLenIn35mmFilm as String: 24,
-                kCGImagePropertyExifLensModel as String: "Back wide camera"
+                kCGImagePropertyExifLensModel as String: "Back wide camera",
+                kCGImagePropertyExifExposureTime as String: 0.02,
+                kCGImagePropertyExifExposureBiasValue as String: -0.7,
+                kCGImagePropertyExifISOSpeedRatings as String: [640]
             ],
             kCGImagePropertyGPSDictionary as String: [
                 kCGImagePropertyGPSLatitude as String: 31.2345,
@@ -34,6 +37,9 @@ final class CameraPhotoDiagnosticsTests: XCTestCase {
         XCTAssertTrue(fields.contains("lens_model=Back_wide_camera"))
         XCTAssertTrue(fields.contains("encoded_resolution=2x1"))
         XCTAssertTrue(fields.contains("resolved_resolution=5712x4284"))
+        XCTAssertTrue(fields.contains("encoded_exposure_s=0.020"))
+        XCTAssertTrue(fields.contains("encoded_iso=640"))
+        XCTAssertTrue(fields.contains("encoded_ev=-0.700"))
         XCTAssertFalse(fields.contains("31.2345"))
         XCTAssertFalse(fields.contains("121.5432"))
         XCTAssertFalse(fields.contains("GPS"))

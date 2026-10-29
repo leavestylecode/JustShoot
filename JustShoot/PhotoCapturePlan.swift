@@ -35,9 +35,9 @@ struct PhotoCapturePlan: Codable, Equatable, Sendable {
         return rawRecipe.resolvedInputSpace == inputSpace && (version == 1 || rawRecipe.version == 4)
     }
 
-    static func resolve(mode: PhotoCaptureMode, rawFormat: CameraRAWFormat?) -> Self {
+    static func resolve(mode: PhotoCaptureMode, rawFormat: CameraRAWFormat?, prefersProcessedPhoto: Bool = false) -> Self {
         let format: Format = mode == .livePhoto ? .livePhoto
-            : rawFormat?.kind == .appleProRAW ? .appleProRAW : .processed
+            : !prefersProcessedPhoto && rawFormat?.kind == .appleProRAW ? .appleProRAW : .processed
         // Every new look has one display-referred contract. Version 1 remains
         // decodable solely for jobs already checkpointed by older releases.
         return Self(version: 2, format: format, inputSpace: .displaySRGB, approximateLook: false)

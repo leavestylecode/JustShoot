@@ -17,7 +17,7 @@ struct CameraView: View {
     /// 当前选中的胶片源。底部右侧封面打开 picker 后可切换——`@State` 让 toolbar title、
     /// 预览 LUT (RealtimePreviewView.lutCacheKey)、右下封面、左下最近照片 badge 都自动跟随。
     @State private var source: FilmSource
-    /// Quality is the default for both existing and new installations. Live remains explicit.
+    /// Preserve the saved Live Photo preference; the still-photo format is automatic.
     @AppStorage("photoCaptureMode") private var captureModeValue = PhotoCaptureMode.quality.rawValue
     /// Live Photo 是否录音（设置页可配置，默认开）。开启时麦克风挂上 session、Live 视频带声音；
     /// 关闭则静音。与顶栏 livePhotoEnabled 一起决定是否挂麦克风——见 CameraManager.setLivePhotoAudio。
@@ -38,7 +38,6 @@ struct CameraView: View {
     @State private var isShutterBusy = false
     @ObservedObject private var capturePipeline = CapturePipeline.shared
     @State private var preparedLUT: (key: String, lut: CubeLUT, texture: PreviewLUTTexture, profile: FilmRenderProfile)?
-    @State private var showRAWHelp = false
     @State private var lutPreparationCadence = CameraLUTPreparationCadence()
     @State private var entryRetryRevision: UInt64 = 0
     @State private var preparedPickerCovers: [FilmPreset: UIImage] = [:]
@@ -132,6 +131,7 @@ struct CameraView: View {
                             // 用户可以直接在 sun 图标上继续拖动。
                             ExposureSunRail(
                                 bias: cameraManager.exposureBias,
+                                range: cameraManager.exposureRange,
                                 isAdjusting: isAdjustingExposure
                             )
                             // 长轴始终沿用户视角竖直——controlRotationAngle 把内容旋转到用户上方为正。
@@ -161,6 +161,11 @@ struct CameraView: View {
                             }
                         )
                         .padding(10)
+                    }
+                    .overlay(alignment: .topLeading) {
+                        if abs(cameraManager.exposureBias) > 0.01 || isAdjustingExposure {
+                            exposureControl.padding(10)
+                        }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -308,7 +313,7 @@ struct CameraView: View {
             // Keep the control visible while support/enablement is being negotiated.
             // If availability is lost, an existing On preference can still be switched Off.
             ToolbarItem(placement: .primaryAction) {
-                captureFormatControl
+                livePhotoControl
             }
             ToolbarSpacer(.fixed, placement: .primaryAction)
 
@@ -338,6 +343,7 @@ struct CameraView: View {
                     RecentPhotosBadge(
                         source: source,
                         lastThumbnailHint: $lastPhotoThumbnail,
+                        pendingPreview: capturePipeline.lastPreview,
                         isShutterBusy: isShutterBusy,
                         isProcessing: capturePipeline.pendingCount > 0,
                         controlRotationAngle: controlRotationAngle,
@@ -515,7 +521,10 @@ struct CameraView: View {
         }
         .onReceive(capturePipeline.$lastCompletion) { completion in
             guard let completion, completion.filterName == source.photoFilterName else { return }
-            lastPhotoThumbnail = RecentPhotoThumbnail(id: completion.id, filterName: completion.filterName, image: completion.thumbnail)
+            guard lastPhotoThumbnail?.filterName != completion.filterName
+                || (lastPhotoThumbnail?.captureDate ?? .distantPast) <= completion.captureDate else { return }
+            lastPhotoThumbnail = RecentPhotoThumbnail(id: completion.id, filterName: completion.filterName,
+                image: completion.thumbnail, captureDate: completion.captureDate)
         }
         .onDisappear {
             cameraManager.diagnostics.event("camera_view_disappear")
@@ -556,11 +565,6 @@ struct CameraView: View {
         } message: {
             Text(captureError ?? "")
         }
-        .alert("Capture quality", isPresented: $showRAWHelp) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Quality develops Apple ProRAW at full precision and saves an sRGB photo. All filters share the same white balance, LUT and curve in preview, photos and Live Photo. HEIF is used when ProRAW is unavailable. Camera processing can still change fine detail and local brightness between preview and the photo. Originals are kept for recovery until saving succeeds.")
-        }
         .sheet(isPresented: $showCurveManager) {
             NavigationStack {
                 FilmCurveLibraryView(showsDoneButton: true)
@@ -569,33 +573,38 @@ struct CameraView: View {
         }
     }
 
-    private var captureFormatControl: some View {
-        Menu {
-            Picker("Capture mode", selection: $captureModeValue) {
-                Text("Quality").tag(PhotoCaptureMode.quality.rawValue)
-                Text("Live Photo").tag(PhotoCaptureMode.livePhoto.rawValue)
-            }
-            Button("Capture quality", systemImage: "info.circle") { showRAWHelp = true }
+    private var exposureControl: some View {
+        ExposureCompensationControl(bias: cameraManager.exposureBias, setBias: cameraManager.setExposureBias)
+        .disabled(isShutterBusy || cameraManager.readiness != .ready)
+    }
+
+    private var livePhotoControl: some View {
+        Button {
+            cameraManager.hapticSoft.impactOccurred()
+            let live = !wantsLiveCapture
+            // Close capture admission synchronously before publishing the preference.
+            // A shutter tap must not resolve a new mode against the previous output.
+            cameraManager.setLivePhotoAudio(live: live, sound: livePhotoSoundEnabled)
+            captureModeValue = live ? PhotoCaptureMode.livePhoto.rawValue : PhotoCaptureMode.quality.rawValue
         } label: {
-            HStack(spacing: 3) {
-                if capturePlan.approximateLook { Image(systemName: "approximately") }
-                Text(capturePlan.capturesRAW ? "ProRAW" : capturePlan.capturesLivePhoto ? "Live" : "HEIF")
-                    .font(.caption.weight(.bold))
-            }
-            .foregroundStyle(capturePlan.capturesRAW ? .green : .white)
-            .rotationEffect(controlRotationAngle)
+            Image(systemName: wantsLiveCapture ? "livephoto" : "livephoto.slash")
+                .rotationEffect(controlRotationAngle)
+                .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
         }
+        .tint(wantsLiveCapture ? .yellow : .white)
         .disabled(cameraManager.readiness != .ready || isShutterBusy)
-        .accessibilityIdentifier("camera.capture_mode")
-        .accessibilityLabel("Capture mode")
-        .accessibilityValue(capturePlan.capturesRAW ? Text("Apple ProRAW") : capturePlan.capturesLivePhoto ? Text("Live Photo") : Text("Processed photo"))
+        .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
+        .accessibilityIdentifier("camera.live_photo")
+        .accessibilityLabel(wantsLiveCapture ? Text("Live Photo on") : Text("Live Photo off"))
+        .accessibilityHint("Toggle Live Photo")
     }
 
     private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }
     private var captureMode: PhotoCaptureMode { PhotoCaptureMode(rawValue: captureModeValue) ?? .quality }
     private var wantsLiveCapture: Bool { captureMode == .livePhoto }
     private var capturePlan: PhotoCapturePlan {
-        .resolve(mode: captureMode, rawFormat: cameraManager.rawCaptureFormat)
+        .resolve(mode: captureMode, rawFormat: cameraManager.rawCaptureFormat,
+                 prefersProcessedPhoto: cameraManager.prefersProcessedPhoto)
     }
 
     @ViewBuilder
@@ -848,10 +857,10 @@ struct CameraView: View {
     /// 把 viewport 坐标转换成 AVF sensor 归一化坐标，并提交对焦/单次 AE。
     /// 见 setFocusAndExposure 里的旋转推导：portrait viewport 与 sensor landscape 旋转 90° CW 后
     /// 重合，vx/vy 在整个 viewport 上线性映射到 AVF [0,1]，所以 normalizedX = vy/vh，normalizedY = 1 - vx/vw。
-    private func commitFocusToDevice(at location: CGPoint, in size: CGSize) {
+    private func commitFocusToDevice(at location: CGPoint, in size: CGSize, resetExposure: Bool = true) {
         let normalizedX = location.y / size.height
         let normalizedY = 1.0 - (location.x / size.width)
-        cameraManager.setFocusAndExposure(normalizedPoint: CGPoint(x: normalizedX, y: normalizedY))
+        cameraManager.setFocusAndExposure(normalizedPoint: CGPoint(x: normalizedX, y: normalizedY), resetExposure: resetExposure)
     }
 
     /// 3.5s 后若 focus 已不再 locked（focusHoldTimer 已过期）则淡出 reticle。
@@ -936,6 +945,7 @@ struct CameraView: View {
     }
 
     private func resetPreviewGesture() {
+        cameraManager.endExposureAdjustment()
         if dragStartLocation != nil, didShowReticleThisGesture, !cameraManager.isFocusLocked { cancelFocusReticle() }
         previewGestureRouting = PreviewGestureRouting()
         dragStartLocation = nil
@@ -946,8 +956,7 @@ struct CameraView: View {
     }
 
     private func handleFocusEvChanged(value: DragGesture.Value, viewportSize: CGSize) {
-        // 仅在 tap → raw data + flash restore 这段窗口禁手势，避免 setExposureTargetBias
-        // 与 flash restore 互相覆盖。后处理（LUT+save）已经在背景 task，不会影响 device 状态。
+        // Freeze device controls from admission through the durable still checkpoint.
         guard !isShutterBusy else { return }
 
         if dragStartLocation == nil {
@@ -975,14 +984,14 @@ struct CameraView: View {
 
         if abs(perceived.vertical) > 14 && abs(perceived.vertical) > abs(perceived.horizontal) * 1.5 {
             isAdjustingExposure = true
+            cameraManager.beginExposureAdjustment()
             cameraManager.hapticSoft.impactOccurred()
             if cameraManager.isFocusLocked {
                 // 活动对焦下继续微调：保留焦点，从当前 bias 累加，续期 hold timer
                 cameraManager.refreshFocusHold()
             } else {
-                // 首次拖动：提交 AVF 到起始点；setFocusAndExposure 会把 bias 清零
-                commitFocusToDevice(at: value.startLocation, in: viewportSize)
-                biasAtDragStart = 0
+                // A fresh EV drag can establish a point without resetting the retained EV.
+                commitFocusToDevice(at: value.startLocation, in: viewportSize, resetExposure: false)
             }
             let evDelta = Float(perceived.vertical) / 100.0
             cameraManager.setExposureBias(biasAtDragStart + evDelta)

@@ -24,6 +24,37 @@ enum FlashMode: String, CaseIterable {
     }
 }
 
+struct ExposureCompensationControl: View {
+    let bias: Float
+    let setBias: (Float) -> Void
+
+    var body: some View {
+        Button { setBias(0) } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "plusminus")
+                Text(verbatim: String(format: "%+.1f", bias)).monospacedDigit()
+                Image(systemName: "arrow.counterclockwise").font(.caption2)
+            }
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 10)
+            .frame(minHeight: 44)
+            .background(.black.opacity(0.55), in: Capsule())
+        }
+        .tint(.yellow)
+        .accessibilityIdentifier("camera.exposure")
+        .accessibilityLabel("Exposure compensation")
+        .accessibilityValue(Text(verbatim: String(format: "%+.1f EV", bias)))
+        .accessibilityHint("Reset exposure compensation")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: setBias(bias + 0.1)
+            case .decrement: setBias(bias - 0.1)
+            @unknown default: break
+            }
+        }
+    }
+}
+
 // MARK: - 对焦完成通知
 extension Notification.Name {
     static let focusDidComplete = Notification.Name("JustShoot.focusDidComplete")
@@ -166,20 +197,18 @@ struct FocusIndicatorView: View {
 
 // MARK: - 曝光补偿 sun rail
 /// 对焦框旁的 sun 图标 + 细竖轨：tap-to-focus 后跟随手指上下滑动显示当前 EV 偏置。
-/// 视觉行程 ±55pt 对应 ±1 EV，与 CameraManager.setExposureBias 的 ±1 软上限一致——
+/// Visual travel follows the current format's recommended EV range.
+///
 /// sun 触到 rail 端点就是真的触底，不存在"还能拖但视觉不动"的脱节。
 /// `isAdjusting` 仅控制 sun 图标缩放反馈，rail 始终显示——避免拖动结束后视觉突然丢失参考。
 struct ExposureSunRail: View {
     let bias: Float
+    var range = CameraExposureRange()
     let isAdjusting: Bool
 
     private static let railHeight: CGFloat = 110
-    /// sun 视觉行程对应的最大 EV。与 CameraManager.setExposureBias 的 ±1 EV 上限对齐——
-    /// 用户拖到顶 / 底时 sun 恰好停在 rail 端点，视觉与实际触底同步。
-    private static let maxVisualEV: Float = 1.0
-
     private var sunYOffset: CGFloat {
-        let normalized = max(-1, min(1, bias / Self.maxVisualEV))
+        let normalized = range.fraction(bias)
         return -CGFloat(normalized) * (Self.railHeight / 2)
     }
 

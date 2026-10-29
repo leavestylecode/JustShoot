@@ -11,6 +11,53 @@ import ImageIO
 /// PHImageManager 预览请求，断言每一环。任何一环失败即定位真机黑屏的层级。
 final class PhotoDisplayRoundTripTests: XCTestCase {
 
+    func testFilmAdjustmentUpdatesTheSameAssetAndKeepsTheOriginal() async throws {
+        try await ensurePhotoLibraryAuthorized()
+        let source = try Self.syntheticCapture(width: 768, height: 576)
+        let captureID = UUID()
+        let date = Date()
+        let id = try await PhotoLibrary.save(imageData: source, creationDate: date,
+            latitude: nil, longitude: nil, altitude: nil, locationTimestamp: nil, captureID: captureID)
+        defer { Task { try? await PhotoLibrary.delete(localIdentifiers: [id]) } }
+        let image = CIImage(color: CIColor(red: 0.2, green: 0.7, blue: 0.3))
+            .cropped(to: CGRect(x: 0, y: 0, width: 768, height: 576))
+        let edited = try XCTUnwrap(PhotoImageEncoder.encode(image, context: CIContext(),
+            colorSpace: FilmImagePipeline.colorSpace, mode: .quality)?.data)
+        let recipe = CaptureRecipe(id: captureID, captureDate: date, filterName: "test-adjustment", displayLabel: nil,
+            focalLength: 24, outputQuality: nil, profile: FilmPreset.fujiC200.renderProfile,
+            grainSeed: 1, location: nil, lutDimension: 2, chromaticSceneCCT: nil, photoDisplayTime: nil)
+        try await PhotoLibrary.saveDeferredAdjustment(imageData: edited, id: id, recipe: recipe)
+        let original = await AssetImageLoader.shared.imageData(id: id, original: true)
+        let current = await AssetImageLoader.shared.imageData(id: id)
+        // PhotoKit may rewrite container metadata. The original's pixel content
+        // and dimensions must remain separate from the green film adjustment.
+        let originalImage = try XCTUnwrap(CIImage(data: XCTUnwrap(original)))
+        let sourceImage = try XCTUnwrap(CIImage(data: source))
+        XCTAssertEqual(originalImage.extent.size, CGSize(width: 768, height: 576))
+        var originalPixel = [UInt8](repeating: 0, count: 4)
+        var sourcePixel = [UInt8](repeating: 0, count: 4)
+        let context = CIContext()
+        let sample = CGRect(x: 384, y: 288, width: 1, height: 1)
+        context.render(originalImage, toBitmap: &originalPixel, rowBytes: 4,
+            bounds: sample, format: .RGBA8, colorSpace: FilmImagePipeline.colorSpace)
+        context.render(sourceImage, toBitmap: &sourcePixel, rowBytes: 4,
+            bounds: sample, format: .RGBA8, colorSpace: FilmImagePipeline.colorSpace)
+        for channel in 0..<3 {
+            XCTAssertLessThanOrEqual(abs(Int(originalPixel[channel]) - Int(sourcePixel[channel])), 2)
+        }
+        let bytes = try XCTUnwrap(current)
+        let decoded = try XCTUnwrap(CIImage(data: bytes))
+        XCTAssertEqual(decoded.extent.size, CGSize(width: 768, height: 576))
+        var pixel = [UInt8](repeating: 0, count: 4)
+        CIContext().render(decoded, toBitmap: &pixel, rowBytes: 4, bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+            format: .RGBA8, colorSpace: FilmImagePipeline.colorSpace)
+        XCTAssertGreaterThan(pixel[1], pixel[0] + 60, "The current asset must contain the film adjustment")
+        XCTAssertEqual(PhotoLibrary.findCapture(id: captureID, creationDate: date), id)
+        // Retrying a save updates the existing asset without adding another photo.
+        try await PhotoLibrary.saveDeferredAdjustment(imageData: edited, id: id, recipe: recipe)
+        XCTAssertEqual(PhotoLibrary.findCapture(id: captureID, creationDate: date), id)
+    }
+
     func testRenderedHEICRoundTripsThroughPhotoLibrary() async throws {
         try await ensurePhotoLibraryAuthorized()
 

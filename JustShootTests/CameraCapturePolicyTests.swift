@@ -33,6 +33,23 @@ final class CameraCapturePolicyTests: XCTestCase {
         XCTAssertEqual(selected?.height, 4284)
     }
 
+    func test24MPIsNotRequestedWhenDeferredDeliveryIsUnavailable() {
+        let selected = CameraCapturePolicy.automaticPhotoDimensions(from: [
+            CMVideoDimensions(width: 4032, height: 3024), CMVideoDimensions(width: 5712, height: 4284)
+        ], deferredDeliveryEnabled: false)
+        XCTAssertEqual(selected?.width, 4032)
+        XCTAssertEqual(selected?.height, 3024)
+        XCTAssertTrue(CameraCapturePolicy.requiresDeferredDelivery(CMVideoDimensions(width: 5712, height: 4284)))
+        XCTAssertFalse(CameraCapturePolicy.requiresDeferredDelivery(CMVideoDimensions(width: 4032, height: 3024)))
+    }
+
+    func testDeferredDeliveryRequiresCapabilityPhotosAccessAndStillMode() {
+        XCTAssertTrue(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: true, livePhoto: false))
+        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: false, photosAuthorized: true, livePhoto: false))
+        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: false, livePhoto: false))
+        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: true, livePhoto: true))
+    }
+
     func testAFormatWithOnly12And48MPUsesItsSupportedOrdinarySize() {
         let selected = CameraCapturePolicy.automaticPhotoDimensions(from: [
             CMVideoDimensions(width: 8064, height: 6048), CMVideoDimensions(width: 4032, height: 3024)

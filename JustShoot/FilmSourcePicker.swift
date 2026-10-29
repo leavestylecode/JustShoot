@@ -6,6 +6,7 @@ struct RecentPhotoThumbnail {
     let id: UUID
     let filterName: String
     let image: UIImage?
+    var captureDate: Date = .distantPast
 }
 
 /// A presentation uses one committed snapshot, rather than reading a changing @Query in a sheet.
@@ -15,13 +16,16 @@ struct RecentPhotoPresentation: Identifiable {
     let photos: [Photo]
 
     @MainActor
-    static func load(in context: ModelContext, filterName: String) throws -> Self? {
+    static func load(in context: ModelContext, filterName: String, startingAt photoID: UUID? = nil) throws -> Self? {
         let descriptor = FetchDescriptor<Photo>(
             predicate: #Predicate { $0.filmPresetName == filterName },
             sortBy: [SortDescriptor(\Photo.timestamp)])
         let photos = try context.fetch(descriptor).filter { !$0.isDeleted }
-        guard let latest = photos.last else { return nil }
-        return Self(startPhoto: latest, photos: photos)
+        let selection: Photo?
+        if let photoID { selection = photos.first { $0.id == photoID } }
+        else { selection = photos.last }
+        guard let selected = selection else { return nil }
+        return Self(startPhoto: selected, photos: photos)
     }
 
     @MainActor
@@ -47,6 +51,7 @@ struct RecentPhotoPresentation: Identifiable {
 struct RecentPhotosBadge: View {
     let source: FilmSource
     @Binding var lastThumbnailHint: RecentPhotoThumbnail?
+    let pendingPreview: CapturePreview?
     let isShutterBusy: Bool
     let isProcessing: Bool
     let controlRotationAngle: Angle
@@ -56,6 +61,7 @@ struct RecentPhotosBadge: View {
     @Query private var photos: [Photo]
     @Environment(\.modelContext) private var modelContext
     @State private var selectedDetail: RecentPhotoPresentation?
+    @State private var selectedPending: CapturePreview?
     @State private var openError: String?
 
     private struct ThumbnailRequest: Hashable {
@@ -64,7 +70,13 @@ struct RecentPhotosBadge: View {
     }
 
     private var currentHint: RecentPhotoThumbnail? {
-        lastThumbnailHint?.filterName == source.photoFilterName ? lastThumbnailHint : nil
+        guard let hint = lastThumbnailHint, hint.filterName == source.photoFilterName,
+              photos.first.map({ hint.captureDate >= $0.timestamp }) ?? true else { return nil }
+        return hint
+    }
+
+    private var currentPreview: CapturePreview? {
+        pendingPreview?.filterName == source.photoFilterName ? pendingPreview : nil
     }
 
     private static let thumbnailMaxPixel = 88
@@ -72,6 +84,7 @@ struct RecentPhotosBadge: View {
     init(
         source: FilmSource,
         lastThumbnailHint: Binding<RecentPhotoThumbnail?>,
+        pendingPreview: CapturePreview? = nil,
         isShutterBusy: Bool,
         isProcessing: Bool,
         controlRotationAngle: Angle,
@@ -80,6 +93,7 @@ struct RecentPhotosBadge: View {
     ) {
         self.source = source
         self._lastThumbnailHint = lastThumbnailHint
+        self.pendingPreview = pendingPreview
         self.isShutterBusy = isShutterBusy
         self.isProcessing = isProcessing
         self.controlRotationAngle = controlRotationAngle
@@ -92,7 +106,7 @@ struct RecentPhotosBadge: View {
     var body: some View {
         Button { openRecentPhotos() } label: {
             ZStack {
-                if let thumb = currentHint?.image {
+                if let thumb = currentPreview?.image ?? currentHint?.image {
                     Image(uiImage: thumb)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -122,15 +136,23 @@ struct RecentPhotosBadge: View {
         }
         .accessibilityLabel("Most recent photo")
         .accessibilityValue(isShutterBusy ? Text("Capturing") : isProcessing ? Text("Saving…") : Text(""))
-        .accessibilityHint(photos.isEmpty && currentHint == nil ? Text("No photos yet") : Text("Open larger view"))
+        .accessibilityHint(currentPreview != nil ? Text("Preview while saving")
+            : photos.isEmpty && currentHint == nil ? Text("No photos yet") : Text("Open larger view"))
         // 仅在快门 race 窗口禁用，让详情页可以在后处理进行中正常打开历史照片。
-        .disabled((photos.isEmpty && currentHint == nil) || isShutterBusy)
+        .disabled((photos.isEmpty && currentHint == nil && currentPreview == nil) || isShutterBusy)
         .task(id: ThumbnailRequest(sourceID: source.id, photoID: photos.first?.id)) {
             if lastThumbnailHint?.filterName != source.photoFilterName { lastThumbnailHint = nil }
             await loadFromQuery()
         }
         .onChange(of: selectedDetail?.id) { _, id in
             if id != nil { onPresentationChanged(true) }
+        }
+        .onChange(of: selectedPending?.id) { _, id in
+            if id != nil { onPresentationChanged(true) }
+        }
+        .sheet(item: $selectedPending, onDismiss: { onPresentationChanged(false) }) { preview in
+            CapturePreviewReview(preview: preview)
+                .preferredColorScheme(.dark)
         }
         .sheet(item: $selectedDetail, onDismiss: { onPresentationChanged(false) }) { payload in
             NavigationStack {
@@ -159,6 +181,10 @@ struct RecentPhotosBadge: View {
 
     @MainActor
     private func openRecentPhotos() {
+        if let preview = currentPreview {
+            selectedPending = preview
+            return
+        }
         let trace = DiagnosticTrace(id: currentHint?.id.uuidString ?? "recent-photos")
         trace.event("recent_photos_open_requested", "has_indexed_photo=\(!photos.isEmpty) has_hint=\(currentHint != nil)")
         do {
@@ -190,9 +216,71 @@ struct RecentPhotosBadge: View {
             if currentHint?.id == photo.id, currentHint?.image != nil { return }
             let thumb = await PhotoImage.thumbnail(for: photo, maxPixel: Self.thumbnailMaxPixel)
             guard !Task.isCancelled, lastThumbnailHint?.id == previousHintID else { return }
-            lastThumbnailHint = RecentPhotoThumbnail(id: photo.id, filterName: filterName, image: thumb)
+            lastThumbnailHint = RecentPhotoThumbnail(id: photo.id, filterName: filterName, image: thumb, captureDate: photo.timestamp)
         } catch {
             Diagnostics.emit("recent_thumbnail_failed", fields: Diagnostics.errorFields(error))
+        }
+    }
+}
+
+/// The provisional image stays out of Photos/SwiftData. Replace the open preview
+/// only after the matching capture commits, so older completions cannot replace it.
+struct CapturePreviewReview: View {
+    let preview: CapturePreview
+    @ObservedObject private var pipeline: CapturePipeline
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @State private var saved: RecentPhotoPresentation?
+    @State private var openError: String?
+
+    init(preview: CapturePreview, pipeline: CapturePipeline = .shared) {
+        self.preview = preview
+        self.pipeline = pipeline
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let saved {
+                    PhotoDetailView(photo: saved.startPhoto, allPhotos: saved.photos)
+                } else {
+                    VStack(spacing: 16) {
+                        Image(uiImage: preview.image)
+                            .resizable()
+                            .scaledToFit()
+                            .accessibilityLabel("Photo preview")
+                        if pipeline.isProcessing(preview.id) {
+                            ProgressView("Saving…")
+                        } else {
+                            Text(openError ?? String(localized: "Saving paused"))
+                                .foregroundStyle(.secondary)
+                            Button("Retry") {
+                                Task {
+                                    loadCommittedPhoto(pipeline.lastCompletion)
+                                    if saved == nil { await pipeline.retryPending() }
+                                }
+                            }
+                        }
+                    }
+                    .padding()
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { dismiss() } label: { Image(systemName: "xmark").fontWeight(.semibold) }
+                }
+            }
+            .onReceive(pipeline.$lastCompletion, perform: loadCommittedPhoto)
+        }
+    }
+
+    private func loadCommittedPhoto(_ completion: CaptureCompletion?) {
+        guard let completion, completion.captureID == preview.id else { return }
+        do {
+            saved = try RecentPhotoPresentation.load(in: modelContext, filterName: preview.filterName, startingAt: completion.id)
+            if saved == nil { openError = String(localized: "Photos could not be loaded. Please try again.") }
+        } catch {
+            openError = String(localized: "Photos could not be loaded. Please try again.")
         }
     }
 }

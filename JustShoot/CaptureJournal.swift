@@ -75,6 +75,7 @@ struct CaptureJob: Codable, Sendable {
     var rendered = false
     var hasRenderedMovie = false
     var assetIdentifier: String?
+    var deferredPhoto: DeferredPhotoState?
 
     var id: UUID { recipe.id }
 }
@@ -121,6 +122,12 @@ struct CaptureJournal: Sendable {
     private struct ManifestVersion: Decodable { let formatVersion: Int }
 
     let root: URL
+    private let storage = CaptureStorageLedger()
+    var cachedStorageBytes: Int64? { storage.bytes }
+    var storageScanCount: Int { storage.scanCount }
+
+    init(root: URL) { self.root = root }
+
     static let maximumJobs = 16
     static let maximumBytes: Int64 = 1_024 * 1_024 * 1_024
 
@@ -213,6 +220,8 @@ struct CaptureJournal: Sendable {
     }
 
     func recoverInventory(excludingInFlight inFlight: Set<UUID> = []) throws -> CaptureRecoveryInventory {
+        storage.invalidate()
+        defer { _ = try? diskUsage() }
         let fm = FileManager.default
         guard fm.fileExists(atPath: root.path) else { return CaptureRecoveryInventory() }
         for staging in try fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
@@ -272,21 +281,25 @@ struct CaptureJournal: Sendable {
 
     func discardRecoveryFiles(for issue: CaptureRecoveryIssue) throws {
         let current = try currentIssue(issue)
+        defer { refreshStorageDirectory(current.id) }
         try FileManager.default.removeItem(at: root.appendingPathComponent(current.id, isDirectory: true))
     }
 
     func markDiscarded(_ issue: CaptureRecoveryIssue) throws {
         let current = try currentIssue(issue)
+        defer { refreshStorageDirectory(current.id) }
         try write(Data(), to: root.appendingPathComponent(current.id, isDirectory: true).appendingPathComponent("discarded"))
     }
 
     func markNeedsAttention(_ id: UUID) throws {
         _ = try job(for: id)
+        defer { refreshStorageDirectory(id.uuidString) }
         try write(Data(), to: file("attention", for: id))
     }
 
     func undoDiscard(_ issue: CaptureRecoveryIssue) throws {
         let current = try currentIssue(issue)
+        defer { refreshStorageDirectory(current.id) }
         let marker = root.appendingPathComponent(current.id, isDirectory: true).appendingPathComponent("discarded")
         if FileManager.default.fileExists(atPath: marker.path) { try FileManager.default.removeItem(at: marker) }
     }
@@ -300,15 +313,21 @@ struct CaptureJournal: Sendable {
 
     func hasRoom(for bytes: Int64) throws -> Bool {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        guard try diskUsage() + bytes <= Self.maximumBytes else { return false }
+        guard try (storage.bytes ?? diskUsage()) + bytes <= Self.maximumBytes else { return false }
         let available = try root.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
             .volumeAvailableCapacityForImportantUsage
         return available.map { $0 >= bytes + 128 * 1_024 * 1_024 } ?? true
     }
 
     func stage(recipe: CaptureRecipe, imageData: Data, movieURL: URL?, lut: CubeLUT, rawLUT: RawFilmLUT? = nil, reserved: Bool = false,
-        awaitingCaptureCompletion: Bool = false, pendingMovieURL: URL? = nil) throws -> CaptureJob {
+        awaitingCaptureCompletion: Bool = false, pendingMovieURL: URL? = nil,
+        deferredPhoto: DeferredPhotoState? = nil) throws -> CaptureJob {
         guard recipe.lutDimension == lut.dimension else { throw JournalError.invalidJob }
+        if let deferredPhoto {
+            guard recipe.raw == nil, movieURL == nil, pendingMovieURL == nil,
+                  recipe.plan?.capturesLivePhoto != true,
+                  deferredPhoto.width > 0, deferredPhoto.height > 0 else { throw JournalError.invalidJob }
+        }
         if let plan = recipe.plan {
             guard plan.accepts(rawRecipe: recipe.raw),
                   plan.capturesLivePhoto || (movieURL == nil && pendingMovieURL == nil) else {
@@ -340,6 +359,10 @@ struct CaptureJournal: Sendable {
         }
 
         let staging = root.appendingPathComponent("staging-\(recipe.id.uuidString)", isDirectory: true)
+        defer {
+            refreshStorageDirectory(staging.lastPathComponent)
+            refreshStorageDirectory(recipe.id.uuidString)
+        }
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
         try write(imageData, to: staging.appendingPathComponent("original.image"))
         try write(lut.data, to: staging.appendingPathComponent("lut.bin"))
@@ -350,7 +373,8 @@ struct CaptureJournal: Sendable {
             try fm.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: destination.path)
         }
         let job = CaptureJob(recipe: recipe, hasSourceMovie: movieURL != nil,
-            awaitingCaptureCompletion: awaitingCaptureCompletion ? true : nil, pendingMovieURL: pendingMovieURL)
+            awaitingCaptureCompletion: awaitingCaptureCompletion ? true : nil, pendingMovieURL: pendingMovieURL,
+            deferredPhoto: deferredPhoto)
         try write(JSONEncoder().encode(job), to: staging.appendingPathComponent("manifest.json"))
         try fm.moveItem(at: staging, to: directory(for: recipe.id))
         if let movieURL { try? fm.removeItem(at: movieURL) }
@@ -368,6 +392,7 @@ struct CaptureJournal: Sendable {
     /// complete source.mov that recovery can discover, while the original still stays usable.
     func completeCapture(id: UUID, photoDisplayTime: Double?, movieURL: URL?, recovered: Bool = false) throws -> CaptureJob {
         var job = try job(for: id)
+        defer { refreshStorageDirectory(id.uuidString) }
         guard job.awaitingCaptureCompletion == true else { return job }
         let fm = FileManager.default
         let destination = file("source.mov", for: id)
@@ -389,6 +414,7 @@ struct CaptureJournal: Sendable {
     }
 
     func update(_ job: CaptureJob) throws {
+        defer { refreshStorageDirectory(job.id.uuidString) }
         try write(JSONEncoder().encode(job), to: file("manifest.json", for: job.id))
     }
 
@@ -404,24 +430,75 @@ struct CaptureJournal: Sendable {
     }
 
     func writeRenderedImage(_ data: Data, for id: UUID) throws {
+        defer { refreshStorageDirectory(id.uuidString) }
         try write(data, to: file("rendered.image", for: id))
     }
 
-    func markDiscarded(_ id: UUID) throws { try write(Data(), to: file("discarded", for: id)) }
+    func finalizeDeferredPhoto(_ data: Data, for id: UUID) throws -> CaptureJob {
+        defer { refreshStorageDirectory(id.uuidString) }
+        var job = try job(for: id)
+        guard var deferred = job.deferredPhoto, deferred.assetIdentifier != nil,
+              deferred.acceptsFinalImage(data) else { throw JournalError.invalidJob }
+        // Commit bytes first. A crash before the manifest update simply re-reads Photos.
+        try write(data, to: file("original.image", for: id))
+        deferred.finalized = true
+        job.deferredPhoto = deferred
+        try update(job)
+        return job
+    }
+
+    func markDiscarded(_ id: UUID) throws {
+        defer { refreshStorageDirectory(id.uuidString) }
+        try write(Data(), to: file("discarded", for: id))
+    }
 
     func undoDiscard(_ id: UUID) throws {
+        defer { refreshStorageDirectory(id.uuidString) }
         let marker = file("discarded", for: id)
         if FileManager.default.fileExists(atPath: marker.path) { try FileManager.default.removeItem(at: marker) }
     }
 
-    func finish(_ id: UUID) throws { try FileManager.default.removeItem(at: directory(for: id)) }
+    func finish(_ id: UUID) throws {
+        defer { refreshStorageDirectory(id.uuidString) }
+        try FileManager.default.removeItem(at: directory(for: id))
+    }
 
     func diskUsage() throws -> Int64 {
-        guard let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.fileSizeKey]) else { return 0 }
-        var total: Int64 = 0
-        for case let url as URL in enumerator {
-            total += Int64(try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0)
+        var directories: [String: Int64] = [:]
+        if FileManager.default.fileExists(atPath: root.path) {
+            let children = try FileManager.default.contentsOfDirectory(at: root,
+                includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey])
+            for child in children {
+                directories[child.lastPathComponent] = try Self.bytes(at: child)
+            }
         }
+        storage.reconcile(directories)
+        return directories.values.reduce(0, +)
+    }
+
+    private func refreshStorageDirectory(_ name: String) {
+        guard storage.bytes != nil else { return }
+        do { storage.replace(directory: name, bytes: try Self.bytes(at: root.appendingPathComponent(name))) }
+        catch { storage.invalidate() }
+    }
+
+    private static func bytes(at url: URL) throws -> Int64 {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: url.path) else { return 0 }
+        let keys: Set<URLResourceKey> = [.isRegularFileKey, .fileSizeKey]
+        let rootValues = try url.resourceValues(forKeys: keys)
+        if rootValues.isRegularFile == true { return Int64(rootValues.fileSize ?? 0) }
+        var failure: (any Error)?
+        guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: Array(keys), errorHandler: { _, error in
+            failure = error
+            return false
+        }) else { throw JournalError.invalidJob }
+        var total: Int64 = 0
+        for case let file as URL in enumerator {
+            let values = try file.resourceValues(forKeys: keys)
+            if values.isRegularFile == true { total += Int64(values.fileSize ?? 0) }
+        }
+        if let failure { throw failure }
         return total
     }
 

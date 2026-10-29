@@ -117,7 +117,8 @@ enum CaptureDeletionSelection {
     static func captureIDs(rowIDs: Set<UUID>, assetIDs: Set<String>, jobs: [CaptureJob],
         libraryCaptureIDs: Set<UUID>) -> Set<UUID> {
         rowIDs.union(libraryCaptureIDs).union(jobs.compactMap { job in
-            if rowIDs.contains(job.id) || job.assetIdentifier.map({ assetIDs.contains($0) }) == true { return job.id }
+            if rowIDs.contains(job.id) || job.assetIdentifier.map({ assetIDs.contains($0) }) == true
+                || job.deferredPhoto?.assetIdentifier.map({ assetIDs.contains($0) }) == true { return job.id }
             return nil
         })
     }

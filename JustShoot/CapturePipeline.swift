@@ -23,8 +23,10 @@ final class CaptureDeletionGate: Sendable {
 
 struct CaptureCompletion: Identifiable, Sendable {
     let id: UUID
+    let captureID: UUID
     let filterName: String
     let thumbnail: UIImage?
+    let captureDate: Date
 }
 
 @MainActor
@@ -34,18 +36,34 @@ final class CapturePipeline: ObservableObject {
     @Published private(set) var retainedCount = 0
     @Published private(set) var recoveryIssues: [CaptureRecoveryIssue] = []
     @Published private(set) var lastCompletion: CaptureCompletion?
+    @Published private(set) var lastPreview: CapturePreview?
     @Published var lastError: String?
 
     private var worker: CaptureWorker?
     private let journal: CaptureJournal
+    private let storeDeferredProxy: @Sendable (Data, CaptureRecipe) async throws -> String
+    private let finalizeDeferredPhoto: @Sendable (String, DeferredPhotoState) async throws -> Data
 
-    init(journal: CaptureJournal = .application) { self.journal = journal }
+    init(journal: CaptureJournal = .application,
+         storeDeferredProxy: @escaping @Sendable (Data, CaptureRecipe) async throws -> String = {
+             try await PhotoLibrary.saveDeferredProxy($0, recipe: $1)
+         },
+         finalizeDeferredPhoto: @escaping @Sendable (String, DeferredPhotoState) async throws -> Data = {
+             try await PhotoLibrary.finalizedDeferredPhoto(id: $0, expected: $1)
+         }) {
+        self.journal = journal
+        self.storeDeferredProxy = storeDeferredProxy
+        self.finalizeDeferredPhoto = finalizeDeferredPhoto
+    }
 
     fileprivate func recordFailure(_ message: String) { lastError = message }
     private let deletionGate = CaptureDeletionGate()
     @Published private var isReady = false
     private var queueState = CaptureQueueState()
+    private var previewTask: Task<Void, Never>?
+    private var previewCaptureID: UUID?
     var pendingJobIDs: Set<UUID> { queueState.pendingJobIDs }
+    func isProcessing(_ id: UUID) -> Bool { queueState.activeIDs.contains(id) }
 
     var canCapture: Bool {
         isReady && worker != nil && queueState.occupiedCount < CaptureJournal.maximumJobs
@@ -56,7 +74,8 @@ final class CapturePipeline: ObservableObject {
 
     func configure(container: ModelContainer) async {
         guard worker == nil else { return }
-        let worker = CaptureWorker(container: container, deletionGate: deletionGate, journal: journal, owner: self)
+        let worker = CaptureWorker(container: container, deletionGate: deletionGate, journal: journal,
+            storeDeferredProxy: storeDeferredProxy, finalizeDeferredPhoto: finalizeDeferredPhoto, owner: self)
         self.worker = worker
         await worker.resume(allowProcessing: UIApplication.shared.applicationState != .background)
         isReady = true
@@ -98,7 +117,7 @@ final class CapturePipeline: ObservableObject {
             } catch {
                 cancelReservation(recipe.id)
                 lastError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
-                await worker.refreshRecoveryState()
+                await worker.refreshRecoveryState(reconcileStorage: true)
             }
             activity.end()
         }
@@ -111,6 +130,7 @@ final class CapturePipeline: ObservableObject {
         defer { activity.end() }
         do {
             try await worker.checkpointStill(still, recipe: recipe, lut: lut, rawLUT: rawLUT)
+            preparePreview(still.imageData, recipe: recipe, lut: lut)
         } catch {
             // Keep the reservation and native bytes. Final delivery retries staging the complete
             // capture, and a staging directory with a committed manifest remains recoverable.
@@ -118,11 +138,39 @@ final class CapturePipeline: ObservableObject {
         }
     }
 
+    private func preparePreview(_ data: Data, recipe: CaptureRecipe, lut: CubeLUT) {
+        previewTask?.cancel()
+        previewCaptureID = recipe.id
+        previewTask = Task(priority: .utility) { [weak self] in
+            let trace = DiagnosticTrace(id: recipe.id.uuidString)
+            let preview = trace.span("capture_quick_preview")
+            let image = await CapturePreviewRenderer.image(data: data, lut: lut, recipe: recipe)
+            preview.end(Task.isCancelled ? "cancelled" : image == nil ? "missing" : "ok")
+            guard !Task.isCancelled, let self, self.previewCaptureID == recipe.id else { return }
+            self.previewTask = nil
+            guard self.pendingJobIDs.contains(recipe.id), let image else { return }
+            self.lastPreview = CapturePreview(id: recipe.id, filterName: recipe.filterName, image: image)
+        }
+    }
+
+    private func clearPreview(_ id: UUID) {
+        if previewCaptureID == id {
+            previewTask?.cancel()
+            previewTask = nil
+            previewCaptureID = nil
+        }
+        if lastPreview?.id == id { lastPreview = nil }
+    }
+
     func retryPending() async {
         guard UIApplication.shared.applicationState != .background else { return }
         await worker?.resume()
     }
-    func enterBackground() async { await worker?.pause() }
+    func enterBackground() async {
+        previewTask?.cancel()
+        previewTask = nil
+        await worker?.pause()
+    }
 
     func beginDeletion(_ ids: [UUID]) -> Bool {
         guard deletionGate.begin(Set(ids), active: queueState.activeIDs) else {
@@ -153,6 +201,7 @@ final class CapturePipeline: ObservableObject {
 
     /// Call while the deletion gate is still held, after the index transaction commits.
     func completeDeletion(_ ids: Set<UUID>) async {
+        for id in ids { clearPreview(id) }
         queueState.remove(ids)
         updateCounts()
         await worker?.completeDeletion(ids)
@@ -194,6 +243,7 @@ final class CapturePipeline: ObservableObject {
         if let completion {
             lastCompletion = completion
         }
+        if completion != nil || !retained { clearPreview(id) }
         if let error { lastError = error }
         updateCounts()
     }
@@ -234,8 +284,14 @@ private actor CaptureWorker {
     private let container: ModelContainer
     private let deletionGate: CaptureDeletionGate
     private let journal: CaptureJournal
+    private let storeDeferredProxy: @Sendable (Data, CaptureRecipe) async throws -> String
+    private let finalizeDeferredPhoto: @Sendable (String, DeferredPhotoState) async throws -> Data
     private weak var owner: CapturePipeline?
     private var queue: [CaptureJob] = []
+    private var preparationQueue: [CaptureJob] = []
+    private var preparationTasks: [UUID: Task<Void, Never>] = [:]
+    private var preparedInputs: [UUID: DeferredEditingInput] = [:]
+    private static let maximumPreparations = 2
     private var scheduledIDs: Set<UUID> = []
     private var inFlightNativeIDs: Set<UUID> = []
     private var drainTask: Task<Void, Never>?
@@ -243,10 +299,14 @@ private actor CaptureWorker {
     private var enqueuedAt: [UUID: TimeInterval] = [:]
     private var recoveryRevision: UInt64 = 0
 
-    init(container: ModelContainer, deletionGate: CaptureDeletionGate, journal: CaptureJournal, owner: CapturePipeline) {
+    init(container: ModelContainer, deletionGate: CaptureDeletionGate, journal: CaptureJournal,
+         storeDeferredProxy: @escaping @Sendable (Data, CaptureRecipe) async throws -> String,
+         finalizeDeferredPhoto: @escaping @Sendable (String, DeferredPhotoState) async throws -> Data, owner: CapturePipeline) {
         self.container = container
         self.deletionGate = deletionGate
         self.journal = journal
+        self.storeDeferredProxy = storeDeferredProxy
+        self.finalizeDeferredPhoto = finalizeDeferredPhoto
         self.owner = owner
     }
 
@@ -260,19 +320,33 @@ private actor CaptureWorker {
 
     func enqueue(_ result: CaptureResult, recipe: CaptureRecipe, lut: CubeLUT, rawLUT: RawFilmLUT? = nil) async throws {
         let trace = DiagnosticTrace(id: recipe.id.uuidString)
+        inFlightNativeIDs.insert(recipe.id)
         defer { inFlightNativeIDs.remove(recipe.id) }
-        let job = try trace.measure("capture_journal_stage") {
+        var job = try trace.measure("capture_journal_stage") {
             // Promote a complete staging directory if an earlier rename failed.
-            if !FileManager.default.fileExists(atPath: journal.file("manifest.json", for: recipe.id).path) {
+            if !FileManager.default.fileExists(atPath: journal.file("manifest.json", for: recipe.id).path),
+               FileManager.default.fileExists(atPath: journal.root.appendingPathComponent("staging-\(recipe.id.uuidString)").path) {
                 _ = try journal.recover(excludingInFlight: inFlightNativeIDs)
             }
             if FileManager.default.fileExists(atPath: journal.file("manifest.json", for: recipe.id).path) {
-                return try journal.completeCapture(id: recipe.id, photoDisplayTime: recipe.photoDisplayTime,
-                    movieURL: result.livePhotoMovieURL)
+                return try journal.job(for: recipe.id)
             }
             return try journal.stage(recipe: recipe, imageData: result.imageData,
-                movieURL: result.livePhotoMovieURL, lut: lut, rawLUT: rawLUT, reserved: true)
+                movieURL: result.livePhotoMovieURL, lut: lut, rawLUT: rawLUT, reserved: true,
+                awaitingCaptureCompletion: true,
+                deferredPhoto: result.deferredPhoto)
         }
+        // The shutter is already released after the durable checkpoint. Import proxies
+        // promptly here, without making the next exposure wait for a Photos transaction.
+        // Keep awaitingCaptureCompletion set across this await so resume cannot import
+        // or process a second copy of this native capture.
+        if var deferred = job.deferredPhoto, deferred.assetIdentifier == nil {
+            deferred.assetIdentifier = try await storeDeferredProxy(result.imageData, recipe)
+            job.deferredPhoto = deferred
+            try journal.update(job)
+        }
+        job = try journal.completeCapture(id: recipe.id, photoDisplayTime: recipe.photoDisplayTime,
+            movieURL: result.livePhotoMovieURL)
         await schedule([job])
     }
 
@@ -280,28 +354,35 @@ private actor CaptureWorker {
         inFlightNativeIDs.insert(recipe.id)
         let job = try DiagnosticTrace(id: recipe.id.uuidString).measure("capture_still_checkpoint") {
             try journal.stage(recipe: recipe, imageData: still.imageData, movieURL: nil, lut: lut, rawLUT: rawLUT, reserved: true,
-                awaitingCaptureCompletion: true, pendingMovieURL: still.pendingLivePhotoMovieURL)
+                awaitingCaptureCompletion: true, pendingMovieURL: still.pendingLivePhotoMovieURL,
+                deferredPhoto: still.deferredPhoto)
         }
         await owner?.accepted([job.id])
     }
 
     func resume(allowProcessing: Bool = true) async {
-        suspended = !allowProcessing
+        suspended = true
         if let drainTask, drainTask.isCancelled { await drainTask.value }
+        for task in Array(preparationTasks.values) where task.isCancelled { await task.value }
+        suspended = !allowProcessing
         do {
             let inventory = try DiagnosticTrace(id: "recovery").measure("capture_recovery") {
                 try journal.recoverInventory(excludingInFlight: inFlightNativeIDs)
             }
             await publishRecovery(inventory)
             await schedule(inventory.jobs)
+            startWork()
         } catch {
             Log.save.error("capture_recovery_failed error=\(error.localizedDescription, privacy: .public)")
             await owner?.recordFailure(error.localizedDescription)
         }
     }
 
-    func refreshRecoveryState() async {
-        do { await publishRecovery(try journal.inventory()) }
+    func refreshRecoveryState(reconcileStorage: Bool = false) async {
+        do {
+            if reconcileStorage { _ = try journal.diskUsage() }
+            await publishRecovery(try journal.inventory())
+        }
         catch { await owner?.recordFailure(error.localizedDescription) }
     }
 
@@ -325,9 +406,12 @@ private actor CaptureWorker {
 
     func completeDeletion(_ ids: Set<UUID>) async {
         queue.removeAll { ids.contains($0.id) }
+        preparationQueue.removeAll { ids.contains($0.id) }
+        for id in ids { preparationTasks.removeValue(forKey: id)?.cancel(); preparedInputs[id] = nil }
         scheduledIDs.subtract(ids)
         for id in ids { enqueuedAt[id] = nil }
-        await refreshRecoveryState()
+        // Gallery deletion can use another journal instance; reconcile its filesystem writes.
+        await refreshRecoveryState(reconcileStorage: true)
     }
 
     func exportRecoveryOriginal(_ issue: CaptureRecoveryIssue) throws -> URL {
@@ -359,15 +443,80 @@ private actor CaptureWorker {
                 && FileManager.default.fileExists(atPath: journal.file("manifest.json", for: $0.id).path)
         }
         scheduledIDs.subtract(Set(added.map(\.id)).subtracting(ready.map(\.id)))
-        queue.append(contentsOf: ready)
+        for job in ready {
+            if job.deferredPhoto != nil && job.assetIdentifier == nil { preparationQueue.append(job) }
+            else { queue.append(job) }
+        }
         queue.sort { $0.recipe.captureDate < $1.recipe.captureDate }
-        guard !suspended, drainTask == nil, !queue.isEmpty else { return }
-        drainTask = Task(priority: .utility) { await drain() }
+        preparationQueue.sort { $0.recipe.captureDate < $1.recipe.captureDate }
+        startWork()
     }
 
     func pause() {
         Diagnostics.emit("capture_worker_paused", fields: "queued=\(queue.count) scheduled=\(scheduledIDs.count)")
-        suspended = true; drainTask?.cancel()
+        suspended = true
+        drainTask?.cancel()
+        for task in preparationTasks.values { task.cancel() }
+    }
+
+    /// PhotoKit waits have their own bounded lane; they never occupy the single render lane.
+    private func startWork() {
+        guard !suspended else { return }
+        while preparationTasks.count < Self.maximumPreparations, !preparationQueue.isEmpty {
+            let job = preparationQueue.removeFirst()
+            preparationTasks[job.id] = Task(priority: .utility) { await prepareDeferred(job) }
+        }
+        guard drainTask == nil, !queue.isEmpty else { return }
+        drainTask = Task(priority: .utility) { await drain() }
+    }
+
+    private func prepareDeferred(_ initial: CaptureJob) async {
+        let activity = await CaptureBackgroundActivity { [weak self] in Task { await self?.pause() } }
+        let trace = DiagnosticTrace(id: initial.id.uuidString)
+        let preparing = trace.span("capture_system_prepare", "waiting=\(preparationTasks.count)")
+        do {
+            var job = initial
+            try checkPending(job.id)
+            if var deferred = job.deferredPhoto, !deferred.finalized {
+                if deferred.assetIdentifier == nil {
+                    let proxy = try Data(contentsOf: journal.file("original.image", for: job.id))
+                    deferred.assetIdentifier = try await storeDeferredProxy(proxy, job.recipe)
+                    try checkPending(job.id)
+                    job.deferredPhoto = deferred
+                    try journal.update(job)
+                }
+                guard let sourceID = deferred.assetIdentifier else { throw PhotoLibraryError.saveFailed }
+                let original = try await finalizeDeferredPhoto(sourceID, deferred)
+                try checkPending(job.id)
+                job = try journal.finalizeDeferredPhoto(original, for: job.id)
+            }
+            guard let sourceID = job.deferredPhoto?.assetIdentifier else { throw PhotoLibraryError.saveFailed }
+            let input = try await PhotoLibrary.prepareDeferredAdjustment(id: sourceID)
+            try checkPending(job.id)
+            preparedInputs[job.id] = input
+            queue.append(job)
+            queue.sort { $0.recipe.captureDate < $1.recipe.captureDate }
+            preparing.end("ready")
+        } catch {
+            preparing.end(error is CancellationError ? "cancelled" : "error", Diagnostics.errorFields(error))
+            await recordFailure(initial, error: error)
+            scheduledIDs.remove(initial.id)
+            enqueuedAt[initial.id] = nil
+        }
+        preparationTasks[initial.id] = nil
+        await activity.end()
+        startWork()
+    }
+
+    private func recordFailure(_ job: CaptureJob, error: any Error) async {
+        if !(error is CancellationError) {
+            do { try journal.markNeedsAttention(job.id) }
+            catch { Diagnostics.emit("capture_attention_marker_failed", id: job.id.uuidString, fields: Diagnostics.errorFields(error)) }
+        }
+        await publishFinished(job.id, completion: nil,
+            error: error is CancellationError ? nil : String(localized: "Your photo is kept on this device. Saving will be retried when you return to the app."),
+            retained: FileManager.default.fileExists(atPath: journal.directory(for: job.id).path))
+        if !(error is CancellationError) { await refreshRecoveryState(reconcileStorage: true) }
     }
 
     private func drain() async {
@@ -377,6 +526,7 @@ private actor CaptureWorker {
             let queued = enqueuedAt.removeValue(forKey: job.id) ?? ProcessInfo.processInfo.systemUptime
             trace.event("capture_job_dequeued", "queue_wait_ms=\(Diagnostics.milliseconds(since: queued)) queued=\(queue.count) age_s=\(Int(max(0, Date().timeIntervalSince(job.recipe.captureDate))))")
             if Task.isCancelled {
+                preparedInputs[job.id] = nil
                 scheduledIDs.remove(job.id)
                 await publishFinished(job.id, completion: nil, error: nil)
                 continue
@@ -386,20 +536,13 @@ private actor CaptureWorker {
             }
             let processing = trace.span("capture_job")
             do {
-                let result = try await process(job)
+                let result = try await process(job, preparedInput: preparedInputs.removeValue(forKey: job.id))
                 processing.end()
                 await publishFinished(job.id, completion: result, error: nil)
             } catch {
                 processing.end(error is CancellationError ? "cancelled" : "error", Diagnostics.errorFields(error))
                 Log.save.error("capture_deferred id=\(job.id) error=\(error.localizedDescription, privacy: .public)")
-                if !(error is CancellationError) {
-                    do { try journal.markNeedsAttention(job.id) }
-                    catch { Diagnostics.emit("capture_attention_marker_failed", id: job.id.uuidString, fields: Diagnostics.errorFields(error)) }
-                }
-                await publishFinished(job.id, completion: nil,
-                    error: error is CancellationError ? nil : String(localized: "Your photo is kept on this device. Saving will be retried when you return to the app."),
-                    retained: FileManager.default.fileExists(atPath: journal.directory(for: job.id).path))
-                if !(error is CancellationError) { await refreshRecoveryState() }
+                await recordFailure(job, error: error)
             }
             scheduledIDs.remove(job.id)
             await activity.end()
@@ -407,13 +550,15 @@ private actor CaptureWorker {
         drainTask = nil
     }
 
-    private func process(_ initialJob: CaptureJob) async throws -> CaptureCompletion {
+    private func process(_ initialJob: CaptureJob, preparedInput: DeferredEditingInput?) async throws -> CaptureCompletion {
         var job = initialJob
         let recipe = job.recipe
         let trace = DiagnosticTrace(id: job.id.uuidString)
         let timer = Log.perf("capture_job", logger: Log.capture)
         let saver = PhotoSaver(modelContainer: container)
         try checkPending(job.id)
+
+        guard job.deferredPhoto?.finalized != false else { throw CaptureJournal.JournalError.invalidJob }
 
         let image: Data
         if !job.rendered {
@@ -473,6 +618,12 @@ private actor CaptureWorker {
             }
         }
 
+        if job.assetIdentifier == nil, let deferredID = job.deferredPhoto?.assetIdentifier {
+            // Update the same asset: no unfiltered duplicate and no deletion prompt.
+            try await PhotoLibrary.saveDeferredAdjustment(imageData: image, id: deferredID, recipe: recipe, preparedInput: preparedInput)
+            job.assetIdentifier = deferredID
+            try journal.update(job)
+        }
         if job.assetIdentifier == nil {
             job.assetIdentifier = trace.measure("photos_retry_lookup") { PhotoLibrary.findCapture(id: job.id, creationDate: recipe.captureDate) }
         }
@@ -519,11 +670,12 @@ private actor CaptureWorker {
         let thumbnail = await ImageLoader.shared.loadThumbnail(imageData: image, photoId: photoID, maxPixel: 88)
         thumbnailLoad.end(thumbnail == nil ? "missing" : "ok")
         timer.end("id=\(job.id) live=\(job.hasRenderedMovie)")
-        return CaptureCompletion(id: photoID, filterName: recipe.filterName, thumbnail: thumbnail)
+        return CaptureCompletion(id: photoID, captureID: job.id, filterName: recipe.filterName, thumbnail: thumbnail, captureDate: recipe.captureDate)
     }
 
     private func renderStill(_ job: CaptureJob, lut: CubeLUT, contentID: String?, seed: UInt32) async throws -> Data {
         try checkPending(job.id)
+        guard job.deferredPhoto?.finalized != false else { throw CaptureJournal.JournalError.invalidJob }
         let recipe = job.recipe
         let trace = DiagnosticTrace(id: job.id.uuidString)
         let raw = try trace.measure("still_source_read") { try Data(contentsOf: journal.file("original.image", for: job.id)) }

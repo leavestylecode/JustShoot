@@ -10,7 +10,7 @@ import AVFoundation
 /// and keeps the resulting sRGB assets in Photos; ordinary test runs never capture.
 final class PhysicalCameraPipelineTests: XCTestCase {
     @MainActor
-    func testRealProRAWThroughDurablePipelineAndPhotos() async throws {
+    func testRealCaptureThroughDurablePipelineAndPhotos() async throws {
         guard ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_CAMERA"] == "1" else {
             throw XCTSkip("Set JUSTSHOOT_VALIDATE_CAMERA=1 on a physical device")
         }
@@ -48,8 +48,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         }
         XCTAssertTrue(camera.entryPreparation.isRevealed,
             "entry=\(camera.entryPreparation.phase) pending=\(camera.entryPreparation.pendingRequirements)")
-        let format = try XCTUnwrap(camera.rawCaptureFormat, "This camera configuration must support Apple ProRAW")
-        XCTAssertEqual(format.kind, .appleProRAW)
+        let format = camera.rawCaptureFormat
 
         // Exercise the real import normalizer and persisted index, then shoot with it.
         let customID = UUID()
@@ -67,8 +66,13 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         for (source, mode) in captures {
             let cube = try await ColorTemperatureLUT.shared.prepare(source: source, curve: .builtIn(.none),
                 selection: .temperature(5_100), tint: .value(8), reference: camera.automaticWhiteBalanceReading ?? .neutral)
-            let plan = PhotoCapturePlan.resolve(mode: mode, rawFormat: format)
-            camera.setLivePhotoAudio(live: plan.capturesLivePhoto, sound: false)
+            camera.setLivePhotoAudio(live: mode == .livePhoto, sound: false)
+            let modeDeadline = Date().addingTimeInterval(10)
+            while !camera.isReadyToCapture && Date() < modeDeadline {
+                try await Task.sleep(for: .milliseconds(100))
+            }
+            let native24MP = camera.prefersProcessedPhoto
+            let plan = PhotoCapturePlan.resolve(mode: mode, rawFormat: format, prefersProcessedPhoto: native24MP)
             if plan.capturesLivePhoto {
                 try await Task.sleep(for: .milliseconds(500))
                 XCTAssertTrue(camera.livePhotoCaptureState.canCapture)
@@ -108,11 +112,15 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             let original = try XCTUnwrap(CGImageSourceCreateWithData(captured.imageData as CFData, nil))
             XCTAssertEqual(RawFilmRenderer.isDNG(original), plan.capturesRAW)
             XCTAssertEqual(captured.livePhotoMovieURL != nil, plan.capturesLivePhoto)
-            if source == .preset(.fujiProvia100F),
+            if plan.capturesRAW, source == .preset(.fujiProvia100F),
                ProcessInfo.processInfo.environment["JUSTSHOOT_RAW_DIAGNOSTICS"] == "1" {
                 try await attachUnifiedDiagnostics(captured.imageData)
             }
             let props = CGImageSourceCopyPropertiesAtIndex(original, 0, nil) as? [String: Any]
+            if native24MP, mode == .quality, let deferred = captured.deferredPhoto {
+                XCTAssertFalse(plan.capturesRAW)
+                XCTAssertGreaterThan(deferred.width * deferred.height, 20_000_000)
+            }
             let model = (props?[kCGImagePropertyTIFFDictionary as String] as? [String: Any])?[kCGImagePropertyTIFFModel as String]
             let completedRecipe = recipe.withPhotoDisplayTime(captured.photoDisplayTime.isValid && captured.photoDisplayTime.isNumeric
                 ? captured.photoDisplayTime.seconds : nil)
@@ -128,9 +136,12 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             let asset = try XCTUnwrap(PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject)
             XCTAssertEqual(asset.mediaSubtypes.contains(.photoLive), plan.capturesLivePhoto)
             XCTAssertGreaterThan(asset.pixelWidth * asset.pixelHeight, 10_000_000)
+            if let deferred = captured.deferredPhoto {
+                XCTAssertEqual(asset.pixelWidth * asset.pixelHeight, deferred.width * deferred.height)
+            }
             let imageData: Data? = await withCheckedContinuation { continuation in
                 let options = PHImageRequestOptions()
-                options.version = .original
+                options.version = .current
                 options.isNetworkAccessAllowed = false
                 PHImageManager.default().requestImageDataAndOrientation(for: asset, options: options) { data, _, _, _ in
                     continuation.resume(returning: data)

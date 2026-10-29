@@ -2,6 +2,17 @@ import XCTest
 @testable import JustShoot
 
 final class PhotoCapturePlanTests: XCTestCase {
+    func testNative24MPUsesProcessedSourceInsteadOf12MPProRAW() {
+        let pro = CameraRAWFormat(pixelFormat: 1, kind: .appleProRAW)
+        let plan = PhotoCapturePlan.resolve(mode: .quality, rawFormat: pro, prefersProcessedPhoto: true)
+        XCTAssertEqual(plan.format, .processed)
+        XCTAssertEqual(plan.inputSpace, .displaySRGB)
+        XCTAssertTrue(plan.accepts(rawRecipe: nil))
+        XCTAssertEqual(PhotoCapturePlan.resolve(mode: .livePhoto, rawFormat: pro,
+            prefersProcessedPhoto: true).format, .livePhoto)
+        XCTAssertTrue(PhotoCapturePlan.resolve(mode: .quality, rawFormat: pro,
+            prefersProcessedPhoto: false).capturesRAW)
+    }
     func testEveryLookPrefersProRAWInQualityMode() {
         let pro = CameraRAWFormat(pixelFormat: 1, kind: .appleProRAW)
         for preset in FilmPreset.allCases {

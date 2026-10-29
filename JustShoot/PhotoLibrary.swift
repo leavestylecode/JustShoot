@@ -3,6 +3,7 @@ import UIKit
 import SwiftData
 import CoreLocation
 import ImageIO
+import UniformTypeIdentifiers
 import os
 
 // MARK: - 系统相册为真相源（Photos library is the source of truth）
@@ -80,7 +81,7 @@ enum PhotoLibrary {
     }
 
     private static func captureIdentifier(of asset: PHAsset) -> UUID? {
-        for resource in PHAssetResource.assetResources(for: asset) where resource.type == .photo {
+        for resource in PHAssetResource.assetResources(for: asset) where resource.type == .photo || resource.type == .photoProxy {
             let filename: String
             if #available(iOS 27, *) { filename = resource.filename ?? "" }
             else { filename = resource.originalFilename }
@@ -178,6 +179,78 @@ enum PhotoLibrary {
         guard let id = idBox.value else { throw PhotoLibraryError.saveFailed }
         transactionStatus = "ok"
         return id
+    }
+
+    /// Persist the proxy immediately; PhotoKit owns the intermediate capture resources
+    /// needed to produce the real 24 MP photo. Do not decode or filter proxy pixels.
+    static func saveDeferredProxy(_ data: Data, recipe: CaptureRecipe) async throws -> String {
+        try await ensureAuthorized()
+        if let existing = findCapture(id: recipe.id, creationDate: recipe.captureDate) { return existing }
+        let result = Box<String?>(nil)
+        try await PHPhotoLibrary.shared().performChanges {
+            let creation = PHAssetCreationRequest.forAsset()
+            creation.creationDate = recipe.captureDate
+            creation.location = recipe.location?.location
+            let options = PHAssetResourceCreationOptions()
+            options.originalFilename = captureFilename(recipe.id, imageData: data)
+            creation.addResource(with: .photoProxy, data: data, options: options)
+            result.value = creation.placeholderForCreatedAsset?.localIdentifier
+        }
+        guard let id = result.value else { throw PhotoLibraryError.saveFailed }
+        return id
+    }
+
+    static func finalizedDeferredPhoto(id: String, expected: DeferredPhotoState) async throws -> Data {
+        try await ensureAuthorized()
+        let data = await AssetImageLoader.shared.imageData(id: id, original: true, timeout: 120)
+        try Task.checkCancellation()
+        guard let data, expected.acceptsFinalImage(data) else { throw PhotoLibraryError.saveFailed }
+        return data
+    }
+
+    /// Commit the film as an adjustment to the original asset, retaining Apple's
+    /// finalized original and publishing a single photo in the JustShoot album.
+    static func prepareDeferredAdjustment(id: String) async throws -> DeferredEditingInput {
+        try await ensureAuthorized()
+        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
+            throw PhotoLibraryError.inaccessibleAssets
+        }
+        return DeferredEditingInput(value: try await DeferredPhotoEditingRequest.input(for: asset))
+    }
+
+    static func saveDeferredAdjustment(imageData: Data, id: String, recipe: CaptureRecipe,
+                                       preparedInput: DeferredEditingInput? = nil) async throws {
+        let input: PHContentEditingInput
+        if let preparedInput { input = preparedInput.value }
+        else { input = try await prepareDeferredAdjustment(id: id).value }
+        let output = PHContentEditingOutput(contentEditingInput: input)
+        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
+              let identifier = CGImageSourceGetType(source), let type = UTType(identifier as String),
+              output.supportedRenderedContentTypes.contains(type) else { throw PhotoLibraryError.saveFailed }
+        let url = try output.renderedContentURL(for: type)
+        try imageData.write(to: url, options: .atomic)
+        output.adjustmentData = PHAdjustmentData(formatIdentifier: "com.justshoot.film", formatVersion: "1",
+            data: try JSONEncoder().encode(recipe))
+        let editingOutput = Box(output)
+        let albumID = try? await ensureAlbumIdentifier()
+        let albumMissing = Box(false)
+        let saved = Box(false)
+        try Task.checkCancellation()
+        try await PHPhotoLibrary.shared().performChanges {
+            guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else { return }
+            let change = PHAssetChangeRequest(for: asset)
+            change.contentEditingOutput = editingOutput.value
+            change.creationDate = recipe.captureDate
+            change.location = recipe.location?.location
+            if let albumID,
+               let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [albumID], options: nil).firstObject,
+               let albumChange = PHAssetCollectionChangeRequest(for: album) {
+                albumChange.addAssets([asset] as NSArray)
+            } else { albumMissing.value = true }
+            saved.value = true
+        }
+        if albumMissing.value { await invalidateAlbumCache() }
+        guard saved.value else { throw PhotoLibraryError.saveFailed }
     }
 
     // MARK: - 保存 Live Photo
@@ -658,14 +731,15 @@ final class AssetImageLoader: @unchecked Sendable {
     }
 
     /// 原始字节（用于 EXIF 解析）。
-    func imageData(id: String, trace: DiagnosticTrace? = nil) async -> Data? {
+    func imageData(id: String, trace: DiagnosticTrace? = nil, original: Bool = false, timeout: TimeInterval = 12) async -> Data? {
         let request = trace?.span("photo_asset_request", "kind=original")
         guard !Task.isCancelled else { request?.end("cancelled"); return nil }
         guard let asset = asset(id: id) else { request?.end("missing_asset"); return nil }
         let opts = PHImageRequestOptions()
         opts.deliveryMode = .highQualityFormat
         opts.isNetworkAccessAllowed = true
-        return await performRequest(span: request) { handler in
+        if original { opts.version = .original }
+        return await performRequest(span: request, timeout: timeout) { handler in
             manager.requestImageDataAndOrientation(for: asset, options: opts) { data, _, _, info in
                 handler(data, info)
             }

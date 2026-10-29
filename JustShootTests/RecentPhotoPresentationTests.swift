@@ -71,4 +71,18 @@ final class RecentPhotoPresentationTests: XCTestCase {
         XCTAssertNil(try RecentPhotoPresentation.load(in: context, filterName: "film"))
         XCTAssertNil(try RecentPhotoPresentation.latest(in: context, filterName: "film"))
     }
+
+    func testPendingPreviewOpensItsCommittedPhotoEvenWhenANewerCaptureAlreadyExists() async throws {
+        let container = try makeContainer()
+        let saver = await PhotoSaver.background(container: container)
+        let completed = UUID()
+        try await save(completed, at: 100, using: saver)
+        try await save(UUID(), at: 200, using: saver)
+        let presentation = try XCTUnwrap(RecentPhotoPresentation.load(in: container.mainContext,
+            filterName: "film", startingAt: completed))
+        XCTAssertEqual(presentation.startPhoto.id, completed)
+        XCTAssertEqual(presentation.photos.count, 2)
+        XCTAssertNil(try RecentPhotoPresentation.load(in: container.mainContext, filterName: "film", startingAt: UUID()),
+            "A missing capture must not silently open a different photo")
+    }
 }

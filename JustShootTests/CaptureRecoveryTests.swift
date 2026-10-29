@@ -148,4 +148,17 @@ final class CaptureRecoveryTests: XCTestCase {
         XCTAssertTrue(try journal.jobs().isEmpty)
         XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<Photo>()).isEmpty)
     }
+
+    func testDeferredSourceAssetProtectsTheCaptureBeforeItsFilmAdjustmentCommits() throws {
+        let (journal, recipe, lut) = try fixture()
+        defer { try? FileManager.default.removeItem(at: journal.root) }
+        let state = DeferredPhotoState(width: 5712, height: 4284, assetIdentifier: "photos-proxy")
+        let job = try journal.stage(recipe: recipe, imageData: Data([1]), movieURL: nil, lut: lut,
+            deferredPhoto: state)
+        let alias = UUID()
+        let ids = CaptureDeletionSelection.captureIDs(rowIDs: [alias], assetIDs: ["photos-proxy"],
+            jobs: [job], libraryCaptureIDs: [])
+        XCTAssertEqual(ids, [alias, recipe.id])
+        XCTAssertFalse(CaptureDeletionGate().begin(ids, active: [recipe.id]))
+    }
 }
