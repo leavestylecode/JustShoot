@@ -54,9 +54,41 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         }
         let selectedFocals = ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_FOCALS"]?
             .split(separator: ",").compactMap { Int($0) }
-        let focals = camera.focalInfo.options.filter { selectedFocals?.contains($0.value) ?? true }
+        var focals = camera.focalInfo.options.filter { selectedFocals?.contains($0.value) ?? true }
             .sorted { abs($0.value - 35) < abs($1.value - 35) }
-        for focal in focals {
+        let waitForRotation = ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_WAIT_FOR_ROTATION"] == "1"
+        let requestedOrientations = Set(ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_ORIENTATIONS"]?
+            .split(separator: ",").compactMap { Int($0) } ?? [1, 2, 3, 4])
+        var observedOrientations = Set<Int>()
+        if waitForRotation {
+            guard UIDevice.current.userInterfaceIdiom == .pad else { throw XCTSkip("iPad window rotation required") }
+            XCTAssertFalse(requestedOrientations.isEmpty)
+            XCTAssertTrue(requestedOrientations.isSubset(of: [1, 2, 3, 4]))
+            focals = Array(repeating: try XCTUnwrap(focals.first), count: requestedOrientations.count)
+        }
+        var completedFocals = 0
+        while completedFocals < focals.count {
+            let focal = focals[completedFocals]
+            var expectedOrientation: UIInterfaceOrientation?
+            if waitForRotation {
+                // iPad windowing can ignore app-requested geometry. Observe real user
+                // rotations instead, without overriding rotation lock or scene policy.
+                deadline = Date().addingTimeInterval(300)
+                while (!requestedOrientations.contains(scene.effectiveGeometry.interfaceOrientation.rawValue)
+                       || observedOrientations.contains(scene.effectiveGeometry.interfaceOrientation.rawValue)), Date() < deadline {
+                    try await Task.sleep(for: .milliseconds(50))
+                }
+                let orientation = scene.effectiveGeometry.interfaceOrientation
+                guard requestedOrientations.contains(orientation.rawValue), !observedOrientations.contains(orientation.rawValue) else {
+                    throw XCTSkip("No new physical window rotation observed within five minutes")
+                }
+                deadline = Date().addingTimeInterval(8)
+                while camera.previewInterfaceOrientation != orientation, Date() < deadline {
+                    try await Task.sleep(for: .milliseconds(50))
+                }
+                XCTAssertEqual(camera.previewInterfaceOrientation, orientation)
+                expectedOrientation = orientation
+            }
             camera.setLivePhotoAudio(live: false, sound: false)
             camera.setFocalLength(focal, animated: false)
             deadline = Date().addingTimeInterval(20)
@@ -73,9 +105,27 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             }
             XCTAssertTrue(camera.livePhotoCaptureState.canCapture)
             try await Task.sleep(for: .seconds(1))
+            if let expectedOrientation {
+                // Mode setup can span a physical turn. Retry that pose rather than
+                // counting an orientation that was never actually photographed.
+                guard camera.previewInterfaceOrientation == expectedOrientation,
+                      scene.effectiveGeometry.interfaceOrientation == expectedOrientation,
+                      camera.controlsOrientation == .portrait else { continue }
+            }
+            let captureOrientation = camera.previewInterfaceOrientation
+            let evidencePrefix = "\(focal.value)mm-window-\(captureOrientation.rawValue)"
             let admission = try XCTUnwrap(camera.beginCaptureAdmission())
             let presentedFrame = await camera.waitForCapturePreview(lutKey: key, admission: admission)
             let frame = try XCTUnwrap(presentedFrame)
+            XCTAssertEqual(frame.rotation, CameraOrientationPolicy.previewRotation(for: camera.previewInterfaceOrientation))
+            // When the interface follows the physical device, the preview and native
+            // capture must agree on upright orientation, not just agree with our policy.
+            if camera.controlsOrientation == .portrait, let captureAngle = admission.rotationAngle {
+                let nativeRotation = UInt32((Int((captureAngle / 90).rounded()) % 4 + 4) % 4)
+                XCTAssertEqual(frame.rotation, nativeRotation, "Window and native camera disagree on upright")
+            }
+            XCTAssertEqual(frame.outputSize.width / frame.outputSize.height, camera.previewAspectRatio, accuracy: 0.01)
+            print("live_window_rotation interface=\(camera.previewInterfaceOrientation.rawValue) controls=\(camera.controlsOrientation.rawValue) native_deg=\(admission.rotationAngle ?? -1) \(frame.framingDiagnosticFields)")
             let result: CaptureResult? = await withCheckedContinuation { continuation in
                 camera.capturePhoto(admission: admission, live: true, previewFrame: frame) {
                     continuation.resume(returning: $0)
@@ -84,6 +134,11 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             let captured = try XCTUnwrap(result)
             let movie = try XCTUnwrap(captured.livePhotoMovieURL)
             defer { try? FileManager.default.removeItem(at: movie) }
+            if let expectedOrientation {
+                guard camera.previewInterfaceOrientation == expectedOrientation,
+                      scene.effectiveGeometry.interfaceOrientation == expectedOrientation else { continue }
+                observedOrientations.insert(captureOrientation.rawValue)
+            }
             XCTAssertGreaterThan((try FileManager.default.attributesOfItem(atPath: movie.path)[.size] as? Int) ?? 0, 0)
             if focal.value == 35 {
                 try await verifyLivePairWithoutSaving(captured, lut: lut)
@@ -115,10 +170,11 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             }.value
             for (name, png) in diagnostics {
                 let attachment = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")
-                attachment.name = "\(focal.value)mm-\(name)"
+                attachment.name = "\(evidencePrefix)-\(name)"
                 attachment.lifetime = .keepAlways
                 add(attachment)
             }
+            completedFocals += 1
             if ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_SKIP_ROUNDTRIP"] == "1" { continue }
             // Distinguish a mode-switch initialization error from steady-state proxy zoom.
             let alternate = camera.focalInfo.options.first { $0 != focal } ?? focal
@@ -137,10 +193,11 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                     format: .RGBA8, colorSpace: FilmImagePipeline.colorSpace))
             }.value
             let returnedAttachment = XCTAttachment(data: returnedPNG, uniformTypeIdentifier: "public.png")
-            returnedAttachment.name = "\(focal.value)mm-live-after-zoom-roundtrip"
+            returnedAttachment.name = "\(evidencePrefix)-live-after-zoom-roundtrip"
             returnedAttachment.lifetime = .keepAlways
             add(returnedAttachment)
         }
+        if waitForRotation { XCTAssertEqual(observedOrientations, requestedOrientations) }
         if ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_CHECK_LIFECYCLE"] == "1" {
             try await verifyOverlappingCapturesAndImmediateClose(camera, key: key, lut: lut)
         }
@@ -536,7 +593,7 @@ private struct ValidationViewfinder: View {
             RealtimePreviewView(manager: camera, lutCacheKey: key, preparedLUT: texture,
                 grain: profile.grain, optics: profile.optics, chromatic: profile.effectiveChromatic)
         }
-            .aspectRatio(CameraFraming.portraitAspect, contentMode: .fit)
+            .aspectRatio(camera.previewAspectRatio, contentMode: .fit)
             .background(.black)
     }
 }

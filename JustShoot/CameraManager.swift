@@ -137,12 +137,14 @@ class CameraManager: NSObject, ObservableObject {
     /// 首帧到达标记（线程安全，仅打印一次）
     private let firstFrameFlag = OSAllocatedUnfairLock<Bool>(initialState: false)
 
-    /// 预览旋转角度。
-    /// `internal` 而不是 `private`：`MetalPreview.swift` 的渲染 coordinator 读它来决定
-    /// CVPixelBuffer → drawable 的 90°/180°/270° 旋转。和上面的 `previewMTKView` 一样，
-    /// 是同模块跨文件的 view-controller 协作；其余 preview-related 状态（如 device orientation
-    /// 缓存）都保持 private。
-    var previewRotationAngle: CGFloat?
+    /// The attached view's window orientation is shared by Metal, the transition
+    /// underlay, layout and focus. Native capture keeps its physical orientation.
+    @Published private(set) var previewInterfaceOrientation: UIInterfaceOrientation = .portrait
+    var previewRotationAngle: CGFloat { CGFloat(CameraOrientationPolicy.previewRotation(for: previewInterfaceOrientation)) * 90 }
+    var previewAspectRatio: CGFloat { CameraOrientationPolicy.previewAspect(for: previewInterfaceOrientation) }
+    var controlsOrientation: UIDeviceOrientation {
+        CameraOrientationPolicy.controlsOrientation(device: currentDeviceOrientation, interface: previewInterfaceOrientation)
+    }
     private var previewDeviceOrientation: UIDeviceOrientation?
 
     /// 一次拍照在途的全部状态打包成单一值对象——取代旧的 photoDataHandler /
@@ -305,8 +307,8 @@ class CameraManager: NSObject, ObservableObject {
     /// connection（用户横屏入页时，photoOutput.videoRotationAngle 会被钉死成默认值，出片永远是
     /// 错向）。Apple 在 RotationCoordinator 文档里就推荐 KVO 联动，每次值变就 reapply。
     private var captureRotationObservation: NSKeyValueObservation?
-    /// UI 端通过此值给悬浮控件（焦距条等）做 rotationEffect。app 整体 UI 锁竖屏，但用户横握时
-    /// 控件需要随设备旋转保持"用户视角下水平"，对齐 iPhone Camera 体验。
+    /// Physical orientation is independent of the window. Controls compensate only for
+    /// the difference, so an already rotated iPad interface is not rotated twice.
     @Published var currentDeviceOrientation: UIDeviceOrientation = .portrait
     /// 直接读重力向量做方向判定。系统旋转锁开启时 UIDevice.orientationDidChange 会被节流甚至不发出，
     /// CMMotionManager 不受锁影响，与 iPhone Camera 保持一致——永远响应物理方向。
@@ -438,6 +440,8 @@ class CameraManager: NSObject, ObservableObject {
         let now = ProcessInfo.processInfo.systemUptime
         return pixelBufferLock.withLockUnchecked {
             guard let frame = $0.renderedFrame, frame.lutKey == lutKey,
+                  frame.rotation == CameraOrientationPolicy.previewRotation(for: previewInterfaceOrientation),
+                  abs(frame.outputSize.width / max(1, frame.outputSize.height) - previewAspectRatio) < 0.01,
                   CameraPreviewCapturePolicy.permits(frame: frame, generation: generation,
                     focalSequence: applyFocalToken, sourceRevision: sourceRevision,
                     settledAt: settledAt, expectedCrop: expectedCrop, now: now) else { return nil }
@@ -816,27 +820,31 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    private func applyVideoOrientationToOutputs() {
-        // 预览旋转 vs 出片旋转必须解耦——对齐 iPhone 系统相机的体验：
-        //
-        // 1) **预览（MTKView）**：UI 在 AppDelegate 锁死竖屏，viewport 永远 3:4 portrait。
-        //    无论用户竖握还是横握，预览框都不旋转，所以这里固定 90°（sensor landscape → portrait viewport
-        //    的 CW 旋转）。
-        //
-        // 2) **出片（photoOutput.connection）**：跟随物理设备朝向，让 JPEG 的"上"方向与用户当时的"上"方向
-        //    一致。横握 → 出 4:3 横片，竖握 → 出 3:4 竖片。相册/详情靠 EXIF orientation 渲染，横片在竖屏
-        //    UI 里就上下留黑边横向展示，与系统 Photos 一致。
-        //    使用 RotationCoordinator.videoRotationAngleForHorizonLevelCapture：portrait→90, landscapeRight→0,
-        //    landscapeLeft→180, upsideDown→270。
-        previewRotationAngle = 90
+    func updatePreviewInterfaceOrientation(_ orientation: UIInterfaceOrientation) {
+        guard orientation != .unknown, orientation != previewInterfaceOrientation else { return }
+        previewInterfaceOrientation = orientation
+        applyPreviewUnderlayOrientation()
+        diagnostics.event("preview_interface_rotation", "interface=\(orientation.rawValue) preview_deg=\(Int(previewRotationAngle))")
+    }
 
+    private func applyPreviewUnderlayOrientation() {
+        guard let connection = previewUnderlayLayer?.connection,
+              connection.isVideoRotationAngleSupported(previewRotationAngle) else { return }
+        connection.videoRotationAngle = previewRotationAngle
+        connection.preferredVideoStabilizationMode = .off
+    }
+
+    private func applyVideoOrientationToOutputs() {
+        // The window determines preview geometry; gravity determines the native still
+        // and buffered movie's frozen capture orientation. A locked phone stays portrait.
+        applyPreviewUnderlayOrientation()
         guard let coordinator = rotationCoordinator else { return }
         let captureAngle = coordinator.videoRotationAngleForHorizonLevelCapture
         if let pconn = photoOutput.connection(with: .video),
            pconn.isVideoRotationAngleSupported(captureAngle) {
             pconn.videoRotationAngle = captureAngle
         }
-        Log.orientation.info("rotation_applied preview=90° capture=\(Int(captureAngle))° device=\(self.currentDeviceOrientation.rawValue)")
+        Log.orientation.info("rotation_applied preview=\(Int(self.previewRotationAngle))° capture=\(Int(captureAngle))° device=\(self.currentDeviceOrientation.rawValue)")
     }
 
     // MARK: - 4. 对焦 / 曝光补偿
@@ -2236,14 +2244,8 @@ class CameraManager: NSObject, ObservableObject {
         layer.videoGravity = .resizeAspectFill
         // Only the upper Metal view fades. Fading both layers exposes the black background.
         layer.opacity = 1
-        // app UI 锁竖屏：底衬固定 90°（与主源 Metal 渲染的 portrait 旋转一致）。
-        // 旋转角设置在 layer.connection 上（iOS 17+ API）；session 尚未连接时 connection
-        // 为 nil，90° 本就是 portrait 默认，跳过即可。
-        if let connection = layer.connection, connection.isVideoRotationAngleSupported(90) {
-            connection.videoRotationAngle = 90
-            connection.preferredVideoStabilizationMode = .off
-        }
         previewUnderlayLayer = layer
+        applyPreviewUnderlayOrientation()
         lastUnderlayOpacity = 0
         underlayBlendLogged = false
         diagnostics.event("preview_underlay_attached")

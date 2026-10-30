@@ -137,7 +137,7 @@ struct CameraView: View {
                             // 长轴始终沿用户视角竖直——controlRotationAngle 把内容旋转到用户上方为正。
                             // sunYOffset(bias>0) 在旋转后的局部坐标里 = "用户视角向上"，与上滑变亮的手势同向。
                             .rotationEffect(controlRotationAngle)
-                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
+                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
                             .position(sunRailPosition(focus: point, viewport: geometry.size))
                             .allowsHitTesting(false)
                         }
@@ -175,7 +175,7 @@ struct CameraView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 // Match the full-width photo viewer as well as the still's aspect.
-                .aspectRatio(CameraFraming.portraitAspect, contentMode: .fit)
+                .aspectRatio(cameraManager.previewAspectRatio, contentMode: .fit)
 
                 // 焦距选择条（iPhone Camera 风格）：常驻，紧贴预览底边。容器/位置在所有方向下都不变，
                 // 只内部数字随设备方向旋转，让用户视角下文字方向正确。
@@ -198,7 +198,7 @@ struct CameraView: View {
                         curves: curveLibrary.visibleCurves,
                         current: selectedCurve,
                         contentRotation: controlRotationAngle,
-                        orientation: cameraManager.currentDeviceOrientation,
+                        orientation: cameraManager.controlsOrientation,
                         onManage: { showCurveManager = true }
                     ) { curve in
                         guard curveLibrary.canEdit else {
@@ -218,7 +218,7 @@ struct CameraView: View {
                         current: source,
                         customLUTs: customLUTs,
                         contentRotation: controlRotationAngle,
-                        orientation: cameraManager.currentDeviceOrientation,
+                        orientation: cameraManager.controlsOrientation,
                         preparedCovers: preparedPickerCovers
                     ) { newSource in
                         if newSource.id != source.id {
@@ -327,7 +327,7 @@ struct CameraView: View {
                 } label: {
                     Image(systemName: cameraManager.flashMode == .on ? "bolt.fill" : "bolt.slash.fill")
                         .rotationEffect(controlRotationAngle)
-                        .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
+                        .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
                 }
                 .tint(cameraManager.flashMode == .on ? .yellow : .white)
                 .disabled(cameraManager.readiness != .ready || isShutterBusy)
@@ -347,7 +347,7 @@ struct CameraView: View {
                 } label: {
                     Image(systemName: "thermometer.medium")
                         .rotationEffect(controlRotationAngle)
-                        .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
+                        .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
                 }
                 .buttonBorderShape(.circle)
                 .tint(colorControls.isVisible ? .yellow : .white)
@@ -373,7 +373,7 @@ struct CameraView: View {
                         isShutterBusy: isShutterBusy,
                         isProcessing: capturePipeline.pendingCount > 0,
                         controlRotationAngle: controlRotationAngle,
-                        orientation: cameraManager.currentDeviceOrientation,
+                        orientation: cameraManager.controlsOrientation,
                         onPresentationChanged: { isReviewingPhotos = $0 }
                     )
 
@@ -410,7 +410,7 @@ struct CameraView: View {
                                 }
                             }
                             .rotationEffect(controlRotationAngle)
-                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
+                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(Text("Switch film"))
@@ -642,7 +642,7 @@ struct CameraView: View {
         } label: {
             Image(systemName: wantsLiveCapture ? "livephoto" : "livephoto.slash")
                 .rotationEffect(controlRotationAngle)
-                .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
+                .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
         }
         .tint(wantsLiveCapture ? .yellow : .white)
         .disabled(cameraManager.readiness != .ready || isShutterBusy)
@@ -897,10 +897,9 @@ struct CameraView: View {
     }
 
     @MainActor
-    /// 设备方向 → 控件旋转角。app UI 锁竖屏，悬浮控件（焦距数字/闪光/缩略图）的物理位置不变，
-    /// 只内部 icon / 数字旋转，让用户视角下文字方向正确——与 iPhone Camera 一致。
+    /// Compensate only for physical rotation that the window has not already applied.
     private var controlRotationAngle: Angle {
-        switch cameraManager.currentDeviceOrientation {
+        switch cameraManager.controlsOrientation {
         case .portraitUpsideDown: return .degrees(180)
         case .landscapeLeft: return .degrees(90)
         case .landscapeRight: return .degrees(-90)
@@ -919,13 +918,11 @@ struct CameraView: View {
         }
     }
 
-    /// 把 viewport 坐标转换成 AVF sensor 归一化坐标，并提交对焦/单次 AE。
-    /// 见 setFocusAndExposure 里的旋转推导：portrait viewport 与 sensor landscape 旋转 90° CW 后
-    /// 重合，vx/vy 在整个 viewport 上线性映射到 AVF [0,1]，所以 normalizedX = vy/vh，normalizedY = 1 - vx/vw。
+    /// Map the visible point through the current preview rotation before focus/AE.
     private func commitFocusToDevice(at location: CGPoint, in size: CGSize, resetExposure: Bool = true) {
-        let normalizedX = location.y / size.height
-        let normalizedY = 1.0 - (location.x / size.width)
-        cameraManager.setFocusAndExposure(normalizedPoint: CGPoint(x: normalizedX, y: normalizedY), resetExposure: resetExposure)
+        let point = CameraOrientationPolicy.focusPoint(at: location, viewport: size,
+            rotation: CameraOrientationPolicy.previewRotation(for: cameraManager.previewInterfaceOrientation))
+        cameraManager.setFocusAndExposure(normalizedPoint: point, resetExposure: resetExposure)
     }
 
     /// 3.5s 后若 focus 已不再 locked（focusHoldTimer 已过期）则淡出 reticle。
@@ -979,7 +976,7 @@ struct CameraView: View {
                 guard !isShutterBusy else { return }
                 if dragStartLocation == nil {
                     gestureAllowsFilmSwipe = showFilmPicker
-                    gestureOrientation = cameraManager.currentDeviceOrientation
+                    gestureOrientation = cameraManager.controlsOrientation
                     handleFocusEvChanged(value: value, viewportSize: viewportSize)
                     handleFilmSwipeChanged(value)
                 }
@@ -1150,9 +1147,8 @@ struct CameraView: View {
     /// 把 SwiftUI translation（设备屏幕坐标）映射到**用户感知**的轴：
     /// `vertical` 正向 = 用户视角向上（→ 调亮），`horizontal` 正向 = 用户视角向右。
     ///
-    /// app 锁竖屏渲染但用户可能横握——若不做转换，横握时手指在物理上的"上滑"会落到屏幕的
-    /// X 轴上，旧实现只看 `translation.height` 检测不到、bias 也调反或不动。这是把 iPhone Camera 的
-    /// "上滑变亮"承诺扩展到所有持机方向的关键映射。
+    /// 窗口已跟随设备旋转时直接使用窗口坐标；方向锁定时补偿剩余旋转，
+    /// 让横握设备时的上滑也能正确调亮。
     @MainActor
     private func perceivedTranslation(_ t: CGSize) -> (vertical: CGFloat, horizontal: CGFloat) {
         PreviewGestureRouting.axes(for: t, orientation: gestureOrientation)
@@ -1164,7 +1160,7 @@ struct CameraView: View {
     private func sunRailPosition(focus: CGPoint, viewport: CGSize) -> CGPoint {
         let offset: CGFloat = 60
         let edgePad: CGFloat = 12
-        switch cameraManager.currentDeviceOrientation {
+        switch cameraManager.controlsOrientation {
         case .portraitUpsideDown:  // 用户右 = 屏幕 -X
             let pref = focus.x - offset
             let x = pref - edgePad < 0 ? focus.x + offset : pref

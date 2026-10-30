@@ -141,6 +141,8 @@ final class PreviewMetalResources: @unchecked Sendable {
 /// Bound drawable work independently of screen density and iPad window size.
 final class CameraPreviewMetalView: MTKView {
     var onRenderingAvailabilityChanged: ((Bool, String) -> Void)?
+    var onInterfaceOrientationChanged: ((UIInterfaceOrientation) -> Void)?
+    private var lastInterfaceOrientation: UIInterfaceOrientation?
     private var applicationActive = UIApplication.shared.applicationState == .active
     private var sceneActive = false
     private var dismantled = false
@@ -177,6 +179,7 @@ final class CameraPreviewMetalView: MTKView {
         super.didMoveToWindow()
         if configuredPreviewScale == nil, let window { configuredPreviewScale = min(window.screen.scale, 2) }
         sceneActive = window?.windowScene.map { $0.activationState == .foregroundActive } ?? (window != nil)
+        refreshInterfaceOrientation()
         updateRenderingAvailability(reason: window == nil ? "detached" : "attached")
     }
 
@@ -228,7 +231,17 @@ final class CameraPreviewMetalView: MTKView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        refreshInterfaceOrientation()
         updateDrawableSize()
+    }
+
+    /// Read this view's scene, never an arbitrary connected scene or the device aspect.
+    /// The draw-time check also catches 180° rotations with unchanged view bounds.
+    func refreshInterfaceOrientation() {
+        guard let orientation = window?.windowScene?.effectiveGeometry.interfaceOrientation,
+              orientation != .unknown, orientation != lastInterfaceOrientation else { return }
+        lastInterfaceOrientation = orientation
+        onInterfaceOrientationChanged?(orientation)
     }
 
     func configurePreviewScale(_ scale: CGFloat) {
@@ -345,6 +358,10 @@ struct RealtimePreviewView: UIViewRepresentable {
             coordinator?.renderingAvailabilityChanged(active)
             coordinator?.manager?.diagnostics.event("preview_rendering_changed", "active=\(active) reason=\(reason)")
         }
+        view.onInterfaceOrientationChanged = { [weak manager] orientation in
+            // UIKit can deliver layout inside a SwiftUI update. Publish on the next turn.
+            Task { @MainActor [weak manager] in manager?.updatePreviewInterfaceOrientation(orientation) }
+        }
         manager.diagnostics.event("preview_renderer_setup", "target_fps=\(view.preferredFramesPerSecond) scale=\(view.contentScaleFactor) max_long_edge=\(CameraPerformancePolicy.maximumPreviewLongEdge) diffusion_scale=0.5")
         return view
     }
@@ -376,7 +393,7 @@ struct RealtimePreviewView: UIViewRepresentable {
 
     // MARK: - Metal Preview Coordinator
     // @MainActor：MTKViewDelegate.draw 在主线程触发，
-    // 同时需要访问 @MainActor 的 CameraManager 属性（previewRotationAngle 等）
+    // 同时需要访问 @MainActor 的 CameraManager 属性（previewInterfaceOrientation 等）
     @MainActor
     final class Coordinator: NSObject, MTKViewDelegate {
         var lutCacheKey: String = ""
@@ -552,6 +569,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         func draw(in view: MTKView) {
             // A queued draw can arrive after pause/detachment. Do not acquire a drawable then:
             // on device this blocked the main thread for 556 ms during app deactivation.
+            (view as? CameraPreviewMetalView)?.refreshInterfaceOrientation()
             guard !view.isPaused, view.window != nil, view.bounds.width > 0, view.bounds.height > 0,
                   UIApplication.shared.applicationState == .active else { return }
             let flow = manager?.flowDiagnostics
@@ -699,15 +717,9 @@ struct RealtimePreviewView: UIViewRepresentable {
                 return
             }
 
-            // 计算旋转参数
-            let isLandscape = inW > inH
-            let isPortraitView = outH > outW
-            var rotation: UInt32 = 0
-            if isLandscape && isPortraitView {
-                rotation = 1  // 90° CW
-            } else if let angle = manager?.previewRotationAngle, angle != 0 {
-                rotation = rotationFromAngle(angle)
-            }
+            // Sensor buffers stay unrotated. Match the actual window, including
+            // landscape iPad windows and upside-down rotations of the same size.
+            let rotation = CameraOrientationPolicy.previewRotation(for: manager?.previewInterfaceOrientation ?? .portrait)
 
             let framing = CameraFraming.previewTransform(input: CGSize(width: inW, height: inH),
                 rotation: rotation, output: CGSize(width: outW, height: outH), zoom: transitionPlan.crop)
@@ -908,16 +920,6 @@ struct RealtimePreviewView: UIViewRepresentable {
             commandBuffer.commit()
             lastRenderedFrameId = frameId
             submittedFrames += 1
-        }
-
-        private func rotationFromAngle(_ angle: CGFloat) -> UInt32 {
-            let normalized = Int(angle.truncatingRemainder(dividingBy: 360))
-            switch normalized {
-            case 90:  return 1  // 90° CW
-            case 180: return 2
-            case 270: return 3
-            default:  return 0
-            }
         }
     }
 }
