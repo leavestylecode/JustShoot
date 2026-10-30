@@ -5,6 +5,25 @@ import UIKit
 final class CameraOrientationPolicyTests: XCTestCase {
     private let interfaces: [UIInterfaceOrientation] = [.portrait, .landscapeLeft, .portraitUpsideDown, .landscapeRight]
 
+    @MainActor
+    func testDeviceFamilyDeclaresPortraitOnlyWhileMotionStillRotatesControls() throws {
+        // Bundle resolves platform/device qualifiers; installation may strip the
+        // other family's keys. Validate the effective declaration on each device.
+        let orientations = try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: "UISupportedInterfaceOrientations") as? [String])
+        XCTAssertEqual(orientations, ["UIInterfaceOrientationPortrait"])
+        XCTAssertEqual(AppDelegate().application(UIApplication.shared, supportedInterfaceOrientationsFor: nil), .portrait)
+        XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "UIRequiresFullScreen") as? Bool,
+            UIDevice.current.userInterfaceIdiom == .pad)
+        let manager = CameraManager()
+        for device: UIDeviceOrientation in [.portrait, .landscapeLeft, .landscapeRight, .portraitUpsideDown] {
+            manager.currentDeviceOrientation = device
+            XCTAssertEqual(manager.previewInterfaceOrientation, .portrait)
+            XCTAssertEqual(manager.previewRotationAngle, 90)
+            XCTAssertEqual(manager.previewAspectRatio, 3.0 / 4.0)
+            XCTAssertEqual(manager.controlsOrientation, device)
+        }
+    }
+
     func testEachWindowOrientationRetainsTheEntireSensorFrame() {
         let sensor = CGSize(width: 1920, height: 1440)
         let rotations: [UInt32] = [1, 2, 3, 0]
@@ -31,7 +50,7 @@ final class CameraOrientationPolicyTests: XCTestCase {
         }
     }
 
-    func testRotatingIPadWindowDoesNotRotateControlsAndGesturesTwice() {
+    func testSystemRotatedWindowDoesNotRotateControlsAndGesturesTwice() {
         let devices: [UIDeviceOrientation] = [.portrait, .landscapeRight, .portraitUpsideDown, .landscapeLeft]
         for (interface, device) in zip(interfaces, devices) {
             let relative = CameraOrientationPolicy.controlsOrientation(device: device, interface: interface)

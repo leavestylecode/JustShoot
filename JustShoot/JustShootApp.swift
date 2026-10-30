@@ -26,11 +26,11 @@ extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
     }
 }
 
-// iPad windows support system rotation and multitasking. iPhone keeps its portrait
-// camera layout while the controls and capture orientation follow physical holding.
+// Both device families keep a portrait interface. Camera controls and captured
+// media still follow physical holding through the camera's motion monitoring.
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
-        (window?.traitCollection.userInterfaceIdiom ?? UIDevice.current.userInterfaceIdiom) == .pad ? .all : .portrait
+        .portrait
     }
 }
 
