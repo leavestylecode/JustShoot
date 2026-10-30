@@ -7,12 +7,237 @@ import AVFoundation
 @preconcurrency import Photos
 @testable import JustShoot
 
-/// Explicitly opt in on a connected, unlocked phone. The configuration check does
-/// not take photos; the capture check keeps its resulting sRGB assets in Photos.
-/// Ordinary test runs never capture.
-/// For framing acceptance, mount the phone in portrait and use a stationary,
-/// textured subject. Paired viewfinder/Photos attachments cover every focal option.
+/// Explicitly opt in on a connected, unlocked device. Configuration checks take no
+/// photos; framing checks retain temporary attachments without a Photos import.
+/// Only testRealCaptureThroughDurablePipelineAndPhotos imports assets into Photos.
+/// Ordinary test runs never capture. Use a stationary, textured subject for framing.
 final class PhysicalCameraPipelineTests: XCTestCase {
+    /// Opt-in same-scene framing evidence. Keeps test attachments, never Photos assets.
+    @MainActor
+    func testLivePhotoShutterFramingWithoutSavingToPhotos() async throws {
+        guard ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_LIVE_FRAMING"] == "1" else {
+            throw XCTSkip("Fix the phone on a textured subject and opt in to framing capture")
+        }
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Physical device required")
+        #else
+        if ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_AUDIO"] == "1" {
+            if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
+                _ = await AVCaptureDevice.requestAccess(for: .audio)
+            }
+            guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { throw XCTSkip("Microphone permission is required for audio validation") }
+        }
+        let camera = CameraManager()
+        let idleTimerWasDisabled = UIApplication.shared.isIdleTimerDisabled
+        UIApplication.shared.isIdleTimerDisabled = true
+        defer { camera.stopSession(); UIApplication.shared.isIdleTimerDisabled = idleTimerWasDisabled }
+        let source = FilmSource.preset(.fujiProvia100F)
+        let lut = try await FilmCapturePreparation.shared.displayLUT(source: source, curve: .builtIn(.none))
+        let key = "live-framing-validation"
+        try await PreviewMetalResources.warmUpForRenderer()
+        let texture = try await PreviewLUTTextureCache.shared.prepare(key: key, lut: lut)
+        let scene = try await TestWindowScene.foreground()
+        let previousWindow = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = UIHostingController(rootView: ValidationViewfinder(camera: camera,
+            key: key, texture: texture, profile: source.captureRenderProfile))
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previousWindow?.makeKey() }
+        camera.setEntrySceneActive(true)
+        camera.updateEntryPipelineReady(true)
+        camera.updateEntryLUT(expectedKey: key, preparedKey: key)
+        camera.setLivePhotoAudio(live: false, sound: false)
+        camera.requestCameraPermission()
+        var deadline = Date().addingTimeInterval(30)
+        while camera.capturePreview(lutKey: key) == nil, Date() < deadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        let selectedFocals = ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_FOCALS"]?
+            .split(separator: ",").compactMap { Int($0) }
+        let focals = camera.focalInfo.options.filter { selectedFocals?.contains($0.value) ?? true }
+            .sorted { abs($0.value - 35) < abs($1.value - 35) }
+        for focal in focals {
+            camera.setLivePhotoAudio(live: false, sound: false)
+            camera.setFocalLength(focal, animated: false)
+            deadline = Date().addingTimeInterval(20)
+            while camera.capturePreview(lutKey: key) == nil, Date() < deadline {
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            camera.setFocusAndExposure(normalizedPoint: CGPoint(x: 0.2, y: 0.5))
+            try await Task.sleep(for: .seconds(1))
+            let ordinaryFrame = try XCTUnwrap(camera.capturePreview(lutKey: key))
+            camera.setLivePhotoAudio(live: true, sound: ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_AUDIO"] == "1")
+            deadline = Date().addingTimeInterval(20)
+            while (!camera.livePhotoCaptureState.canCapture || camera.capturePreview(lutKey: key) == nil), Date() < deadline {
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            XCTAssertTrue(camera.livePhotoCaptureState.canCapture)
+            try await Task.sleep(for: .seconds(1))
+            let admission = try XCTUnwrap(camera.beginCaptureAdmission())
+            let presentedFrame = await camera.waitForCapturePreview(lutKey: key, admission: admission)
+            let frame = try XCTUnwrap(presentedFrame)
+            let result: CaptureResult? = await withCheckedContinuation { continuation in
+                camera.capturePhoto(admission: admission, live: true, previewFrame: frame) {
+                    continuation.resume(returning: $0)
+                }
+            }
+            let captured = try XCTUnwrap(result)
+            let movie = try XCTUnwrap(captured.livePhotoMovieURL)
+            defer { try? FileManager.default.removeItem(at: movie) }
+            XCTAssertGreaterThan((try FileManager.default.attributesOfItem(atPath: movie.path)[.size] as? Int) ?? 0, 0)
+            if focal.value == 35 {
+                try await verifyLivePairWithoutSaving(captured, lut: lut)
+            }
+            let stats = camera.livePhotoBufferStatistics
+            XCTAssertLessThanOrEqual(stats.maximumPendingFrames, 2)
+            print("live_buffer_probe focal_mm=\(focal.value) encoded=\(stats.encodedFrames) dropped=\(stats.droppedFrames) max_pending=\(stats.maximumPendingFrames) max_encode_ms=\(stats.maximumEncodeMilliseconds)")
+            let diagnostics = try await Task.detached {
+                let context = CIContext(options: [.workingColorSpace: FilmImagePipeline.colorSpace, .cacheIntermediates: false])
+                let photo = try XCTUnwrap(CIImage(data: captured.imageData, options: [.applyOrientationProperty: true]))
+                let scale = 1200 / max(photo.extent.width, photo.extent.height)
+                let scaledPhoto = photo.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+                let preview = frame.inputImage(maximumPixel: 1200)
+                let ordinary = ordinaryFrame.inputImage(maximumPixel: 1200)
+                let generator = AVAssetImageGenerator(asset: AVURLAsset(url: movie))
+                generator.appliesPreferredTrackTransform = true
+                let videoImage = try await generator.image(at: captured.photoDisplayTime).image
+                let video = CIImage(cgImage: videoImage)
+                let videoScale = 1200 / max(video.extent.width, video.extent.height)
+                var result: [(String, Data)] = []
+                for (name, image) in [("ordinary-preview", ordinary), ("live-shutter-preview", preview), ("live-native-still", scaledPhoto),
+                                      ("live-video-frame", video.transformed(by: CGAffineTransform(scaleX: videoScale, y: videoScale)))] {
+                    let png = try XCTUnwrap(context.pngRepresentation(of: image, format: .RGBA8, colorSpace: FilmImagePipeline.colorSpace))
+                    result.append((name, png))
+                }
+                print("live_framing_preview focal_mm=\(focal.value) \(frame.framingDiagnosticFields)")
+                print("live_framing_native focal_mm=\(focal.value) \(CameraPhotoDiagnostics.fields(imageData: captured.imageData, resolvedDimensions: .init(width: 0, height: 0)))")
+                return result
+            }.value
+            for (name, png) in diagnostics {
+                let attachment = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")
+                attachment.name = "\(focal.value)mm-\(name)"
+                attachment.lifetime = .keepAlways
+                add(attachment)
+            }
+            if ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_SKIP_ROUNDTRIP"] == "1" { continue }
+            // Distinguish a mode-switch initialization error from steady-state proxy zoom.
+            let alternate = camera.focalInfo.options.first { $0 != focal } ?? focal
+            for target in [alternate, focal] {
+                camera.setFocalLength(target, animated: false)
+                deadline = Date().addingTimeInterval(20)
+                while camera.capturePreview(lutKey: key) == nil, Date() < deadline {
+                    try await Task.sleep(for: .milliseconds(50))
+                }
+            }
+            let returnedFrame = try XCTUnwrap(camera.capturePreview(lutKey: key))
+            print("live_framing_returned focal_mm=\(focal.value) \(returnedFrame.framingDiagnosticFields)")
+            let returnedPNG = try await Task.detached {
+                let context = CIContext(options: [.workingColorSpace: FilmImagePipeline.colorSpace, .cacheIntermediates: false])
+                return try XCTUnwrap(context.pngRepresentation(of: returnedFrame.inputImage(maximumPixel: 1200),
+                    format: .RGBA8, colorSpace: FilmImagePipeline.colorSpace))
+            }.value
+            let returnedAttachment = XCTAttachment(data: returnedPNG, uniformTypeIdentifier: "public.png")
+            returnedAttachment.name = "\(focal.value)mm-live-after-zoom-roundtrip"
+            returnedAttachment.lifetime = .keepAlways
+            add(returnedAttachment)
+        }
+        if ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_CHECK_LIFECYCLE"] == "1" {
+            try await verifyOverlappingCapturesAndImmediateClose(camera, key: key, lut: lut)
+        }
+        #endif
+    }
+
+    @MainActor
+    private func verifyOverlappingCapturesAndImmediateClose(_ camera: CameraManager, key: String, lut: CubeLUT) async throws {
+        let released = AsyncStream<Void>.makeStream()
+        let firstAdmission = try XCTUnwrap(camera.beginCaptureAdmission())
+        let firstPreview = await camera.waitForCapturePreview(lutKey: key, admission: firstAdmission)
+        let firstFrame = try XCTUnwrap(firstPreview)
+        let first = Task { @MainActor in
+            await withCheckedContinuation { continuation in
+                camera.capturePhoto(admission: firstAdmission, live: true, previewFrame: firstFrame,
+                    onShutterReady: { released.continuation.yield(()); released.continuation.finish() }) {
+                        continuation.resume(returning: $0)
+                    }
+            }
+        }
+        for await _ in released.stream { break }
+        let deadline = Date().addingTimeInterval(5)
+        while !camera.isReadyToCapture, Date() < deadline { try await Task.sleep(for: .milliseconds(30)) }
+        let secondAdmission = try XCTUnwrap(camera.beginCaptureAdmission())
+        let secondPreview = await camera.waitForCapturePreview(lutKey: key, admission: secondAdmission)
+        let secondFrame = try XCTUnwrap(secondPreview)
+        let second = Task { @MainActor in
+            await withCheckedContinuation { continuation in
+                camera.capturePhoto(admission: secondAdmission, live: true, previewFrame: secondFrame) {
+                    continuation.resume(returning: $0)
+                }
+            }
+        }
+        let firstValue = await first.value
+        let secondValue = await second.value
+        let results = [try XCTUnwrap(firstValue), try XCTUnwrap(secondValue)]
+        let firstURL = try XCTUnwrap(results[0].livePhotoMovieURL)
+        let secondURL = try XCTUnwrap(results[1].livePhotoMovieURL)
+        defer { try? FileManager.default.removeItem(at: firstURL); try? FileManager.default.removeItem(at: secondURL) }
+        XCTAssertNotEqual(firstURL, secondURL)
+        XCTAssertNil(results[0].warning)
+        XCTAssertNil(results[1].warning)
+        let closing = AsyncStream<Void>.makeStream()
+        let closeAdmission = try XCTUnwrap(camera.beginCaptureAdmission())
+        let closePreview = await camera.waitForCapturePreview(lutKey: key, admission: closeAdmission)
+        let closeFrame = try XCTUnwrap(closePreview)
+        let closeResult = Task { @MainActor in
+            await withCheckedContinuation { continuation in
+                camera.capturePhoto(admission: closeAdmission, live: true, previewFrame: closeFrame,
+                    onShutterReady: { closing.continuation.yield(()); closing.continuation.finish() }) {
+                        continuation.resume(returning: $0)
+                    }
+            }
+        }
+        for await _ in closing.stream { break }
+        camera.stopSession()
+        let closedValue = await closeResult.value
+        let closed = try XCTUnwrap(closedValue)
+        let closedURL = try XCTUnwrap(closed.livePhotoMovieURL)
+        defer { try? FileManager.default.removeItem(at: closedURL) }
+        XCTAssertNil(closed.warning)
+        try await verifyLivePairWithoutSaving(closed, lut: lut)
+        print("live_lifecycle_probe overlapping=true close_pair_playable=true")
+    }
+
+    /// Runs the existing production grade/pairing stages without importing anything into Photos.
+    @MainActor
+    private func verifyLivePairWithoutSaving(_ captured: CaptureResult, lut: CubeLUT) async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("live-pair-validation-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = try XCTUnwrap(captured.livePhotoMovieURL)
+        let movie = root.appendingPathComponent("paired.mov")
+        let photo = root.appendingPathComponent("paired.heic")
+        let bytes = try await Task.detached {
+            let result = try await LivePhotoProcessor.process(sourceURL: source,
+                lutCacheKey: "live-framing-validation", capturedLUT: lut, grain: .disabled,
+                grainBaseSeed: 1, photoDisplayTime: captured.photoDisplayTime, outputURL: movie)
+            return try XCTUnwrap(FilmProcessor.shared.applyLUTPreservingMetadata(imageData: captured.imageData,
+                lutCacheKey: "live-framing-validation", capturedLUT: lut,
+                contentIdentifier: result.contentIdentifier))
+        }.value
+        try bytes.write(to: photo)
+        let canPlay: Bool = await withCheckedContinuation { continuation in
+            PHLivePhoto.request(withResourceFileURLs: [photo, movie], placeholderImage: nil,
+                targetSize: CGSize(width: 240, height: 320), contentMode: .aspectFit) { live, info in
+                    guard info[PHLivePhotoInfoIsDegradedKey] as? Bool != true else { return }
+                    print("live_pair_probe playable=\(live != nil) error=\(String(describing: info[PHLivePhotoInfoErrorKey]))")
+                    continuation.resume(returning: live != nil)
+                }
+        }
+        XCTAssertTrue(canPlay, "The graded resources must load as a Live Photo without a Photos import")
+        let tracks = try await AVURLAsset(url: movie).loadTracks(withMediaType: .audio)
+        let wantsAudio = ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_AUDIO"] == "1"
+        XCTAssertEqual(tracks.count, wantsAudio ? 1 : 0)
+    }
+
     /// Exercises production cold-start and mode switching without taking photos.
     @MainActor
     func testLivePhotoPreviewConfigurationSurvivesColdStartAndRoundTrips() async throws {
@@ -38,7 +263,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                 while Date() < deadline {
                     if camera.isCaptureAvailable,
                        let video = camera.session.outputs.compactMap({ $0 as? AVCaptureVideoDataOutput }).first,
-                       video.automaticallyConfiguresOutputBufferDimensions == live,
+                       !video.automaticallyConfiguresOutputBufferDimensions,
                        !live || camera.livePhotoCaptureState.canCapture {
                         configured = true
                         break
@@ -47,7 +272,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                 }
                 XCTAssertTrue(configured, "cold_live=\(startsLive) requested_live=\(live) state=\(camera.livePhotoCaptureState)")
                 let video = try XCTUnwrap(camera.session.outputs.compactMap { $0 as? AVCaptureVideoDataOutput }.first)
-                XCTAssertEqual(video.deliversPreviewSizedOutputBuffers, live)
+                XCTAssertFalse(video.deliversPreviewSizedOutputBuffers)
                 XCTAssertFalse(live && camera.usesDeferredPhotoDelivery)
                 if live { XCTAssertTrue(camera.livePhotoCaptureState.canCapture) }
                 print("configuration_probe cold_live=\(startsLive) requested_live=\(live) proxy=\(video.deliversPreviewSizedOutputBuffers) live=\(camera.livePhotoCaptureState.canCapture)")
@@ -306,8 +531,11 @@ private struct ValidationViewfinder: View {
     let profile: FilmRenderProfile
 
     var body: some View {
-        RealtimePreviewView(manager: camera, lutCacheKey: key, preparedLUT: texture,
-            grain: profile.grain, optics: profile.optics, chromatic: profile.effectiveChromatic)
+        ZStack {
+            CameraPreviewUnderlayView(manager: camera)
+            RealtimePreviewView(manager: camera, lutCacheKey: key, preparedLUT: texture,
+                grain: profile.grain, optics: profile.optics, chromatic: profile.effectiveChromatic)
+        }
             .aspectRatio(CameraFraming.portraitAspect, contentMode: .fit)
             .background(.black)
     }

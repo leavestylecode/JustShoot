@@ -90,8 +90,10 @@ class CameraManager: NSObject, ObservableObject {
     /// constituent 切换由系统在内部完成，对外仍是同一个 device 实例。
     private var videoCaptureDevice: AVCaptureDevice? { currentVideoInput?.device }
     private let videoDataOutput = AVCaptureVideoDataOutput()
+    private let audioDataOutput = AVCaptureAudioDataOutput()
+    nonisolated private let livePhotoBuffer = LivePhotoRollingBuffer()
     private var usesPreviewProxyBuffers = true
-    private var previewConfiguredForLivePhoto = false
+    private var photoDeliveryConfiguredForLivePhoto = false
     private let previewQueue = DispatchQueue(label: "preview.lut.queue")
     /// 专用会话队列（AVCaptureSession 操作必须在同一串行队列）
     nonisolated private static let hardwareQueue = DispatchQueue(label: "camera.hardware.queue", qos: .userInitiated)
@@ -163,7 +165,7 @@ class CameraManager: NSObject, ObservableObject {
         let onStillCaptured: (@MainActor (CaptureStill) async -> Void)?
         let onWillCapture: (() -> Void)?
         let onExposureComplete: (() -> Void)?
-        /// 本次拍照是否要求 Live Photo（issue 阶段已设 livePhotoMovieFileURL）。true 时 onData 要等
+        /// 本次拍照是否要求 Live Photo。true 时 onData 要等
         /// 静态图 + 动态视频两个交付物都到齐（或 didFinishCaptureFor 终结兜底）才回调一次。
         let expectsLiveMovie: Bool
         let rawFormat: CameraRAWFormat?
@@ -182,6 +184,8 @@ class CameraManager: NSObject, ObservableObject {
         var stillCheckpointed = false
         var isCheckpointingStill = false
         var pendingMovieURL: URL?
+        var includesLiveAudio = false
+        var movieTask: Task<Void, Never>?
     }
 
     /// Immutable AVFoundation arguments retained while a late source change delays invocation.
@@ -214,8 +218,6 @@ class CameraManager: NSObject, ObservableObject {
     private var photoDeliveryConfigurationPending = false
     private var photoDeliveryReconciliationPending = false
     private var rawFormatsObservation: NSKeyValueObservation?
-    private var livePhotoSupportObservation: NSKeyValueObservation?
-    private var livePhotoEnabledObservation: NSKeyValueObservation?
 
     // MARK: Live Photo 录音（麦克风）
     //
@@ -363,6 +365,9 @@ class CameraManager: NSObject, ObservableObject {
         diagnostics = trace
         flowDiagnostics = CameraFlowDiagnostics(trace: trace)
         super.init()
+        livePhotoBuffer.onStateChanged { [weak self] in
+            Task { @MainActor [weak self] in self?.updateLivePhotoCaptureState(reason: "buffer_changed") }
+        }
         DiagnosticWatchdog.shared.addCamera(id: diagnostics.id, flow: flowDiagnostics) { [weak self] in self?.previewHealth() }
         diagnostics.event("camera_manager_init")
         diagnostics.measure("orientation_setup") { setupOrientationMonitoring() }
@@ -389,6 +394,7 @@ class CameraManager: NSObject, ObservableObject {
 
     deinit {
         diagnostics.event("camera_manager_deinit")
+        livePhotoBuffer.setEnabled(false)
         DiagnosticWatchdog.shared.removeCamera(id: diagnostics.id)
         // @MainActor class 的 deinit 在 Swift 6 中是 nonisolated，无法访问 @MainActor 隔离的属性。
         // observer / KVO 的生命周期已由 stopSession() 在 onDisappear 时托管。
@@ -1084,10 +1090,11 @@ class CameraManager: NSObject, ObservableObject {
         livePhotoCaptureDesired = live
         reconcilePhotoDelivery()
         reconcileAudioInput()
+        updateLivePhotoBuffer()
     }
 
     /// Deferred delivery is an output-wide option. Switch it only between captures;
-    /// Live Photo retains its existing still/movie pipeline and native supported size.
+    /// Live keeps a native still size while its movie uses the ordinary video buffer.
     private func reconcilePhotoDelivery() {
         guard isCameraVisible, sessionConfigured, let device = videoCaptureDevice,
               sessionIntent.withLock({ $0.wantsRunning }) else { return }
@@ -1102,13 +1109,13 @@ class CameraManager: NSObject, ObservableObject {
             supported: photoOutput.isAutoDeferredPhotoDeliverySupported
                 && device.activeFormat.supportedMaxPhotoDimensions.contains(where: CameraCapturePolicy.requiresDeferredDelivery),
             photosAuthorized: authorized, livePhoto: live)
-        let reconfigurePreview = live != previewConfiguredForLivePhoto
-        guard enabled != photoOutput.isAutoDeferredPhotoDeliveryEnabled || reconfigurePreview else {
+        let modeChanged = live != photoDeliveryConfiguredForLivePhoto
+        guard enabled != photoOutput.isAutoDeferredPhotoDeliveryEnabled || modeChanged else {
             usesDeferredPhotoDelivery = enabled
             return
         }
         photoDeliveryConfigurationPending = true
-        if reconfigurePreview {
+        if modeChanged {
             // Invalidate an already-admitted old frame before hardware work can
             // race the output change. Fresh frames are gated again after commit.
             let stamp = focalRequestStamp()
@@ -1128,25 +1135,16 @@ class CameraManager: NSObject, ObservableObject {
                 let switching = trace.span("photo_delivery_apply", "live=\(live) deferred=\(enabled)")
                 captureSession.beginConfiguration()
                 self.configurePhotoDelivery(output: output, device: device, live: live, photosAuthorized: authorized)
-                if reconfigurePreview {
-                    CameraPerformancePolicy.configurePreviewOutput(videoOutput,
-                        sourceDimensions: CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription),
-                        livePhoto: live)
-                    self.applyPreviewStabilization(output: videoOutput, device: device)
-                }
                 captureSession.commitConfiguration()
-                // Dimension/output negotiation can clear Live enablement. Recheck at
-                // this idle capture boundary before exposing the new mode to the UI.
-                Self.prepareLivePhotoOutput(output, trace: trace, stage: "photo_delivery_changed")
                 switching.end("configured", "live_supported=\(output.isLivePhotoCaptureSupported) live_enabled=\(output.isLivePhotoCaptureEnabled) preview_proxy=\(videoOutput.deliversPreviewSizedOutputBuffers)")
             }
             Task { @MainActor in
                 guard self.diagnosticGeneration == generation else { return }
                 self.photoDeliveryConfigurationPending = false
                 self.usesDeferredPhotoDelivery = output.isAutoDeferredPhotoDeliveryEnabled
-                self.previewConfiguredForLivePhoto = live
+                self.photoDeliveryConfiguredForLivePhoto = live
                 self.usesPreviewProxyBuffers = videoOutput.deliversPreviewSizedOutputBuffers
-                if reconfigurePreview {
+                if modeChanged {
                     // In-flight callbacks from the old output cannot authorize the
                     // first capture in the new mode, even at the same focal length.
                     let stamp = self.focalRequestStamp()
@@ -1339,6 +1337,7 @@ class CameraManager: NSObject, ObservableObject {
         let captureSession = session
         let output = photoOutput
         let videoOutput = videoDataOutput
+        let audioOutput = audioDataOutput
         // 把 MainActor 上的 currentFocalLength 抓到 closure 里——sessionQueue 上不能跨回主 actor 读
         let initialFocal = currentFocalLength
         // 建图期挂麦克风的期望状态同样在 MainActor 上快照；快照后的变化由 reconcile 收敛。
@@ -1406,6 +1405,7 @@ class CameraManager: NSObject, ObservableObject {
 
                         // Quality is preferred at both output and request.
                         // 预热与每次拍摄使用同一策略；具体计算摄影算法仍由系统按场景选择。
+                        output.isLivePhotoCaptureEnabled = false
                         output.maxPhotoQualityPrioritization = CameraCapturePolicy.current.qualityPrioritization
                         if output.isResponsiveCaptureSupported {
                             output.isResponsiveCaptureEnabled = true
@@ -1424,8 +1424,7 @@ class CameraManager: NSObject, ObservableObject {
                     photoSetup.end()
                     let previewSetup = trace.span("session_preview_output")
                     CameraPerformancePolicy.configurePreviewOutput(videoOutput,
-                        sourceDimensions: CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription),
-                        livePhoto: liveDesired)
+                        sourceDimensions: CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription))
                     trace.event("preview_output_policy", "strategy=\(videoOutput.automaticallyConfiguresOutputBufferDimensions ? "automatic_proxy" : "scaled_video") live=\(liveDesired)")
                     if captureSession.canAddOutput(videoOutput) {
                         captureSession.addOutput(videoOutput)
@@ -1433,10 +1432,8 @@ class CameraManager: NSObject, ObservableObject {
                         // 这里紧跟 addOutput 设置，与其他输出配置一起原子提交，避免首帧抖动可见。
                         self.applyPreviewStabilization(output: videoOutput, device: device)
                     }
+                    if captureSession.canAddOutput(audioOutput) { captureSession.addOutput(audioOutput) }
                     previewSetup.end()
-                    // Opt in only after the final format, photo dimensions and preview output.
-                    // Enabling earlier can be undone by the remaining graph changes.
-                    Self.prepareLivePhotoOutput(output, trace: trace, stage: "outputs_configured")
                     if output.isAppleProRAWSupported { output.isAppleProRAWEnabled = true }
                     self.configurePhotoDelivery(output: output, device: device, live: liveDesired, photosAuthorized: photosAuthorized)
                 } catch {
@@ -1447,9 +1444,6 @@ class CameraManager: NSObject, ObservableObject {
                 trace.measure("session_commit_configuration") { captureSession.commitConfiguration() }
                 Log.session.info("session_configuration_done ms=\(Log.ms(since: configurationStarted)) preview_proxy=\(videoOutput.deliversPreviewSizedOutputBuffers)")
                 guard intent.withLock({ $0.permitsStart(token) }) else { return }
-                // commitConfiguration can renegotiate support and clear enablement. Recheck
-                // before startRunning, when this cannot interrupt a capture or freeze a preview.
-                Self.prepareLivePhotoOutput(output, trace: trace, stage: "before_start")
                 let startTimer = Log.perf("session_start_running", logger: Log.session)
                 trace.measure("session_start_running") { captureSession.startRunning() }
                 startTimer.end()
@@ -1492,7 +1486,7 @@ class CameraManager: NSObject, ObservableObject {
         }
         setReadiness(.waitingForFirstFrame)
         usesPreviewProxyBuffers = videoOutput.deliversPreviewSizedOutputBuffers
-        previewConfiguredForLivePhoto = liveDesired
+        photoDeliveryConfiguredForLivePhoto = liveDesired
 
         // Back on MainActor — set up delegates and properties that need main thread
         let rotationSetup = trace.span("main_rotation_setup")
@@ -1500,7 +1494,11 @@ class CameraManager: NSObject, ObservableObject {
         rotationCoordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
         observeCaptureRotationAngle()
         rotationSetup.end()
-        trace.measure("main_preview_delegate") { videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue) }
+        trace.measure("main_preview_delegate") {
+            videoDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
+            audioDataOutput.setSampleBufferDelegate(self, queue: previewQueue)
+        }
+        updateLivePhotoBuffer()
 
         updateLivePhotoCaptureState(reason: "session_ready")
         updateRAWCaptureState()
@@ -1508,7 +1506,6 @@ class CameraManager: NSObject, ObservableObject {
         rawFormatsObservation = photoOutput.observe(\.isAppleProRAWEnabled, options: [.new]) { [weak self] _, _ in
             Task { @MainActor in self?.updateRAWCaptureState() }
         }
-        observeLivePhotoCaptureState()
 
         focalInfo = configuredFocalInfo
         if !focalInfo.options.contains(currentFocalLength) {
@@ -1602,6 +1599,7 @@ class CameraManager: NSObject, ObservableObject {
                 guard let self else { return }
                 self.diagnostics.event("session_interrupted", "reason=\(reason)")
                 self.sessionInterrupted = true
+                self.finishLivePhotoRecording()
                 self.sessionIntent.withLock { _ = $0.request(running: false) }
                 self.cancelEntryPreparation()
                 self.cancelUnexposedCapture()
@@ -1650,6 +1648,7 @@ class CameraManager: NSObject, ObservableObject {
         exposureApplication.withLock { $0.reset() }
         exposureBias = 0
         sessionConfigured = true
+        updateLivePhotoBuffer()
         trace.event("camera_configuration_complete", "generation=\(token)")
 
         // session 就绪——按 CameraView 入页时记下的期望状态，决定是否挂麦克风（Live+声音默认开）。
@@ -2309,41 +2308,32 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    nonisolated private static func prepareLivePhotoOutput(_ output: AVCapturePhotoOutput, trace: DiagnosticTrace, stage: String) {
-        let before = LivePhotoCaptureState(output)
-        let preparing = trace.span("live_photo_prepare", "stage=\(stage) supported_before=\(before.supported) enabled_before=\(before.enabled)")
-        let after = LivePhotoCaptureState.prepare(output)
-        preparing.end(after.canCapture ? "enabled" : "unavailable", "stage=\(stage) supported=\(after.supported) enabled=\(after.enabled)")
+    var livePhotoBufferStatistics: LivePhotoRollingBuffer.Statistics { livePhotoBuffer.statistics }
+
+    private func updateLivePhotoBuffer() {
+        guard isCameraVisible, sessionConfigured, !sessionInterrupted, sessionIntent.withLock({ $0.wantsRunning }) else { return }
+        livePhotoBuffer.setEnabled(livePhotoCaptureDesired || inFlightCaptures.values.contains(where: \.expectsLiveMovie),
+            audio: livePhotoAudioDesired || inFlightCaptures.values.contains(where: \.includesLiveAudio))
+    }
+
+    private func finishLivePhotoRecording() {
+        if inFlightCaptures.values.contains(where: \.expectsLiveMovie) { livePhotoBuffer.seal() }
+        else { livePhotoBuffer.setEnabled(false) }
     }
 
     private func updateLivePhotoCaptureState(reason: String) {
-        let state = LivePhotoCaptureState(photoOutput)
+        let state = LivePhotoCaptureState(supported: sessionConfigured,
+            enabled: livePhotoCaptureDesired && livePhotoBuffer.isReady)
         if state != livePhotoCaptureState {
             livePhotoCaptureState = state
-            diagnostics.event("live_photo_state", "reason=\(reason) supported=\(state.supported) enabled=\(state.enabled)")
+            let buffer = livePhotoBuffer.statistics
+            diagnostics.event("live_photo_state", "reason=\(reason) supported=\(state.supported) enabled=\(state.enabled) source=scaled_video encoded=\(buffer.encodedFrames) dropped=\(buffer.droppedFrames) max_pending=\(buffer.maximumPendingFrames) max_encode_ms=\(buffer.maximumEncodeMilliseconds)")
         }
     }
 
     private func updateRAWCaptureState() {
         let format = CameraRAWCapturePolicy.format(output: photoOutput, zoom: videoCaptureDevice?.videoZoomFactor ?? 0)
         if format != rawCaptureFormat { rawCaptureFormat = format }
-    }
-
-    private func observeLivePhotoCaptureState() {
-        livePhotoSupportObservation?.invalidate()
-        livePhotoEnabledObservation?.invalidate()
-        livePhotoSupportObservation = photoOutput.observe(\.isLivePhotoCaptureSupported, options: [.new]) { [weak self] _, _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.isCameraVisible else { return }
-                self.updateLivePhotoCaptureState(reason: "support_changed")
-            }
-        }
-        livePhotoEnabledObservation = photoOutput.observe(\.isLivePhotoCaptureEnabled, options: [.new]) { [weak self] _, _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.isCameraVisible else { return }
-                self.updateLivePhotoCaptureState(reason: "enablement_changed")
-            }
-        }
     }
 
     /// Hardware state, not localized names or identifiers. Called only at configuration/zoom boundaries.
@@ -2727,10 +2717,10 @@ class CameraManager: NSObject, ObservableObject {
             return
         }
         // A requested Live Photo must not silently turn into a still when capability is lost.
-        guard !live || LivePhotoCaptureState(photoOutput).canCapture else {
+        guard !live || livePhotoBuffer.isReady else {
             if let suppliedAdmission { cancelCaptureAdmission(suppliedAdmission) }
             updateLivePhotoCaptureState(reason: "capture_guard")
-            captureTrace.event("live_photo_request_unavailable", "supported=\(photoOutput.isLivePhotoCaptureSupported) enabled=\(photoOutput.isLivePhotoCaptureEnabled)")
+            captureTrace.event("live_photo_request_unavailable", "buffer_ready=\(livePhotoBuffer.isReady)")
             onShutterReady()
             completion(nil)
             return
@@ -2810,9 +2800,9 @@ class CameraManager: NSObject, ObservableObject {
             request.onData(nil)
             return
         }
-        guard !request.expectsLiveMovie || LivePhotoCaptureState(photoOutput).canCapture else {
+        guard !request.expectsLiveMovie || livePhotoBuffer.isReady else {
             updateLivePhotoCaptureState(reason: "capture_issue_guard")
-            request.trace.event("live_photo_request_unavailable", "stage=issue supported=\(photoOutput.isLivePhotoCaptureSupported) enabled=\(photoOutput.isLivePhotoCaptureEnabled)")
+            request.trace.event("live_photo_request_unavailable", "stage=issue buffer_ready=\(livePhotoBuffer.isReady)")
             cancelCaptureAdmission(request.admission)
             request.onShutterReady()
             request.onData(nil)
@@ -2869,8 +2859,8 @@ class CameraManager: NSObject, ObservableObject {
         if wantsLive {
             let movieURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent("livephoto_src_\(UUID().uuidString).mov")
-            settings.livePhotoMovieFileURL = movieURL
             request.pendingMovieURL = movieURL
+            request.includesLiveAudio = livePhotoAudioDesired && AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
         }
 
         // 闪光灯下恒定色彩（Constant Color）减少白平衡偏移。Live Photo 与 Constant Color（内部走
@@ -2967,7 +2957,7 @@ class CameraManager: NSObject, ObservableObject {
                 return
             }
         }
-        guard !invocation.expectsLiveMovie || LivePhotoCaptureState(invocation.output).canCapture else {
+        guard !invocation.expectsLiveMovie || livePhotoBuffer.isReady else {
             invocation.trace.event("live_photo_request_unavailable", "stage=invoke")
             Task { @MainActor in
                 self.updateLivePhotoCaptureState(reason: "capture_invoke_guard")
@@ -3031,6 +3021,7 @@ class CameraManager: NSObject, ObservableObject {
     func pauseSessionForBackground() {
         flowDiagnostics.flush(reason: "camera_pause", force: true)
         diagnostics.event("camera_pause_requested")
+        finishLivePhotoRecording()
         sessionIntent.withLock { _ = $0.request(running: false) }
         cancelEntryPreparation()
         cancelUnexposedCapture()
@@ -3090,6 +3081,7 @@ class CameraManager: NSObject, ObservableObject {
                         zslGraceMs: 150, maxWaitMs: 1200)
                 }
                 self.promoteReadinessIfPossible()
+                self.updateLivePhotoBuffer()
                 self.reconcileAudioInput()
                 if running { self.prepareForFirstCapture() }
                 self.startLocationServices()
@@ -3102,6 +3094,7 @@ class CameraManager: NSObject, ObservableObject {
         flowDiagnostics.flush(reason: "camera_close", force: true)
         diagnostics.event("camera_close_requested")
         isCameraVisible = false
+        finishLivePhotoRecording()
         sessionIntent.withLock { _ = $0.request(running: false) }
         cancelEntryPreparation()
         cancelUnexposedCapture()
@@ -3132,10 +3125,6 @@ class CameraManager: NSObject, ObservableObject {
         constituentObservation = nil
         whiteBalanceReadingObservation?.invalidate()
         whiteBalanceReadingObservation = nil
-        livePhotoSupportObservation?.invalidate()
-        livePhotoSupportObservation = nil
-        livePhotoEnabledObservation?.invalidate()
-        livePhotoEnabledObservation = nil
         currentVideoInput = nil
         focalLengthPicker = nil
         exposureBiasSlider = nil
@@ -3185,13 +3174,17 @@ class CameraManager: NSObject, ObservableObject {
         // 会让左滑返回动画卡顿。整体下放到 sessionQueue。
         let captureSession = session
         let videoOutput = videoDataOutput
+        let audioOutput = audioDataOutput
         let trace = diagnostics
         let stopQueuedAt = ProcessInfo.processInfo.systemUptime
         sessionQueue.async {
             trace.event("session_stop_dequeued", "wait_ms=\(Diagnostics.milliseconds(since: stopQueuedAt))")
             let stopping = trace.span("session_stop_release")
             let timer = Log.perf("session_stop_release", logger: Log.session)
-            trace.measure("session_detach_delegate") { videoOutput.setSampleBufferDelegate(nil, queue: nil) }
+            trace.measure("session_detach_delegate") {
+                videoOutput.setSampleBufferDelegate(nil, queue: nil)
+                audioOutput.setSampleBufferDelegate(nil, queue: nil)
+            }
             if captureSession.isRunning { trace.measure("session_stop_running") { captureSession.stopRunning() } }
             if Self.audioInput(in: captureSession) != nil { Self.configureMixAudioSession(active: false) }
             let release = trace.span("session_release_io")
@@ -3250,7 +3243,7 @@ class CameraManager: NSObject, ObservableObject {
 }
 
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate（实时预览样本帧）
-extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
+extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
     nonisolated func captureOutput(_ output: AVCaptureOutput, didDrop sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         let reason = CMGetAttachment(sampleBuffer, key: kCMSampleBufferAttachmentKey_DroppedFrameReason, attachmentModeOut: nil) as? String ?? "unknown"
         flowDiagnostics.captureDropped(reason: reason)
@@ -3266,8 +3259,13 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
     }
 
     @preconcurrency nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        guard sessionIntent.withLock({ $0.wantsRunning }),
-              let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        guard sessionIntent.withLock({ $0.wantsRunning }) else { return }
+        if output is AVCaptureAudioDataOutput {
+            livePhotoBuffer.appendAudio(sampleBuffer)
+            return
+        }
+        guard let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        livePhotoBuffer.appendVideo(sampleBuffer)
         self.setLatestPixelBuffer(buffer)
         let framePTS = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
         flowDiagnostics.capture(at: ProcessInfo.processInfo.systemUptime, pts: framePTS,
@@ -3376,6 +3374,7 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
             }
             return
         }
+        let photoTime = photo.timestamp
         encoding?.end("ok", "bytes=\(imageData.count)")
         trace?.event("native_photo_metadata", CameraPhotoDiagnostics.fields(imageData: imageData,
             resolvedDimensions: photo.resolvedSettings.photoDimensions))
@@ -3389,59 +3388,56 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
             guard let request = self.inFlightCaptures[id],
                   CameraRAWCapturePolicy.acceptsDelivery(expectsRAW: request.rawFormat != nil, isRAW: isRAW) else { return }
             self.mutateCapture(id) { $0.stillData = imageData; $0.stillArrived = true }
-            self.deliverCaptureIfReady(id: id, terminal: false)
-        }
-    }
-
-    /// Live Photo 动态视频录制结束（约 shutter 后 ~1.5s）——仅 log，文件尚未写完。
-    nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishRecordingLivePhotoMovieForEventualFileAt outputFileURL: URL, resolvedSettings: AVCaptureResolvedPhotoSettings) {
-        Log.capture.info("delegate_live_recording_done")
-    }
-
-    /// Live Photo 动态视频文件写好——拿到 URL + photoDisplayTime（静态帧对应时刻）。
-    nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingLivePhotoToMovieFileAt outputFileURL: URL, duration: CMTime, photoDisplayTime: CMTime, resolvedSettings: AVCaptureResolvedPhotoSettings, error: (any Error)?) {
-        let id = resolvedSettings.uniqueID
-        captureTraces.withLock { $0[id] }?.event("live_movie_arrived", "av_id=\(id) error=\(error != nil)")
-        if let error = error {
-            Log.capture.error("delegate_live_movie_error error=\(error.localizedDescription, privacy: .public)")
-            // 视频失败：标记到位但 URL 为 nil → 交付时降级为「只存静态图」，绝不卡死。
-            // AVF 失败时仍可能留下半截文件——就地删除（settings 里挂的路径只有这里知道）。
-            try? FileManager.default.removeItem(at: outputFileURL)
-            DispatchQueue.main.async {
-                self.mutateCapture(id) { $0.movieArrived = true }
-                self.deliverCaptureIfReady(id: id, terminal: false)
-            }
-            return
-        }
-        Log.capture.info("delegate_live_movie_ok dur=\(String(format: "%.2f", duration.seconds))s display=\(String(format: "%.2f", photoDisplayTime.seconds))s")
-        DispatchQueue.main.async {
-            // 本次拍摄已被终结交付（如静态图失败提前释放）——迟到的视频无人消费，删掉文件，
-            // 否则 livephoto_src_*.mov（~2-6MB）会留在 tmp 直到下次启动清扫。
-            guard self.inFlightCaptures[id] != nil else {
-                try? FileManager.default.removeItem(at: outputFileURL)
-                Log.capture.info("late_live_movie_discarded id=\(id)")
-                return
-            }
-            self.mutateCapture(id) {
-                $0.movieURL = outputFileURL
-                $0.photoDisplayTime = photoDisplayTime
-                $0.movieArrived = true
-            }
+            self.collectLivePhotoMovie(id: id, photoTime: photoTime)
             self.deliverCaptureIfReady(id: id, terminal: false)
         }
     }
 
     /// AVF 保证的"必然终结"回调——无论 capture 成功、失败、还是被系统中断（来电 / 切后台 /
     /// stopSession 撞期）都会最后调用一次，是 Apple 推荐的拍照清理挂载点。
-    /// 正常路径下静态图（+live 视频）已 deliver 并把该 request 移出 inFlightCaptures，此处即为幂等
-    /// 空操作；只有当某个交付物从未到达（capture 被 drop）时这里才真正兜底：以 terminal 强制交付当前
-    /// 已有内容（或 nil）+ 放开快门 + 还原闪光灯 AE/WB，否则快门会永久卡死、设备 AE/WB 永久锁定。
+    /// Native still completion terminates ordinary captures. A successful Live request
+    /// continues until the rolling movie finishes; native errors still release it immediately.
     nonisolated func photoOutput(_ output: AVCapturePhotoOutput, didFinishCaptureFor resolvedSettings: AVCaptureResolvedPhotoSettings, error: (any Error)?) {
         if let error = error {
             Log.capture.error("delegate_finish_capture_error error=\(error.localizedDescription, privacy: .public)")
         }
         let id = resolvedSettings.uniqueID
-        DispatchQueue.main.async { self.deliverCaptureIfReady(id: id, terminal: true) }
+        let failed = error != nil
+        DispatchQueue.main.async {
+            guard let request = self.inFlightCaptures[id] else { return }
+            if failed || !request.expectsLiveMovie || request.movieArrived {
+                self.deliverCaptureIfReady(id: id, terminal: true)
+            }
+        }
+    }
+
+    @MainActor
+    private func collectLivePhotoMovie(id: Int64, photoTime: CMTime) {
+        guard let request = inFlightCaptures[id], request.expectsLiveMovie,
+              request.movieTask == nil, let url = request.pendingMovieURL else { return }
+        let buffer = livePhotoBuffer
+        let angle = request.admission.rotationAngle.map { CGFloat($0) } ?? 90
+        let task = Task { @MainActor [self] in
+            do {
+                let result = try await buffer.movie(at: photoTime, rotation: angle, url: url, audio: request.includesLiveAudio)
+                guard self.inFlightCaptures[id] != nil else {
+                    try? FileManager.default.removeItem(at: result.url)
+                    return
+                }
+                self.mutateCapture(id) {
+                    $0.movieURL = result.url
+                    $0.photoDisplayTime = result.photoDisplayTime
+                    $0.movieArrived = true
+                }
+                request.trace.event("live_buffer_movie_ready", "display_s=\(result.photoDisplayTime.seconds)")
+                self.deliverCaptureIfReady(id: id, terminal: false)
+            } catch {
+                request.trace.event("live_buffer_movie_failed", Diagnostics.errorFields(error))
+                self.mutateCapture(id) { $0.movieArrived = true }
+                self.deliverCaptureIfReady(id: id, terminal: false)
+            }
+        }
+        mutateCapture(id) { $0.movieTask = task }
     }
 
     /// 从 AVCapturePhoto 取回它所属拍照的 uniqueID（didFinishProcessingPhoto 不直接给 resolvedSettings）。
@@ -3507,6 +3503,8 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         req.trace.event("capture_delivered", "av_id=\(id) bytes=\(req.stillData?.count ?? 0) live=\(req.movieURL != nil) terminal=\(req.terminalReceived)")
         captureTraces.withLock { $0[id] = nil }
         inFlightCaptures[id] = nil
+        req.movieTask?.cancel()
+        updateLivePhotoBuffer()
         captureWatchdogs.removeValue(forKey: id)?.cancel()
         if inFlightCaptures.isEmpty, audioReconciliationPending { reconcileAudioInput() }
         if inFlightCaptures.isEmpty, photoDeliveryReconciliationPending { reconcilePhotoDelivery() }

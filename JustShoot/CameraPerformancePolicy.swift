@@ -23,14 +23,13 @@ enum CameraPerformancePolicy {
     /// Request an ordinary, scaled video stream instead of the photo-preview proxy.
     /// Proxy zoom has required lens-dependent compensation on physical devices;
     /// applying that compensation to a normally zoomed stream would crop twice.
-    /// Live Photo needs the system photo-preview graph on supported devices.
-    static func configurePreviewOutput(_ output: AVCaptureVideoDataOutput, sourceDimensions: CMVideoDimensions,
-                                       livePhoto: Bool = false) {
+    /// Live movies also use this stream so enabling Live cannot change viewfinder geometry.
+    static func configurePreviewOutput(_ output: AVCaptureVideoDataOutput, sourceDimensions: CMVideoDimensions) {
         output.alwaysDiscardsLateVideoFrames = true
         var settings: [String: Any] = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
         // Clear any manual size before re-enabling automatic preview negotiation.
         output.videoSettings = settings
-        if !livePhoto, let dimensions = captureBufferDimensions(source: sourceDimensions) {
+        if let dimensions = captureBufferDimensions(source: sourceDimensions) {
             output.automaticallyConfiguresOutputBufferDimensions = false
             output.deliversPreviewSizedOutputBuffers = false
             settings[kCVPixelBufferWidthKey as String] = Int(dimensions.width)

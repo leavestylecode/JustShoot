@@ -48,25 +48,6 @@ final class CameraPerformancePolicyTests: XCTestCase {
         XCTAssertEqual(small.height, 480)
     }
 
-    func testLivePhotoRestoresAutomaticSizingAndStillModeRestoresBoundedVideo() {
-        let output = AVCaptureVideoDataOutput()
-        let source = CMVideoDimensions(width: 4032, height: 3024)
-        CameraPerformancePolicy.configurePreviewOutput(output, sourceDimensions: source)
-        XCTAssertEqual(output.videoSettings[kCVPixelBufferWidthKey as String] as? Int, 1920)
-
-        CameraPerformancePolicy.configurePreviewOutput(output, sourceDimensions: source, livePhoto: true)
-        XCTAssertTrue(output.automaticallyConfiguresOutputBufferDimensions)
-        XCTAssertNil(output.videoSettings[kCVPixelBufferWidthKey as String])
-        XCTAssertNil(output.videoSettings[kCVPixelBufferHeightKey as String])
-        XCTAssertTrue(output.alwaysDiscardsLateVideoFrames)
-
-        CameraPerformancePolicy.configurePreviewOutput(output, sourceDimensions: source, livePhoto: false)
-        XCTAssertFalse(output.automaticallyConfiguresOutputBufferDimensions)
-        XCTAssertFalse(output.deliversPreviewSizedOutputBuffers)
-        XCTAssertEqual(output.videoSettings[kCVPixelBufferWidthKey as String] as? Int, 1920)
-        XCTAssertEqual(output.videoSettings[kCVPixelBufferHeightKey as String] as? Int, 1440)
-    }
-
     func testUnrepresentableBufferAspectFallsBackWithoutRequestingFullSensorBuffers() {
         let output = AVCaptureVideoDataOutput()
         let unusual = CMVideoDimensions(width: 4031, height: 3023)
