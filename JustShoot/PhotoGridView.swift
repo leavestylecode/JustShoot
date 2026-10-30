@@ -9,6 +9,17 @@ enum GalleryDensity: Int, CaseIterable, Identifiable {
     case small = 5       // 5 列，小图
     var id: Int { rawValue }
     var columns: Int { rawValue }
+    func columns(forWidth width: CGFloat, isRegular: Bool, accessibilitySize: Bool) -> Int {
+        guard isRegular else { return accessibilitySize ? min(columns, 2) : columns }
+        let minimum: CGFloat
+        switch self {
+        case .large: minimum = 200
+        case .standard: minimum = 144
+        case .small: minimum = 112
+        }
+        return PageLayout.gridColumns(width: width - 28, minimum: minimum,
+            spacing: PhotoGridView.spacing, maximum: accessibilitySize ? 2 : 7)
+    }
     var displayName: LocalizedStringKey {
         switch self {
         case .large:    return "Large"
@@ -55,7 +66,7 @@ struct PhotoGridView: UIViewRepresentable {
     let onOpen: (Photo) -> Void
     var isActive = true
 
-    static let spacing: CGFloat = 6
+    nonisolated static let spacing: CGFloat = 6
     static let sectionInsets = UIEdgeInsets(top: 8, left: 14, bottom: 20, right: 14)
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }

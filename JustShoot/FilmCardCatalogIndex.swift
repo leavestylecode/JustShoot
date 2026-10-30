@@ -1,6 +1,6 @@
 import Foundation
 
-struct FilmCardSelection: Equatable, Sendable {
+struct FilmCardSelection: Hashable, Sendable {
     var brands: Set<String> = []
     var formats: Set<String> = []
     var colors: Set<String> = []
@@ -22,9 +22,15 @@ struct FilmCardCatalogIndex: Sendable {
     let availableColors: [String]
     private let majorBrands: Set<String>
     private let majorFormats: Set<String>
+    private let searchText: [String]
 
     init(cards: [FilmCard]) {
         self.cards = cards
+        searchText = cards.map { card in
+            [card.brand, card.product, card.format, card.iso.map(String.init)]
+                .compactMap { $0 }.joined(separator: " ")
+                .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+        }
         var brands: [String: Int] = [:]
         var formats: [String: Int] = [:]
         var colors: [String: Int] = [:]
@@ -51,9 +57,12 @@ struct FilmCardCatalogIndex: Sendable {
         availableColors = CardColorPalette.order.filter { (colors[$0] ?? 0) >= 30 }
     }
 
-    func filtered(using selection: FilmCardSelection) -> [FilmCard] {
-        guard !selection.isEmpty else { return cards }
-        return cards.filter { card in
+    func filtered(using selection: FilmCardSelection, query: String = "") -> [FilmCard] {
+        let terms = query.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .split(whereSeparator: \.isWhitespace)
+        guard !selection.isEmpty || !terms.isEmpty else { return cards }
+        return cards.enumerated().filter { index, card in
+            guard terms.allSatisfy({ searchText[index].contains($0) }) else { return false }
             if !selection.brands.isEmpty {
                 let brand = card.brand.flatMap { majorBrands.contains($0) ? $0 : nil } ?? Self.otherKey
                 guard selection.brands.contains(brand) else { return false }
@@ -70,7 +79,7 @@ struct FilmCardCatalogIndex: Sendable {
                 guard selection.isos.contains(iso) else { return false }
             }
             return true
-        }
+        }.map(\.element)
     }
 
     private static func chips(counts: [String: Int], total: Int) -> [BrandChipEntry] {

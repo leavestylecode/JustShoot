@@ -49,6 +49,7 @@ struct RecentPhotoPresentation: Identifiable {
 /// Hint carries the committed photo ID as well as its thumbnail. @Query drives refreshes;
 /// tapping fetches a committed snapshot so a just-finished capture opens before @Query catches up.
 struct RecentPhotosBadge: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let source: FilmSource
     @Binding var lastThumbnailHint: RecentPhotoThumbnail?
     let pendingPreview: CapturePreview?
@@ -79,7 +80,8 @@ struct RecentPhotosBadge: View {
         pendingPreview?.filterName == source.photoFilterName ? pendingPreview : nil
     }
 
-    private static let thumbnailMaxPixel = 88
+    private static let thumbnailMaxPixel = 160
+    private var badgeSize: CGFloat { sizeClass == .regular ? 56 : 46 }
 
     init(
         source: FilmSource,
@@ -110,12 +112,12 @@ struct RecentPhotosBadge: View {
                     Image(uiImage: thumb)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 46, height: 46)
+                        .frame(width: badgeSize, height: badgeSize)
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 } else {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(.ultraThinMaterial)
-                        .frame(width: 46, height: 46)
+                        .frame(width: badgeSize, height: badgeSize)
                         .overlay {
                             Image(systemName: "photo")
                                 .foregroundStyle(.secondary)
@@ -124,7 +126,7 @@ struct RecentPhotosBadge: View {
                 if isShutterBusy || isProcessing {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(.black.opacity(0.4))
-                        .frame(width: 46, height: 46)
+                        .frame(width: badgeSize, height: badgeSize)
                     ProgressView()
                         .progressViewStyle(.circular)
                         .tint(.white)
@@ -150,11 +152,11 @@ struct RecentPhotosBadge: View {
         .onChange(of: selectedPending?.id) { _, id in
             if id != nil { onPresentationChanged(true) }
         }
-        .sheet(item: $selectedPending, onDismiss: { onPresentationChanged(false) }) { preview in
+        .fullScreenCover(item: $selectedPending, onDismiss: { onPresentationChanged(false) }) { preview in
             CapturePreviewReview(preview: preview)
                 .preferredColorScheme(.dark)
         }
-        .sheet(item: $selectedDetail, onDismiss: { onPresentationChanged(false) }) { payload in
+        .fullScreenCover(item: $selectedDetail, onDismiss: { onPresentationChanged(false) }) { payload in
             NavigationStack {
                 PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos)
                     .toolbar {
@@ -167,9 +169,6 @@ struct RecentPhotosBadge: View {
                         }
                     }
             }
-            .presentationDetents([.large])
-            .presentationDragIndicator(.hidden)
-            .interactiveDismissDisabled(false)
             .preferredColorScheme(.dark)
         }
         .alert("Unable to open photos", isPresented: Binding(
@@ -292,6 +291,7 @@ struct CapturePreviewReview: View {
 /// 当前选中胶片用黄色描边标识；点击后通过 onSelect 更新预览，面板保持展开以便连续比较。
 /// 展开瞬间 ScrollViewReader 自动滚到当前胶片，便于看到"我现在在哪一张"。
 struct FilmSourcePickerStrip: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let current: FilmSource
     let customLUTs: [CustomLUT]
     let contentRotation: Angle
@@ -334,7 +334,7 @@ struct FilmSourcePickerStrip: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
             }
-            .frame(height: 68)
+            .frame(height: sizeClass == .regular ? 88 : 68)
             .onAppear {
                 // 展开后下一帧滚到当前胶片，避免 ScrollView 还没布局完就 scrollTo 失效。
                 Task { @MainActor in
@@ -359,6 +359,7 @@ struct FilmSourcePickerStrip: View {
 // MARK: - 曲线选择条
 /// 只展示用户启用的内置/自定义曲线；末尾的管理入口可直接调整显隐或创建新效果。
 struct FilmCurvePickerStrip: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let curves: [FilmCurve]
     let current: FilmCurve
     let contentRotation: Angle
@@ -388,7 +389,7 @@ struct FilmCurvePickerStrip: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
             }
-            .frame(height: 78)
+            .frame(height: sizeClass == .regular ? 98 : 78)
             .onAppear {
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 30_000_000)
@@ -408,6 +409,7 @@ struct FilmCurvePickerStrip: View {
 
 // MARK: - 曲线效果卡
 struct FilmCurvePickerCell: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let curve: FilmCurve
     let isSelected: Bool
     let contentRotation: Angle
@@ -418,7 +420,9 @@ struct FilmCurvePickerCell: View {
 
     var body: some View {
         Button(action: onTap) {
-            FilmCurvePreviewCard(curve: curve, isSelected: isSelected)
+            FilmCurvePreviewCard(curve: curve, isSelected: isSelected,
+                cardSize: sizeClass == .regular ? CGSize(width: 88, height: 88) : CGSize(width: 68, height: 68),
+                graphSize: sizeClass == .regular ? CGSize(width: 70, height: 46) : CGSize(width: 54, height: 34))
             .rotationEffect(contentRotation)
             .animation(.spring(duration: 0.35, bounce: 0.15), value: orientation)
             .scaleEffect(reduceMotion ? 1.0 : (isSelected ? 1.04 : 1.0))
@@ -442,7 +446,7 @@ struct FilmCurvePreviewCard: View {
         VStack(spacing: 3) {
             Text(curve.displayName)
                 .font(.system(
-                    size: cardSize.width > 80 ? 11 : 9,
+                    size: cardSize.width > 80 ? 12 : 9,
                     weight: isSelected ? .bold : .semibold,
                     design: .rounded
                 ))
@@ -499,6 +503,7 @@ struct FilmCurvePreviewCard: View {
 }
 
 private struct CurveManagerPickerCell: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
     let onTap: () -> Void
@@ -509,11 +514,11 @@ private struct CurveManagerPickerCell: View {
                 Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 19, weight: .semibold))
                 Text("Manage")
-                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .font(.system(size: sizeClass == .regular ? 12 : 9, weight: .semibold, design: .rounded))
                     .lineLimit(1)
             }
             .foregroundStyle(.white.opacity(0.84))
-            .frame(width: 68, height: 68)
+            .frame(width: sizeClass == .regular ? 88 : 68, height: sizeClass == .regular ? 88 : 68)
             .background(Color.white.opacity(0.07), in: .rect(cornerRadius: 12))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -650,6 +655,7 @@ struct CurveOutputStrip: View {
 /// Picker 条里单个胶片格子：纯 52×52 封面。选中态用黄色描边标识；用户可通过封面图本身
 /// 辨识胶片，不再叠加文字（节省空间 + 减少视觉噪声）。VoiceOver 仍朗读 source.displayName。
 struct FilmSourcePickerCell: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let source: FilmSource
     let isSelected: Bool
     let contentRotation: Angle
@@ -666,6 +672,7 @@ struct FilmSourcePickerCell: View {
 
     private static let customAccent = Color(red: 0.6, green: 0.5, blue: 0.8)
     static let coverSize: CGFloat = 52
+    private var displayCoverSize: CGFloat { sizeClass == .regular ? 72 : Self.coverSize }
 
     /// 封面解码像素：52pt × scale × 1.5 余量，下限 100。供 cell 的 .task 与
     /// `FilmSourcePickerStrip.preloadCovers` 共用，确保预热与实际加载的 maxPixel 一致。
@@ -678,7 +685,7 @@ struct FilmSourcePickerCell: View {
             // 整块随设备方向旋转，与右下角封面 / 左下角照片角标同款手感。cell 只有极淡描边
             // （未选 0.08 / 选中黄 2pt），不像 glass 那样有高光，整块旋转不显得放大。
             cover
-                .frame(width: Self.coverSize, height: Self.coverSize)
+                .frame(width: displayCoverSize, height: displayCoverSize)
                 .overlay {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .stroke(isSelected ? Color.yellow : .white.opacity(0.08), lineWidth: isSelected ? 2 : 0.5)

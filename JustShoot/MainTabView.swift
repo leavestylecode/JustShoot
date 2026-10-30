@@ -27,32 +27,25 @@ struct MainTabView: View {
             Tab(value: 0) {
                 ContentView(preparedHome: home)
             } label: {
-                // 图标-only：label 只放 Image（不含 Text）→ tab 栏不显示文案；
-                // 各页面顶部仍保留自己的 navigationTitle 提供上下文。accessibilityLabel 补回语义。
-                Image(systemName: "camera.filters")
-                    .accessibilityLabel("Films")
+                Label("Films", systemImage: "camera.filters")
             }
 
             Tab(value: 1) {
-                NavigationStack { GalleryView() }
+                NavigationStack { GalleryView(onStartShooting: { selectedTab = 0 }) }
             } label: {
-                Image(systemName: "photo.stack")
-                    .accessibilityLabel("Photos")
+                Label("Photos", systemImage: "photo.stack")
             }
 
             Tab(value: 2) {
                 NavigationStack { FilmCardLibraryView() }
             } label: {
-                Image(systemName: "books.vertical")
-                    .accessibilityLabel("Library")
+                Label("Library", systemImage: "books.vertical")
             }
 
-            // Settings 用 .search role → iOS 26 把它分隔到 tab 栏尾部的"搜索位"。
-            Tab(value: 3, role: .search) {
+            Tab(value: 3) {
                 SettingsView()
             } label: {
-                Image(systemName: "gearshape")
-                    .accessibilityLabel("Settings")
+                Label("Settings", systemImage: "gearshape")
             }
         }
         // 向下滚动时自动收起成 mini tab 栏（iOS 26），上滑恢复——给内容腾出更多竖向空间。

@@ -50,9 +50,7 @@ enum CardColorPalette {
 // two browse screens feel consistent, extended with a circular cover option and a
 // caption show/hide toggle for the library's card-style thumbnails.
 
-/// Thumbnail grid density. The raw value doubles as the adaptive minimum cell width
-/// (driving column count off a minimum lets iPad expand to 6+ columns for free, while
-/// iPhone lands on 2 / 3 / 4 columns).
+/// Keep persisted raw values stable; iPad uses larger browsing sizes.
 enum FilmGridDensity: Int, CaseIterable, Identifiable {
     case large = 150       // ~2 columns on iPhone
     case standard = 100    // ~3 columns (default — matches the previous fixed layout)
@@ -60,6 +58,14 @@ enum FilmGridDensity: Int, CaseIterable, Identifiable {
     var id: Int { rawValue }
 
     var minItemWidth: CGFloat { CGFloat(rawValue) }
+    func minimumWidth(isRegular: Bool) -> CGFloat {
+        guard isRegular else { return minItemWidth }
+        switch self {
+        case .large: return 200
+        case .standard: return 144
+        case .small: return 112
+        }
+    }
 
     var displayName: LocalizedStringKey {
         switch self {
@@ -133,6 +139,8 @@ enum FilmCoverShape: String, CaseIterable, Identifiable {
 // MARK: - Library main view
 
 struct FilmCardLibraryView: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @ScaledMetric(relativeTo: .body) private var gridScale = 1.0
     @State private var library = FilmCardLibrary.shared
     /// Brand selection. Contains specific brand names, or `otherKey` for "Other (small brands)".
     @State private var selectedBrands: Set<String> = []
@@ -141,6 +149,7 @@ struct FilmCardLibraryView: View {
     /// ISO selection. Contains stringified main ISO values ("50"/"100"/…) or `otherKey` for "Other".
     @State private var selectedISOs: Set<String> = []
     @State private var showFilterSheet = false
+    @State private var query = ""
     /// View-options menu state (left toolbar), persisted across launches.
     @AppStorage("filmLibrary.density") private var density: FilmGridDensity = .standard
     @AppStorage("filmLibrary.shape") private var coverShape: FilmCoverShape = .rounded
@@ -150,15 +159,23 @@ struct FilmCardLibraryView: View {
     /// the same id when the user pushes.
     @Namespace private var zoomNamespace
 
-    /// Adaptive grid driven by the active density's minimum cell width — 2 / 3 / 4
-    /// columns on iPhone, expanding to 6+ on iPad without per-device math.
-    private var columns: [GridItem] {
-        [GridItem(.adaptive(minimum: density.minItemWidth), spacing: density.itemSpacing)]
+    private func columns(availableWidth: CGFloat) -> [GridItem] {
+        let isRegular = sizeClass == .regular
+        let width = (isRegular ? min(availableWidth, PageLayout.browseWidth) : availableWidth) - (isRegular ? 48 : 28)
+        let count = PageLayout.gridColumns(width: width,
+            minimum: density.minimumWidth(isRegular: isRegular) * gridScale,
+            spacing: density.itemSpacing, maximum: 8)
+        return Array(repeating: GridItem(.flexible(), spacing: density.itemSpacing), count: count)
     }
 
     static let mainISOs = FilmCardCatalogIndex.mainISOs
     static let otherKey = FilmCardCatalogIndex.otherKey
     @State private var filteredCards: [FilmCard] = []
+    private struct FilterRequest: Hashable {
+        let selection: FilmCardSelection
+        let query: String
+        let isLoaded: Bool
+    }
 
     private var selection: FilmCardSelection {
         FilmCardSelection(brands: selectedBrands, formats: selectedFormats,
@@ -166,91 +183,107 @@ struct FilmCardLibraryView: View {
     }
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, alignment: .leading, spacing: density.rowSpacing) {
-                ForEach(filteredCards) { card in
-                    NavigationLink(value: card) {
-                        FilmCardThumbnail(card: card,
-                                          density: density,
-                                          coverShape: coverShape,
-                                          showsCaption: showsCaption)
-                    }
-                    .buttonStyle(.plain)
-                    .matchedTransitionSource(id: card.id, in: zoomNamespace)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.top, 8)
-            .padding(.bottom, 24)
-            // Animate the cheap caption insert/remove; let density / shape changes snap
-            // (reflowing hundreds of cells under a spring is the biggest jank source).
-            .animation(.smooth, value: showsCaption)
-        }
-        .background(Color.black)
-        .navigationTitle(Text("Film Library"))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                layoutMenu
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    showFilterSheet = true
-                } label: {
-                    Image(systemName: "line.3.horizontal.decrease")
-                        .font(.system(size: 17, weight: hasActiveFilter ? .semibold : .medium))
-                        .foregroundStyle(hasActiveFilter ? Color.accentColor : Color.primary)
-                }
-                .accessibilityLabel(hasActiveFilter ? Text("Filter (active)") : Text("Filter"))
-            }
-        }
-        .sheet(isPresented: $showFilterSheet) {
-            FilmCardFilterSheet(
-                brandChips: library.catalog.brandChips,
-                formatChips: library.catalog.formatChips,
-                availableColors: library.catalog.availableColors,
-                isoChips: library.catalog.isoChips,
-                resultCount: filteredCards.count,
-                selectedBrands: $selectedBrands,
-                selectedFormats: $selectedFormats,
-                selectedColors: $selectedColors,
-                selectedISOs: $selectedISOs
-            )
-            .presentationDetents([.medium])
-        }
-        .navigationDestination(for: FilmCard.self) { card in
-            FilmCardDetailView(card: card)
-                .navigationTransition(.zoom(sourceID: card.id, in: zoomNamespace))
-        }
-        .task {
-            await library.loadIfNeeded()
-        }
-        .onChange(of: library.isLoaded, initial: true) { _, _ in
-            filteredCards = library.catalog.filtered(using: selection)
-        }
-        .onChange(of: selection) { _, selection in
-            filteredCards = library.catalog.filtered(using: selection)
-        }
-        .overlay {
-            if !library.isLoaded {
-                ProgressView()
-                    .progressViewStyle(.circular)
-                    .tint(.white)
-            } else if filteredCards.isEmpty {
-                ContentUnavailableView {
-                    Label("No matches", systemImage: "line.3.horizontal.decrease")
-                } actions: {
-                    Button("Reset") {
-                        selectedBrands = []
-                        selectedFormats = []
-                        selectedColors = []
-                        selectedISOs = []
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    if hasActiveFilter { activeFilters }
+                    LazyVGrid(columns: columns(availableWidth: geometry.size.width), alignment: .leading, spacing: density.rowSpacing) {
+                        ForEach(filteredCards) { card in
+                            NavigationLink(value: card) {
+                                FilmCardThumbnail(card: card,
+                                                  density: density,
+                                                  coverShape: coverShape,
+                                                  showsCaption: showsCaption)
+                            }
+                            .buttonStyle(.plain)
+                            .matchedTransitionSource(id: card.id, in: zoomNamespace)
+                        }
                     }
                 }
-                .foregroundColor(.white.opacity(0.6))
+                .padding(.horizontal, sizeClass == .regular ? 24 : 14)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
+                .pageContentWidth(PageLayout.browseWidth)
+                // Animate the cheap caption insert/remove; let density / shape changes snap
+                // (reflowing hundreds of cells under a spring is the biggest jank source).
+                .animation(.smooth, value: showsCaption)
             }
+            .background(Color.black)
+            .navigationTitle(Text("Film Library"))
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $query, prompt: "Search films")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    layoutMenu
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showFilterSheet = true
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease")
+                            .font(.system(size: 17, weight: hasActiveFilter ? .semibold : .medium))
+                            .foregroundStyle(hasActiveFilter ? Color.accentColor : Color.primary)
+                    }
+                    .accessibilityLabel(hasActiveFilter ? Text("Filter (active)") : Text("Filter"))
+                    .popover(isPresented: $showFilterSheet, arrowEdge: .top) {
+                        FilmCardFilterSheet(
+                            brandChips: library.catalog.brandChips,
+                            formatChips: library.catalog.formatChips,
+                            availableColors: library.catalog.availableColors,
+                            isoChips: library.catalog.isoChips,
+                            resultCount: filteredCards.count,
+                            selectedBrands: $selectedBrands,
+                            selectedFormats: $selectedFormats,
+                            selectedColors: $selectedColors,
+                            selectedISOs: $selectedISOs
+                        )
+                        .frame(width: sizeClass == .regular ? 520 : nil, height: sizeClass == .regular ? 680 : nil)
+                        .presentationCompactAdaptation(.sheet)
+                        .presentationDetents([.large])
+                    }
+                }
+            }
+            .navigationDestination(for: FilmCard.self) { card in
+                FilmCardDetailView(card: card)
+                    .navigationTransition(.zoom(sourceID: card.id, in: zoomNamespace))
+            }
+            .task {
+                await library.loadIfNeeded()
+            }
+            .task(id: FilterRequest(selection: selection, query: query, isLoaded: library.isLoaded)) {
+                let catalog = library.catalog
+                let selection = selection
+                let query = query
+                do {
+                    if !query.isEmpty { try await Task.sleep(for: .milliseconds(120)) }
+                    try Task.checkCancellation()
+                    let result = await Task.detached(priority: .userInitiated) {
+                        catalog.filtered(using: selection, query: query)
+                    }.value
+                    try Task.checkCancellation()
+                    filteredCards = result
+                } catch is CancellationError { /* A newer query owns the next result. */ }
+                catch { assertionFailure("Unexpected catalog search error: \(error)") }
+            }
+            .overlay {
+                if !library.isLoaded {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.white)
+                } else if filteredCards.isEmpty {
+                    ContentUnavailableView {
+                        Label("No matches", systemImage: "line.3.horizontal.decrease")
+                    } actions: {
+                        Button("Reset") {
+                            resetFilters()
+                            query = ""
+                        }
+                    }
+                    .foregroundColor(.white.opacity(0.6))
+                }
+            }
+            .preferredColorScheme(.dark)
         }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - View options menu
@@ -284,6 +317,55 @@ struct FilmCardLibraryView: View {
             || !selectedColors.isEmpty
             || !selectedISOs.isEmpty
     }
+
+    private func resetFilters() {
+        selectedBrands = []
+        selectedFormats = []
+        selectedColors = []
+        selectedISOs = []
+    }
+
+    private var activeFilters: some View {
+        FlowLayout(spacing: 8, lineSpacing: 8) {
+            filterChips(selectedBrands, selection: $selectedBrands)
+            filterChips(selectedFormats, selection: $selectedFormats)
+            ForEach(selectedColors.sorted(), id: \.self) { color in
+                Button { selectedColors.remove(color) } label: {
+                    HStack(spacing: 6) {
+                        Text(CardColorPalette.localizedName(color))
+                        Image(systemName: "xmark").accessibilityHidden(true)
+                    }
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 44)
+                    .background(.white.opacity(0.1), in: .capsule)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Remove filter")
+            }
+            filterChips(selectedISOs, selection: $selectedISOs, isISO: true)
+            Button("Reset", action: resetFilters)
+                .font(.caption.weight(.semibold))
+                .frame(minHeight: 44)
+        }
+    }
+
+    private func filterChips(_ values: Set<String>, selection: Binding<Set<String>>, isISO: Bool = false) -> some View {
+        ForEach(values.sorted(), id: \.self) { value in
+            Button { selection.wrappedValue.remove(value) } label: {
+                HStack(spacing: 6) {
+                    Text(verbatim: value == Self.otherKey ? String(localized: "Other") : isISO ? "ISO \(value)" : value)
+                    Image(systemName: "xmark").accessibilityHidden(true)
+                }
+                .font(.caption)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .background(.white.opacity(0.1), in: .capsule)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Remove filter")
+        }
+    }
 }
 
 /// Data for a "name + count + Other" style chip used by brand / format / ISO sections.
@@ -302,10 +384,12 @@ struct FilmCardThumbnail: View {
     let showsCaption: Bool
     @State private var image: UIImage?
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @ScaledMetric(relativeTo: .caption) private var captionScale = 1.0
 
     /// Captions center under circular covers (Artists-style), left-align otherwise.
     private var isCircle: Bool { coverShape == .circle }
-    private var thumbnailPixel: Int { max(Int(200 * displayScale), 300) }
+    private var thumbnailPixel: Int { max(Int((sizeClass == .regular ? 280 : 200) * displayScale), 300) }
 
     var body: some View {
         VStack(alignment: isCircle ? .center : .leading, spacing: 6) {
@@ -353,19 +437,19 @@ struct FilmCardThumbnail: View {
                     Text("Unknown")
                 }
             }
-            .font(.system(size: density.titleFontSize, weight: .medium))
+            .font(.system(size: max(density.titleFontSize, sizeClass == .regular ? 14 : 0) * captionScale, weight: .medium))
             .foregroundColor(.white.opacity(0.85))
-            .lineLimit(1)
+            .lineLimit(2, reservesSpace: true)
 
             HStack(spacing: 4) {
                 if let iso = card.iso {
                     Text(verbatim: "ISO \(iso)")
-                        .font(.system(size: density.metaFontSize))
+                        .font(.system(size: max(density.metaFontSize, sizeClass == .regular ? 12 : 0) * captionScale))
                         .foregroundColor(.white.opacity(0.45))
                 }
                 if let format = card.format {
                     Text(verbatim: format)
-                        .font(.system(size: density.metaFontSize))
+                        .font(.system(size: max(density.metaFontSize, sizeClass == .regular ? 12 : 0) * captionScale))
                         .foregroundColor(.white.opacity(0.45))
                         .lineLimit(1)
                 }
@@ -379,6 +463,7 @@ struct FilmCardThumbnail: View {
 
 struct FilmCardDetailView: View {
     let card: FilmCard
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var image: UIImage?
     @State private var colorManager = FilmCardCoverColorManager()
 
@@ -392,6 +477,8 @@ struct FilmCardDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 glassImageCard
+                    .frame(maxWidth: sizeClass == .regular ? PageLayout.detailCoverWidth : .infinity)
+                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
 
@@ -409,6 +496,7 @@ struct FilmCardDetailView: View {
                 }
             }
             .padding(.bottom, 28)
+            .pageContentWidth()
         }
         .background(
             FilmCardCoverBackdrop(
@@ -417,6 +505,7 @@ struct FilmCardDetailView: View {
             )
         )
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 principalTitle
@@ -477,7 +566,7 @@ struct FilmCardDetailView: View {
         VStack(alignment: .leading, spacing: 6) {
             if let brand = card.brand, !brand.isEmpty {
                 Text(verbatim: brand)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .tracking(1.2)
                     .textCase(.uppercase)
                     .foregroundStyle(palette.tertiary)
@@ -586,6 +675,7 @@ struct FilmCardFilterSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
+            .background(Color(.systemBackground))
             .navigationTitle(Text("Filter · \(resultCount)"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -667,15 +757,16 @@ struct BrandCountChipLabel: View {
     var body: some View {
         HStack(spacing: 5) {
             Text(verbatim: brand)
-                .font(.system(size: 13, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .lineLimit(1)
             Text(verbatim: "\(count)")
-                .font(.system(size: 11, weight: .regular).monospacedDigit())
+                .font(.caption.monospacedDigit())
                 .lineLimit(1)
                 .opacity(selected ? 0.7 : 0.5)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
+        .frame(minHeight: 44)
         .background(
             Capsule().fill(selected
                            ? Color.accentColor
@@ -703,7 +794,7 @@ struct ColorSwatchChip: View {
             )
             .scaleEffect(selected ? 1.08 : 1.0)
             .animation(.spring(duration: 0.18), value: selected)
-            .padding(2) // Expand the tap target
+            .frame(width: 44, height: 44)
     }
 }
 

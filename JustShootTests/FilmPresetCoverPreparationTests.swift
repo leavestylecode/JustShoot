@@ -52,10 +52,10 @@ final class FilmPresetCoverPreparationTests: XCTestCase {
     func testInvalidDisplayScaleCannotOverflowThumbnailDimensions() {
         for scale in [CGFloat.nan, .infinity, -.infinity, 0, -2] {
             XCTAssertEqual(FilmPresetCoverPreparation.homePixel(displayScale: scale), 300)
-            XCTAssertEqual(FilmPresetCoverPreparation.pickerPixel(displayScale: scale), 100)
+            XCTAssertEqual(FilmPresetCoverPreparation.pickerPixel(displayScale: scale), 108)
         }
-        XCTAssertEqual(FilmPresetCoverPreparation.homePixel(displayScale: 100), 720)
-        XCTAssertEqual(FilmPresetCoverPreparation.pickerPixel(displayScale: 100), 312)
+        XCTAssertEqual(FilmPresetCoverPreparation.homePixel(displayScale: 100), 880)
+        XCTAssertEqual(FilmPresetCoverPreparation.pickerPixel(displayScale: 100), 432)
     }
 
     func testCancelledCaptureWarmUpCannotReportResourcesReady() async {

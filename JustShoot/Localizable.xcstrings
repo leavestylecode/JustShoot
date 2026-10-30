@@ -259,6 +259,23 @@
         }
       }
     },
+    "About curve editing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About curve editing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲线编辑帮助"
+          }
+        }
+      }
+    },
     "Add Curve" : {
       "localizations" : {
         "zh-Hans" : {
@@ -890,6 +907,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "通道"
+          }
+        }
+      }
+    },
+    "Choose Film" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Film"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择胶片"
           }
         }
       }
@@ -1755,7 +1789,21 @@
       }
     },
     "Films" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Films"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶片"
+          }
+        }
+      }
     },
     "Filter" : {
       "extractionState" : "manual",
@@ -2214,7 +2262,21 @@
       }
     },
     "Library" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Library"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图鉴"
+          }
+        }
+      }
     },
     "Lift blacks for a faded print look." : {
       "extractionState" : "stale",
@@ -2914,6 +2976,23 @@
         }
       }
     },
+    "Photo information" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo information"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片信息"
+          }
+        }
+      }
+    },
     "Photo preview" : {
       "localizations" : {
         "en" : {
@@ -2942,7 +3021,21 @@
       }
     },
     "Photos" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相册"
+          }
+        }
+      }
     },
     "Photos could not be loaded. Please try again." : {
       "extractionState" : "manual",
@@ -3370,6 +3463,23 @@
         }
       }
     },
+    "Remove filter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove filter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除此筛选"
+          }
+        }
+      }
+    },
     "Reset" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3636,6 +3746,23 @@
         }
       }
     },
+    "Search films" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search films"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索胶片"
+          }
+        }
+      }
+    },
     "Select" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3674,7 +3801,21 @@
 
     },
     "Settings" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置"
+          }
+        }
+      }
     },
     "Share" : {
 
@@ -4295,6 +4436,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "切换 Live Photo 开关"
+          }
+        }
+      }
+    },
+    "Toggle photo controls" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toggle photo controls"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示或隐藏照片控件"
           }
         }
       }

@@ -81,6 +81,8 @@ extension UIDeviceOrientation {
 /// **方向**：`contentRotation` 仅旋转每个选项的数字 Text，整条容器/选中胶囊位置不变,
 ///          与 iPhone Camera 横屏时"数字转向、容器不动"行为一致。
 struct FocalLengthStrip: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @ScaledMetric(relativeTo: .subheadline) private var labelScale = 1.0
     let focalInfo: DeviceFocalInfo
     let current: FocalLengthOption
     let contentRotation: Angle
@@ -89,8 +91,8 @@ struct FocalLengthStrip: View {
     @Namespace private var selectionNamespace
     @State private var lastDraggedOption: FocalLengthOption?
 
-    /// 单个胶囊宽度 + spacing，用于 drag 命中检测（与 focalButton frame.width=36 + HStack spacing=2 一致）
-    private static let buttonStride: CGFloat = 38
+    private var buttonWidth: CGFloat { sizeClass == .regular ? 56 * min(labelScale, 1.3) : 44 }
+    private var buttonStride: CGFloat { buttonWidth + 2 }
     /// HStack 容器的水平 padding（用于把 drag x 坐标减去 leading inset）
     private static let leadingInset: CGFloat = 6
     /// 视图坐标空间名称
@@ -122,7 +124,7 @@ struct FocalLengthStrip: View {
                         let count = focalInfo.options.count
                         guard count > 0 else { return }
                         let x = max(0, value.location.x - Self.leadingInset)
-                        let index = min(count - 1, max(0, Int(x / Self.buttonStride)))
+                        let index = min(count - 1, max(0, Int(x / buttonStride)))
                         let option = focalInfo.options[index]
                         // 仅在跨入新选项时触发；首次进入时如果落点已是当前档则跳过，避免重复 setFocalLength。
                         guard option != lastDraggedOption else { return }
@@ -146,12 +148,12 @@ struct FocalLengthStrip: View {
         let isCrop = focalInfo.isDigitalCrop(option)
 
         Text(option.label)
-            .font(.system(size: 13, weight: isSelected ? .bold : .medium, design: .rounded))
+            .font(.system(size: (sizeClass == .regular ? 17 : 14) * min(labelScale, 1.3), weight: isSelected ? .bold : .medium, design: .rounded))
             .foregroundStyle(isSelected ? .yellow : isCrop ? .white.opacity(0.45) : .white.opacity(0.78))
             // 仅旋转数字本身，胶囊背景与容器位置保持不变（横屏时数字立起来给用户看）
             .rotationEffect(contentRotation)
             .animation(.spring(duration: 0.35, bounce: 0.15), value: contentRotation)
-            .frame(width: 36, height: 30)
+            .frame(width: buttonWidth, height: 44)
             .background {
                 if isSelected {
                     // matchedGeometryEffect 让选中胶囊在选项间平滑滑动，对齐 iPhone Camera 体验。

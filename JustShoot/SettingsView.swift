@@ -33,10 +33,7 @@ struct SettingsView: View {
     @State private var showsDiagnostics = false
     @State private var showsCaptureHelp = false
 
-    // TODO: 上架后填入真实 App Store 数字 ID（apps.apple.com/app/id<这里>）。
-    private let appStoreId = "0000000000"
-    // TODO: 填入你的反馈邮箱。
-    private let feedbackEmail = "feedback@example.com"
+    private let supportLinks = AppSupportLinks(info: Bundle.main.infoDictionary ?? [:])
 
     var body: some View {
         NavigationStack {
@@ -60,7 +57,7 @@ struct SettingsView: View {
                     versionFooter
                 }
                 .padding()
-                .frame(maxWidth: .infinity)
+                .pageContentWidth()
             }
             .background(Color.black)
             .navigationTitle("Settings")
@@ -349,21 +346,30 @@ struct SettingsView: View {
     }
 
     // MARK: - 评分 / 反馈
+    @ViewBuilder
     private var feedbackSection: some View {
-        sectionCard {
-            Button(action: rateApp) {
-                SettingRow(icon: "star.fill", iconColor: .yellow,
-                           title: "Rate on the App Store", showsChevron: true)
-            }
-            .buttonStyle(.plain)
+        if supportLinks.reviewURL != nil || supportLinks.feedbackURL != nil {
+            sectionCard {
+                if let url = supportLinks.reviewURL {
+                    Button { openURL(url) } label: {
+                        SettingRow(icon: "star.fill", iconColor: .yellow,
+                                   title: "Rate on the App Store", showsChevron: true)
+                    }
+                    .buttonStyle(.plain)
+                }
 
-            Divider().overlay(Color.white.opacity(0.08))
+                if supportLinks.reviewURL != nil && supportLinks.feedbackURL != nil {
+                    Divider().overlay(Color.white.opacity(0.08))
+                }
 
-            Button(action: sendFeedback) {
-                SettingRow(icon: "envelope.fill", iconColor: .blue,
-                           title: "Send Feedback", showsChevron: true)
+                if let url = supportLinks.feedbackURL {
+                    Button { openURL(url) } label: {
+                        SettingRow(icon: "envelope.fill", iconColor: .blue,
+                                   title: "Send Feedback", showsChevron: true)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .buttonStyle(.plain)
         }
     }
 
@@ -385,17 +391,6 @@ struct SettingsView: View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
         return "\(v) (\(b))"
-    }
-
-    private func rateApp() {
-        guard let url = URL(string: "https://apps.apple.com/app/id\(appStoreId)?action=write-review") else { return }
-        openURL(url)
-    }
-
-    private func sendFeedback() {
-        let subject = "JustShoot Feedback".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        guard let url = URL(string: "mailto:\(feedbackEmail)?subject=\(subject)") else { return }
-        openURL(url)
     }
 
     /// 分区卡片：白 6% 圆角实色背景（非玻璃），内部纵向堆叠行。

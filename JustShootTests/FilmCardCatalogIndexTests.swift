@@ -52,4 +52,23 @@ final class FilmCardCatalogIndexTests: XCTestCase {
             + (0..<29).map { card("green-\($0)", color: "green") }
         XCTAssertEqual(FilmCardCatalogIndex(cards: cards).availableColors, ["red", "blue"])
     }
+
+    func testSearchNormalizesCaseAccentsAndWhitespaceWhileIntersectingFilters() {
+        let cards = [card("a", brand: "Café", format: "135", iso: 400, color: "red"),
+                     card("b", brand: "CAFE", format: "120", iso: 100, color: "blue")]
+        let index = FilmCardCatalogIndex(cards: cards)
+        XCTAssertEqual(index.filtered(using: .init(), query: "  cafe  ").map(\.id), ["a", "b"])
+        XCTAssertEqual(index.filtered(using: .init(), query: "CAFE 400").map(\.id), ["a"])
+        XCTAssertEqual(index.filtered(using: .init(colors: ["blue"]), query: "cafe").map(\.id), ["b"])
+        XCTAssertEqual(index.filtered(using: .init(), query: " \n ").map(\.id), ["a", "b"])
+        XCTAssertTrue(index.filtered(using: .init(), query: "unknown").isEmpty)
+    }
+
+    func testSearchIncludesProductNameAndKeepsCatalogOrder() {
+        let first = FilmCard(id: "first", image: "first.heic", brand: "Kodak", product: "Portra 400",
+            format: "135", iso: 400, process: nil, expiry: nil, type: nil, subtype: nil,
+            quantity: nil, notes: nil, author: nil, color: nil)
+        let index = FilmCardCatalogIndex(cards: [first, card("other", brand: "Kodak")])
+        XCTAssertEqual(index.filtered(using: .init(), query: "portra kodak").map(\.id), ["first"])
+    }
 }

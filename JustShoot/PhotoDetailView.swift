@@ -28,6 +28,7 @@ final class DragDismissController: ObservableObject {
     @Published var translation: CGFloat = 0
     /// 是否正在下拉。驱动 chrome（导航栏/工具栏/scrubber/角标）的隐藏。
     @Published var dragging = false
+    @Published var chromeHidden = false
     /// 触发实际关闭（PhotoDetailView 在 onAppear 注入 `dismiss()`）。
     var onDismiss: (() -> Void)?
 
@@ -35,6 +36,10 @@ final class DragDismissController: ObservableObject {
     private let dismissVelocity: CGFloat = 900   // 速度阈值（快速向下甩）
 
     func begin() { dragging = true }
+
+    func toggleChrome() {
+        withAnimation(.easeInOut(duration: 0.18)) { chromeHidden.toggle() }
+    }
 
     func update(_ dy: CGFloat) {
         translation = max(0, dy)
@@ -78,7 +83,7 @@ struct PhotoDetailView: View {
     @State private var isVisible = false
     @State private var limitsPreviewsToCurrent = false
 
-    /// The strip's 40pt cells and the pager share one small, display-ready placeholder.
+    /// The thumbnail strip and the pager share one small, display-ready placeholder.
     static let placeholderMaxPixel = PhotoDetailImagePolicy.thumbnailMaxPixel
 
     /// 翻页/scrubber 触发的预热任务统一 debounce 这么久——快速连翻时只有最后一次落定才真正预热，
@@ -114,6 +119,8 @@ struct PhotoDetailView: View {
         min(1, max(0, dismisser.translation) / 240)
     }
 
+    private var chromeVisible: Bool { !dismisser.dragging && !dismisser.chromeHidden }
+
     var body: some View {
         let previewRange = PhotoDetailImagePolicy.previewRange(count: photos.count, currentIndex: currentIndex)
         let previewIDs = limitsPreviewsToCurrent ? Set(currentPhotoID.map { [$0] } ?? []) : Set(photos[previewRange].map(\.id))
@@ -137,27 +144,31 @@ struct PhotoDetailView: View {
                     // 分页主图**全屏铺满**（铺到导航栏 / scrubber / 底部工具栏之下），照片占满整屏，
                     // chrome 浮在其上。SwiftUI 5+ 推荐的分页范式（取代 TabView .page）：
                     //   ScrollView + LazyHStack + .scrollTargetBehavior(.paging) + .scrollPosition(id:)。
-                    // 每页用 containerRelativeFrame 填满 ScrollView 视口（现在因 ignoresSafeArea = 全屏），
-                    // ZoomingScrollView 据此把图 aspect-fit 到整屏——竖图填满竖屏高度。
-                    ScrollView(.horizontal) {
-                        LazyHStack(spacing: 0) {
-                            ForEach(photos) { photoItem in
-                                PagerImage(
-                                    photo: photoItem,
-                                    isCurrent: photoItem.id == currentPhotoID,
-                                    loadsPreview: isVisible && previewIDs.contains(photoItem.id),
-                                    previewMaxPixel: previewMaxPixel,
-                                    dismisser: dismisser
-                                )
-                                .containerRelativeFrame([.horizontal, .vertical])
-                                .id(photoItem.id)
+                    // Measure the full viewport explicitly. containerRelativeFrame subtracts
+                    // navigation bars even here, making a single tap resize the photograph.
+                    GeometryReader { viewport in
+                        ScrollView(.horizontal) {
+                            LazyHStack(spacing: 0) {
+                                ForEach(photos) { photoItem in
+                                    PagerImage(
+                                        photo: photoItem,
+                                        isCurrent: photoItem.id == currentPhotoID,
+                                        loadsPreview: isVisible && previewIDs.contains(photoItem.id),
+                                        previewMaxPixel: previewMaxPixel,
+                                        dismisser: dismisser
+                                    )
+                                    .frame(width: viewport.size.width, height: viewport.size.height)
+                                    .id(photoItem.id)
+                                }
                             }
+                            .scrollTargetLayout()
                         }
-                        .scrollTargetLayout()
+                        .scrollTargetBehavior(.paging)
+                        .scrollPosition(id: $currentPhotoID)
+                        .scrollIndicators(.hidden)
+                        // Toolbars must not add content insets and shift the fitted image.
+                        .contentMargins(.all, 0, for: .scrollContent)
                     }
-                    .scrollTargetBehavior(.paging)
-                    .scrollPosition(id: $currentPhotoID)
-                    .scrollIndicators(.hidden)
                     .ignoresSafeArea()
 
                     // 底部可读性渐变：让浮在亮图上的 scrubber / 底部工具栏仍清晰。纯装饰，不拦手势。
@@ -169,7 +180,7 @@ struct PhotoDetailView: View {
                     }
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
-                    .opacity(dismisser.dragging ? 0 : 1)
+                    .opacity(chromeVisible ? 1 : 0)
 
                     // chrome 层（**安全区内**：上沿落在导航栏下方、下沿落在底部工具栏上方），浮在全屏图上。
                     // 中间是空 Spacer（不拦截手势）→ 主图区的缩放/平移/翻页手势照常穿透到下层 ScrollView；
@@ -189,7 +200,9 @@ struct PhotoDetailView: View {
                         PhotoScrubber(photos: photos, currentPhotoID: $currentPhotoID)
                             .padding(.vertical, 6)
                     }
-                    .opacity(dismisser.dragging ? 0 : 1)
+                    .opacity(chromeVisible ? 1 : 0)
+                    .allowsHitTesting(chromeVisible)
+                    .accessibilityHidden(!chromeVisible)
                 }
                 .scaleEffect(1 - dismissProgress * 0.15)
                 .offset(y: dismisser.translation)
@@ -199,8 +212,8 @@ struct PhotoDetailView: View {
         // 详情页（从相册 push 进来）始终不显示底部 tab 栏。
         .toolbar(.hidden, for: .tabBar)
         // 下拉退出时把系统导航栏/底部工具栏一起隐藏，只留照片在动（与 iPhone 相册一致）。
-        .toolbar(dismisser.dragging ? .hidden : .visible, for: .navigationBar)
-        .toolbar(dismisser.dragging ? .hidden : .visible, for: .bottomBar)
+        .toolbar(chromeVisible ? .visible : .hidden, for: .navigationBar)
+        .toolbar(chromeVisible ? .visible : .hidden, for: .bottomBar)
         .toolbar { navigationToolbar }
         .toolbar { bottomToolbar }
         .onAppear {
@@ -233,13 +246,6 @@ struct PhotoDetailView: View {
         // 渲染读其属性即崩。监听 reconcile 完成通知，把快照与底层数据重新对齐。
         .onReceive(NotificationCenter.default.publisher(for: .photoLibraryDidReconcile)) { _ in
             reconcilePhotos()
-        }
-        .sheet(isPresented: $showingInfo) {
-            if let photo = currentPhoto {
-                PhotoInfoPanel(photo: photo)
-                    .presentationDetents([.medium])
-                    .presentationDragIndicator(.visible)
-            }
         }
     }
 
@@ -329,6 +335,15 @@ struct PhotoDetailView: View {
                     .fontWeight(showingInfo ? .bold : .regular)
             }
             .tint(showingInfo ? .yellow : .white)
+            .accessibilityLabel("Photo information")
+            .popover(isPresented: $showingInfo) {
+                if let photo = currentPhoto {
+                    PhotoInfoPanel(photo: photo)
+                        .frame(idealWidth: 420, idealHeight: 560)
+                        .presentationCompactAdaptation(.sheet)
+                        .presentationDetents([.medium, .large])
+                }
+            }
         }
     }
 
@@ -631,11 +646,20 @@ private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate, UIGes
         contentView.isUserInteractionEnabled = true   // PHLivePhotoView 需要它接收长按播放
         addSubview(contentView)
 
-        // 双击放大/还原。单击不再有交互（已去掉沉浸模式），故不再注册单击识别器，也无需
-        // require(toFail:)——双击直接生效，无 ~250ms 等待。
+        // The single tap waits for double tap so zoom never also hides controls.
         let double = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
         double.numberOfTapsRequired = 2
         addGestureRecognizer(double)
+        let single = UITapGestureRecognizer(target: self, action: #selector(handleSingleTap))
+        single.require(toFail: double)
+        addGestureRecognizer(single)
+        // Keep PHLivePhotoView's playback accessibility and append our action.
+        if contentView is UIImageView {
+            contentView.isAccessibilityElement = true
+            contentView.accessibilityLabel = String(localized: "Photo preview")
+        }
+        contentView.accessibilityCustomActions = (contentView.accessibilityCustomActions ?? []) + [UIAccessibilityCustomAction(
+            name: String(localized: "Toggle photo controls"), target: self, selector: #selector(toggleAccessibleControls))]
 
         // 下拉退出 pan：只在 fit 比例 + 向下 + 竖向主导时 begin（见 gestureRecognizerShouldBegin），
         // 单指（maximumNumberOfTouches=1，避免双指捏合误触）。与外层横向分页 pan 并存（不同轴）。
@@ -647,6 +671,13 @@ private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate, UIGes
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+
+    @objc private func handleSingleTap() { dismissController?.toggleChrome() }
+
+    @objc private func toggleAccessibleControls() -> Bool {
+        dismissController?.toggleChrome()
+        return true
+    }
 
     /// 内容自然尺寸更新（静图 thumb→preview 升清、或切到另一张/另一段 Live Photo）。
     /// aspect 不变（同源升清）→ 不重排、保留当前 zoom + offset；aspect 变 → 重排并 reset zoom。
@@ -984,6 +1015,7 @@ private struct LiveBadge: View {
 //    旧实现 frame 在 40 ↔ 50 之间切换，LazyHStack 每帧重排 → 滚动位置漂移 → centeredID 又变
 //    → 反复抖动。scaleEffect 是渲染层变换，不影响布局，cell 在 strip 里的中心永远在固定栅格上。
 private struct PhotoScrubber: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let photos: [Photo]
     /// 与 PhotoDetailView 同源——`UUID?` 而不是 `UUID`：上游 `.scrollPosition(id:)` 会在视口暂时
     /// 找不到任何 item 时把 binding 写成 nil（极少出现，但类型协议里允许）。比较点 `photo.id == currentPhotoID`
@@ -994,7 +1026,7 @@ private struct PhotoScrubber: View {
     /// 滚到的位置是错的。latch 一次性置位，避免后续 size 微调反复滚。
     @State private var didInitialScroll = false
 
-    private static let itemSize: CGFloat = 40
+    private var itemSize: CGFloat { sizeClass == .regular ? 56 : 40 }
     private static let spacing: CGFloat = 6
     /// 选中态视觉放大比例：40 × 1.25 = 50（与旧实现的 selectedSize 视觉一致）。
     /// 用 scaleEffect 实现——不影响 LazyHStack 的布局栅格。
@@ -1016,7 +1048,8 @@ private struct PhotoScrubber: View {
                             ThumbnailStripCell(
                                 photo: photo,
                                 isSelected: photo.id == currentPhotoID,
-                                selectedScale: Self.selectedScale
+                                selectedScale: Self.selectedScale,
+                                itemSize: itemSize
                             )
                             .id(photo.id)
                             .onTapGesture { handleTap(photo: photo) }
@@ -1024,7 +1057,7 @@ private struct PhotoScrubber: View {
                     }
                     // 留白让首/末 cell 也能被 anchor: .center 滚到正中央。
                     // 用 itemSize（布局尺寸），不是放大后的视觉尺寸——padding 跟 layout 走。
-                    .padding(.horizontal, max(0, (geo.size.width - Self.itemSize) / 2))
+                    .padding(.horizontal, max(0, (geo.size.width - itemSize) / 2))
                 }
                 // initial: true 让 onChange 在 onAppear 那一帧也跑；guard `w > 0` 拦掉布局
                 // 未就绪的早期触发；didInitialScroll latch 防止后续 size 微调重复滚动。
@@ -1045,7 +1078,8 @@ private struct PhotoScrubber: View {
             }
         }
         // 给 scaleEffect 留垂直空间：itemSize × selectedScale + 一点边距。
-        .frame(height: Self.itemSize * Self.selectedScale + 6)
+        .frame(height: itemSize * Self.selectedScale + 6)
+        .pageContentWidth(PageLayout.cameraControlsWidth)
     }
 
     /// 远距离跳转（|Δ|>1）禁用外层 ScrollView 的逐帧 fly-by 动画——用 `Transaction.disablesAnimations`
@@ -1083,9 +1117,9 @@ private struct ThumbnailStripCell: View {
     let photo: Photo
     let isSelected: Bool
     let selectedScale: CGFloat
+    let itemSize: CGFloat
     @State private var thumb: UIImage?
 
-    private static let itemSize: CGFloat = 40
     /// 与 PhotoDetailView.placeholderMaxPixel 同值——共享 NSCache 命中
     private static let loadMaxPixel = PhotoDetailImagePolicy.thumbnailMaxPixel
 
@@ -1099,7 +1133,7 @@ private struct ThumbnailStripCell: View {
                 Rectangle().fill(Color.white.opacity(0.1))
             }
         }
-        .frame(width: Self.itemSize, height: Self.itemSize)
+        .frame(width: itemSize, height: itemSize)
         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 4, style: .continuous)

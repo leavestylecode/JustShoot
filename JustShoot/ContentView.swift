@@ -6,6 +6,8 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     let preparedHome: HomePreparationSnapshot
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @ScaledMetric(relativeTo: .body) private var gridScale = 1.0
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @State private var showFileImporter = false
     @State private var importedCube: CubeLUT?
@@ -20,12 +22,13 @@ struct ContentView: View {
     @State private var importTask: Task<Void, Never>?
     @State private var initialCustomFilters: [HomeCustomFilter]
     @State private var usesLiveCustomFilters = false
-    /// Adaptive grid of preset / custom-LUT tiles. `minimum: 100` keeps three
-    /// columns on iPhone (incl. 13 mini → ~109pt tiles) and expands to 6+
-    /// columns on iPad portrait without per-device math.
-    private let gridColumns = [
-        GridItem(.adaptive(minimum: 100), spacing: 10)
-    ]
+    private func gridColumns(availableWidth: CGFloat) -> [GridItem] {
+        let isRegular = sizeClass == .regular
+        let width = (isRegular ? min(availableWidth, PageLayout.browseWidth) : availableWidth) - (isRegular ? 48 : 28)
+        let count = PageLayout.gridColumns(width: width,
+            minimum: (isRegular ? 176 : 100) * gridScale, spacing: 14, maximum: 4)
+        return Array(repeating: GridItem(.flexible(), spacing: 14), count: count)
+    }
 
     init(preparedHome: HomePreparationSnapshot) {
         self.preparedHome = preparedHome
@@ -38,90 +41,92 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 14) {
-                    LazyVGrid(columns: gridColumns, spacing: 12) {
-                        ForEach(FilmPreset.allCases) { preset in
-                            let source = FilmSource.preset(preset)
-                            NavigationLink(value: source) {
-                                FilmPresetTile(preset: preset, image: preparedHome.presetCovers[preset])
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    if !visibleCustomFilters.isEmpty {
-                        Text("Custom filters")
-                            .font(.caption.weight(.medium))
-                            .foregroundColor(.white.opacity(0.4))
-                            .accessibilityAddTraits(.isHeader)
-                            .padding(.top, 4)
-
-                        LazyVGrid(columns: gridColumns, spacing: 12) {
-                            ForEach(visibleCustomFilters) { lut in
-                                let source = lut.source
+            GeometryReader { geometry in
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        LazyVGrid(columns: gridColumns(availableWidth: geometry.size.width), spacing: 12) {
+                            ForEach(FilmPreset.allCases) { preset in
+                                let source = FilmSource.preset(preset)
                                 NavigationLink(value: source) {
-                                    CustomLUTTile(lut: lut, image: preparedHome.customCover)
+                                    FilmPresetTile(preset: preset, image: preparedHome.presetCovers[preset])
                                 }
                                 .buttonStyle(.plain)
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        deleteCustomLUT(lut)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
+                            }
+                        }
+
+                        if !visibleCustomFilters.isEmpty {
+                            Text("Custom filters")
+                                .font(.caption.weight(.medium))
+                                .foregroundColor(.white.opacity(0.4))
+                                .accessibilityAddTraits(.isHeader)
+                                .padding(.top, 4)
+
+                            LazyVGrid(columns: gridColumns(availableWidth: geometry.size.width), spacing: 12) {
+                                ForEach(visibleCustomFilters) { lut in
+                                    let source = lut.source
+                                    NavigationLink(value: source) {
+                                        CustomLUTTile(lut: lut, image: preparedHome.customCover)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            deleteCustomLUT(lut)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                    .padding(.horizontal, sizeClass == .regular ? 24 : 14)
+                    .padding(.top, 8)
+                    .padding(.bottom, 20)
+                    .pageContentWidth(PageLayout.browseWidth)
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 8)
-                .padding(.bottom, 20)
-            }
-            .background(Color.black)
-            // 首页不再显示大标题"JustShoot"（改用底部 tab 栏导航）；保留紧凑 nav bar 承载左上
-            // 的 + 导入按钮。相册 / 卡片库已提升为 tab，原工具栏入口与其字符串 destination 一并移除。
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        showFileImporter = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 17, weight: .medium))
+                .background(Color.black)
+                .navigationTitle("Films")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button {
+                            showFileImporter = true
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 17, weight: .medium))
+                        }
+                        .accessibilityLabel("Import LUT")
+                        .accessibilityHint("Pick a .cube file to use as a custom filter")
                     }
-                    .accessibilityLabel("Import LUT")
-                    .accessibilityHint("Pick a .cube file to use as a custom filter")
                 }
-            }
-            .navigationDestination(for: FilmSource.self) { source in
-                CameraView(source: source)
-            }
-            .fileImporter(
-                isPresented: $showFileImporter,
-                allowedContentTypes: [UTType(filenameExtension: "cube") ?? .data],
-                allowsMultipleSelection: false
-            ) { result in
-                handleFileImport(result)
-            }
-            .sheet(isPresented: $showImportSheet) {
-                ImportLUTSheet(
-                    name: $importName,
-                    iso: $importISO,
-                    encoding: $importEncoding,
-                    isImporting: isImporting,
-                    onConfirm: confirmImport,
-                    onCancel: cancelImport
-                )
-                .presentationDetents([.medium])
-                .interactiveDismissDisabled(isImporting)
-                .onDisappear { if !isImporting { cancelImport() } }
-            }
-            .alert(operationErrorTitle, isPresented: $showImportError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(importError ?? String(localized: "Unknown error"))
+                .navigationDestination(for: FilmSource.self) { source in
+                    CameraView(source: source)
+                }
+                .fileImporter(
+                    isPresented: $showFileImporter,
+                    allowedContentTypes: [UTType(filenameExtension: "cube") ?? .data],
+                    allowsMultipleSelection: false
+                ) { result in
+                    handleFileImport(result)
+                }
+                .sheet(isPresented: $showImportSheet) {
+                    ImportLUTSheet(
+                        name: $importName,
+                        iso: $importISO,
+                        encoding: $importEncoding,
+                        isImporting: isImporting,
+                        onConfirm: confirmImport,
+                        onCancel: cancelImport
+                    )
+                    .presentationDetents([.medium, .large])
+                    .interactiveDismissDisabled(isImporting)
+                    .onDisappear { if !isImporting { cancelImport() } }
+                }
+                .alert(operationErrorTitle, isPresented: $showImportError) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text(importError ?? String(localized: "Unknown error"))
+                }
             }
         }
         .preferredColorScheme(.dark)
@@ -300,6 +305,8 @@ struct ImportLUTSheet: View {
 struct FilmPresetTile: View {
     let preset: FilmPreset
     let image: UIImage?
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @ScaledMetric(relativeTo: .caption) private var captionScale = 1.0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -309,15 +316,15 @@ struct FilmPresetTile: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(preset.rawSimulation?.displayName ?? preset.displayName)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: (sizeClass == .regular ? 15 : 11) * captionScale, weight: .semibold))
                     .foregroundColor(.white)
-                    .lineLimit(1)
+                    .lineLimit(2, reservesSpace: true)
 
                 Group {
                     if preset.rawSimulation != nil { Text("Film simulation") }
                     else { Text("ISO \(Int(preset.iso))") }
                 }
-                    .font(.system(size: 10))
+                    .font(.system(size: (sizeClass == .regular ? 13 : 10) * captionScale))
                     .foregroundColor(.white.opacity(0.5))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -350,6 +357,8 @@ struct FilmPresetTile: View {
 struct CustomLUTTile: View {
     let lut: HomeCustomFilter
     let image: UIImage?
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @ScaledMetric(relativeTo: .caption) private var captionScale = 1.0
 
     private static let accent = Color(red: 0.6, green: 0.5, blue: 0.8)
 
@@ -361,12 +370,12 @@ struct CustomLUTTile: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(lut.displayName)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: (sizeClass == .regular ? 15 : 11) * captionScale, weight: .semibold))
                     .foregroundColor(.white)
-                    .lineLimit(1)
+                    .lineLimit(2, reservesSpace: true)
 
                 Text("ISO \(Int(lut.iso))")
-                    .font(.system(size: 10))
+                    .font(.system(size: (sizeClass == .regular ? 13 : 10) * captionScale))
                     .foregroundColor(.white.opacity(0.5))
             }
             .frame(maxWidth: .infinity, alignment: .leading)

@@ -29,6 +29,7 @@ struct CameraView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @StateObject private var cameraManager: CameraManager
     @State private var showFlash = false
     /// 曝光窗口去抖：仅守护 tap → 静态图就绪（含闪光灯 AE/WB 还原）这一小段（live/非 live 都 ~300ms）。
@@ -211,6 +212,7 @@ struct CameraView: View {
                     }
                     .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
                     .padding(.horizontal, 16)
+                    .pageContentWidth(PageLayout.cameraControlsWidth)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
 
                     FilmSourcePickerStrip(
@@ -231,6 +233,7 @@ struct CameraView: View {
                     // 阴影让它读作浮层而非贴底的条带。
                     .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
                     .padding(.horizontal, 16)
+                    .pageContentWidth(PageLayout.cameraControlsWidth)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
@@ -389,7 +392,7 @@ struct CameraView: View {
                         // 整块随设备方向旋转，与左下角照片角标（RecentPhotosBadge）同款 rotationEffect
                         // + 同款 spring，旋转手感完全一致。封面无 glass 描边，整块旋转也不会显得放大。
                         FilmSourceCoverThumbnail(source: source)
-                            .frame(width: 46, height: 46)
+                            .frame(width: sizeClass == .regular ? 56 : 46, height: sizeClass == .regular ? 56 : 46)
                             .overlay {
                                 // 展开时给封面一个淡黄色描边，提示当前处于"切换中"状态。
                                 if showFilmPicker {
@@ -406,6 +409,7 @@ struct CameraView: View {
                 }
                 // Keep the controls inset from the screen edges below the full-width viewfinder.
                 .padding(.horizontal, 16)
+                .pageContentWidth(PageLayout.cameraControlsWidth)
                 .disabled(cameraManager.readiness != .ready || isShutterBusy)
                 .opacity(cameraManager.readiness == .ready ? 1 : 0.42)
                 .animation(.easeOut(duration: 0.2), value: cameraManager.readiness)

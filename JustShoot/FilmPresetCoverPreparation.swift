@@ -6,11 +6,11 @@ enum FilmPresetCoverPreparation {
     enum PreparationError: Error { case missingCover(FilmPreset) }
 
     static func homePixel(displayScale: CGFloat) -> Int {
-        max(Int(180 * scale(displayScale)), 300)
+        max(Int(220 * scale(displayScale)), 300)
     }
 
     static func pickerPixel(displayScale: CGFloat) -> Int {
-        max(Int(52 * scale(displayScale) * 1.5), 100)
+        max(Int(72 * scale(displayScale) * 1.5), 100)
     }
 
     static func prepareHome(displayScale: CGFloat) async throws -> [FilmPreset: UIImage] {

@@ -73,6 +73,7 @@ struct FilmCurveLibraryView: View {
             .disabled(!library.canEdit)
         }
         .scrollContentBackground(.hidden)
+        .pageContentWidth()
         .background(Color.black)
         .navigationTitle("Film Curves")
         .navigationBarTitleDisplayMode(.inline)
@@ -183,6 +184,7 @@ struct FilmCurveEditorView: View {
     @State private var draft: CustomFilmCurve
     @State private var channel: CurveEditingChannel = .master
     @State private var selectedPointIndex: Int?
+    @State private var showsEditingHelp = false
 
     private let isNew: Bool
 
@@ -219,16 +221,17 @@ struct FilmCurveEditorView: View {
                     accent: channel.color
                 )
                 .aspectRatio(1, contentMode: .fit)
+                .frame(maxWidth: PageLayout.curveEditorWidth)
+                .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
 
                 pointControls
             } header: {
                 Text("Tone Curve")
-            } footer: {
-                Text("Tap to add a point. Drag points in any direction.")
             }
         }
         .scrollContentBackground(.hidden)
+        .pageContentWidth()
         .background(Color.black)
         .tint(.white)
         .navigationTitle(isNew ? String(localized: "New Curve") : String(localized: "Edit Curve"))
@@ -284,6 +287,18 @@ struct FilmCurveEditorView: View {
             }
 
             Spacer()
+
+            Button { showsEditingHelp = true } label: {
+                Image(systemName: "info.circle")
+                    .frame(minWidth: 44, minHeight: 44)
+            }
+            .accessibilityLabel("About curve editing")
+            .popover(isPresented: $showsEditingHelp) {
+                Text("Tap to add a point. Drag points in any direction.")
+                    .font(.callout)
+                    .padding()
+                    .presentationCompactAdaptation(.popover)
+            }
 
             Button(role: .destructive) {
                 draft.resetAllChannels()

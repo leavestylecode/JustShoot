@@ -13,7 +13,10 @@ import ImageIO
 // 本文件保留 SwiftUI 外壳：导航标题、选择模式工具栏（Select / Select All / xmark / Download /
 // Delete）、tab 栏隐藏、批量保存/删除、详情 push。选择状态通过 @Binding 与 PhotoGridView 双向同步。
 struct GalleryView: View {
+    var onStartShooting: () -> Void = {}
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query(sort: \Photo.timestamp, order: .reverse) private var photos: [Photo]
 
     @State private var selectedDetail: DetailPayload?
@@ -32,21 +35,25 @@ struct GalleryView: View {
             if photos.isEmpty {
                 emptyState
             } else {
-                PhotoGridView(
-                    photos: photos,
-                    columns: density.columns,
-                    cornerRadius: shape.cornerRadius,
-                    isSelecting: $isSelecting,
-                    selectedPhotos: $selectedPhotos,
-                    onOpen: { photo in
-                        selectedDetail = DetailPayload(startPhoto: photo, photos: Array(photos))
-                    },
-                    isActive: isVisible && selectedDetail == nil
-                )
-                // 忽略上下安全区：collection view 延伸到 nav 栏 / tab 栏之下，靠
-                // contentInsetAdjustmentBehavior=.automatic 把首/末行内边距顶到安全区内，
-                // 内容可以滚到顶部 nav 栏之下。
-                .ignoresSafeArea()
+                GeometryReader { geometry in
+                    PhotoGridView(
+                        photos: photos,
+                        columns: density.columns(forWidth: geometry.size.width,
+                            isRegular: sizeClass == .regular, accessibilitySize: dynamicTypeSize.isAccessibilitySize),
+                        cornerRadius: shape.cornerRadius,
+                        isSelecting: $isSelecting,
+                        selectedPhotos: $selectedPhotos,
+                        onOpen: { photo in
+                            selectedDetail = DetailPayload(startPhoto: photo, photos: Array(photos))
+                        },
+                        isActive: isVisible && selectedDetail == nil
+                    )
+                    // 忽略上下安全区：collection view 延伸到 nav 栏 / tab 栏之下，靠
+                    // contentInsetAdjustmentBehavior=.automatic 把首/末行内边距顶到安全区内，
+                    // 内容可以滚到顶部 nav 栏之下。
+                    .ignoresSafeArea()
+                }
+                .pageContentWidth(PageLayout.browseWidth)
             }
         }
         .navigationTitle(isSelecting ? Text("\(selectedPhotos.count) selected") : Text("Gallery"))
@@ -168,16 +175,15 @@ struct GalleryView: View {
 
     @ViewBuilder
     private var emptyState: some View {
-        VStack {
-            Image(systemName: "photo")
-                .font(.system(size: 80))
-                .foregroundColor(.gray.opacity(0.5))
-            Text("No photos yet")
-                .font(.title3)
-                .foregroundColor(.gray)
-                .padding(.top, 16)
+        ContentUnavailableView {
+            Label("No photos yet", systemImage: "photo")
+        } actions: {
+            Button("Choose Film", systemImage: "camera.filters", action: onStartShooting)
+                .buttonStyle(.borderedProminent)
+                .tint(.white)
+                .foregroundStyle(.black)
         }
-        .frame(maxWidth: .infinity, minHeight: 400)
+        .pageContentWidth()
     }
 
     // MARK: - Actions
