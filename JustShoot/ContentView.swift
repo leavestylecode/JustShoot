@@ -20,10 +20,6 @@ struct ContentView: View {
     @State private var importTask: Task<Void, Never>?
     @State private var initialCustomFilters: [HomeCustomFilter]
     @State private var usesLiveCustomFilters = false
-    /// 命名空间用于把列表 tile 的封面与拍摄页通过 zoom 过渡关联。
-    /// 每个 tile 用 source.id 作为匹配键；拍摄页 destination 同 id 应用 navigationTransition(.zoom)。
-    @Namespace private var coverZoom
-
     /// Adaptive grid of preset / custom-LUT tiles. `minimum: 100` keeps three
     /// columns on iPhone (incl. 13 mini → ~109pt tiles) and expands to 6+
     /// columns on iPad portrait without per-device math.
@@ -51,7 +47,6 @@ struct ContentView: View {
                                 FilmPresetTile(preset: preset, image: preparedHome.presetCovers[preset])
                             }
                             .buttonStyle(.plain)
-                            .matchedTransitionSource(id: source.id, in: coverZoom)
                         }
                     }
 
@@ -69,7 +64,6 @@ struct ContentView: View {
                                     CustomLUTTile(lut: lut, image: preparedHome.customCover)
                                 }
                                 .buttonStyle(.plain)
-                                .matchedTransitionSource(id: source.id, in: coverZoom)
                                 .contextMenu {
                                     Button(role: .destructive) {
                                         deleteCustomLUT(lut)
@@ -103,7 +97,6 @@ struct ContentView: View {
             }
             .navigationDestination(for: FilmSource.self) { source in
                 CameraView(source: source)
-                    .navigationTransition(.zoom(sourceID: source.id, in: coverZoom))
             }
             .fileImporter(
                 isPresented: $showFileImporter,

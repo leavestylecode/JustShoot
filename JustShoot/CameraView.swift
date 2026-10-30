@@ -26,7 +26,6 @@ struct CameraView: View {
     @EnvironmentObject private var curveLibrary: FilmCurveLibrary
     /// Picker 候选列表里需要展示用户导入的自定义 LUT；CameraView 自己持有 @Query 直接喂给 strip。
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.displayScale) private var displayScale
@@ -279,83 +278,72 @@ struct CameraView: View {
         }
         .animation(.easeOut(duration: 0.22), value: cameraManager.readiness)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .interactiveDismissDisabled(true)
-        .background(CameraNavigationGestureBlocker())
         .toolbarBackground(.hidden, for: .navigationBar)
         // 全屏相机 push 时隐藏底部 tab 栏——否则 tab 栏会压在取景器/快门之上。
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
-            // 左上：返回
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button { dismiss() } label: {
-                    Image(systemName: "chevron.left")
-                        .fontWeight(.semibold)
-                }
-                .tint(.white)
-                .accessibilityLabel("Back")
-            }
-
-            // 中间：仅可选的位置状态（胶片名标题已去掉——当前胶片由底部右下封面 + picker 表达，
-            // 取景器中央保持干净）。位置被拒时才显示一个警示按钮。
-            ToolbarItem(placement: .principal) {
-                VStack(spacing: 1) {
-                    if cameraManager.locationPermissionDenied {
-                        Button(action: openAppSettings) {
-                            Label("Location off", systemImage: "location.slash.fill")
-                                .font(.caption2.weight(.medium))
-                                .labelStyle(.titleAndIcon)
-                                .foregroundStyle(.orange.opacity(0.85))
+            if !cameraManager.entryPreparation.coversContent {
+                // 中间：仅可选的位置状态（胶片名标题已去掉——当前胶片由底部右下封面 + picker 表达，
+                // 取景器中央保持干净）。位置被拒时才显示一个警示按钮。
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 1) {
+                        if cameraManager.locationPermissionDenied {
+                            Button(action: openAppSettings) {
+                                Label("Location off", systemImage: "location.slash.fill")
+                                    .font(.caption2.weight(.medium))
+                                    .labelStyle(.titleAndIcon)
+                                    .foregroundStyle(.orange.opacity(0.85))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Location off")
+                            .accessibilityHint("Open Settings and allow Location Services to geo-tag photos")
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Location off")
-                        .accessibilityHint("Open Settings and allow Location Services to geo-tag photos")
                     }
                 }
-            }
 
-            // Keep the control visible while support/enablement is being negotiated.
-            // If availability is lost, an existing On preference can still be switched Off.
-            ToolbarItem(placement: .primaryAction) {
-                livePhotoControl
-            }
-            ToolbarSpacer(.fixed, placement: .primaryAction)
-
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    cameraManager.toggleFlashMode()
-                } label: {
-                    Image(systemName: cameraManager.flashMode == .on ? "bolt.fill" : "bolt.slash.fill")
-                        .rotationEffect(controlRotationAngle)
-                        .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
+                // Keep the control visible while support/enablement is being negotiated.
+                // If availability is lost, an existing On preference can still be switched Off.
+                ToolbarItem(placement: .primaryAction) {
+                    livePhotoControl
                 }
-                .tint(cameraManager.flashMode == .on ? .yellow : .white)
-                .disabled(cameraManager.readiness != .ready || isShutterBusy)
-                .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
-                .accessibilityLabel(cameraManager.flashMode == .on ? Text("Flash on") : Text("Flash off"))
-                .accessibilityHint("Toggle flash")
-            }
-            ToolbarSpacer(.fixed, placement: .primaryAction)
+                ToolbarSpacer(.fixed, placement: .primaryAction)
 
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    cameraManager.hapticSoft.impactOccurred()
-                    let visible = !colorControls.isVisible
-                    colorControls.setVisible(visible)
-                    cameraManager.diagnostics.event("color_controls_visibility_changed",
-                        "visible=\(visible) \(colorAdjustmentDiagnosticFields)")
-                } label: {
-                    Image(systemName: "thermometer.medium")
-                        .rotationEffect(controlRotationAngle)
-                        .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        cameraManager.toggleFlashMode()
+                    } label: {
+                        Image(systemName: cameraManager.flashMode == .on ? "bolt.fill" : "bolt.slash.fill")
+                            .rotationEffect(controlRotationAngle)
+                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
+                    }
+                    .tint(cameraManager.flashMode == .on ? .yellow : .white)
+                    .disabled(cameraManager.readiness != .ready || isShutterBusy)
+                    .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
+                    .accessibilityLabel(cameraManager.flashMode == .on ? Text("Flash on") : Text("Flash off"))
+                    .accessibilityHint("Toggle flash")
                 }
-                .buttonBorderShape(.circle)
-                .tint(colorControls.isVisible ? .yellow : .white)
-                .disabled(isShutterBusy)
-                .accessibilityLabel("Color controls")
-                .accessibilityHint("Show color controls; hiding restores Auto")
-                .accessibilityAddTraits(colorControls.isVisible ? [.isSelected] : [])
-                .accessibilityIdentifier("camera.white_balance.toggle")
+                ToolbarSpacer(.fixed, placement: .primaryAction)
+
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        cameraManager.hapticSoft.impactOccurred()
+                        let visible = !colorControls.isVisible
+                        colorControls.setVisible(visible)
+                        cameraManager.diagnostics.event("color_controls_visibility_changed",
+                            "visible=\(visible) \(colorAdjustmentDiagnosticFields)")
+                    } label: {
+                        Image(systemName: "thermometer.medium")
+                            .rotationEffect(controlRotationAngle)
+                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
+                    }
+                    .buttonBorderShape(.circle)
+                    .tint(colorControls.isVisible ? .yellow : .white)
+                    .disabled(isShutterBusy)
+                    .accessibilityLabel("Color controls")
+                    .accessibilityHint("Show color controls; hiding restores Auto")
+                    .accessibilityAddTraits(colorControls.isVisible ? [.isSelected] : [])
+                    .accessibilityIdentifier("camera.white_balance.toggle")
+                }
             }
         }
         // 底部快门行。焦距条 / LUT 选择条已上移到预览下方的控制区（见 body 顶部 VStack），
@@ -391,7 +379,7 @@ struct CameraView: View {
                     Spacer()
 
                     // 右：当前胶片封面缩略图——tap 展开 / 收起底部胶片选择条。
-                    // 列表 tile 通过 navigationTransition(.zoom) 放大成本页时，封面落位在这里。
+                    // 当前胶片封面，同时作为胶片选择器的入口。
                     Button {
                         cameraManager.hapticLight.impactOccurred()
                         withAnimation(.easeInOut(duration: 0.22)) {
@@ -433,7 +421,8 @@ struct CameraView: View {
                     .zIndex(100)
             }
         }
-        .toolbar(cameraManager.entryPreparation.coversContent ? .hidden : .visible, for: .navigationBar)
+        // Keep Back outside the covered/disabled controls, including during camera preparation.
+        .cameraButtonOnlyNavigation()
         .onAppear {
             Diagnostics.start()
             let manager = cameraManager
@@ -671,8 +660,7 @@ struct CameraView: View {
                 onAction: {
                     if failure == .permissionDenied { openAppSettings() }
                     else { retryCameraEntry() }
-                },
-                onClose: { dismiss() }
+                }
             )
         } else {
             // Keep unprepared controls covered without adding a loading screen to camera entry.

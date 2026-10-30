@@ -1,6 +1,38 @@
 import SwiftUI
 import UIKit
 
+extension View {
+    /// Zoom transitions install their own interactive dismissal gestures, beyond
+    /// UINavigationController's edge/content pans. Use the standard transition
+    /// and block those pans together so only the camera's Back button exits.
+    func cameraButtonOnlyNavigation() -> some View {
+        modifier(CameraButtonOnlyNavigationModifier())
+    }
+}
+
+private struct CameraButtonOnlyNavigationModifier: ViewModifier {
+    @Environment(\.dismiss) private var dismiss
+
+    func body(content: Content) -> some View {
+        content
+            .navigationTransition(.automatic)
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.visible, for: .navigationBar)
+            .background(CameraNavigationGestureBlocker())
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "chevron.left")
+                            .fontWeight(.semibold)
+                    }
+                    .tint(.white)
+                    .accessibilityIdentifier("camera.back")
+                    .accessibilityLabel("Back")
+                }
+            }
+    }
+}
+
 /// Keep viewfinder adjustments from starting either native navigation-back pan.
 /// The camera's explicit Back action still pops normally; other pages regain
 /// the recognizers' original state when this controller disappears.

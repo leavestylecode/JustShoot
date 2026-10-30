@@ -586,8 +586,7 @@ final class CameraColorSliderView: UIControl {
 // MARK: - 拍摄页右下角胶片封面缩略图
 /// 拍摄页右下角的胶片封面缩略图（与左下最近照片缩略图对称）。
 /// FilmSource.preset → 加载胶片图鉴的 libraryCardImage；FilmSource.custom → 配色 + 滤镜图标
-/// （和列表 CustomLUTTile 一致）。列表 tile 通过 navigationTransition(.zoom) 放大成本页时,
-/// 视觉上封面落位在这里。当前仅展示，后续会挂点击交互。
+/// （和列表 CustomLUTTile 一致）。点击封面的交互由拍摄页的胶片选择器按钮承载。
 struct FilmSourceCoverThumbnail: View {
     let source: FilmSource
     @State private var image: UIImage?

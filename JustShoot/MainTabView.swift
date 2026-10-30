@@ -5,7 +5,7 @@ import SwiftData
 //
 // 4 个固定 tab：
 //   Films    首页胶片网格 + 拍摄（ContentView 本体——其内部已含 NavigationStack，承载
-//            tile→CameraView 的 zoom 过渡 destination，所以不再额外包一层）
+//            tile→CameraView 的 destination，所以不再额外包一层）
 //   Photos   相册（GalleryView）
 //   Library  胶片卡片库（FilmCardLibraryView）
 //   Settings 设置
