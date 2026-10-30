@@ -1,6 +1,7 @@
 import XCTest
 import SwiftData
 import CoreImage
+import CoreVideo
 import ImageIO
 import UniformTypeIdentifiers
 import SwiftUI
@@ -26,6 +27,36 @@ private actor DeferredImportGate {
 
 final class CaptureAsyncFlowTests: XCTestCase {
     @MainActor
+    func testShutterPreviewAppearsBeforeCheckpointAndClearsOnCancellation() async throws {
+        let journal = CaptureJournal(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        defer { try? FileManager.default.removeItem(at: journal.root) }
+        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let pipeline = CapturePipeline(journal: journal)
+        await pipeline.configure(container: container)
+        let lut = try cube()
+        let id = UUID()
+        let reserved = await pipeline.reserve(lutBytes: lut.data.count, id: id)
+        XCTAssertEqual(reserved, id)
+        pipeline.preparePreview(try frame(data: image()), recipe: recipe(id: id, lut: lut), lut: lut)
+        let deadline = Date().addingTimeInterval(3)
+        while pipeline.lastPreview == nil, Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(pipeline.lastPreview?.id, id, "The shutter preview must not wait for native photo delivery")
+        XCTAssertFalse(pipeline.pendingJobIDs.contains(id))
+        pipeline.cancelReservation(id)
+        XCTAssertNil(pipeline.lastPreview)
+        XCTAssertFalse(pipeline.isProcessing(id))
+
+        let nextID = UUID()
+        let next = await pipeline.reserve(lutBytes: lut.data.count, id: nextID)
+        XCTAssertEqual(next, nextID)
+        pipeline.preparePreview(try frame(data: image()), recipe: recipe(id: nextID, lut: lut), lut: lut)
+        pipeline.cancelReservation(nextID)
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertNil(pipeline.lastPreview, "An in-flight preview must not reappear after cancellation")
+    }
+
+    @MainActor
     func testDurableCheckpointAndNextCaptureDoNotWaitForPhotosImport() async throws {
         let journal = CaptureJournal(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
         defer { try? FileManager.default.removeItem(at: journal.root) }
@@ -41,6 +72,7 @@ final class CaptureAsyncFlowTests: XCTestCase {
         let reserved = await pipeline.reserve(lutBytes: lut.data.count, id: id)
         XCTAssertEqual(reserved, id)
         let bytes = try image()
+        pipeline.preparePreview(try frame(data: bytes), recipe: recipe, lut: lut)
         let state = DeferredPhotoState(width: 48, height: 36)
         await pipeline.checkpointStill(CaptureStill(imageData: bytes, pendingLivePhotoMovieURL: nil, deferredPhoto: state),
             recipe: recipe, lut: lut)
@@ -108,7 +140,7 @@ final class CaptureAsyncFlowTests: XCTestCase {
 
     func testQuickPreviewIsBoundedOrientedAndUsesTheCapturedLook() async throws {
         let lut = try cube(inverted: true)
-        let image = await CapturePreviewRenderer.image(data: try image(width: 3_000, height: 2_250, orientation: 6), lut: lut)
+        let image = await CapturePreviewRenderer.image(frame: try frame(data: image(width: 3_000, height: 2_250, orientation: 6)), lut: lut)
         let pixels = try XCTUnwrap(image?.cgImage)
         XCTAssertLessThanOrEqual(max(pixels.width, pixels.height), CapturePreviewRenderer.maximumPixel)
         XCTAssertEqual(Double(pixels.width) / Double(pixels.height), 0.75, accuracy: 0.01)
@@ -121,21 +153,23 @@ final class CaptureAsyncFlowTests: XCTestCase {
     func testCancelledQuickPreviewDoesNotProduceAnImage() async throws {
         let bytes = try image()
         let lut = try cube()
-        let task = Task { await CapturePreviewRenderer.image(data: bytes, lut: lut) }
+        let capturedFrame = try frame(data: bytes)
+        let task = Task { await CapturePreviewRenderer.image(frame: capturedFrame, lut: lut) }
         task.cancel()
         let image = await task.value
         XCTAssertNil(image)
     }
 
-    func testQuickPreviewUsesFrozenSceneTemperature() async throws {
+    func testQuickPreviewUsesRenderedGainInsteadOfLaterSceneTemperature() async throws {
         let lut = try cube()
         // Neutral midtones isolate the illuminant response from highlight desaturation.
         let bytes = try image(color: CIColor(red: 0.3, green: 0.3, blue: 0.3))
-        let neutral = await CapturePreviewRenderer.image(data: bytes, lut: lut)
+        let neutral = await CapturePreviewRenderer.image(frame: try frame(data: bytes), lut: lut)
         let profile = FilmRenderProfile(grain: .disabled, optics: .disabled,
             chromatic: FilmChromaticResponseParameters(nativeCCT: 6_500, strength: 1))
-        let frozen = recipe(id: UUID(), lut: lut, profile: profile, sceneCCT: 2_500)
-        let warm = await CapturePreviewRenderer.image(data: bytes, lut: lut, recipe: frozen)
+        let frozen = recipe(id: UUID(), lut: lut, profile: profile, sceneCCT: 6_500)
+        let gain = profile.effectiveChromatic.responseGain(sceneCCT: 2_500)
+        let warm = await CapturePreviewRenderer.image(frame: try frame(data: bytes, gain: gain), lut: lut, recipe: frozen)
         func blue(_ image: UIImage?) throws -> UInt8 {
             let pixels = try XCTUnwrap(image?.cgImage)
             var sample = [UInt8](repeating: 0, count: 4)
@@ -144,7 +178,7 @@ final class CaptureAsyncFlowTests: XCTestCase {
             return sample[2]
         }
         XCTAssertLessThan(try Int(blue(warm)), try Int(blue(neutral)) - 10,
-            "The badge must include the frozen illuminant response, not only the LUT")
+            "The badge must use the rendered frame's gain even after the scene reading changes")
     }
 
     func testQuickPreviewGrainIsFrozenAndDeterministic() async throws {
@@ -153,12 +187,45 @@ final class CaptureAsyncFlowTests: XCTestCase {
         let profile = FilmRenderProfile(grain: FilmPreset.fujiC200.renderProfile.grain,
             optics: .disabled, chromatic: .neutral)
         let frozen = recipe(id: UUID(), lut: lut, profile: profile)
-        let first = await CapturePreviewRenderer.image(data: bytes, lut: lut, recipe: frozen)
-        let repeated = await CapturePreviewRenderer.image(data: bytes, lut: lut, recipe: frozen)
-        let plain = await CapturePreviewRenderer.image(data: bytes, lut: lut)
+        let first = await CapturePreviewRenderer.image(frame: try frame(data: bytes), lut: lut, recipe: frozen)
+        let repeated = await CapturePreviewRenderer.image(frame: try frame(data: bytes), lut: lut, recipe: frozen)
+        let plain = await CapturePreviewRenderer.image(frame: try frame(data: bytes), lut: lut)
         let firstBytes = try XCTUnwrap(first?.pngData())
         XCTAssertEqual(firstBytes, repeated?.pngData())
         XCTAssertNotEqual(firstBytes, plain?.pngData(), "The quick preview must include the captured film texture")
+    }
+
+    func testStillUsesTheRenderedGainAfterAWBChanges() async throws {
+        let lut = try cube()
+        let bytes = try image(color: CIColor(red: 0.3, green: 0.3, blue: 0.3))
+        let profile = FilmRenderProfile(grain: .disabled, optics: .disabled,
+            chromatic: FilmChromaticResponseParameters(nativeCCT: 6_500, strength: 1))
+        let gain = profile.effectiveChromatic.responseGain(sceneCCT: 2_500)
+        var frozen = recipe(id: UUID(), lut: lut, profile: profile, sceneCCT: 6_500)
+        frozen.frozenChromaticGain = gain
+        let recipe = frozen
+        let preview = await CapturePreviewRenderer.image(frame: try frame(data: bytes, gain: gain), lut: lut, recipe: recipe)
+        let output = await Task.detached {
+            CapturePhotoRenderer.render(source: bytes, recipe: recipe, lut: lut, rawLUT: nil, grainSeed: 1)
+        }.value
+        let still = try XCTUnwrap(FilmImagePipeline.decodePhoto(try XCTUnwrap(output)))
+        let context = CIContext(options: [.workingColorSpace: FilmImagePipeline.colorSpace])
+        let expected = CaptureComparisonDiagnostics.statistics(CIImage(cgImage: try XCTUnwrap(preview?.cgImage)), context: context)
+        let actual = CaptureComparisonDiagnostics.statistics(still, context: context)
+        for channel in 0..<3 { XCTAssertEqual(actual.meanRGB[channel], expected.meanRGB[channel], accuracy: 0.015) }
+    }
+
+    private func frame(data: Data, gain: SIMD3<Float> = SIMD3(repeating: 1)) throws -> CameraPreviewFrame {
+        let image = try XCTUnwrap(FilmImagePipeline.decodePhoto(data, applyOrientation: true))
+        let width = Int(image.extent.width), height = Int(image.extent.height)
+        var buffer: CVPixelBuffer?
+        let result = CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA,
+            [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &buffer)
+        XCTAssertEqual(result, kCVReturnSuccess)
+        let pixels = try XCTUnwrap(buffer)
+        CIContext().render(image, to: pixels, bounds: image.extent, colorSpace: FilmImagePipeline.colorSpace)
+        return CameraPreviewFrame(buffer: pixels, generation: 1, frameID: 1, capturedAt: 1,
+            lutKey: "test", rotation: 0, crop: 1, outputSize: image.extent.size, grainSeed: 1, chromaticGain: gain)
     }
 
     private func cube(inverted: Bool = false) throws -> CubeLUT {
@@ -174,7 +241,7 @@ final class CaptureAsyncFlowTests: XCTestCase {
         CaptureRecipe(id: id, captureDate: Date(), filterName: "test", displayLabel: nil,
             focalLength: 24, outputQuality: nil, profile: profile ?? FilmPreset.fujiC200.renderProfile,
             grainSeed: 1, location: nil, lutDimension: lut.dimension, chromaticSceneCCT: sceneCCT, photoDisplayTime: nil,
-            plan: .resolve(mode: .quality, rawFormat: nil, prefersProcessedPhoto: true))
+            plan: .resolve(mode: .quality))
     }
 
     private func image(width: Int = 48, height: Int = 36, orientation: Int = 1,

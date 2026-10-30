@@ -264,20 +264,7 @@ struct WhiteBalanceControl: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 0) {
-                CameraColorSlider(kind: .temperature, value: temperatureValue, automatic: selection.isAutomatic,
-                    onChange: onTemperature, onEditingEnded: onEditingEnded)
-                    .frame(minWidth: 66, maxWidth: .infinity)
-                    .disabled(automaticReading == nil)
-                automaticButton(selected: selection.isAutomatic, label: "Auto color temperature",
-                    identifier: "camera.white_balance.temperature.auto", action: onAutomaticTemperature)
-            }
-            .padding(.leading, 10)
-            .padding(.trailing, 6)
-            .background { capsuleBackground }
-            .accessibilityElement(children: .contain)
-
+        VStack(spacing: 12) {
             HStack(spacing: 0) {
                 CameraColorSlider(kind: .tint, value: tintValue, automatic: tint.isAutomatic,
                     onChange: onTint, onEditingEnded: onEditingEnded)
@@ -289,11 +276,28 @@ struct WhiteBalanceControl: View {
             .padding(.leading, 10)
             .padding(.trailing, 6)
             .background { capsuleBackground }
+            .frame(maxWidth: 360)
+            .accessibilityElement(children: .contain)
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 0) {
+                CameraColorSlider(kind: .temperature, value: temperatureValue, automatic: selection.isAutomatic,
+                    onChange: onTemperature, onEditingEnded: onEditingEnded)
+                    .frame(minWidth: 66, maxWidth: .infinity)
+                    .disabled(automaticReading == nil)
+                automaticButton(selected: selection.isAutomatic, label: "Auto color temperature",
+                    identifier: "camera.white_balance.temperature.auto", action: onAutomaticTemperature)
+            }
+            .padding(.leading, 10)
+            .padding(.trailing, 6)
+            .background { capsuleBackground }
+            .frame(maxWidth: 360)
             .accessibilityElement(children: .contain)
         }
         .foregroundStyle(.white)
-        .frame(height: 44)
-        .frame(maxWidth: 360)
+        .padding(10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .contain)
     }
 

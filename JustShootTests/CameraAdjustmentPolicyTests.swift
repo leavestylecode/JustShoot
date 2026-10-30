@@ -78,9 +78,38 @@ final class CameraAdjustmentPolicyTests: XCTestCase {
     func testTemperatureIsFiniteBoundedAndQuantized() {
         XCTAssertNil(CameraWhiteBalancePolicy.temperature(.nan))
         XCTAssertNil(CameraWhiteBalancePolicy.temperature(.infinity))
-        XCTAssertEqual(CameraWhiteBalancePolicy.temperature(1_000), 3_000)
-        XCTAssertEqual(CameraWhiteBalancePolicy.temperature(20_000), 8_000)
+        XCTAssertEqual(CameraWhiteBalancePolicy.temperature(1_000), 2_000)
+        XCTAssertEqual(CameraWhiteBalancePolicy.temperature(2_000), 2_000)
+        XCTAssertEqual(CameraWhiteBalancePolicy.temperature(10_000), 10_000)
+        XCTAssertEqual(CameraWhiteBalancePolicy.temperature(20_000), 10_000)
         XCTAssertEqual(CameraWhiteBalancePolicy.temperature(5_249), 5_200)
+    }
+
+    func testColorControlsStartHiddenAndOpeningKeepsBothAxesAutomatic() {
+        var controls = CameraColorControlsState()
+        XCTAssertFalse(controls.isVisible)
+        XCTAssertTrue(controls.temperature.isAutomatic)
+        XCTAssertTrue(controls.tint.isAutomatic)
+        controls.setVisible(true)
+        XCTAssertTrue(controls.isVisible)
+        XCTAssertTrue(controls.temperature.isAutomatic)
+        XCTAssertTrue(controls.tint.isAutomatic)
+    }
+
+    func testHidingColorControlsResetsBothAxesAndReopeningDoesNotRestoreManualValues() {
+        var controls = CameraColorControlsState()
+        controls.setVisible(true)
+        controls.temperature = .temperature(2_000)
+        controls.tint = .value(25)
+        controls.setVisible(false)
+        XCTAssertFalse(controls.isVisible)
+        XCTAssertTrue(controls.temperature.isAutomatic)
+        XCTAssertTrue(controls.tint.isAutomatic)
+        XCTAssertEqual(ColorTemperatureLUT.cacheKey(baseKey: "film", selection: controls.temperature,
+            tint: controls.tint, reference: nil), "film")
+        controls.setVisible(true)
+        XCTAssertTrue(controls.temperature.isAutomatic)
+        XCTAssertTrue(controls.tint.isAutomatic)
     }
 
     func testTintIsFiniteBoundedAndQuantized() {
@@ -111,8 +140,8 @@ final class CameraAdjustmentPolicyTests: XCTestCase {
     }
 
     func testAutomaticReadingsAreNotClampedToManualControlLimits() throws {
-        let reading = try XCTUnwrap(CameraWhiteBalanceReading(temperature: 9_210, tint: 42.4))
-        XCTAssertEqual(reading.temperature, 9_200)
+        let reading = try XCTUnwrap(CameraWhiteBalanceReading(temperature: 12_210, tint: 42.4))
+        XCTAssertEqual(reading.temperature, 12_200)
         XCTAssertEqual(reading.tint, 42)
         XCTAssertTrue(ResolvedCameraColorAdjustment.resolve(temperature: .automatic, tint: .automatic, reading: reading)?.isNeutral == true)
     }

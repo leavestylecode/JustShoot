@@ -35,6 +35,10 @@ struct CameraEntryPreparation: Equatable, Sendable {
     var isPreparing: Bool { phase == .preparing }
     var resourcesReady: Bool { satisfied.contains(.resources) }
     var isRevealed: Bool { phase == .revealed }
+    /// Preparing a cube is insufficient: a frame using it must have reached the renderer.
+    var isCurrentLookRendered: Bool {
+        isRevealed && expectedLUTKey != nil && expectedLUTKey == preparedLUTKey && expectedLUTKey == renderedLUTKey
+    }
     var coversContent: Bool { !isRevealed }
     var failure: Failure? {
         guard case .failed(let failure) = phase else { return nil }
@@ -54,7 +58,8 @@ struct CameraEntryPreparation: Equatable, Sendable {
     }
 
     mutating func updateLUT(expectedKey: String, preparedKey: String?) {
-        if expectedLUTKey != expectedKey { renderedLUTKey = nil }
+        // Keep the last displayed key when a pending selection is cancelled. Returning
+        // to that look must not wait for a one-shot ticket which already completed.
         expectedLUTKey = expectedKey
         preparedLUTKey = preparedKey
         guard isPreparing else { return }
@@ -63,7 +68,8 @@ struct CameraEntryPreparation: Equatable, Sendable {
     }
 
     func needsRender(generation: UInt64, lutKey: String, capturedAt: TimeInterval) -> Bool {
-        guard isPreparing, self.generation == generation, expectedLUTKey == lutKey,
+        guard (isPreparing || isRevealed), renderedLUTKey != lutKey,
+              self.generation == generation, expectedLUTKey == lutKey,
               let deviceWarmupCompletedAt, capturedAt.isFinite else { return false }
         return capturedAt >= deviceWarmupCompletedAt
     }
@@ -72,6 +78,7 @@ struct CameraEntryPreparation: Equatable, Sendable {
         guard needsRender(generation: generation, lutKey: lutKey, capturedAt: capturedAt) else { return }
         // GPU completion may arrive before SwiftUI publishes the prepared-key update.
         renderedLUTKey = lutKey
+        guard isPreparing else { return }
         updateLUTRequirements()
         revealIfReady()
     }
@@ -115,7 +122,7 @@ struct CameraEntryPreparation: Equatable, Sendable {
     }
 
     mutating func fail(_ failure: Failure, generation: UInt64) {
-        guard isPreparing, self.generation == generation else { return }
+        guard (isPreparing || (isRevealed && failure == .previewUnavailable)), self.generation == generation else { return }
         phase = .failed(failure)
     }
 

@@ -22,7 +22,7 @@ final class CaptureLivePhotoRoundTripTests: XCTestCase {
         let recipe = CaptureRecipe(id: captureID, captureDate: date, filterName: "live-round-trip", displayLabel: nil,
             focalLength: 24, outputQuality: nil, profile: FilmSource.preset(.fujiC200).captureRenderProfile,
             grainSeed: 1, location: nil, lutDimension: lut.dimension, chromaticSceneCCT: nil,
-            photoDisplayTime: displayTime.seconds, plan: .resolve(mode: .livePhoto, rawFormat: nil))
+            photoDisplayTime: displayTime.seconds, plan: .resolve(mode: .livePhoto))
         let sourceMovie = FileManager.default.temporaryDirectory.appendingPathComponent("\(captureID).mov")
         defer { try? FileManager.default.removeItem(at: sourceMovie) }
         try await CapturePipelineTests.makeVideo(at: sourceMovie)

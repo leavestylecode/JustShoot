@@ -55,6 +55,26 @@ final class ColorTemperatureLUTTests: XCTestCase {
         XCTAssertLessThan(cool[0], cool[2])
     }
 
+    func testExpandedTemperatureEndpointsProduceDistinctFiniteTables() async throws {
+        let builder = ColorTemperatureLUT()
+        let base = try identity()
+        let endpoints: [(Float, Float)] = [(2_000, 3_000), (10_000, 8_000)]
+        for (endpoint, formerLimit) in endpoints {
+            let output = try await builder.prepare(base: base, baseKey: "identity", selection: .temperature(endpoint))
+            let previous = try await builder.prepare(base: base, baseKey: "identity", selection: .temperature(formerLimit))
+            XCTAssertNotEqual(output.data, previous.data)
+            output.data.withUnsafeBytes { bytes in
+                XCTAssertTrue(bytes.bindMemory(to: Float.self).allSatisfy(\.isFinite))
+            }
+            let gray = sample(output)
+            if endpoint == 2_000 {
+                XCTAssertLessThan(gray[0], gray[2])
+            } else {
+                XCTAssertGreaterThan(gray[0], gray[2])
+            }
+        }
+    }
+
     func testBakedCubeKeepsRGBIndexOrder() async throws {
         let builder = ColorTemperatureLUT()
         let base = try identity()

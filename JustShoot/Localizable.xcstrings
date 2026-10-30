@@ -1,104 +1,8 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Exposure compensation" : {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Exposure compensation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "曝光补偿"
-          }
-        }
-      }
-    },
-    "Reset exposure compensation" : {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reset exposure compensation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重置曝光补偿"
-          }
-        }
-      }
-    },
-    "Preview while saving" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preview while saving"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "查看处理中的预览"
-          }
-        }
-      }
-    },
-    "Photo preview" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Photo preview"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "照片预览"
-          }
-        }
-      }
-    },
-    "Saving paused" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Saving paused"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保存已暂停"
-          }
-        }
-      }
-    },
     "" : {
 
-    },
-    "24 MP" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "24 MP"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "24MP"
-          }
-        }
-      }
     },
     "“%@” will be permanently deleted." : {
       "localizations" : {
@@ -290,6 +194,23 @@
     },
     "© 2026 Leavestylecode" : {
 
+    },
+    "24 MP" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "24 MP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "24MP"
+          }
+        }
+      }
     },
     "200" : {
 
@@ -1039,6 +960,38 @@
         }
       }
     },
+    "Color controls" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Color controls"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "色温与色调"
+          }
+        }
+      }
+    },
+    "Show color controls; hiding restores Auto" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show color controls; hiding restores Auto"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示色温与色调；关闭后恢复自动"
+          }
+        }
+      }
+    },
     "Color temperature" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1605,6 +1558,22 @@
         }
       }
     },
+    "Exposure compensation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposure compensation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曝光补偿"
+          }
+        }
+      }
+    },
     "Exposures" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2057,9 +2026,6 @@
         }
       }
     },
-    "HEIF" : {
-
-    },
     "Hide" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2300,15 +2266,23 @@
         }
       }
     },
-    "Live" : {
-
-    },
     "Live Photo" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Live Photo"
+          }
+        }
+      }
+    },
+    "Live Photo is unavailable. Turn off Live Photo or reopen the camera to try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Photo 暂不可用。请关闭 Live Photo，或重新进入相机后再试。"
           }
         }
       }
@@ -2343,34 +2317,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Live Photo 已开启"
-          }
-        }
-      }
-    },
-    "Toggle Live Photo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toggle Live Photo"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "切换 Live Photo 开关"
-          }
-        }
-      }
-    },
-    "Live Photo is unavailable. Turn off Live Photo or reopen the camera to try again." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Live Photo 暂不可用。请关闭 Live Photo，或重新进入相机后再试。"
           }
         }
       }
@@ -2968,6 +2914,22 @@
         }
       }
     },
+    "Photo preview" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo preview"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片预览"
+          }
+        }
+      }
+    },
     "Photo saving" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3159,6 +3121,22 @@
         }
       }
     },
+    "Preview while saving" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview while saving"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看处理中的预览"
+          }
+        }
+      }
+    },
     "Process" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3192,9 +3170,6 @@
           }
         }
       }
-    },
-    "ProRAW" : {
-
     },
     "Punch" : {
       "extractionState" : "stale",
@@ -3247,22 +3222,6 @@
         }
       }
     },
-    "Quality uses native 24 MP processing when supported and Photos access is allowed. Resolution varies with the camera and scene. The complete original is processed before applying your film. Other configurations use Apple ProRAW or HEIF. Live Photo uses its supported resolution. All filters share the same white balance, LUT and curve. Originals are kept for recovery until saving succeeds." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quality uses native 24 MP processing when supported and Photos access is allowed. Resolution varies with the camera and scene. The complete original is processed before applying your film. Other configurations use Apple ProRAW or HEIF. Live Photo uses its supported resolution. All filters share the same white balance, LUT and curve. Originals are kept for recovery until saving succeeds."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高画质模式在设备支持且已允许照片访问时，使用系统原生 24MP 处理。实际像素随镜头和场景变化。完整原片生成后再应用胶片滤镜。其他配置使用 Apple ProRAW 或 HEIF；实况照片使用其支持的像素。所有滤镜共用相同的白平衡、LUT 与曲线。保存成功前保留原片，以便失败恢复。"
-          }
-        }
-      }
-    },
     "Quality prefers Apple ProRAW and saves an sRGB photo. Each film uses its required RAW development. HEIF is used when ProRAW is unavailable. Live uses processed frames. Fujifilm looks are approximate in HEIF, Live and the video preview. Originals are kept for recovery until saving succeeds." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3276,6 +3235,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "画质模式优先拍摄 Apple ProRAW，按胶片所需的输入规范显影并保存为 sRGB 照片。不支持 ProRAW 时使用 HEIF；Live 使用处理后画面。富士在 HEIF、Live 和视频取景中为近似效果。原片保留至保存成功，可用于故障恢复。"
+          }
+        }
+      }
+    },
+    "Quality uses native 24 MP processing when supported and Photos access is allowed. Resolution varies with the camera and scene. The complete original is processed before applying your film. Other configurations use Apple ProRAW or HEIF. Live Photo uses its supported resolution. All filters share the same white balance, LUT and curve. Originals are kept for recovery until saving succeeds." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quality uses native 24 MP processing when supported and Photos access is allowed. Resolution varies with the camera and scene. The complete original is processed before applying your film. Other configurations use Apple ProRAW or HEIF. Live Photo uses its supported resolution. All filters share the same white balance, LUT and curve. Originals are kept for recovery until saving succeeds."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高画质模式在设备支持且已允许照片访问时，使用系统原生 24MP 处理。实际像素随镜头和场景变化。完整原片生成后再应用胶片滤镜。其他配置使用 Apple ProRAW 或 HEIF；实况照片使用其支持的像素。所有滤镜共用相同的白平衡、LUT 与曲线。保存成功前保留原片，以便失败恢复。"
           }
         }
       }
@@ -3429,6 +3405,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重置通道"
+          }
+        }
+      }
+    },
+    "Reset exposure compensation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset exposure compensation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置曝光补偿"
           }
         }
       }
@@ -3607,6 +3599,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "保存成功"
+          }
+        }
+      }
+    },
+    "Saving paused" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving paused"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存已暂停"
           }
         }
       }
@@ -4270,6 +4278,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "切换闪光灯开关"
+          }
+        }
+      }
+    },
+    "Toggle Live Photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toggle Live Photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换 Live Photo 开关"
           }
         }
       }

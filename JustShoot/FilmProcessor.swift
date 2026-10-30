@@ -136,9 +136,8 @@ final class FilmProcessor: Sendable {
     // MARK: - 逐阶段诊断对照图
     //
     // 设置页开启「保留处理阶段对照图」（默认关）后，每次静态成片在
-    // Documents/ProcessingDiagnostics/<拍摄ID>/ 下额外写出四张图：
-    //   1_original（采集原片字节）/ 2_after_lut（LUT+曲线）/ 3_after_optics（肩部+光晕）/ 4_after_grain（最终渲染）
-    // 用于回答"细节在哪一步消失"：同一拍摄的原片与各阶段输出放进同一个查看器对比。
+    // Documents/ProcessingDiagnostics/<拍摄ID>/ 下保留原片、SDR 输入、LUT、光学、颗粒阶段，
+    // 并在可用时附带快门预览帧及相册回读的亮度/色彩统计，用于定位差异首次出现的阶段。
     // 每张 48MP 10-bit HEIC 约 2–4 MB，只保留最近 6 次拍摄，其余自动清理；
     // 失败只记日志、绝不影响出片。
 
@@ -471,6 +470,7 @@ final class FilmProcessor: Sendable {
         optics: FilmOpticsParameters = .disabled,
         chromatic: FilmChromaticResponseParameters = .neutral,
         chromaticSceneCCT: Float? = nil,
+        chromaticGainOverride: SIMD3<Float>? = nil,
         outputQuality: CGFloat? = nil,
         encodingMode: PhotoEncodingPolicy.Mode = .automatic,
         location: CLLocation? = nil,
@@ -505,7 +505,7 @@ final class FilmProcessor: Sendable {
                 decoded = RawFilmRenderer.develop(imageData, recipe: rawRecipe, cancellation: cancellation)
             }
         } else {
-            decoded = CIImage(data: imageData)
+            decoded = FilmImagePipeline.decodePhoto(imageData)
         }
         guard let rawCI = decoded else {
             Log.lut.error("lut_apply_failed reason=ciimage_init_nil bytes=\(imageData.count)")
@@ -520,25 +520,9 @@ final class FilmProcessor: Sendable {
         let isLandscape = inputExtent.width > inputExtent.height
         Log.lut.info("lut_apply_begin key=\(lutCacheKey, privacy: .public) exif=\(exifOrientation) w=\(Int(inputExtent.width)) h=\(Int(inputExtent.height)) landscape=\(isLandscape) chromatic_kk=\(chromaticSceneCCT.map { Int($0) }.map(String.init) ?? "off") strength=\(String(format: "%.2f", chromatic.strength))")
 
-        // 出片保持 sensor 原生 4:3（横）/ 3:4（纵）画幅，与预览 viewport `.aspectRatio(3.0/4.0)`
-        // 完全对齐。sensor 输出已经是 4:3，下面的 crop 在 |差异| ≤ 0.01 时是 no-op；保留这段代码
-        // 是为了万一上游格式选择给出非 4:3 的 active format（罕见）也能兜底裁回标称比例。
-        let targetAspect: CGFloat = isLandscape ? (4.0 / 3.0) : (3.0 / 4.0)
-        let currentAspect = inputExtent.width / inputExtent.height
-
-        if abs(currentAspect - targetAspect) > 0.01 {
-            var cropRect = inputExtent
-            if currentAspect > targetAspect {
-                let newWidth = inputExtent.height * targetAspect
-                let xOffset = (inputExtent.width - newWidth) / 2
-                cropRect = CGRect(x: inputExtent.origin.x + xOffset, y: inputExtent.origin.y, width: newWidth, height: inputExtent.height)
-            } else {
-                let newHeight = inputExtent.width / targetAspect
-                let yOffset = (inputExtent.height - newHeight) / 2
-                cropRect = CGRect(x: inputExtent.origin.x, y: inputExtent.origin.y + yOffset, width: inputExtent.width, height: newHeight)
-            }
-            ciInput = ciInput.cropped(to: cropRect)
-        }
+        // Native device zoom is already present in the photo. Share only the
+        // viewfinder's aspect crop, never its video-proxy zoom compensation.
+        ciInput = ciInput.cropped(to: CameraFraming.photoCrop(in: inputExtent))
 
         guard cancellation?.isCancelled != true else { return nil }
         guard let lut = capturedLUT ?? resolveLUT(cacheKey: lutCacheKey) else {
@@ -547,7 +531,7 @@ final class FilmProcessor: Sendable {
         }
 
         guard let stages = FilmImagePipeline.stages(for: ciInput, lut: rawRecipe?.requiresRawLUT == true ? nil : lut,
-            chromaticGain: chromatic.responseGain(sceneCCT: chromaticSceneCCT),
+            chromaticGain: chromaticGainOverride ?? chromatic.responseGain(sceneCCT: chromaticSceneCCT),
             protectChromaticHighlights: chromatic.protectsHighlights,
             optics: optics, grain: grain, grainSeed: grainSeed,
             cancellation: cancellation) else { return nil }
@@ -627,12 +611,14 @@ final class FilmProcessor: Sendable {
         metadata[kCGImagePropertyPixelHeight as String] = Int(output.extent.height)
         if rawRecipe != nil {
             metadata.removeValue(forKey: kCGImagePropertyDNGDictionary as String)
-            var exif = metadata[kCGImagePropertyExifDictionary as String] as? [String: Any] ?? [:]
-            exif[kCGImagePropertyExifColorSpace as String] = 1
-            exif[kCGImagePropertyExifPixelXDimension as String] = Int(output.extent.width)
-            exif[kCGImagePropertyExifPixelYDimension as String] = Int(output.extent.height)
-            metadata[kCGImagePropertyExifDictionary as String] = exif
         }
+        // Encoded pixels are sRGB for every source, including processed HEIC. Do
+        // not retain an input's P3/uncalibrated EXIF tag beside the output sRGB ICC.
+        var outputExif = metadata[kCGImagePropertyExifDictionary as String] as? [String: Any] ?? [:]
+        outputExif[kCGImagePropertyExifColorSpace as String] = 1
+        outputExif[kCGImagePropertyExifPixelXDimension as String] = Int(output.extent.width)
+        outputExif[kCGImagePropertyExifPixelYDimension as String] = Int(output.extent.height)
+        metadata[kCGImagePropertyExifDictionary as String] = outputExif
         metadata.removeValue(forKey: kCGImagePropertyDepth as String)
         let outputWithMetadata = output.settingProperties(metadata)
 
@@ -670,11 +656,15 @@ final class FilmProcessor: Sendable {
             writeStageDiagnostics(
                 id: diagnosticCaptureID,
                 original: imageData,
-                stages: [("2_after_lut", stages.graded), ("3_after_optics", stages.optical),
+                stages: [("1_input_sdr", ciInput), ("2_after_lut", stages.graded), ("3_after_optics", stages.optical),
                          ("4_after_grain", stages.final)],
                 context: ciContext,
                 cancellation: cancellation
             )
+            CaptureComparisonDiagnostics.writeStages([("input_sdr", ciInput), ("after_lut", stages.graded),
+                ("after_optics", stages.optical), ("after_grain", stages.final)] +
+                (FilmImagePipeline.decodePhoto(rendered).map { [(name: "encoded", image: $0)] } ?? []),
+                context: ciContext, id: diagnosticCaptureID)
         }
 
         guard cancellation?.isCancelled != true else { return nil }

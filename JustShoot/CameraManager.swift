@@ -103,6 +103,9 @@ class CameraManager: NSObject, ObservableObject {
         var buffer: CVPixelBuffer?
         var frameId: UInt64 = 0
         var lastFrameAt: TimeInterval?
+        var focalSequence: UInt64 = 0
+        var sourceRevision: UInt64 = 0
+        var renderedFrame: CameraPreviewFrame?
         var droppedFrames: UInt64 = 0
         var lastDropReason = "none"
         var lastDropLogAt: TimeInterval = 0
@@ -118,6 +121,7 @@ class CameraManager: NSObject, ObservableObject {
     /// 镜头到位 + grace 走完（finishLensSwitch），或 maxWait 兜底超时。新一次 beginLensSwitch 取消旧的。
     private var lensSettleTask: Task<Void, Never>?
     private var lensSettleDeadline: TimeInterval?
+    private var framingSettledAt: TimeInterval?
     private let lensSourceStability = OSAllocatedUnfairLock(initialState: CameraLensCaptureGate.SourceStability())
     private var lastTeleLockAttempt: CameraLensCaptureGate.RequestStamp?
 
@@ -161,6 +165,7 @@ class CameraManager: NSObject, ObservableObject {
         /// 静态图 + 动态视频两个交付物都到齐（或 didFinishCaptureFor 终结兜底）才回调一次。
         let expectsLiveMovie: Bool
         let rawFormat: CameraRAWFormat?
+        var previewSourceRevision: UInt64? = nil
         // —— 两个异步交付物的累积状态（仅 @MainActor 读写）——
         var stillArrived = false
         var stillData: Data?
@@ -186,6 +191,7 @@ class CameraManager: NSObject, ObservableObject {
         let rotationAngle: CGFloat?
         let expectsLiveMovie: Bool
         let rawFormat: CameraRAWFormat?
+        let previewSourceRevision: UInt64?
         let enqueuedAt: TimeInterval
         let deadline: TimeInterval
     }
@@ -201,7 +207,7 @@ class CameraManager: NSObject, ObservableObject {
     /// Keep support and actual session enablement separate. Neither changes the saved user preference.
     @Published private(set) var livePhotoCaptureState = LivePhotoCaptureState(supported: false, enabled: false)
     @Published private(set) var rawCaptureFormat: CameraRAWFormat?
-    @Published private(set) var prefersProcessedPhoto = false
+    @Published private(set) var usesDeferredPhotoDelivery = false
     private var livePhotoCaptureDesired = false
     private var photoDeliveryConfigurationPending = false
     private var photoDeliveryReconciliationPending = false
@@ -398,11 +404,49 @@ class CameraManager: NSObject, ObservableObject {
     // MARK: - 2. 帧状态（线程安全的 pixelBuffer / first frame）
 
     /// 获取最新帧（用于 MTKView 渲染）。`nonisolated` 让 Metal 渲染线程直接读，不绕主 actor。
-    nonisolated func getLatestFrame() -> (CVPixelBuffer, UInt64, TimeInterval)? {
+    nonisolated func getLatestFrame() -> (CVPixelBuffer, UInt64, TimeInterval, UInt64, UInt64)? {
         pixelBufferLock.withLockUnchecked { state in
             guard let buf = state.buffer, let capturedAt = state.lastFrameAt else { return nil }
-            return (buf, state.frameId, capturedAt)
+            return (buf, state.frameId, capturedAt, state.focalSequence, state.sourceRevision)
         }
+    }
+
+    nonisolated func recordPresentedPreview(_ frame: CameraPreviewFrame, at presentedAt: TimeInterval) {
+        guard sessionIntent.withLock({ $0.permitsStart(frame.generation) }) else { return }
+        var presented = frame
+        presented.presentedAt = presentedAt
+        pixelBufferLock.withLockUnchecked {
+            guard $0.renderedFrame.map({ $0.frameID < frame.frameID }) ?? true else { return }
+            $0.renderedFrame = presented
+        }
+    }
+
+    func capturePreview(lutKey: String) -> CameraPreviewFrame? {
+        guard isReadyToCapture, let settledAt = framingSettledAt,
+              (previewMTKView?.alpha ?? 0) >= 0.999 else { return nil }
+        let generation = diagnosticGeneration
+        let sourceRevision = lensSourceStability.withLock { $0.revision }
+        let expectedCrop = previewZoomCrop()
+        let now = ProcessInfo.processInfo.systemUptime
+        return pixelBufferLock.withLockUnchecked {
+            guard let frame = $0.renderedFrame, frame.lutKey == lutKey,
+                  CameraPreviewCapturePolicy.permits(frame: frame, generation: generation,
+                    focalSequence: applyFocalToken, sourceRevision: sourceRevision,
+                    settledAt: settledAt, expectedCrop: expectedCrop, now: now) else { return nil }
+            return frame
+        }
+    }
+
+    /// Acknowledged shutter presses may wait for the requested lens and its first
+    /// visible frame; they never freeze an old view and capture the new focal length.
+    func waitForCapturePreview(lutKey: String, admission: CameraCaptureAdmission.Token) async -> CameraPreviewFrame? {
+        let deadline = ProcessInfo.processInfo.systemUptime + 4
+        while !Task.isCancelled, isCaptureAdmissionValid(admission),
+              !lensCaptureGate.hasFailed, ProcessInfo.processInfo.systemUptime < deadline {
+            if let frame = capturePreview(lutKey: lutKey) { return frame }
+            do { try await Task.sleep(for: .milliseconds(15)) } catch { return nil }
+        }
+        return nil
     }
 
     nonisolated func previewHealth() -> PreviewHealth {
@@ -415,10 +459,14 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     nonisolated func setLatestPixelBuffer(_ buffer: CVPixelBuffer) {
+        let sequence = latestFocalRequest.withLock { $0 }
+        let sourceRevision = lensSourceStability.withLock { $0.revision }
         pixelBufferLock.withLockUnchecked {
             $0.buffer = buffer
             $0.frameId &+= 1
             $0.lastFrameAt = ProcessInfo.processInfo.systemUptime
+            $0.focalSequence = sequence
+            $0.sourceRevision = sourceRevision
         }
     }
 
@@ -457,10 +505,11 @@ class CameraManager: NSObject, ObservableObject {
 
     /// 每次冷配置/恢复 session 都重新等一张新帧，杜绝旧 pixel buffer 让 UI 过早解锁。
     private func beginCameraPreparation(_ state: CameraReadiness = .configuring) {
+        framingSettledAt = nil
         flowDiagnostics.reset(generation: diagnosticGeneration)
         hasReceivedPreviewFrame = false
         firstFrameFlag.withLock { $0 = false }
-        pixelBufferLock.withLockUnchecked { $0.buffer = nil }
+        pixelBufferLock.withLockUnchecked { $0.buffer = nil; $0.renderedFrame = nil }
         setReadiness(state)
     }
 
@@ -518,7 +567,7 @@ class CameraManager: NSObject, ObservableObject {
         updateEntryClock()
     }
 
-    func needsEntryRender(lutKey: String, capturedAt: TimeInterval) -> Bool {
+    func needsPreviewRender(lutKey: String, capturedAt: TimeInterval) -> Bool {
         guard let generation = entryPreparation.generation, isCameraVisible,
               sessionIntent.withLock({ $0.permitsStart(generation) }) else { return false }
         return entryPreparation.needsRender(generation: generation, lutKey: lutKey, capturedAt: capturedAt)
@@ -1052,7 +1101,7 @@ class CameraManager: NSObject, ObservableObject {
                 && device.activeFormat.supportedMaxPhotoDimensions.contains(where: CameraCapturePolicy.requiresDeferredDelivery),
             photosAuthorized: authorized, livePhoto: live)
         guard enabled != photoOutput.isAutoDeferredPhotoDeliveryEnabled else {
-            prefersProcessedPhoto = enabled
+            usesDeferredPhotoDelivery = enabled
             return
         }
         photoDeliveryConfigurationPending = true
@@ -1075,7 +1124,7 @@ class CameraManager: NSObject, ObservableObject {
             Task { @MainActor in
                 guard self.diagnosticGeneration == generation else { return }
                 self.photoDeliveryConfigurationPending = false
-                self.prefersProcessedPhoto = output.isAutoDeferredPhotoDeliveryEnabled
+                self.usesDeferredPhotoDelivery = output.isAutoDeferredPhotoDeliveryEnabled
                 self.updateLivePhotoCaptureState(reason: "photo_delivery_changed")
                 self.prepareForFirstCapture()
                 self.reconcilePhotoDelivery()
@@ -1419,7 +1468,7 @@ class CameraManager: NSObject, ObservableObject {
 
         updateLivePhotoCaptureState(reason: "session_ready")
         updateRAWCaptureState()
-        prefersProcessedPhoto = photoOutput.isAutoDeferredPhotoDeliveryEnabled
+        usesDeferredPhotoDelivery = photoOutput.isAutoDeferredPhotoDeliveryEnabled
         rawFormatsObservation = photoOutput.observe(\.isAppleProRAWEnabled, options: [.new]) { [weak self] _, _ in
             Task { @MainActor in self?.updateRAWCaptureState() }
         }
@@ -1434,6 +1483,7 @@ class CameraManager: NSObject, ObservableObject {
         // applyFocalLength（会多发一次 ramp）。仅同步 MainActor 上的 currentZoomFactor 反映已生效的
         // zoom，让 UI 的焦距条立刻准。
         currentZoomFactor = focalInfo.virtualZoomFactor(for: currentFocalLength)
+        lastObservedDeviceZoom = device.videoZoomFactor
         // 启动期同样登记一次镜头切换：让前 ~250ms 的 startRunning warmup 帧被 isReadyToCapture 挡在外面
         // 排空。zoom 启动即在 target（setInitialFocalLength 已设），到位即起 250ms ZSL grace；600ms 兜底。
         beginLensSwitch(zoom: currentZoomFactor, zslGraceMs: 250, maxWaitMs: 600)
@@ -1783,29 +1833,16 @@ class CameraManager: NSObject, ObservableObject {
         diagnostics.event("photo_dimensions_selected", "supported=[\(supportedText)] selected=\(selectedText) deferred=\(deferred) live=\(live) reason=\(reason)")
     }
 
-    /// 仅对预览/取景路径启用防抖，对齐 iPhone Camera 的"稳定取景"做法。
-    /// photoOutput 不在此设置——静态拍摄走 OIS（硬件常开）+ 多帧融合（Smart HDR / Deep Fusion /
-    /// Photonic Engine），任何在 photo connection 上设置的稳定模式都会与帧对齐冲突，反而劣化出片。
-    /// 优先级：previewOptimized（iOS 17+，专为取景器设计，零快门延迟代价）→ standard → off。
-    /// 100/200mm 长焦端裁切大、抖动放大，这一档对取景手感差异最显著。
-    /// W↔T swap 后 active format 改变，需重新评估并重新设置。
+    /// A preview-only stabilization transform can move/crop the viewfinder without
+    /// applying the same transform to the still. Keep its framing fixed; native
+    /// optical stabilization and photo processing remain owned by the camera.
     nonisolated private func applyPreviewStabilization(output: AVCaptureVideoDataOutput, device: AVCaptureDevice) {
         guard let conn = output.connection(with: .video) else {
             Log.session.info("📷 stabilization_skip reason=no_video_connection device=\(device.localizedName, privacy: .public)")
             return
         }
-        let fmt = device.activeFormat
-        let mode: AVCaptureVideoStabilizationMode
-        let name: String
-        if fmt.isVideoStabilizationModeSupported(.previewOptimized) {
-            mode = .previewOptimized; name = "preview"
-        } else if fmt.isVideoStabilizationModeSupported(.standard) {
-            mode = .standard; name = "std"
-        } else {
-            mode = .off; name = "off"
-        }
-        conn.preferredVideoStabilizationMode = mode
-        Log.session.info("📷 stabilization_applied device=\(device.localizedName, privacy: .public) preferred=\(name, privacy: .public) active=\(conn.activeVideoStabilizationMode.rawValue)")
+        conn.preferredVideoStabilizationMode = .off
+        Log.session.info("preview_stabilization_applied preferred=off active=\(conn.activeVideoStabilizationMode.rawValue)")
     }
 
     /// Keep zoom-driven physical switching without scene-driven fallback at a fixed zoom.
@@ -2170,6 +2207,7 @@ class CameraManager: NSObject, ObservableObject {
         // 为 nil，90° 本就是 portrait 默认，跳过即可。
         if let connection = layer.connection, connection.isVideoRotationAngleSupported(90) {
             connection.videoRotationAngle = 90
+            connection.preferredVideoStabilizationMode = .off
         }
         previewUnderlayLayer = layer
         lastUnderlayOpacity = 0
@@ -2333,6 +2371,7 @@ class CameraManager: NSObject, ObservableObject {
         updateRAWCaptureState()
         guard let targetZoom = lensCaptureGate.targetZoom else { return }
         lensSwitchFailed = failed
+        framingSettledAt = failed ? nil : ProcessInfo.processInfo.systemUptime
         if failed {
             lensCaptureGate.fail()
             cancelUnexposedCapture()
@@ -2352,6 +2391,7 @@ class CameraManager: NSObject, ObservableObject {
     /// - zslGraceMs: zoom 到位后给系统 constituent crossfade 收尾的额外等待。
     /// - maxWaitMs: 兜底放弃时刻，超时终结本次请求并拒绝拍摄；重新选焦距后可重试。
     private func beginLensSwitch(zoom: CGFloat, zslGraceMs: Int, maxWaitMs: Int, hardwarePending: Bool = false) {
+        framingSettledAt = nil
         let stamp = CameraLensCaptureGate.RequestStamp(generation: diagnosticGeneration, focalSequence: applyFocalToken)
         latestFocalRequest.withLock { $0 = stamp.focalSequence }
         lensCaptureGate.begin(zoom: zoom, graceMs: zslGraceMs, hardwarePending: hardwarePending, stamp: stamp)
@@ -2633,6 +2673,7 @@ class CameraManager: NSObject, ObservableObject {
         live: Bool = false,
         raw: Bool = false,
         expectedRAWFormat: CameraRAWFormat? = nil,
+        previewFrame: CameraPreviewFrame? = nil,
         trace: DiagnosticTrace? = nil,
         onWillCapture: (() -> Void)? = nil,
         onExposureComplete: (() -> Void)? = nil,
@@ -2666,6 +2707,17 @@ class CameraManager: NSObject, ObservableObject {
             completion(nil)
             return
         }
+        if let previewFrame {
+            guard previewFrame.generation == admission.sessionGeneration,
+                  previewFrame.focalSequence == admission.focalSequence,
+                  previewFrame.sourceRevision == lensSourceStability.withLock({ $0.revision }) else {
+                cancelCaptureAdmission(admission)
+                captureTrace.event("capture_skip", "reason=preview_source_changed")
+                onShutterReady()
+                completion(nil)
+                return
+            }
+        }
         guard captureAdmission.withLock({ $0.beginPreparation(admission, generation: admission.sessionGeneration) }) else {
             onShutterReady()
             completion(nil)
@@ -2681,7 +2733,8 @@ class CameraManager: NSObject, ObservableObject {
             onWillCapture: onWillCapture,
             onExposureComplete: onExposureComplete,
             expectsLiveMovie: wantsLive,
-            rawFormat: rawFormat
+            rawFormat: rawFormat,
+            previewSourceRevision: previewFrame?.sourceRevision
         )
 
         // 唯一闸门：await 直到 isReadyToCapture（根本可用 + 镜头到位 + ZSL grace）再 issue 给 AVF。
@@ -2847,7 +2900,8 @@ class CameraManager: NSObject, ObservableObject {
         let enqueuedAt = ProcessInfo.processInfo.systemUptime
         let invocation = NativeCaptureInvocation(output: output, settings: settings,
             admission: request.admission, trace: request.trace, rotationAngle: rotationAngle,
-            expectsLiveMovie: wantsLive, rawFormat: request.rawFormat, enqueuedAt: enqueuedAt, deadline: enqueuedAt + 4)
+            expectsLiveMovie: wantsLive, rawFormat: request.rawFormat,
+            previewSourceRevision: request.previewSourceRevision, enqueuedAt: enqueuedAt, deadline: enqueuedAt + 4)
         sessionQueue.async { delegate.invokeCapturePhoto(invocation) }
     }
 
@@ -2889,6 +2943,12 @@ class CameraManager: NSObject, ObservableObject {
         let stamp = CameraLensCaptureGate.RequestStamp(generation: admission.sessionGeneration,
             focalSequence: admission.focalSequence)
         let now = ProcessInfo.processInfo.systemUptime
+        if let revision = invocation.previewSourceRevision,
+           lensSourceStability.withLock({ $0.revision != revision }) {
+            invocation.trace.event("capture_skip", "reason=preview_source_changed")
+            finish()
+            return
+        }
         let sourceWait = lensSourceStability.withLock { $0.remainingGrace(stamp: stamp, at: now) }
         if sourceWait > 0 || invocation.output.captureReadiness != .ready || !exposureApplication.withLock({ $0.isReady }) {
             guard now < invocation.deadline else {
@@ -2911,6 +2971,7 @@ class CameraManager: NSObject, ObservableObject {
         let committed = sessionIntent.withLock { intent in
             intent.permitsStart(admission.sessionGeneration) && lensSourceStability.withLock { source in
                 source.remainingGrace(stamp: stamp, at: ProcessInfo.processInfo.systemUptime) == 0 &&
+                    (invocation.previewSourceRevision == nil || invocation.previewSourceRevision == source.revision) &&
                     captureAdmission.withLock { $0.markIssued(admission, generation: admission.sessionGeneration) }
             }
         }
@@ -3049,7 +3110,7 @@ class CameraManager: NSObject, ObservableObject {
         // reconcileAudioInput 按当时开关重新挂。
         livePhotoAudioDesired = false
         // 清空 buffer（避免 stopRunning 后 MTKView 还显示上次的 frame）
-        pixelBufferLock.withLockUnchecked { $0.buffer = nil }
+        pixelBufferLock.withLockUnchecked { $0.buffer = nil; $0.renderedFrame = nil }
         // 取消 NotificationCenter observer（deinit 因 Swift 6 隔离规则无法访问这些属性）
         if let subjectObserver = subjectAreaObserver {
             NotificationCenter.default.removeObserver(subjectObserver)
@@ -3074,7 +3135,7 @@ class CameraManager: NSObject, ObservableObject {
         lensSwitchFailed = false
         applyFocalToken &+= 1
         sessionConfigured = false
-        prefersProcessedPhoto = false
+        usesDeferredPhotoDelivery = false
         photoDeliveryConfigurationPending = false
         photoDeliveryReconciliationPending = false
         sessionInterrupted = false

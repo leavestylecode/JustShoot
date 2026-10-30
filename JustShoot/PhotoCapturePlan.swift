@@ -35,9 +35,11 @@ struct PhotoCapturePlan: Codable, Equatable, Sendable {
         return rawRecipe.resolvedInputSpace == inputSpace && (version == 1 || rawRecipe.version == 4)
     }
 
-    static func resolve(mode: PhotoCaptureMode, rawFormat: CameraRAWFormat?, prefersProcessedPhoto: Bool = false) -> Self {
-        let format: Format = mode == .livePhoto ? .livePhoto
-            : !prefersProcessedPhoto && rawFormat?.kind == .appleProRAW ? .appleProRAW : .processed
+    static func resolve(mode: PhotoCaptureMode) -> Self {
+        // Camera capability and Photos authorization must not silently change the
+        // image development behind the same look. Keep RAW support for frozen jobs
+        // and explicit diagnostic captures; ordinary new captures use processed SDR.
+        let format: Format = mode == .livePhoto ? .livePhoto : .processed
         // Every new look has one display-referred contract. Version 1 remains
         // decodable solely for jobs already checkpointed by older releases.
         return Self(version: 2, format: format, inputSpace: .displaySRGB, approximateLook: false)
@@ -62,14 +64,14 @@ actor FilmCapturePreparation {
 
     func prepareRendering() throws {
         try Task.checkCancellation()
-        try FilmProcessor.shared.prepareRawRendering()
+        try FilmMaterialRenderer.prepare()
         try Task.checkCancellation()
     }
 
     func displayLUT(source: FilmSource, curve: FilmCurve) throws -> CubeLUT {
         try Task.checkCancellation()
         let lut = try FilmProcessor.shared.loadLUT(source: source, curve: curve)
-        try FilmProcessor.shared.prepareRawRendering()
+        try prepareRendering()
         try Task.checkCancellation()
         return lut
     }

@@ -123,6 +123,7 @@ enum LivePhotoProcessor {
         optics: FilmOpticsParameters = .disabled,
         chromatic: FilmChromaticResponseParameters = .neutral,
         chromaticSceneCCT: Float? = nil,
+        chromaticGainOverride: SIMD3<Float>? = nil,
         grainBaseSeed: UInt32,
         photoDisplayTime: CMTime,
         outputURL: URL,
@@ -288,7 +289,7 @@ enum LivePhotoProcessor {
                 lut: lut,
                 grain: grain,
                 optics: optics,
-                chromaticGain: chromatic.responseGain(sceneCCT: chromaticSceneCCT),
+                chromaticGain: chromaticGainOverride ?? chromatic.responseGain(sceneCCT: chromaticSceneCCT),
                 protectChromaticHighlights: chromatic.protectsHighlights,
                 grainBaseSeed: grainBaseSeed
             )

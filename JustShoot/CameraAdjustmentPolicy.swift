@@ -58,8 +58,25 @@ enum CameraTintSelection: Equatable, Sendable {
     var isAutomatic: Bool { self == .automatic }
 }
 
+/// Hiding the controls also removes both manual corrections from preview and capture.
+struct CameraColorControlsState: Equatable, Sendable {
+    private(set) var isVisible = false
+    var temperature: CameraWhiteBalanceSelection = .automatic
+    var tint: CameraTintSelection = .automatic
+
+    mutating func setVisible(_ visible: Bool) {
+        isVisible = visible
+        if !visible { resetAutomatic() }
+    }
+
+    mutating func resetAutomatic() {
+        temperature = .automatic
+        tint = .automatic
+    }
+}
+
 /// Rounded camera telemetry, not a made-up fallback. Auto can legitimately read outside manual limits.
-struct CameraWhiteBalanceReading: Equatable, Sendable {
+struct CameraWhiteBalanceReading: Codable, Equatable, Sendable {
     let temperature: Float
     let tint: Float
 
@@ -74,7 +91,7 @@ struct CameraWhiteBalanceReading: Equatable, Sendable {
 }
 
 /// Values used by the software correction: desired white point -> camera's current AWB white point.
-struct ResolvedCameraColorAdjustment: Equatable, Sendable {
+struct ResolvedCameraColorAdjustment: Codable, Equatable, Sendable {
     let temperature: Float
     let tint: Float
     let reference: CameraWhiteBalanceReading
@@ -144,7 +161,7 @@ struct CameraColorSliderDrag: Sendable {
 }
 
 enum CameraWhiteBalancePolicy {
-    static let temperatureRange: ClosedRange<Float> = 3_000...8_000
+    static let temperatureRange: ClosedRange<Float> = 2_000...10_000
     static let tintRange: ClosedRange<Float> = -30...30
 
     static func canReadGains(red: Float, green: Float, blue: Float, maximum: Float) -> Bool {

@@ -60,8 +60,8 @@ final class CameraColorControlsTests: XCTestCase {
         let track = try XCTUnwrap(slider.layer.sublayers?.first { $0.name == "color.track" })
         XCTAssertEqual(label.frame.midY, track.frame.midY, accuracy: 0.01)
         XCTAssertLessThan(label.frame.maxX, track.frame.minX)
-        slider.configure(kind: .temperature, value: 9_200, automatic: true, enabled: true, reduceMotion: true)
-        XCTAssertEqual(label.text, "9200 K") // Real auto readings are not clamped to manual limits.
+        slider.configure(kind: .temperature, value: 12_200, automatic: true, enabled: true, reduceMotion: true)
+        XCTAssertEqual(label.text, "12200 K") // Real auto readings are not clamped to manual limits.
     }
 
     func testAccessibilityAdjustmentKeepsManualBoundsAndStep() {
@@ -75,6 +75,16 @@ final class CameraColorControlsTests: XCTestCase {
         XCTAssertEqual(selected, 30)
         slider.accessibilityDecrement()
         XCTAssertEqual(selected, 29)
+        slider.configure(kind: .temperature, value: 2_000, automatic: false, enabled: true, reduceMotion: false)
+        slider.accessibilityDecrement()
+        XCTAssertEqual(selected, 2_000)
+        slider.accessibilityIncrement()
+        XCTAssertEqual(selected, 2_100)
+        slider.configure(kind: .temperature, value: 10_000, automatic: false, enabled: true, reduceMotion: false)
+        slider.accessibilityIncrement()
+        XCTAssertEqual(selected, 10_000)
+        slider.accessibilityDecrement()
+        XCTAssertEqual(selected, 9_900)
     }
 
     func testUnknownReadingHasNoInventedThumbOrInteractiveValue() throws {
@@ -84,15 +94,16 @@ final class CameraColorControlsTests: XCTestCase {
         XCTAssertFalse(slider.isEnabled)
     }
 
-    func testCompactControlsFitAndCaptureVisualPreview() async throws {
+    func testIndependentRowsFitViewfinderEdgesAndCaptureVisualPreview() async throws {
         let scene = try await TestWindowScene.foreground()
         let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(x: 0, y: 0, width: 390, height: 160)
+        window.frame = CGRect(x: 0, y: 0, width: 390, height: 520)
         let controls = WhiteBalanceControl(selection: .automatic, tint: .automatic,
             automaticReading: CameraWhiteBalanceReading(temperature: 5_200, tint: 8),
             onTemperature: { _ in }, onTint: { _ in }, onAutomaticTemperature: {},
             onAutomaticTint: {}, onEditingEnded: {})
-        let host = UIHostingController(rootView: controls.padding(.horizontal, 16)
+        let host = UIHostingController(rootView: controls
+            .ignoresSafeArea()
             .background(Color(white: 0.16)).environment(\.locale, Locale(identifier: "zh-Hans")))
         window.rootViewController = host
         window.isHidden = false
@@ -110,29 +121,37 @@ final class CameraColorControlsTests: XCTestCase {
             XCTAssertLessThanOrEqual(rect.maxX, host.view.bounds.width)
             XCTAssertEqual(rect.height, 44, accuracy: 0.5)
         }
-        let y = try XCTUnwrap(tracks.first).convert(.zero, to: window).y - 10
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: window.bounds.width, height: 64))
-        let image = renderer.image { context in
-            context.cgContext.translateBy(x: 0, y: -y)
+        let tint = try XCTUnwrap(tracks.first { $0.accessibilityIdentifier == "camera.white_balance.tint" })
+        let temperature = try XCTUnwrap(tracks.first { $0.accessibilityIdentifier == "camera.white_balance.temperature" })
+        let tintFrame = tint.convert(tint.bounds, to: host.view)
+        let temperatureFrame = temperature.convert(temperature.bounds, to: host.view)
+        XCTAssertEqual(tintFrame.minY, 10, accuracy: 0.5)
+        XCTAssertEqual(temperatureFrame.maxY, host.view.bounds.height - 10, accuracy: 0.5)
+        XCTAssertEqual(tintFrame.minX, temperatureFrame.minX, accuracy: 0.5)
+        XCTAssertGreaterThan(tintFrame.width, 250)
+        XCTAssertLessThan(tintFrame.maxY, temperatureFrame.minY)
+        let renderer = UIGraphicsImageRenderer(size: window.bounds.size)
+        let image = renderer.image { _ in
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
         let attachment = XCTAttachment(image: image)
-        attachment.name = "Horizontal color controls"
+        attachment.name = "Tint above and temperature below viewfinder"
         attachment.lifetime = .keepAlways
         add(attachment)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("JustShoot-ColorControls-preview.png")
         try image.pngData()?.write(to: url)
 
-        // iPhone SE-sized width: the two controls must remain side by side without overflow.
+        // iPhone SE-sized width: both rows retain full-width tracks without overflow.
         window.frame.size.width = 320
         host.view.frame = window.bounds
         host.view.setNeedsLayout()
         host.view.layoutIfNeeded()
-        let compact = sliders(in: host.view).map { $0.convert($0.bounds, to: host.view) }.sorted { $0.minX < $1.minX }
+        let compact = sliders(in: host.view).map { $0.convert($0.bounds, to: host.view) }.sorted { $0.minY < $1.minY }
         XCTAssertEqual(compact.count, 2)
         XCTAssertGreaterThanOrEqual(compact[0].minX, 0)
-        XCTAssertLessThan(compact[0].maxX, compact[1].minX)
+        XCTAssertLessThan(compact[0].maxY, compact[1].minY)
         XCTAssertLessThanOrEqual(compact[1].maxX, 320)
-        XCTAssertEqual(compact[0].midY, compact[1].midY, accuracy: 0.5)
+        XCTAssertEqual(compact[0].minX, compact[1].minX, accuracy: 0.5)
+        XCTAssertEqual(compact[0].width, compact[1].width, accuracy: 0.5)
     }
 }

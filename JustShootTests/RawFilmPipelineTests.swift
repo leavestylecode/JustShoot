@@ -331,8 +331,7 @@ final class RawFilmPipelineTests: XCTestCase {
 
     func testDisplayRAWJournalNeedsOnlyItsFrozenCubeAndRetainsLegacyRecipes() throws {
         let cube = try FilmProcessor().loadCubeLUT(resourceName: "KodakPortra400")
-        let plan = PhotoCapturePlan.resolve(mode: .quality,
-            rawFormat: CameraRAWFormat(pixelFormat: 1, kind: .appleProRAW))
+        let plan = PhotoCapturePlan(version: 2, format: .appleProRAW, inputSpace: .displaySRGB, approximateLook: false)
         let recipe = CaptureRecipe(id: UUID(), captureDate: Date(), filterName: "portra", displayLabel: nil,
             focalLength: 24, outputQuality: nil, profile: FilmSource.preset(.kodakPortra400).captureRenderProfile,
             grainSeed: 1, location: nil, lutDimension: cube.dimension, chromaticSceneCCT: nil,

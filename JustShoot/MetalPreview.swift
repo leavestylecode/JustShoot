@@ -558,7 +558,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             // UIKit must not suppress this view through the ordinary lens-transition fade.
             view.alpha = manager?.entryPreparation.isRevealed == true ? transitionPlan.metalOpacity : 1
             // 帧去重：如果相机没有产生新帧，跳过渲染（crop 在稳态是常量，重复帧无需重绘）
-            guard let (pixelBuffer, frameId, capturedAt) = manager?.getLatestFrame() else {
+            guard let (pixelBuffer, frameId, capturedAt, focalSequence, sourceRevision) = manager?.getLatestFrame() else {
                 flow?.skipped(.noFrame)
                 return
             }
@@ -702,43 +702,16 @@ struct RealtimePreviewView: UIViewRepresentable {
                 rotation = rotationFromAngle(angle)
             }
 
-            // 计算 aspect-fill 参数
-            let rotatedW: Float
-            let rotatedH: Float
-            if rotation == 1 || rotation == 3 {
-                rotatedW = Float(inH)
-                rotatedH = Float(inW)
-            } else {
-                rotatedW = Float(inW)
-                rotatedH = Float(inH)
-            }
-
-            let scaleX = Float(outW) / rotatedW
-            let scaleY = Float(outH) / rotatedH
-            var scale = max(scaleX, scaleY)
-            var offsetX = (Float(outW) - rotatedW * scale) / 2.0
-            var offsetY = (Float(outH) - rotatedH * scale) / 2.0
-
-            // 扩展数字变焦：预览代理流的取景钳在活跃镜头区间上限（低光长焦 200mm 预览
-            // 与 100mm 相同的真机实锤），超过上限的部分在此居中裁切补足，与成片取景一致。
-            // 分母随镜头切换离散变化、且在帧流断裂处换轨（见 PreviewCropCeilingSynchronizer），
-            // 倍率只随 zoom 单调，无回摆。裁切区是原采样区的居中子集，不越界；shader 采样
-            // 路径零改动。
-            if transitionPlan.crop > 1.0005 {
-                let cx = (Float(outW) / 2 - offsetX) / scale
-                let cy = (Float(outH) / 2 - offsetY) / scale
-                scale *= Float(transitionPlan.crop)
-                offsetX = Float(outW) / 2 - cx * scale
-                offsetY = Float(outH) / 2 - cy * scale
-            }
+            let framing = CameraFraming.previewTransform(input: CGSize(width: inW, height: inH),
+                rotation: rotation, output: CGSize(width: outW, height: outH), zoom: transitionPlan.crop)
 
             // 色温响应增益每帧取一次：内部低通平滑消化 WB 读数的量化台阶。
             let chromaticGain = chromaticGainForFrame()
 
             var params = PreviewParams(
-                scale: scale,
-                offsetX: offsetX,
-                offsetY: offsetY,
+                scale: Float(framing.scale),
+                offsetX: Float(framing.offset.x),
+                offsetY: Float(framing.offset.y),
                 inputWidth: UInt32(inW),
                 inputHeight: UInt32(inH),
                 rotation: rotation,
@@ -837,7 +810,17 @@ struct RealtimePreviewView: UIViewRepresentable {
 
             let firstSubmission = !firstPresentationRegistered
             let submittedAt = ProcessInfo.processInfo.systemUptime
+            let completionGate = self.completionGate
+            let manager = self.manager
+            // Each changed look requires its own presentation confirmation. Native
+            // configuration warmup must still precede the first accepted frame.
+            let readiness = manager?.needsPreviewRender(lutKey: lutCacheKey, capturedAt: capturedAt) == true
+                ? completionGate.ticket(generation: generation, lutKey: lutCacheKey) : nil
             let flowStamp = flow?.submitted(at: submittedAt, capturedAt: capturedAt)
+            let renderedFrame = CameraPreviewFrame(buffer: pixelBuffer, generation: generation,
+                frameID: frameId, capturedAt: capturedAt, lutKey: lutCacheKey, rotation: rotation,
+                crop: transitionPlan.crop, outputSize: CGSize(width: outW, height: outH), grainSeed: params.grainSeed,
+                chromaticGain: chromaticGain, focalSequence: focalSequence, sourceRevision: sourceRevision)
             if firstSubmission {
                 firstPresentationRegistered = true
                 trace?.event("preview_first_submitted", "generation=\(generation) output=\(outW)x\(outH)")
@@ -846,12 +829,20 @@ struct RealtimePreviewView: UIViewRepresentable {
                 #endif
             }
             #if !targetEnvironment(simulator)
-            if Diagnostics.enabled {
-                drawable.addPresentedHandler { drawable in
-                    if let flowStamp { flow?.presented(flowStamp, at: drawable.presentedTime, submittedAt: submittedAt) }
-                    if firstSubmission {
-                        trace?.event(drawable.presentedTime > 0 ? "preview_first_presented" : "preview_presentation_unconfirmed",
-                            "generation=\(generation) submit_to_present_ms=\(Diagnostics.milliseconds(since: submittedAt))")
+            drawable.addPresentedHandler { drawable in
+                if drawable.presentedTime > 0 {
+                    manager?.recordPresentedPreview(renderedFrame, at: drawable.presentedTime)
+                }
+                if let flowStamp { flow?.presented(flowStamp, at: drawable.presentedTime, submittedAt: submittedAt) }
+                if firstSubmission {
+                    trace?.event(drawable.presentedTime > 0 ? "preview_first_presented" : "preview_presentation_unconfirmed",
+                        "generation=\(generation) submit_to_present_ms=\(Diagnostics.milliseconds(since: submittedAt))")
+                }
+                if drawable.presentedTime > 0, let readiness, completionGate.complete(readiness) {
+                    Task { @MainActor in
+                        guard completionGate.isCurrent(readiness) else { return }
+                        manager?.previewDidRender(generation: readiness.generation,
+                            lutKey: readiness.lutKey, capturedAt: capturedAt)
                     }
                 }
             }
@@ -859,11 +850,6 @@ struct RealtimePreviewView: UIViewRepresentable {
             let semaphore = self.inflightSemaphore
             let targetPool = self.targetPool
             let gpuStatistics = self.gpuStatistics
-            let completionGate = self.completionGate
-            // Initial frames can precede native configuration warmup. Only a frame
-            // captured after that work can consume the entry's one-shot GPU ticket.
-            let readiness = manager?.needsEntryRender(lutKey: lutCacheKey, capturedAt: capturedAt) == true
-                ? completionGate.ticket(generation: generation, lutKey: lutCacheKey) : nil
             let frameLease = PreviewFrameLease(texture: cvTex, buffer: pixelBuffer)
             commandBuffer.addCompletedHandler { [weak self] buffer in
                 let completedAt = ProcessInfo.processInfo.systemUptime
@@ -883,7 +869,16 @@ struct RealtimePreviewView: UIViewRepresentable {
                 semaphore.signal()
                 if let flowStamp { flow?.recycled(flowStamp, waitMS: (ProcessInfo.processInfo.systemUptime - completedAt) * 1_000) }
                 let succeeded = buffer.status == .completed
-                if let readiness, completionGate.complete(readiness) {
+                // Simulator drawables do not reliably report presentation. On a
+                // device only presentation unlocks capture; GPU failure still ends
+                // preparation with the existing retry UI.
+                #if targetEnvironment(simulator)
+                if succeeded { manager?.recordPresentedPreview(renderedFrame, at: completedAt) }
+                let notifyCompletion = true
+                #else
+                let notifyCompletion = !succeeded
+                #endif
+                if notifyCompletion, let readiness, completionGate.complete(readiness) {
                     Task { @MainActor [weak self] in
                         guard let self, completionGate.isCurrent(readiness),
                               self.lutCacheKey == readiness.lutKey else { return }

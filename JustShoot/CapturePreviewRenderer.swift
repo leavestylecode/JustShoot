@@ -1,5 +1,4 @@
 import CoreImage
-import ImageIO
 import UIKit
 
 struct CapturePreview: Identifiable, Sendable {
@@ -20,28 +19,22 @@ enum CapturePreviewRenderer {
         .priorityRequestLow: true
     ])
 
-    static func image(data: Data, lut: CubeLUT, recipe: CaptureRecipe? = nil) async -> UIImage? {
+    static func image(frame: CameraPreviewFrame, lut: CubeLUT, recipe: CaptureRecipe? = nil) async -> UIImage? {
         await work.run {
-            guard let source = CGImageSourceCreateWithData(data as CFData,
-                [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
-            // RAW previews use the embedded processed thumbnail. Never start a full
-            // RAW development just to update a 46pt camera badge.
-            let options: [CFString: Any] = [
-                kCGImageSourceCreateThumbnailFromImageAlways: !RawFilmRenderer.isDNG(source),
-                kCGImageSourceThumbnailMaxPixelSize: maximumPixel,
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceShouldCacheImmediately: true
-            ]
-            guard let small = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+            let input = frame.inputImage(maximumPixel: CGFloat(maximumPixel))
             let profile = recipe?.profile
             let chromatic = profile?.effectiveChromatic ?? .neutral
-            guard let stages = FilmImagePipeline.stages(for: CIImage(cgImage: small), lut: lut,
-                chromaticGain: chromatic.responseGain(sceneCCT: recipe?.chromaticSceneCCT),
+            guard let stages = FilmImagePipeline.stages(for: input, lut: lut,
+                chromaticGain: frame.chromaticGain,
                 protectChromaticHighlights: chromatic.protectsHighlights,
                 optics: profile?.optics ?? .disabled, grain: profile?.grain ?? .disabled,
-                grainSeed: recipe?.grainSeed ?? 0),
+                grainSeed: frame.grainSeed),
                   let pixels = context.createCGImage(stages.final, from: stages.final.extent,
                     format: .RGBA8, colorSpace: FilmImagePipeline.colorSpace) else { return nil }
+            if let recipe, FilmProcessor.stageDiagnosticsEnabled {
+                CaptureComparisonDiagnostics.writePreview(frame: frame, input: input,
+                    output: stages.final, recipe: recipe, context: context)
+            }
             return UIImage(cgImage: pixels)
         }
     }

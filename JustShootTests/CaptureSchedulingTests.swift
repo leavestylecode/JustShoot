@@ -86,6 +86,6 @@ final class CaptureSchedulingTests: XCTestCase {
         CaptureRecipe(id: UUID(), captureDate: date, filterName: "scheduling", displayLabel: nil,
             focalLength: 24, outputQuality: nil, profile: FilmPreset.fujiC200.renderProfile,
             grainSeed: 1, location: nil, lutDimension: lut.dimension, chromaticSceneCCT: nil, photoDisplayTime: nil,
-            plan: .resolve(mode: .quality, rawFormat: nil, prefersProcessedPhoto: true))
+            plan: .resolve(mode: .quality))
     }
 }

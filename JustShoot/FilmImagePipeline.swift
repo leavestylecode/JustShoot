@@ -1,9 +1,23 @@
 import CoreImage
+import CoreImage.CIFilterBuiltins
 
 /// Stills and Live Photo frames build the same lazy Core Image graph.
 /// The preview uses the same LUT bytes, parameters and shared Metal math.
 enum FilmImagePipeline {
     static let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+
+    /// Display LUTs consume SDR. An HDR-tagged input needs tone mapping before
+    /// cube sampling; an auxiliary gain map must not silently expand it again.
+    static func decodePhoto(_ data: Data, applyOrientation: Bool = false) -> CIImage? {
+        guard let image = CIImage(data: data, options: [.expandToHDR: false, .toneMapHDRtoSDR: false,
+            .applyOrientationProperty: applyOrientation]) else { return nil }
+        guard image.contentHeadroom > 1 else { return image }
+        let toneMap = CIFilter.toneMapHeadroom()
+        toneMap.inputImage = image
+        toneMap.sourceHeadroom = image.contentHeadroom
+        toneMap.targetHeadroom = 1
+        return toneMap.outputImage
+    }
 
     struct Stages {
         let graded: CIImage

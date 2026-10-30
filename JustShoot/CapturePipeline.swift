@@ -104,6 +104,7 @@ final class CapturePipeline: ObservableObject {
 
     func cancelReservation(_ id: UUID) {
         queueState.cancelReservation(id)
+        if !isProcessing(id), !pendingJobIDs.contains(id) { clearPreview(id) }
         updateCounts()
     }
 
@@ -130,7 +131,6 @@ final class CapturePipeline: ObservableObject {
         defer { activity.end() }
         do {
             try await worker.checkpointStill(still, recipe: recipe, lut: lut, rawLUT: rawLUT)
-            preparePreview(still.imageData, recipe: recipe, lut: lut)
         } catch {
             // Keep the reservation and native bytes. Final delivery retries staging the complete
             // capture, and a staging directory with a committed manifest remains recoverable.
@@ -138,17 +138,17 @@ final class CapturePipeline: ObservableObject {
         }
     }
 
-    private func preparePreview(_ data: Data, recipe: CaptureRecipe, lut: CubeLUT) {
+    func preparePreview(_ frame: CameraPreviewFrame, recipe: CaptureRecipe, lut: CubeLUT) {
         previewTask?.cancel()
         previewCaptureID = recipe.id
         previewTask = Task(priority: .utility) { [weak self] in
             let trace = DiagnosticTrace(id: recipe.id.uuidString)
             let preview = trace.span("capture_quick_preview")
-            let image = await CapturePreviewRenderer.image(data: data, lut: lut, recipe: recipe)
+            let image = await CapturePreviewRenderer.image(frame: frame, lut: lut, recipe: recipe)
             preview.end(Task.isCancelled ? "cancelled" : image == nil ? "missing" : "ok")
             guard !Task.isCancelled, let self, self.previewCaptureID == recipe.id else { return }
             self.previewTask = nil
-            guard self.pendingJobIDs.contains(recipe.id), let image else { return }
+            guard self.isProcessing(recipe.id) || self.pendingJobIDs.contains(recipe.id), let image else { return }
             self.lastPreview = CapturePreview(id: recipe.id, filterName: recipe.filterName, image: image)
         }
     }
@@ -599,6 +599,7 @@ private actor CaptureWorker {
                         capturedLUT: lut, grain: recipe.profile.grain, optics: recipe.profile.optics,
                         chromatic: recipe.profile.effectiveChromatic,
                         chromaticSceneCCT: recipe.chromaticSceneCCT,
+                        chromaticGainOverride: recipe.frozenChromaticGain,
                         grainBaseSeed: recipe.grainSeed, photoDisplayTime: displayTime,
                         outputURL: journal.file("rendered.mov", for: job.id), trace: trace)
                     video.end()
@@ -689,6 +690,10 @@ private actor CaptureWorker {
         let thumbnailLoad = trace.span("capture_thumbnail")
         let thumbnail = await ImageLoader.shared.loadThumbnail(imageData: image, photoId: photoID, maxPixel: 88)
         thumbnailLoad.end(thumbnail == nil ? "missing" : "ok")
+        if FilmProcessor.stageDiagnosticsEnabled, let assetID = job.assetIdentifier,
+           let libraryData = await AssetImageLoader.shared.imageData(id: assetID, timeout: 4) {
+            await CaptureComparisonDiagnostics.recordLibraryImage(libraryData, id: job.id)
+        }
         timer.end("id=\(job.id) live=\(job.hasRenderedMovie)")
         return CaptureCompletion(id: photoID, captureID: job.id, filterName: recipe.filterName, thumbnail: thumbnail, captureDate: recipe.captureDate)
     }

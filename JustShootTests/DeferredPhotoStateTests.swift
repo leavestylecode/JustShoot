@@ -55,7 +55,7 @@ final class DeferredPhotoStateTests: XCTestCase {
         let recipe = CaptureRecipe(id: UUID(), captureDate: Date(), filterName: "test", displayLabel: nil,
             focalLength: 24, outputQuality: nil, profile: FilmPreset.fujiC200.renderProfile,
             grainSeed: 1, location: nil, lutDimension: lut.dimension, chromaticSceneCCT: nil, photoDisplayTime: nil,
-            plan: .resolve(mode: .quality, rawFormat: nil, prefersProcessedPhoto: true))
+            plan: .resolve(mode: .quality))
         return (CaptureJournal(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)), recipe, lut)
     }
 

@@ -55,6 +55,11 @@ struct CaptureRecipe: Codable, Sendable {
     var plan: PhotoCapturePlan? = nil
     /// Absent on legacy jobs. If present, recovery requires the frozen material payload.
     var materialSHA256: String? = nil
+    /// The exact software correction/reference baked into the frozen cube, never a
+    /// second WB operation during rendering. Missing on jobs from older releases.
+    var colorAdjustment: ResolvedCameraColorAdjustment? = nil
+    /// Freeze the renderer's smoothed gain, rather than recomputing from a later AWB reading.
+    var frozenChromaticGain: SIMD3<Float>? = nil
 
     var requiresRawLUT: Bool { raw?.requiresRawLUT == true }
 
@@ -62,7 +67,8 @@ struct CaptureRecipe: Codable, Sendable {
         Self(id: id, captureDate: captureDate, filterName: filterName, displayLabel: displayLabel,
             focalLength: focalLength, outputQuality: outputQuality, profile: profile, grainSeed: grainSeed,
             location: location, lutDimension: lutDimension, chromaticSceneCCT: chromaticSceneCCT,
-            photoDisplayTime: time, raw: raw, plan: plan, materialSHA256: materialSHA256)
+            photoDisplayTime: time, raw: raw, plan: plan, materialSHA256: materialSHA256,
+            colorAdjustment: colorAdjustment, frozenChromaticGain: frozenChromaticGain)
     }
 }
 

@@ -11,10 +11,12 @@ struct CameraLensCaptureGate: Sendable {
     /// where the hardware queue could otherwise invoke a capture before that task runs.
     struct SourceStability: Sendable {
         private(set) var observationEpoch: UInt64 = 0
+        private(set) var revision: UInt64 = 0
         private var change: (stamp: RequestStamp, at: Double)?
 
         mutating func invalidateObservations() -> UInt64 {
             observationEpoch &+= 1
+            revision &+= 1
             change = nil
             return observationEpoch
         }
@@ -27,6 +29,7 @@ struct CameraLensCaptureGate: Sendable {
                    stamp.focalSequence < change.stamp.focalSequence { return false }
             }
             change = (stamp, now)
+            revision &+= 1
             return true
         }
 

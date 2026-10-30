@@ -124,6 +124,44 @@ final class CameraEntryPreparationTests: XCTestCase {
         XCTAssertFalse(entry.coversContent)
     }
 
+    func testChangedLookMustRenderBeforeCaptureWithoutCoveringTheViewfinder() {
+        var entry = preparing()
+        finishSessionWork(&entry)
+        entry.rendered(generation: 1, lutKey: "film", capturedAt: 11)
+        XCTAssertTrue(entry.isCurrentLookRendered)
+        entry.updateLUT(expectedKey: "warm-film", preparedKey: "film")
+        XCTAssertFalse(entry.isCurrentLookRendered)
+        XCTAssertFalse(entry.coversContent)
+        entry.updateLUT(expectedKey: "warm-film", preparedKey: "warm-film")
+        XCTAssertFalse(entry.isCurrentLookRendered, "Uploaded resources are not a displayed frame")
+        entry.rendered(generation: 0, lutKey: "warm-film", capturedAt: 12)
+        entry.rendered(generation: 1, lutKey: "film", capturedAt: 12)
+        XCTAssertFalse(entry.isCurrentLookRendered)
+        entry.rendered(generation: 1, lutKey: "warm-film", capturedAt: 12)
+        XCTAssertTrue(entry.isCurrentLookRendered)
+        XCTAssertFalse(entry.needsRender(generation: 1, lutKey: "warm-film", capturedAt: 13))
+    }
+
+    func testCancellingAnUnrenderedSelectionRetainsTheDisplayedLook() {
+        var entry = preparing()
+        finishSessionWork(&entry)
+        entry.rendered(generation: 1, lutKey: "film", capturedAt: 11)
+        entry.updateLUT(expectedKey: "pending", preparedKey: "film")
+        entry.updateLUT(expectedKey: "film", preparedKey: "film")
+        XCTAssertTrue(entry.isCurrentLookRendered)
+    }
+
+    func testGPUFailureAfterEntryOffersRecoveryInsteadOfLeavingCaptureWaiting() {
+        var entry = preparing()
+        finishSessionWork(&entry)
+        entry.rendered(generation: 1, lutKey: "film", capturedAt: 11)
+        entry.updateLUT(expectedKey: "new-film", preparedKey: "new-film")
+        entry.fail(.previewUnavailable, generation: 1)
+        XCTAssertEqual(entry.failure, .previewUnavailable)
+        XCTAssertFalse(entry.isCurrentLookRendered)
+        XCTAssertTrue(entry.coversContent)
+    }
+
     func testResumeRequiresFreshGenerationWorkAndRejectsLateBackgroundCompletion() {
         var entry = preparing()
         finishSessionWork(&entry)

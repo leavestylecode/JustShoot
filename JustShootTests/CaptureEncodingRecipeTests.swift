@@ -31,6 +31,23 @@ final class CaptureEncodingRecipeTests: XCTestCase {
         }
     }
 
+    func testWhiteBalanceReferenceSurvivesRestartAndLateMovieTiming() throws {
+        var frozen = recipe(quality: nil)
+        frozen.colorAdjustment = ResolvedCameraColorAdjustment.resolve(temperature: .temperature(5_000),
+            tint: .value(8), reading: CameraWhiteBalanceReading(temperature: 3_200, tint: -3))
+        frozen.frozenChromaticGain = SIMD3(1.1, 1, 0.85)
+        let restored = try JSONDecoder().decode(CaptureRecipe.self, from: JSONEncoder().encode(frozen))
+        XCTAssertEqual(restored.colorAdjustment, frozen.colorAdjustment)
+        XCTAssertEqual(restored.withPhotoDisplayTime(0.5).colorAdjustment, frozen.colorAdjustment)
+        XCTAssertEqual(restored.frozenChromaticGain, frozen.frozenChromaticGain)
+        XCTAssertEqual(restored.withPhotoDisplayTime(0.5).frozenChromaticGain, frozen.frozenChromaticGain)
+        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(frozen)) as? [String: Any])
+        legacy.removeValue(forKey: "colorAdjustment")
+        legacy.removeValue(forKey: "frozenChromaticGain")
+        XCTAssertNil(try JSONDecoder().decode(CaptureRecipe.self,
+            from: JSONSerialization.data(withJSONObject: legacy)).colorAdjustment)
+    }
+
     func testPortraitGrainResponseSurvivesCheckpointRecoveryAndLateTiming() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

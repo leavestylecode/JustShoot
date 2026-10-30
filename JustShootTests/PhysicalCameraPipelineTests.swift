@@ -1,5 +1,6 @@
 import XCTest
 import SwiftData
+import SwiftUI
 import CoreImage
 import ImageIO
 import AVFoundation
@@ -8,6 +9,8 @@ import AVFoundation
 
 /// Explicitly opt in on a connected, unlocked phone. This takes real photographs
 /// and keeps the resulting sRGB assets in Photos; ordinary test runs never capture.
+/// For framing acceptance, mount the phone in portrait and use a stationary,
+/// textured subject. Paired viewfinder/Photos attachments cover every focal option.
 final class PhysicalCameraPipelineTests: XCTestCase {
     @MainActor
     func testRealCaptureThroughDurablePipelineAndPhotos() async throws {
@@ -28,8 +31,21 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         let camera = CameraManager()
         defer { camera.stopSession() }
         let preview = try await FilmCapturePreparation.shared.displayLUT(source: .preset(.fujiProvia100F), curve: .builtIn(.none))
-        let context = CIContext(options: [.workingColorSpace: FilmImagePipeline.colorSpace, .cacheIntermediates: false])
-        let previewKey = "physical-validation"
+        let renderContext = CIContext(options: [.workingColorSpace: FilmImagePipeline.colorSpace, .cacheIntermediates: false])
+        try await PreviewMetalResources.warmUpForRenderer()
+        let previewKey = "physical-validation-entry"
+        let initialTexture = try await PreviewLUTTextureCache.shared.prepare(key: previewKey, lut: preview)
+        let scene = try await TestWindowScene.foreground()
+        let previousWindow = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        let host = UIHostingController(rootView: ValidationViewfinder(camera: camera, key: previewKey,
+            texture: initialTexture, profile: FilmSource.preset(.fujiProvia100F).captureRenderProfile))
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer {
+            window.isHidden = true
+            previousWindow?.makeKey()
+        }
         camera.setEntrySceneActive(true)
         camera.updateEntryPipelineReady(pipeline.isPrepared)
         camera.updateEntryLUT(expectedKey: previewKey, preparedKey: previewKey)
@@ -37,13 +53,6 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         camera.requestCameraPermission()
         let entryDeadline = Date().addingTimeInterval(45)
         while !camera.entryPreparation.isRevealed && Date() < entryDeadline {
-            if let (buffer, _, capturedAt) = camera.getLatestFrame(),
-               camera.needsEntryRender(lutKey: previewKey, capturedAt: capturedAt) {
-                let image = CIImage(cvPixelBuffer: buffer).cropped(to: CGRect(x: 0, y: 0, width: 64, height: 64))
-                let graded = try XCTUnwrap(FilmImagePipeline.LUTFilter(lut: preview)?.applying(to: image))
-                _ = try XCTUnwrap(context.createCGImage(graded, from: graded.extent))
-                camera.previewDidRender(generation: camera.diagnosticGeneration, lutKey: previewKey, capturedAt: capturedAt)
-            }
             try await Task.sleep(for: .milliseconds(100))
         }
         XCTAssertTrue(camera.entryPreparation.isRevealed,
@@ -61,18 +70,28 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         container.mainContext.insert(custom)
         try container.mainContext.save()
         let customSource = FilmSource.from(custom)
-        let captures: [(FilmSource, PhotoCaptureMode)] = [(.preset(.fujiProvia100F), .quality),
-            (.preset(.kodakPortra400), .quality), (customSource, .quality), (customSource, .livePhoto)]
-        for (source, mode) in captures {
+        let initialFocal = camera.currentFocalLength
+        let captures: [(FocalLengthOption, FilmSource, PhotoCaptureMode)] = camera.focalInfo.options.map {
+            ($0, .preset(.fujiProvia100F), .quality)
+        } + [(initialFocal, .preset(.kodakPortra400), .quality),
+            (initialFocal, customSource, .quality), (initialFocal, customSource, .livePhoto)]
+        for (focal, source, mode) in captures {
+            camera.setFocalLength(focal, animated: false)
+            let reading = camera.automaticWhiteBalanceReading ?? .neutral
             let cube = try await ColorTemperatureLUT.shared.prepare(source: source, curve: .builtIn(.none),
-                selection: .temperature(5_100), tint: .value(8), reference: camera.automaticWhiteBalanceReading ?? .neutral)
+                selection: .temperature(5_100), tint: .value(8), reference: reading)
+            let key = "physical-validation-\(UUID().uuidString)"
+            let texture = try await PreviewLUTTextureCache.shared.prepare(key: key, lut: cube)
+            camera.updateEntryLUT(expectedKey: key, preparedKey: key)
+            host.rootView = ValidationViewfinder(camera: camera, key: key, texture: texture,
+                profile: source.captureRenderProfile)
             camera.setLivePhotoAudio(live: mode == .livePhoto, sound: false)
             let modeDeadline = Date().addingTimeInterval(10)
             while !camera.isReadyToCapture && Date() < modeDeadline {
                 try await Task.sleep(for: .milliseconds(100))
             }
-            let native24MP = camera.prefersProcessedPhoto
-            let plan = PhotoCapturePlan.resolve(mode: mode, rawFormat: format, prefersProcessedPhoto: native24MP)
+            let native24MP = camera.usesDeferredPhotoDelivery
+            let plan = PhotoCapturePlan.resolve(mode: mode)
             if plan.capturesLivePhoto {
                 try await Task.sleep(for: .milliseconds(500))
                 XCTAssertTrue(camera.livePhotoCaptureState.canCapture)
@@ -81,29 +100,34 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             let rawRecipe = plan.capturesRAW ? RawCaptureRecipe(unifiedLUT: cube) : nil
             XCTAssertEqual(plan.version, 2)
             XCTAssertEqual(plan.inputSpace, .displaySRGB)
-            if let (buffer, _, _) = camera.getLatestFrame() {
-                let graded = try XCTUnwrap(FilmImagePipeline.stages(for: CIImage(cvPixelBuffer: buffer), lut: cube,
-                    chromaticGain: .one, optics: source.captureRenderProfile.optics,
-                    grain: source.captureRenderProfile.grain, grainSeed: 1))
-                let scale = 512 / max(graded.final.extent.width, graded.final.extent.height)
-                let png = try XCTUnwrap(context.pngRepresentation(of: graded.final.transformed(by: CGAffineTransform(scaleX: scale, y: scale)),
-                    format: .RGBA8, colorSpace: FilmImagePipeline.colorSpace))
-                let attachment = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")
-                attachment.name = "viewfinder-\(source.photoFilterName)-\(plan.format.rawValue)"
-                attachment.lifetime = .keepAlways
-                add(attachment)
+            let renderDeadline = Date().addingTimeInterval(15)
+            while (!camera.entryPreparation.isCurrentLookRendered || camera.capturePreview(lutKey: key) == nil),
+                  Date() < renderDeadline {
+                try await Task.sleep(for: .milliseconds(50))
             }
+            XCTAssertTrue(camera.entryPreparation.isCurrentLookRendered, "The real Metal view must present the selected look")
             let admission = try XCTUnwrap(camera.beginCaptureAdmission())
+            let presentedFrame = await camera.waitForCapturePreview(lutKey: key, admission: admission)
+            let previewFrame = try XCTUnwrap(presentedFrame)
             let reservation = await pipeline.reserve(lutBytes: cube.data.count + (rawLUT?.data.count ?? 0))
             let id = try XCTUnwrap(reservation)
             let recipe = CaptureRecipe(id: id, captureDate: Date(), filterName: source.photoFilterName,
                 displayLabel: nil, focalLength: admission.focalLength, outputQuality: nil, profile: source.captureRenderProfile,
-                grainSeed: 1, location: nil, lutDimension: cube.dimension, chromaticSceneCCT: nil,
-                photoDisplayTime: nil, raw: rawRecipe, plan: plan)
+                grainSeed: previewFrame.grainSeed, location: nil, lutDimension: cube.dimension, chromaticSceneCCT: nil,
+                photoDisplayTime: nil, raw: rawRecipe, plan: plan,
+                colorAdjustment: ResolvedCameraColorAdjustment.resolve(temperature: .temperature(5_100),
+                    tint: .value(8), reading: reading), frozenChromaticGain: previewFrame.chromaticGain)
+            let previewImage = await CapturePreviewRenderer.image(frame: previewFrame, lut: cube, recipe: recipe)
+            let renderedPreview = try XCTUnwrap(previewImage)
+            let previewAttachment = XCTAttachment(image: renderedPreview)
+            previewAttachment.name = "viewfinder-\(focal.rawValue)mm-\(source.photoFilterName)-\(plan.format.rawValue)"
+            previewAttachment.lifetime = .keepAlways
+            add(previewAttachment)
+            pipeline.preparePreview(previewFrame, recipe: recipe, lut: cube)
             let start = ProcessInfo.processInfo.systemUptime
             let result: CaptureResult? = await withCheckedContinuation { continuation in
                 camera.capturePhoto(admission: admission, live: plan.capturesLivePhoto, raw: plan.capturesRAW,
-                    expectedRAWFormat: plan.capturesRAW ? format : nil, onStillCaptured: { still in
+                    expectedRAWFormat: plan.capturesRAW ? format : nil, previewFrame: previewFrame, onStillCaptured: { still in
                     await pipeline.checkpointStill(still, recipe: recipe, lut: cube, rawLUT: rawLUT)
                 }) { continuation.resume(returning: $0) }
             }
@@ -155,10 +179,18 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             XCTAssertNil(outputProps[kCGImagePropertyDNGDictionary as String])
             XCTAssertTrue(try journal.jobs().isEmpty)
             let attachment = XCTAttachment(data: output, uniformTypeIdentifier: CGImageSourceGetType(outputSource)! as String)
-            attachment.name = "\(source.photoFilterName)-\(plan.format.rawValue)-sRGB"
+            attachment.name = "\(focal.rawValue)mm-\(source.photoFilterName)-\(plan.format.rawValue)-sRGB"
             attachment.lifetime = .keepAlways
             add(attachment)
-            print("physical_capture_validated model=\(model ?? "unknown") os=\(UIDevice.current.systemVersion) film=\(source.photoFilterName) format=\(plan.format.rawValue) input=\(plan.inputSpace.rawValue) raw_bytes=\(captured.imageData.count) output_bytes=\(output.count) size=\(asset.pixelWidth)x\(asset.pixelHeight) delivery_ms=\(Int(deliveryMs)) total_ms=\(Int((ProcessInfo.processInfo.systemUptime - start) * 1_000))")
+            let libraryImage = try XCTUnwrap(FilmImagePipeline.decodePhoto(output, applyOrientation: true))
+            let comparison = ["preview": CaptureComparisonDiagnostics.statistics(
+                CIImage(cgImage: try XCTUnwrap(renderedPreview.cgImage)), context: renderContext),
+                "library": CaptureComparisonDiagnostics.statistics(libraryImage, context: renderContext)]
+            let metrics = XCTAttachment(data: try JSONEncoder().encode(comparison), uniformTypeIdentifier: "public.json")
+            metrics.name = "paired-brightness-color-\(focal.rawValue)mm-\(source.photoFilterName)-\(plan.format.rawValue)"
+            metrics.lifetime = .keepAlways
+            add(metrics)
+            print("physical_capture_validated model=\(model ?? "unknown") os=\(UIDevice.current.systemVersion) focal_mm=\(focal.rawValue) preview_crop=\(previewFrame.crop) frame_id=\(previewFrame.frameID) source_revision=\(previewFrame.sourceRevision) film=\(source.photoFilterName) format=\(plan.format.rawValue) input=\(plan.inputSpace.rawValue) raw_bytes=\(captured.imageData.count) output_bytes=\(output.count) size=\(asset.pixelWidth)x\(asset.pixelHeight) delivery_ms=\(Int(deliveryMs)) total_ms=\(Int((ProcessInfo.processInfo.systemUptime - start) * 1_000))")
         }
         #endif
     }
@@ -189,7 +221,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                         profile: FilmSource.preset(preset).captureRenderProfile, grainSeed: 1,
                         location: nil, lutDimension: cube.dimension, chromaticSceneCCT: nil,
                         photoDisplayTime: nil, raw: recipe,
-                        plan: .resolve(mode: .quality, rawFormat: CameraRAWFormat(pixelFormat: 1, kind: .appleProRAW)))
+                        plan: PhotoCapturePlan(version: 2, format: .appleProRAW, inputSpace: .displaySRGB, approximateLook: false))
                     let encoded = try XCTUnwrap(CapturePhotoRenderer.render(source: data, recipe: capture,
                         lut: cube, rawLUT: nil, grainSeed: 1))
                     let image = try XCTUnwrap(CIImage(data: encoded))
@@ -214,5 +246,19 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             attachment.lifetime = .keepAlways
             add(attachment)
         }
+    }
+}
+
+private struct ValidationViewfinder: View {
+    @ObservedObject var camera: CameraManager
+    let key: String
+    let texture: PreviewLUTTexture
+    let profile: FilmRenderProfile
+
+    var body: some View {
+        RealtimePreviewView(manager: camera, lutCacheKey: key, preparedLUT: texture,
+            grain: profile.grain, optics: profile.optics, chromatic: profile.effectiveChromatic)
+            .aspectRatio(CameraFraming.portraitAspect, contentMode: .fit)
+            .background(.black)
     }
 }

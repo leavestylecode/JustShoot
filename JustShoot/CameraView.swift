@@ -37,12 +37,12 @@ struct CameraView: View {
     /// 放开后用户即可按下一张；在途的多张拍照由 CameraManager 按 uniqueID 分桶、互不覆盖。
     @State private var isShutterBusy = false
     @ObservedObject private var capturePipeline = CapturePipeline.shared
-    @State private var preparedLUT: (key: String, lut: CubeLUT, texture: PreviewLUTTexture, profile: FilmRenderProfile)?
+    @State private var preparedLUT: (key: String, lut: CubeLUT, texture: PreviewLUTTexture,
+        profile: FilmRenderProfile, adjustment: ResolvedCameraColorAdjustment?)?
     @State private var lutPreparationCadence = CameraLUTPreparationCadence()
     @State private var entryRetryRevision: UInt64 = 0
     @State private var preparedPickerCovers: [FilmPreset: UIImage] = [:]
-    @State private var whiteBalanceSelection: CameraWhiteBalanceSelection = .automatic
-    @State private var tintSelection: CameraTintSelection = .automatic
+    @State private var colorControls = CameraColorControlsState()
     @State private var shutterPressed = false
     /// 拍照 pipeline 完成时立即 push 进来的 88pt 缩略图 hint（避免等 @Query 通知链 ~300-500ms）。
     /// RecentPhotosBadge 通过 @Binding 读写：source 切换时它会清空 hint 并从新 source 的 @Query
@@ -141,38 +141,41 @@ struct CameraView: View {
                             .position(sunRailPosition(focus: point, viewport: geometry.size))
                             .allowsHitTesting(false)
                         }
-
-                        WhiteBalanceControl(
-                            selection: whiteBalanceSelection,
-                            tint: tintSelection,
-                            automaticReading: cameraManager.automaticWhiteBalanceReading,
-                            onTemperature: { value in
-                                if let kelvin = CameraWhiteBalancePolicy.temperature(value) {
-                                    whiteBalanceSelection = .temperature(kelvin)
+                    }
+                    .overlay {
+                        if colorControls.isVisible {
+                            WhiteBalanceControl(
+                                selection: colorControls.temperature,
+                                tint: colorControls.tint,
+                                automaticReading: cameraManager.automaticWhiteBalanceReading,
+                                onTemperature: { value in
+                                    if let kelvin = CameraWhiteBalancePolicy.temperature(value) {
+                                        colorControls.temperature = .temperature(kelvin)
+                                    }
+                                },
+                                onTint: { value in
+                                    if let tint = CameraWhiteBalancePolicy.tint(value) { colorControls.tint = .value(tint) }
+                                },
+                                onAutomaticTemperature: { colorControls.temperature = .automatic },
+                                onAutomaticTint: { colorControls.tint = .automatic },
+                                onEditingEnded: {
+                                    cameraManager.diagnostics.event("color_adjustment_selected", colorAdjustmentDiagnosticFields)
                                 }
-                            },
-                            onTint: { value in
-                                if let tint = CameraWhiteBalancePolicy.tint(value) { tintSelection = .value(tint) }
-                            },
-                            onAutomaticTemperature: { whiteBalanceSelection = .automatic },
-                            onAutomaticTint: { tintSelection = .automatic },
-                            onEditingEnded: {
-                                cameraManager.diagnostics.event("color_adjustment_selected", colorAdjustmentDiagnosticFields)
-                            }
-                        )
-                        .padding(10)
+                            )
+                            .disabled(isShutterBusy)
+                        }
                     }
                     .overlay(alignment: .topLeading) {
                         if abs(cameraManager.exposureBias) > 0.01 || isAdjustingExposure {
-                            exposureControl.padding(10)
+                            exposureControl
+                                .padding(.horizontal, 10)
+                                .padding(.top, colorControls.isVisible ? 64 : 10)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                // 3:4 纵向 = iPhone 传感器原生纵横比。预览 viewport 与 sensor 输出对齐，aspect-fill
-                // 在 MTKView 里是无损裁切（scale_x == scale_y），出片也保留全 sensor FOV。
-                // 取消 2:3 (135 胶片) 裁切后：tap-to-focus 坐标无需偏移修正，FOV 也最大化。
-                .aspectRatio(3.0/4.0, contentMode: .fit)
+                // Match the full-width photo viewer as well as the still's aspect.
+                .aspectRatio(CameraFraming.portraitAspect, contentMode: .fit)
 
                 // 焦距选择条（iPhone Camera 风格）：常驻，紧贴预览底边。容器/位置在所有方向下都不变，
                 // 只内部数字随设备方向旋转，让用户视角下文字方向正确。
@@ -184,6 +187,7 @@ struct CameraView: View {
                     cameraManager.hapticSoft.impactOccurred()
                     cameraManager.setFocalLength(option)
                 }
+                .padding(.horizontal, 16)
 
                 // 胶片(LUT)与曲线选择条按需展开：位于焦距条下方、同层纵向排布，不遮挡取景区。
                 // 右下封面负责开关；选择后保持展开，便于快速比较 LUT × 曲线组合。
@@ -207,6 +211,7 @@ struct CameraView: View {
                         }
                     }
                     .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+                    .padding(.horizontal, 16)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
 
                     FilmSourcePickerStrip(
@@ -226,11 +231,10 @@ struct CameraView: View {
                     }
                     // 阴影让它读作浮层而非贴底的条带。
                     .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+                    .padding(.horizontal, 16)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            // 两侧留标准内容边距（16pt），让预览左右边缘与顶部工具栏按钮、底部控制行（同 16pt）对齐。
-            .padding(.horizontal, 16)
             // 整组垂直居中：富余空间在组上下平分（spacer / 预览 / 焦距 /(LUT) / spacer）。
             // 展开 LUT 栏时整组变高、自然向上下两侧扩展，预览与焦距条始终居中而非被推到一边。
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -331,6 +335,28 @@ struct CameraView: View {
                 .accessibilityLabel(cameraManager.flashMode == .on ? Text("Flash on") : Text("Flash off"))
                 .accessibilityHint("Toggle flash")
             }
+            ToolbarSpacer(.fixed, placement: .primaryAction)
+
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    cameraManager.hapticSoft.impactOccurred()
+                    let visible = !colorControls.isVisible
+                    colorControls.setVisible(visible)
+                    cameraManager.diagnostics.event("color_controls_visibility_changed",
+                        "visible=\(visible) \(colorAdjustmentDiagnosticFields)")
+                } label: {
+                    Image(systemName: "thermometer.medium")
+                        .rotationEffect(controlRotationAngle)
+                        .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.currentDeviceOrientation)
+                }
+                .buttonBorderShape(.circle)
+                .tint(colorControls.isVisible ? .yellow : .white)
+                .disabled(isShutterBusy)
+                .accessibilityLabel("Color controls")
+                .accessibilityHint("Show color controls; hiding restores Auto")
+                .accessibilityAddTraits(colorControls.isVisible ? [.isSelected] : [])
+                .accessibilityIdentifier("camera.white_balance.toggle")
+            }
         }
         // 底部快门行。焦距条 / LUT 选择条已上移到预览下方的控制区（见 body 顶部 VStack），
         // 这里只保留「最近照片 / 快门 / 胶片封面」一行。
@@ -355,7 +381,7 @@ struct CameraView: View {
 
                     CameraShutterButton(
                         isCapturing: isShutterBusy,
-                        isPreparingFilm: preparedLUT?.key != previewLUTKey,
+                        isPreparingFilm: preparedLUT?.key != previewLUTKey || !cameraManager.entryPreparation.isCurrentLookRendered,
                         canCapture: capturePipeline.canCapture,
                         isPressed: shutterPressed
                     ) {
@@ -390,7 +416,7 @@ struct CameraView: View {
                     .accessibilityLabel(Text("Switch film"))
                     .accessibilityHint(showFilmPicker ? Text("Tap to close film picker") : Text("Tap to pick another film"))
                 }
-                // 与预览两侧边距对齐（16pt）：badge / 封面缩略图的外缘与预览左右边缘成一条线。
+                // Keep the controls inset from the screen edges below the full-width viewfinder.
                 .padding(.horizontal, 16)
                 .disabled(cameraManager.readiness != .ready || isShutterBusy)
                 .opacity(cameraManager.readiness == .ready ? 1 : 0.42)
@@ -468,8 +494,8 @@ struct CameraView: View {
             let requestedSource = source
             let curve = selectedCurve
             let curveFields = curveDiagnosticFields(curve)
-            let selection = whiteBalanceSelection
-            let tint = tintSelection
+            let selection = colorControls.temperature
+            let tint = colorControls.tint
             let reference = cameraManager.automaticWhiteBalanceReading
             guard ResolvedCameraColorAdjustment.resolve(temperature: selection, tint: tint, reading: reference) != nil else {
                 cameraManager.diagnostics.event("color_adjustment_waiting", "reason=automatic_reading_unavailable")
@@ -492,9 +518,12 @@ struct CameraView: View {
                 let texture = try await PreviewLUTTextureCache.shared.prepare(key: key, lut: lut)
                 lutWait.end("ok", "cancelled=\(Task.isCancelled)")
                 guard !Task.isCancelled, key == previewLUTKey else { return }
-                preparedLUT = (key, lut, texture, requestedSource.captureRenderProfile)
+                let adjustment = selection.isAutomatic && tint.isAutomatic ? nil
+                    : ResolvedCameraColorAdjustment.resolve(temperature: selection, tint: tint, reading: reference)
+                preparedLUT = (key, lut, texture, requestedSource.captureRenderProfile, adjustment)
                 cameraManager.updateEntryLUT(expectedKey: key, preparedKey: key)
                 cameraManager.diagnostics.event("camera_lut_ready", "dimension=\(lut.dimension) \(curveFields) \(colorAdjustmentDiagnosticFields)")
+                await waitForCurrentLookPresentation(key: key)
             } catch is CancellationError {
                 lutWait.end("cancelled")
             } catch let error as PreviewLUTTextureCache.PreparationError {
@@ -509,8 +538,7 @@ struct CameraView: View {
                 lutWait.end("error", Diagnostics.errorFields(error))
                 guard !Task.isCancelled, key == previewLUTKey else { return }
                 if !selection.isAutomatic || !tint.isAutomatic {
-                    whiteBalanceSelection = .automatic
-                    tintSelection = .automatic
+                    colorControls.resetAutomatic()
                     captureError = String(localized: "Color adjustments could not be applied. Auto has been restored.")
                 } else {
                     if !cameraManager.entryLUTPreparationFailed(key: key) {
@@ -578,6 +606,31 @@ struct CameraView: View {
         .disabled(isShutterBusy || cameraManager.readiness != .ready)
     }
 
+    /// Initial entry has its own readiness timeout. A later look change also
+    /// needs a bounded wait if a renderer stops presenting without a GPU error.
+    private func waitForCurrentLookPresentation(key: String) async {
+        guard let generation = cameraManager.entryPreparation.generation else { return }
+        var timer = CameraEntryPreparation.ActiveTimer()
+        timer.reset(at: ProcessInfo.processInfo.systemUptime,
+            counting: scenePhase == .active && !isReviewingPhotos)
+        while !Task.isCancelled, key == previewLUTKey,
+              cameraManager.entryPreparation.generation == generation,
+              cameraManager.entryPreparation.isRevealed,
+              !cameraManager.entryPreparation.isCurrentLookRendered {
+            do { try await Task.sleep(for: .milliseconds(50)) } catch { return }
+            guard !Task.isCancelled, key == previewLUTKey,
+                  cameraManager.entryPreparation.generation == generation,
+                  cameraManager.entryPreparation.isRevealed,
+                  !cameraManager.entryPreparation.isCurrentLookRendered else { return }
+            timer.update(at: ProcessInfo.processInfo.systemUptime,
+                counting: scenePhase == .active && !isReviewingPhotos)
+            if timer.elapsed >= 6 {
+                cameraManager.previewDidFail(generation: generation, lutKey: key)
+                return
+            }
+        }
+    }
+
     private var livePhotoControl: some View {
         Button {
             cameraManager.hapticSoft.impactOccurred()
@@ -603,8 +656,7 @@ struct CameraView: View {
     private var captureMode: PhotoCaptureMode { PhotoCaptureMode(rawValue: captureModeValue) ?? .quality }
     private var wantsLiveCapture: Bool { captureMode == .livePhoto }
     private var capturePlan: PhotoCapturePlan {
-        .resolve(mode: captureMode, rawFormat: cameraManager.rawCaptureFormat,
-                 prefersProcessedPhoto: cameraManager.prefersProcessedPhoto)
+        .resolve(mode: captureMode)
     }
 
     @ViewBuilder
@@ -652,8 +704,8 @@ struct CameraView: View {
     }
     private var previewLUTKey: String {
         let baseKey = FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: selectedCurve)
-        return ColorTemperatureLUT.cacheKey(baseKey: baseKey, selection: whiteBalanceSelection,
-            tint: tintSelection, reference: cameraManager.automaticWhiteBalanceReading)
+        return ColorTemperatureLUT.cacheKey(baseKey: baseKey, selection: colorControls.temperature,
+            tint: colorControls.tint, reference: cameraManager.automaticWhiteBalanceReading)
     }
 
     private func curveDiagnosticFields(_ curve: FilmCurve) -> String {
@@ -663,8 +715,8 @@ struct CameraView: View {
 
     private var colorAdjustmentDiagnosticFields: String {
         let reading = cameraManager.automaticWhiteBalanceReading
-        let resolved = reading.flatMap { ResolvedCameraColorAdjustment.resolve(temperature: whiteBalanceSelection, tint: tintSelection, reading: $0) }
-        return "temperature_backend=lut temperature_auto=\(whiteBalanceSelection.isAutomatic) tint_auto=\(tintSelection.isAutomatic) " +
+        let resolved = reading.flatMap { ResolvedCameraColorAdjustment.resolve(temperature: colorControls.temperature, tint: colorControls.tint, reading: $0) }
+        return "temperature_backend=lut temperature_auto=\(colorControls.temperature.isAutomatic) tint_auto=\(colorControls.tint.isAutomatic) " +
             "kelvin=\(resolved.map { String($0.temperature) } ?? "unavailable") tint=\(resolved.map { String($0.tint) } ?? "unavailable") " +
             "reference_kelvin=\(reading.map { String($0.temperature) } ?? "unavailable") reference_tint=\(reading.map { String($0.tint) } ?? "unavailable")"
     }
@@ -691,7 +743,8 @@ struct CameraView: View {
             return
         }
 
-        guard let preparedLUT, preparedLUT.key == previewLUTKey else {
+        guard let preparedLUT, preparedLUT.key == previewLUTKey,
+              cameraManager.entryPreparation.isCurrentLookRendered else {
             cameraManager.diagnostics.event("shutter_ignored", "reason=lut_not_ready")
             return
         }
@@ -716,19 +769,13 @@ struct CameraView: View {
         // 自动渲染配置与随机基种子也在快门时刻固化。后续切换胶片不会改变已排队照片；
         // Live Photo 用同一基种子按时间戳派生逐帧 seed，静态帧与标记时刻保持连续。
         let renderProfile = preparedLUT.profile
-        // 胶片色温响应的输入用**设备 AWB 读数**（物理语义：乳剂对到达的光响应，不感知用户
-        // 手动 WB 意图——那是校白侧的调整，与乳剂侧正交叠加，恰是真实胶片摄影的分层）。
-        // 读数与预览同一来源，成片与预览所见一致。
+        // Keep the scene reading for diagnostics; the actual render gain is frozen
+        // from the completed preview frame, including its temporal smoothing.
         let chromaticSceneCCT = cameraManager.automaticWhiteBalanceReading?.temperature
-        let chromaticGain = renderProfile.effectiveChromatic.responseGain(sceneCCT: chromaticSceneCCT)
-        let grainBaseSeed = UInt32.random(in: 1...UInt32.max)
         let location = cameraManager.captureLocation(at: captureDate).map(CaptureLocation.init)
 
         let plan = capturePlan
-        let requestedRawFormat = plan.capturesRAW ? cameraManager.rawCaptureFormat : nil
         let capturedLUT = preparedLUT.lut
-        let capturedRawLUT: RawFilmLUT? = nil
-        let rawRecipe = plan.capturesRAW ? RawCaptureRecipe(unifiedLUT: capturedLUT) : nil
         captureTrace.event("capture_plan", "format=\(plan.format.rawValue) input=\(plan.inputSpace.rawValue) approximate=\(plan.approximateLook)")
         let focalMm = admission.focalLength
         let wantsLive = plan.capturesLivePhoto
@@ -747,18 +794,33 @@ struct CameraView: View {
             try? await Task.sleep(for: .milliseconds(100))
             shutterPressed = false
         }
-        guard let captureID = await capturePipeline.reserve(lutBytes: capturedLUT.byteCount + (capturedRawLUT?.data.count ?? 0), id: requestedID) else {
+        guard let captureID = await capturePipeline.reserve(lutBytes: capturedLUT.byteCount, id: requestedID) else {
             cameraManager.cancelCaptureAdmission(admission)
             isShutterBusy = false
             return
         }
         guard cameraManager.isCaptureAdmissionValid(admission),
-              cameraManager.readiness == .ready, cameraManager.isCaptureAvailable else {
+              cameraManager.readiness == .ready, cameraManager.isCaptureAvailable,
+              previewLUTKey == preparedLUT.key else {
             capturePipeline.cancelReservation(captureID)
             cameraManager.cancelCaptureAdmission(admission)
             isShutterBusy = false
             return
         }
+        guard let previewFrame = await cameraManager.waitForCapturePreview(lutKey: preparedLUT.key, admission: admission),
+              previewLUTKey == preparedLUT.key else {
+            captureTrace.event("capture_skip", "reason=matching_preview_unavailable")
+            capturePipeline.cancelReservation(captureID)
+            cameraManager.cancelCaptureAdmission(admission)
+            isShutterBusy = false
+            if !Task.isCancelled, scenePhase == .active {
+                captureError = String(localized: "The camera preview could not be prepared. Please try again.")
+            }
+            return
+        }
+        let grainBaseSeed = previewFrame.grainSeed
+        let chromaticGain = previewFrame.chromaticGain
+        captureTrace.event("capture_framing", "frame_id=\(previewFrame.frameID) focal_seq=\(previewFrame.focalSequence) source_revision=\(previewFrame.sourceRevision) preview_crop=\(previewFrame.crop) frame_age_ms=\(Int((ProcessInfo.processInfo.systemUptime - previewFrame.capturedAt) * 1_000))")
         let displayLabel: String? = {
             if case .custom(_, let name, _, _) = currentSource { return name }
             return nil
@@ -767,8 +829,11 @@ struct CameraView: View {
             id: captureID, captureDate: captureDate, filterName: currentSource.photoFilterName,
             displayLabel: displayLabel, focalLength: focalMm, outputQuality: nil,
             profile: renderProfile, grainSeed: grainBaseSeed, location: location,
-            lutDimension: capturedLUT.dimension, chromaticSceneCCT: chromaticSceneCCT, photoDisplayTime: nil, raw: rawRecipe, plan: plan)
-        cameraManager.capturePhoto(admission: admission, live: wantsLive, raw: plan.capturesRAW, expectedRAWFormat: requestedRawFormat, trace: captureTrace, onWillCapture: {
+            lutDimension: capturedLUT.dimension, chromaticSceneCCT: chromaticSceneCCT, photoDisplayTime: nil,
+            plan: plan, colorAdjustment: preparedLUT.adjustment,
+            frozenChromaticGain: previewFrame.chromaticGain)
+        capturePipeline.preparePreview(previewFrame, recipe: recipe, lut: capturedLUT)
+        cameraManager.capturePhoto(admission: admission, live: wantsLive, previewFrame: previewFrame, trace: captureTrace, onWillCapture: {
             // AVF 主曝光起始帧——开闪光灯时即氙气主脉冲发射的瞬间，关闪光灯时 ZSL/responsive
             // 让这一刻在 tap 后 50–150ms 内 fire。在这里驱动白屏，UI 与真实光线同帧。
             //
@@ -798,7 +863,7 @@ struct CameraView: View {
             captureTrace.event("shutter_available")
             isShutterBusy = false
         }, onStillCaptured: { still in
-            await capturePipeline.checkpointStill(still, recipe: recipe, lut: capturedLUT, rawLUT: capturedRawLUT)
+            await capturePipeline.checkpointStill(still, recipe: recipe, lut: capturedLUT)
         }) { result in
             // 拍照交付（启动后处理的信号，**不是**放开快门的信号——快门早在 onShutterReady 放开了）。
             // 闪光灯 AE/WB 已在 CameraManager.deliverCaptureIfReady 里于静态图就绪时还原。
@@ -827,7 +892,7 @@ struct CameraView: View {
                 displayTime.isValid && displayTime.isNumeric ? displayTime.seconds : nil)
             captureTrace.event("chromatic_response_snapshot",
                 "native_kk=\(Int(renderProfile.effectiveChromatic.nativeCCT)) strength=\(String(format: "%.2f", renderProfile.effectiveChromatic.strength)) scene_kk=\(chromaticSceneCCT.map { Int($0) }.map(String.init) ?? "unavailable") gain=\(String(format: "%.3f/%.3f/%.3f", chromaticGain.x, chromaticGain.y, chromaticGain.z))")
-            capturePipeline.enqueue(result, recipe: completedRecipe, lut: capturedLUT, rawLUT: capturedRawLUT)
+            capturePipeline.enqueue(result, recipe: completedRecipe, lut: capturedLUT)
         }
     }
 

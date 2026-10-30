@@ -67,14 +67,18 @@ final class CameraLensCaptureGateTests: XCTestCase {
         let stamp = CameraLensCaptureGate.RequestStamp(generation: 1, focalSequence: 1)
         var source = CameraLensCaptureGate.SourceStability()
         let oldEpoch = source.invalidateObservations()
+        let entryRevision = source.revision
         XCTAssertTrue(source.record(stamp: stamp, observationEpoch: oldEpoch, at: 10))
+        XCTAssertNotEqual(source.revision, entryRevision)
         XCTAssertEqual(source.remainingGrace(stamp: stamp, at: 10.1), 0.05, accuracy: 0.000001)
         XCTAssertEqual(source.remainingGrace(stamp: stamp, at: 10.151), 0)
         // A second source change restarts the interval, before any main-actor task runs.
         XCTAssertTrue(source.record(stamp: stamp, observationEpoch: oldEpoch, at: 10.12))
         XCTAssertGreaterThan(source.remainingGrace(stamp: stamp, at: 10.2), 0)
         let newEpoch = source.invalidateObservations()
+        let resumedRevision = source.revision
         XCTAssertFalse(source.record(stamp: stamp, observationEpoch: oldEpoch, at: 11))
+        XCTAssertEqual(source.revision, resumedRevision)
         let resumed = CameraLensCaptureGate.RequestStamp(generation: 2, focalSequence: 1)
         XCTAssertTrue(source.record(stamp: resumed, observationEpoch: newEpoch, at: 11))
         XCTAssertFalse(source.record(stamp: stamp, observationEpoch: newEpoch, at: 11.01))

@@ -236,6 +236,7 @@ final class CapturePipelineTests: XCTestCase {
             kCGImagePropertyOrientation as String: 6,
             kCGImagePropertyExifDictionary as String: [
                 kCGImagePropertyExifDateTimeOriginal as String: "2026:10:02 12:34:56",
+                kCGImagePropertyExifColorSpace as String: 65_535,
                 kCGImagePropertyExifPixelXDimension as String: originalImage.width,
                 kCGImagePropertyExifPixelYDimension as String: originalImage.height
             ]
@@ -252,6 +253,8 @@ final class CapturePipelineTests: XCTestCase {
         let metadata = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any])
         let exif = try XCTUnwrap(metadata[kCGImagePropertyExifDictionary as String] as? [String: Any])
         XCTAssertEqual(exif[kCGImagePropertyExifDateTimeOriginal as String] as? String, "2026:10:02 12:34:56")
+        XCTAssertEqual(exif[kCGImagePropertyExifColorSpace as String] as? Int, 1)
+        XCTAssertEqual(CGImageSourceCreateImageAtIndex(source, 0, nil)?.colorSpace?.name, CGColorSpace.sRGB)
         XCTAssertEqual(exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] as? Int, 50)
         let maker = metadata[kCGImagePropertyMakerAppleDictionary as String] as? [String: Any]
         XCTAssertEqual(maker?["17"] as? String, "12345678-1234-1234-1234-123456789ABC")
