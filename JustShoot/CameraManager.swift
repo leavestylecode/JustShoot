@@ -90,6 +90,8 @@ class CameraManager: NSObject, ObservableObject {
     /// constituent 切换由系统在内部完成，对外仍是同一个 device 实例。
     private var videoCaptureDevice: AVCaptureDevice? { currentVideoInput?.device }
     private let videoDataOutput = AVCaptureVideoDataOutput()
+    private var usesPreviewProxyBuffers = true
+    private var previewConfiguredForLivePhoto = false
     private let previewQueue = DispatchQueue(label: "preview.lut.queue")
     /// 专用会话队列（AVCaptureSession 操作必须在同一串行队列）
     nonisolated private static let hardwareQueue = DispatchQueue(label: "camera.hardware.queue", qos: .userInitiated)
@@ -1100,13 +1102,24 @@ class CameraManager: NSObject, ObservableObject {
             supported: photoOutput.isAutoDeferredPhotoDeliverySupported
                 && device.activeFormat.supportedMaxPhotoDimensions.contains(where: CameraCapturePolicy.requiresDeferredDelivery),
             photosAuthorized: authorized, livePhoto: live)
-        guard enabled != photoOutput.isAutoDeferredPhotoDeliveryEnabled else {
+        let reconfigurePreview = live != previewConfiguredForLivePhoto
+        guard enabled != photoOutput.isAutoDeferredPhotoDeliveryEnabled || reconfigurePreview else {
             usesDeferredPhotoDelivery = enabled
             return
         }
         photoDeliveryConfigurationPending = true
+        if reconfigurePreview {
+            // Invalidate an already-admitted old frame before hardware work can
+            // race the output change. Fresh frames are gated again after commit.
+            let stamp = focalRequestStamp()
+            lensSourceStability.withLock { source in
+                _ = source.record(stamp: stamp, observationEpoch: source.observationEpoch,
+                    at: ProcessInfo.processInfo.systemUptime)
+            }
+        }
         let generation = diagnosticGeneration
         let output = photoOutput
+        let videoOutput = videoDataOutput
         let captureSession = session
         let trace = diagnostics
         sessionQueue.async { [weak self] in
@@ -1115,16 +1128,35 @@ class CameraManager: NSObject, ObservableObject {
                 let switching = trace.span("photo_delivery_apply", "live=\(live) deferred=\(enabled)")
                 captureSession.beginConfiguration()
                 self.configurePhotoDelivery(output: output, device: device, live: live, photosAuthorized: authorized)
+                if reconfigurePreview {
+                    CameraPerformancePolicy.configurePreviewOutput(videoOutput,
+                        sourceDimensions: CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription),
+                        livePhoto: live)
+                    self.applyPreviewStabilization(output: videoOutput, device: device)
+                }
                 captureSession.commitConfiguration()
                 // Dimension/output negotiation can clear Live enablement. Recheck at
                 // this idle capture boundary before exposing the new mode to the UI.
                 Self.prepareLivePhotoOutput(output, trace: trace, stage: "photo_delivery_changed")
-                switching.end("configured", "live_enabled=\(output.isLivePhotoCaptureEnabled)")
+                switching.end("configured", "live_supported=\(output.isLivePhotoCaptureSupported) live_enabled=\(output.isLivePhotoCaptureEnabled) preview_proxy=\(videoOutput.deliversPreviewSizedOutputBuffers)")
             }
             Task { @MainActor in
                 guard self.diagnosticGeneration == generation else { return }
                 self.photoDeliveryConfigurationPending = false
                 self.usesDeferredPhotoDelivery = output.isAutoDeferredPhotoDeliveryEnabled
+                self.previewConfiguredForLivePhoto = live
+                self.usesPreviewProxyBuffers = videoOutput.deliversPreviewSizedOutputBuffers
+                if reconfigurePreview {
+                    // In-flight callbacks from the old output cannot authorize the
+                    // first capture in the new mode, even at the same focal length.
+                    let stamp = self.focalRequestStamp()
+                    self.lensSourceStability.withLock { source in
+                        _ = source.record(stamp: stamp, observationEpoch: source.observationEpoch,
+                            at: ProcessInfo.processInfo.systemUptime)
+                    }
+                    self.pixelBufferLock.withLockUnchecked { $0.buffer = nil; $0.renderedFrame = nil }
+                    self.beginLensSwitch(zoom: self.currentZoomFactor, zslGraceMs: 250, maxWaitMs: 2_500)
+                }
                 self.updateLivePhotoCaptureState(reason: "photo_delivery_changed")
                 self.prepareForFirstCapture()
                 self.reconcilePhotoDelivery()
@@ -1391,8 +1423,10 @@ class CameraManager: NSObject, ObservableObject {
 
                     photoSetup.end()
                     let previewSetup = trace.span("session_preview_output")
-                    CameraPerformancePolicy.configurePreviewOutput(videoOutput)
-                    trace.event("preview_output_policy", "strategy=automatic")
+                    CameraPerformancePolicy.configurePreviewOutput(videoOutput,
+                        sourceDimensions: CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription),
+                        livePhoto: liveDesired)
+                    trace.event("preview_output_policy", "strategy=\(videoOutput.automaticallyConfiguresOutputBufferDimensions ? "automatic_proxy" : "scaled_video") live=\(liveDesired)")
                     if captureSession.canAddOutput(videoOutput) {
                         captureSession.addOutput(videoOutput)
                         // connection 在 addOutput 后才存在；必须在 commitConfiguration 前/后任意时机设置。
@@ -1457,6 +1491,8 @@ class CameraManager: NSObject, ObservableObject {
             return
         }
         setReadiness(.waitingForFirstFrame)
+        usesPreviewProxyBuffers = videoOutput.deliversPreviewSizedOutputBuffers
+        previewConfiguredForLivePhoto = liveDesired
 
         // Back on MainActor — set up delegates and properties that need main thread
         let rotationSetup = trace.span("main_rotation_setup")
@@ -2121,12 +2157,11 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// 预览渲染器每帧调用的扩展裁切倍率（≥1）：预览代理流的取景钳在活跃镜头区间上限，
-    /// 超过上限的部分由渲染器居中裁切补足（ExtendedPreviewZoom），使 200mm 低光预览
-    /// 与成片取景一致。分母取**帧对齐后**的渲染侧上限：镜头切换的停顿窗口里保持帧
-    /// 沿用旧上限，恰在新镜头第一帧换轨，取景不因 KVO/帧内容错位而闪跳。
+    /// Ordinary scaled video already carries device zoom. Only an automatically
+    /// negotiated proxy fallback may use the legacy, frame-aligned compensation.
     func previewZoomCrop() -> CGFloat {
-        ExtendedPreviewZoom.cropFactor(zoom: lastObservedDeviceZoom, streamCeiling: cropCeilingSync.withLock { $0.renderCeiling })
+        ExtendedPreviewZoom.cropFactor(zoom: lastObservedDeviceZoom,
+            streamCeiling: cropCeilingSync.withLock { $0.renderCeiling }, usesPreviewProxy: usesPreviewProxyBuffers)
     }
 
     /// 预览渲染器每 vsync 调用的过渡入口（LensTransitionCompositor 架构的单一接线点）：

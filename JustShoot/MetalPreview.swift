@@ -7,12 +7,19 @@ import os
 
 /// Core Video owns the camera buffer's recycling lease. Retaining just MTLTexture is insufficient.
 private final class PreviewFrameLease: @unchecked Sendable {
-    let texture: CVMetalTexture
-    let buffer: CVPixelBuffer
+    private var texture: CVMetalTexture?
+    private var buffer: CVPixelBuffer?
 
     init(texture: CVMetalTexture, buffer: CVPixelBuffer) {
         self.texture = texture
         self.buffer = buffer
+    }
+
+    /// Only the GPU completion handler consumes this lease. Do not rely on the
+    /// driver's command-buffer callback storage being destroyed immediately.
+    func release() {
+        texture = nil
+        buffer = nil
     }
 }
 
@@ -821,6 +828,7 @@ struct RealtimePreviewView: UIViewRepresentable {
                 frameID: frameId, capturedAt: capturedAt, lutKey: lutCacheKey, rotation: rotation,
                 crop: transitionPlan.crop, outputSize: CGSize(width: outW, height: outH), grainSeed: params.grainSeed,
                 chromaticGain: chromaticGain, focalSequence: focalSequence, sourceRevision: sourceRevision)
+            let presentationLease = CameraPreviewPresentationLease(renderedFrame)
             if firstSubmission {
                 firstPresentationRegistered = true
                 trace?.event("preview_first_submitted", "generation=\(generation) output=\(outW)x\(outH)")
@@ -830,8 +838,8 @@ struct RealtimePreviewView: UIViewRepresentable {
             }
             #if !targetEnvironment(simulator)
             drawable.addPresentedHandler { drawable in
-                if drawable.presentedTime > 0 {
-                    manager?.recordPresentedPreview(renderedFrame, at: drawable.presentedTime)
+                if let frame = presentationLease.takeFrame(), drawable.presentedTime > 0 {
+                    manager?.recordPresentedPreview(frame, at: drawable.presentedTime)
                 }
                 if let flowStamp { flow?.presented(flowStamp, at: drawable.presentedTime, submittedAt: submittedAt) }
                 if firstSubmission {
@@ -853,7 +861,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             let frameLease = PreviewFrameLease(texture: cvTex, buffer: pixelBuffer)
             commandBuffer.addCompletedHandler { [weak self] buffer in
                 let completedAt = ProcessInfo.processInfo.systemUptime
-                withExtendedLifetime(frameLease) {}
+                frameLease.release()
                 if firstSubmission { trace?.event("preview_first_gpu_completed", "generation=\(generation) after_submit_ms=\(Diagnostics.milliseconds(since: submittedAt))") }
                 if buffer.status == .error {
                     let errorFields = buffer.error.map { Diagnostics.errorFields($0) } ?? "error_domain=unknown"
@@ -873,9 +881,12 @@ struct RealtimePreviewView: UIViewRepresentable {
                 // device only presentation unlocks capture; GPU failure still ends
                 // preparation with the existing retry UI.
                 #if targetEnvironment(simulator)
-                if succeeded { manager?.recordPresentedPreview(renderedFrame, at: completedAt) }
+                if let frame = presentationLease.takeFrame(), succeeded {
+                    manager?.recordPresentedPreview(frame, at: completedAt)
+                }
                 let notifyCompletion = true
                 #else
+                if !succeeded { _ = presentationLease.takeFrame() }
                 let notifyCompletion = !succeeded
                 #endif
                 if notifyCompletion, let readiness, completionGate.complete(readiness) {

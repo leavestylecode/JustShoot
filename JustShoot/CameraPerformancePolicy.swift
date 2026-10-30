@@ -18,14 +18,43 @@ struct CameraSessionIntent: Sendable {
 
 enum CameraPerformancePolicy {
     static let maximumPreviewLongEdge: CGFloat = 1280
+    static let maximumCaptureBufferLongEdge: Int32 = 1920
 
-    static func configurePreviewOutput(_ output: AVCaptureVideoDataOutput) {
+    /// Request an ordinary, scaled video stream instead of the photo-preview proxy.
+    /// Proxy zoom has required lens-dependent compensation on physical devices;
+    /// applying that compensation to a normally zoomed stream would crop twice.
+    /// Live Photo needs the system photo-preview graph on supported devices.
+    static func configurePreviewOutput(_ output: AVCaptureVideoDataOutput, sourceDimensions: CMVideoDimensions,
+                                       livePhoto: Bool = false) {
         output.alwaysDiscardsLateVideoFrames = true
-        output.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
-        // Restore AVFoundation's default negotiation. Forcing the preview proxy was introduced
-        // with the performance refactor; device traces now show zoom advancing while the user
-        // reports an unchanged viewfinder. Keep drawable work bounded separately below.
-        output.automaticallyConfiguresOutputBufferDimensions = true
+        var settings: [String: Any] = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+        // Clear any manual size before re-enabling automatic preview negotiation.
+        output.videoSettings = settings
+        if !livePhoto, let dimensions = captureBufferDimensions(source: sourceDimensions) {
+            output.automaticallyConfiguresOutputBufferDimensions = false
+            output.deliversPreviewSizedOutputBuffers = false
+            settings[kCVPixelBufferWidthKey as String] = Int(dimensions.width)
+            settings[kCVPixelBufferHeightKey as String] = Int(dimensions.height)
+        } else {
+            // An unusual format with no exact bounded aspect ratio keeps the
+            // system negotiation; never silently request full sensor buffers.
+            output.automaticallyConfiguresOutputBufferDimensions = true
+        }
+        output.videoSettings = settings
+    }
+
+    /// AVCaptureVideoDataOutput requires exactly the active format's aspect ratio.
+    /// Use integer dimensions, keeping common 4:3 and 16:9 sizes even.
+    static func captureBufferDimensions(source: CMVideoDimensions) -> CMVideoDimensions? {
+        guard source.width > 0, source.height > 0 else { return nil }
+        if max(source.width, source.height) <= maximumCaptureBufferLongEdge { return source }
+        var a = source.width, b = source.height
+        while b != 0 { (a, b) = (b, a % b) }
+        let unitWidth = source.width / a, unitHeight = source.height / a
+        let step: Int32 = unitWidth.isMultiple(of: 2) && unitHeight.isMultiple(of: 2) ? 1 : 2
+        let count = min(a, maximumCaptureBufferLongEdge / max(unitWidth, unitHeight)) / step * step
+        guard count > 0 else { return nil }
+        return CMVideoDimensions(width: unitWidth * count, height: unitHeight * count)
     }
 
     static func drawableSize(bounds: CGSize, scale: CGFloat) -> CGSize {
@@ -113,7 +142,8 @@ struct CameraZoomTransition: Sendable {
     }
 }
 
-/// 超过**当前活跃镜头归属区间上限**后的扩展数字变焦（渲染器侧居中裁切）。
+/// Legacy proxy fallback only: compensate beyond the active lens's zoom range.
+/// Ordinary scaled video must never receive this additional crop.
 ///
 /// 真机实锤（2026-10-07，iPhone 17 Pro Max / iOS 27，两轮取证）：成片管线对
 /// videoZoomFactor 完整缩放（100/200mm 照片正确），而 VideoDataOutput 预览代理流
@@ -127,7 +157,8 @@ struct CameraZoomTransition: Sendable {
 /// focalInfo 提供各 constituent 的区间）。分母是**随镜头切换离散变化的准常量**，
 /// ramp 期间不变——k 只随 zoom 单调、随镜头切换阶跃，无回摆。
 enum ExtendedPreviewZoom {
-    static func cropFactor(zoom: CGFloat, streamCeiling: CGFloat) -> CGFloat {
+    static func cropFactor(zoom: CGFloat, streamCeiling: CGFloat, usesPreviewProxy: Bool = true) -> CGFloat {
+        guard usesPreviewProxy else { return 1 }
         guard streamCeiling > 1, streamCeiling.isFinite else { return 1 }
         return max(1, max(1, zoom) / streamCeiling)
     }

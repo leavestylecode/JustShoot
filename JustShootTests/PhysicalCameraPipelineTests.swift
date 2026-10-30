@@ -7,11 +7,56 @@ import AVFoundation
 @preconcurrency import Photos
 @testable import JustShoot
 
-/// Explicitly opt in on a connected, unlocked phone. This takes real photographs
-/// and keeps the resulting sRGB assets in Photos; ordinary test runs never capture.
+/// Explicitly opt in on a connected, unlocked phone. The configuration check does
+/// not take photos; the capture check keeps its resulting sRGB assets in Photos.
+/// Ordinary test runs never capture.
 /// For framing acceptance, mount the phone in portrait and use a stationary,
 /// textured subject. Paired viewfinder/Photos attachments cover every focal option.
 final class PhysicalCameraPipelineTests: XCTestCase {
+    /// Exercises production cold-start and mode switching without taking photos.
+    @MainActor
+    func testLivePhotoPreviewConfigurationSurvivesColdStartAndRoundTrips() async throws {
+        guard ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_CAMERA_CONFIGURATION"] == "1" else {
+            throw XCTSkip("Set JUSTSHOOT_VALIDATE_CAMERA_CONFIGURATION=1 on a physical device")
+        }
+        #if targetEnvironment(simulator)
+        throw XCTSkip("A physical camera is required")
+        #else
+        guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else {
+            throw XCTSkip("Camera permission must already be authorized")
+        }
+        for startsLive in [false, true] {
+            let camera = CameraManager()
+            defer { camera.stopSession() }
+            camera.setEntrySceneActive(true)
+            camera.setLivePhotoAudio(live: startsLive, sound: false)
+            camera.requestCameraPermission()
+            for live in [startsLive, !startsLive, startsLive] {
+                camera.setLivePhotoAudio(live: live, sound: false)
+                let deadline = Date().addingTimeInterval(20)
+                var configured = false
+                while Date() < deadline {
+                    if camera.isCaptureAvailable,
+                       let video = camera.session.outputs.compactMap({ $0 as? AVCaptureVideoDataOutput }).first,
+                       video.automaticallyConfiguresOutputBufferDimensions == live,
+                       !live || camera.livePhotoCaptureState.canCapture {
+                        configured = true
+                        break
+                    }
+                    try await Task.sleep(for: .milliseconds(50))
+                }
+                XCTAssertTrue(configured, "cold_live=\(startsLive) requested_live=\(live) state=\(camera.livePhotoCaptureState)")
+                let video = try XCTUnwrap(camera.session.outputs.compactMap { $0 as? AVCaptureVideoDataOutput }.first)
+                XCTAssertEqual(video.deliversPreviewSizedOutputBuffers, live)
+                XCTAssertFalse(live && camera.usesDeferredPhotoDelivery)
+                if live { XCTAssertTrue(camera.livePhotoCaptureState.canCapture) }
+                print("configuration_probe cold_live=\(startsLive) requested_live=\(live) proxy=\(video.deliversPreviewSizedOutputBuffers) live=\(camera.livePhotoCaptureState.canCapture)")
+            }
+            camera.stopSession()
+        }
+        #endif
+    }
+
     @MainActor
     func testRealCaptureThroughDurablePipelineAndPhotos() async throws {
         guard ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_CAMERA"] == "1" else {
@@ -109,6 +154,11 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             let admission = try XCTUnwrap(camera.beginCaptureAdmission())
             let presentedFrame = await camera.waitForCapturePreview(lutKey: key, admission: admission)
             let previewFrame = try XCTUnwrap(presentedFrame)
+            if !plan.capturesLivePhoto {
+                XCTAssertLessThanOrEqual(max(CVPixelBufferGetWidth(previewFrame.buffer), CVPixelBufferGetHeight(previewFrame.buffer)),
+                    Int(CameraPerformancePolicy.maximumCaptureBufferLongEdge))
+                XCTAssertEqual(previewFrame.crop, 1, "Scaled video must not receive the proxy's extra digital zoom")
+            }
             let reservation = await pipeline.reserve(lutBytes: cube.data.count + (rawLUT?.data.count ?? 0))
             let id = try XCTUnwrap(reservation)
             let recipe = CaptureRecipe(id: id, captureDate: Date(), filterName: source.photoFilterName,

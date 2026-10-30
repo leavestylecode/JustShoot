@@ -21,12 +21,71 @@ final class CameraPerformancePolicyTests: XCTestCase {
         XCTAssertTrue(intent.permitsStart(newStart))
     }
 
-    func testPreviewRestoresAutomaticBufferNegotiation() {
+    func testPreviewUsesBoundedVideoBuffersInsteadOfThePhotoProxy() {
         let output = AVCaptureVideoDataOutput()
-        CameraPerformancePolicy.configurePreviewOutput(output)
-        XCTAssertTrue(output.automaticallyConfiguresOutputBufferDimensions)
+        CameraPerformancePolicy.configurePreviewOutput(output, sourceDimensions: CMVideoDimensions(width: 4032, height: 3024))
+        XCTAssertFalse(output.automaticallyConfiguresOutputBufferDimensions)
+        XCTAssertFalse(output.deliversPreviewSizedOutputBuffers)
         XCTAssertTrue(output.alwaysDiscardsLateVideoFrames)
         XCTAssertEqual(output.videoSettings[kCVPixelBufferPixelFormatTypeKey as String] as? UInt32, kCVPixelFormatType_32BGRA)
+        XCTAssertEqual(output.videoSettings[kCVPixelBufferWidthKey as String] as? Int, 1920)
+        XCTAssertEqual(output.videoSettings[kCVPixelBufferHeightKey as String] as? Int, 1440)
+    }
+
+    func testCaptureBuffersKeepExactSensorAspectWithinTheirBudget() throws {
+        for source in [CMVideoDimensions(width: 4032, height: 3024), .init(width: 5712, height: 4284),
+                       .init(width: 3840, height: 2160), .init(width: 3024, height: 4032)] {
+            let size = try XCTUnwrap(CameraPerformancePolicy.captureBufferDimensions(source: source))
+            XCTAssertEqual(Int64(size.width) * Int64(source.height), Int64(size.height) * Int64(source.width))
+            XCTAssertLessThanOrEqual(max(size.width, size.height), 1920)
+            XCTAssertTrue(size.width.isMultiple(of: 2))
+            XCTAssertTrue(size.height.isMultiple(of: 2))
+            XCTAssertLessThanOrEqual(size.width, source.width)
+            XCTAssertLessThanOrEqual(size.height, source.height)
+        }
+        let small = try XCTUnwrap(CameraPerformancePolicy.captureBufferDimensions(source: .init(width: 640, height: 480)))
+        XCTAssertEqual(small.width, 640)
+        XCTAssertEqual(small.height, 480)
+    }
+
+    func testLivePhotoRestoresAutomaticSizingAndStillModeRestoresBoundedVideo() {
+        let output = AVCaptureVideoDataOutput()
+        let source = CMVideoDimensions(width: 4032, height: 3024)
+        CameraPerformancePolicy.configurePreviewOutput(output, sourceDimensions: source)
+        XCTAssertEqual(output.videoSettings[kCVPixelBufferWidthKey as String] as? Int, 1920)
+
+        CameraPerformancePolicy.configurePreviewOutput(output, sourceDimensions: source, livePhoto: true)
+        XCTAssertTrue(output.automaticallyConfiguresOutputBufferDimensions)
+        XCTAssertNil(output.videoSettings[kCVPixelBufferWidthKey as String])
+        XCTAssertNil(output.videoSettings[kCVPixelBufferHeightKey as String])
+        XCTAssertTrue(output.alwaysDiscardsLateVideoFrames)
+
+        CameraPerformancePolicy.configurePreviewOutput(output, sourceDimensions: source, livePhoto: false)
+        XCTAssertFalse(output.automaticallyConfiguresOutputBufferDimensions)
+        XCTAssertFalse(output.deliversPreviewSizedOutputBuffers)
+        XCTAssertEqual(output.videoSettings[kCVPixelBufferWidthKey as String] as? Int, 1920)
+        XCTAssertEqual(output.videoSettings[kCVPixelBufferHeightKey as String] as? Int, 1440)
+    }
+
+    func testUnrepresentableBufferAspectFallsBackWithoutRequestingFullSensorBuffers() {
+        let output = AVCaptureVideoDataOutput()
+        let unusual = CMVideoDimensions(width: 4031, height: 3023)
+        XCTAssertNil(CameraPerformancePolicy.captureBufferDimensions(source: unusual))
+        XCTAssertNil(CameraPerformancePolicy.captureBufferDimensions(source: .init(width: 0, height: 3024)))
+        CameraPerformancePolicy.configurePreviewOutput(output, sourceDimensions: unusual)
+        XCTAssertTrue(output.automaticallyConfiguresOutputBufferDimensions)
+        XCTAssertNil(output.videoSettings[kCVPixelBufferWidthKey as String])
+        XCTAssertNil(output.videoSettings[kCVPixelBufferHeightKey as String])
+    }
+
+    func testNormallyZoomedVideoDoesNotReceiveTheProxyCropAtAnyFocalLength() {
+        for zoom: CGFloat in [1, 2, 2.9167, 4.1667, 8, 16] {
+            for ceiling: CGFloat in [2, 8, 189] {
+                XCTAssertEqual(ExtendedPreviewZoom.cropFactor(zoom: zoom, streamCeiling: ceiling,
+                    usesPreviewProxy: false), 1)
+            }
+        }
+        XCTAssertEqual(ExtendedPreviewZoom.cropFactor(zoom: 16, streamCeiling: 8, usesPreviewProxy: true), 2)
     }
 
     func testLargeWindowCannotCreateUnboundedPreviewTextures() {

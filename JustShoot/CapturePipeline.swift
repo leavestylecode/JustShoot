@@ -508,6 +508,8 @@ private actor CaptureWorker {
                 guard let sourceID = deferred.assetIdentifier else { throw PhotoLibraryError.saveFailed }
                 let original = try await finalizeDeferredPhoto(sourceID, deferred)
                 try checkPending(job.id)
+                trace.event("native_photo_metadata", CameraPhotoDiagnostics.fields(imageData: original,
+                    resolvedDimensions: CMVideoDimensions(width: Int32(clamping: deferred.width), height: Int32(clamping: deferred.height))))
                 job = try journal.finalizeDeferredPhoto(original, for: job.id)
             }
             guard let sourceID = job.deferredPhoto?.assetIdentifier else { throw PhotoLibraryError.saveFailed }

@@ -19,6 +19,7 @@ enum CameraPhotoDiagnostics {
         }
         let physical = numeric(kCGImagePropertyExifFocalLength, in: exif)
         let equivalent = numeric(kCGImagePropertyExifFocalLenIn35mmFilm, in: exif)
+        let digitalZoom = numeric(kCGImagePropertyExifDigitalZoomRatio, in: exif)
         let orientation = numeric(kCGImagePropertyOrientation, in: properties)
         let exposure = numeric(kCGImagePropertyExifExposureTime, in: exif)
         let bias = numeric(kCGImagePropertyExifExposureBiasValue, in: exif)
@@ -31,6 +32,6 @@ enum CameraPhotoDiagnostics {
         let width = (properties[kCGImagePropertyPixelWidth as String] as? NSNumber)?.intValue
         let height = (properties[kCGImagePropertyPixelHeight as String] as? NSNumber)?.intValue
         let resolution = width.flatMap { w in height.map { "\(w)x\($0)" } } ?? "missing"
-        return "metadata_source=encoded_still physical_focal_mm=\(physical) original_equivalent_mm=\(equivalent) lens_model=\(lens) encoded_resolution=\(resolution) encoded_orientation=\(orientation) resolved_resolution=\(resolvedDimensions.width)x\(resolvedDimensions.height) encoded_exposure_s=\(exposure) encoded_iso=\(iso) encoded_ev=\(bias)"
+        return "metadata_source=encoded_still physical_focal_mm=\(physical) original_equivalent_mm=\(equivalent) native_digital_zoom=\(digitalZoom) lens_model=\(lens) encoded_resolution=\(resolution) encoded_orientation=\(orientation) resolved_resolution=\(resolvedDimensions.width)x\(resolvedDimensions.height) encoded_exposure_s=\(exposure) encoded_iso=\(iso) encoded_ev=\(bias)"
     }
 }

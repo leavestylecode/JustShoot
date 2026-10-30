@@ -18,6 +18,7 @@ final class CameraPhotoDiagnosticsTests: XCTestCase {
             kCGImagePropertyExifDictionary as String: [
                 kCGImagePropertyExifFocalLength as String: 6.76,
                 kCGImagePropertyExifFocalLenIn35mmFilm as String: 24,
+                kCGImagePropertyExifDigitalZoomRatio as String: 1.45,
                 kCGImagePropertyExifLensModel as String: "Back wide camera",
                 kCGImagePropertyExifExposureTime as String: 0.02,
                 kCGImagePropertyExifExposureBiasValue as String: -0.7,
@@ -34,6 +35,7 @@ final class CameraPhotoDiagnosticsTests: XCTestCase {
             resolvedDimensions: CMVideoDimensions(width: 5712, height: 4284))
         XCTAssertTrue(fields.contains("physical_focal_mm=6.760"))
         XCTAssertTrue(fields.contains("original_equivalent_mm=24.000"))
+        XCTAssertTrue(fields.contains("native_digital_zoom=1.450"))
         XCTAssertTrue(fields.contains("lens_model=Back_wide_camera"))
         XCTAssertTrue(fields.contains("encoded_resolution=2x1"))
         XCTAssertTrue(fields.contains("resolved_resolution=5712x4284"))

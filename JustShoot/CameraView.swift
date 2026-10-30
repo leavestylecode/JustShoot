@@ -820,7 +820,7 @@ struct CameraView: View {
         }
         let grainBaseSeed = previewFrame.grainSeed
         let chromaticGain = previewFrame.chromaticGain
-        captureTrace.event("capture_framing", "frame_id=\(previewFrame.frameID) focal_seq=\(previewFrame.focalSequence) source_revision=\(previewFrame.sourceRevision) preview_crop=\(previewFrame.crop) frame_age_ms=\(Int((ProcessInfo.processInfo.systemUptime - previewFrame.capturedAt) * 1_000))")
+        captureTrace.event("capture_framing", "frame_id=\(previewFrame.frameID) focal_seq=\(previewFrame.focalSequence) source_revision=\(previewFrame.sourceRevision) preview_crop=\(previewFrame.crop) frame_age_ms=\(Int((ProcessInfo.processInfo.systemUptime - previewFrame.capturedAt) * 1_000)) \(previewFrame.framingDiagnosticFields)")
         let displayLabel: String? = {
             if case .custom(_, let name, _, _) = currentSource { return name }
             return nil

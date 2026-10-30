@@ -1,5 +1,6 @@
 import CoreImage
 import CoreVideo
+import os
 
 /// One immutable camera buffer retained after presentation. Holding a
 /// reference at shutter time does no decoding, texture readback or disk I/O.
@@ -17,6 +18,12 @@ struct CameraPreviewFrame: @unchecked Sendable {
     var focalSequence: UInt64 = 0
     var sourceRevision: UInt64 = 0
     var presentedAt: TimeInterval? = nil
+
+    var framingDiagnosticFields: String {
+        let aperture = CVImageBufferGetCleanRect(buffer)
+        let clean = String(format: "%.1f,%.1f,%.1f,%.1f", aperture.minX, aperture.minY, aperture.width, aperture.height)
+        return "input=\(CVPixelBufferGetWidth(buffer))x\(CVPixelBufferGetHeight(buffer)) output=\(Int(outputSize.width))x\(Int(outputSize.height)) rotation=\(rotation) clean_aperture=\(clean)"
+    }
 
     func inputImage(maximumPixel: CGFloat) -> CIImage {
         // Metal samples the encoded BGRA values directly under the sRGB contract.
@@ -40,5 +47,22 @@ struct CameraPreviewFrame: @unchecked Sendable {
         let output = CGRect(x: 0, y: 0, width: max(1, (width * scale).rounded()),
             height: max(1, (height * scale).rounded()))
         return image.transformed(by: CGAffineTransform(scaleX: scale, y: scale)).cropped(to: output)
+    }
+}
+
+/// A drawable can outlive its presentation callback. Transfer the frame exactly
+/// once so a recycled drawable cannot keep a camera-pool buffer pinned afterward.
+final class CameraPreviewPresentationLease: Sendable {
+    private let frame: OSAllocatedUnfairLock<CameraPreviewFrame?>
+
+    init(_ frame: CameraPreviewFrame) {
+        self.frame = OSAllocatedUnfairLock(initialState: frame)
+    }
+
+    func takeFrame() -> CameraPreviewFrame? {
+        frame.withLock { stored in
+            defer { stored = nil }
+            return stored
+        }
     }
 }
