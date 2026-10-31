@@ -474,29 +474,29 @@ struct FilmCardDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                glassImageCard
-                    .frame(maxWidth: sizeClass == .regular ? PageLayout.detailCoverWidth : .infinity)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
+        GeometryReader { geometry in
+            let sideBySide = PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular)
+            let layout = sideBySide
+                ? AnyLayout(HStackLayout(alignment: .top, spacing: 32))
+                : AnyLayout(VStackLayout(alignment: .leading, spacing: 22))
+            ScrollView {
+                layout {
+                    glassImageCard
+                        .frame(maxWidth: sizeClass == .regular ? PageLayout.detailCoverWidth : .infinity)
+                        .frame(maxWidth: sideBySide ? PageLayout.detailCoverWidth : .infinity)
 
-                headerSection
-                    .padding(.horizontal, 22)
-
-                if hasSpecChips {
-                    specChips
-                        .padding(.horizontal, 22)
+                    VStack(alignment: .leading, spacing: 22) {
+                        headerSection
+                        if hasSpecChips { specChips }
+                        if let notes = card.notes, !notes.isEmpty { notesSection(notes) }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-
-                if let notes = card.notes, !notes.isEmpty {
-                    notesSection(notes)
-                        .padding(.horizontal, 22)
-                }
+                .padding(.horizontal, 22)
+                .padding(.top, 12)
+                .padding(.bottom, 28)
+                .pageContentWidth(sideBySide ? PageLayout.browseWidth : PageLayout.readingWidth)
             }
-            .padding(.bottom, 28)
-            .pageContentWidth()
         }
         .background(
             FilmCardCoverBackdrop(

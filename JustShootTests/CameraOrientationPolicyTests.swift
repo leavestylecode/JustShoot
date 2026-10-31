@@ -6,7 +6,7 @@ final class CameraOrientationPolicyTests: XCTestCase {
     private let interfaces: [UIInterfaceOrientation] = [.portrait, .landscapeLeft, .portraitUpsideDown, .landscapeRight]
 
     @MainActor
-    func testIPadDeclaresCameraRotationsWhileIPhoneKeepsPortrait() throws {
+    func testIPadDeclaresAllRotationsWhileIPhoneKeepsPortrait() throws {
         // Bundle resolves platform/device qualifiers; installation may strip the
         // other family's keys. Validate the effective declaration on each device.
         let orientations = try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: "UISupportedInterfaceOrientations") as? [String])
@@ -15,7 +15,8 @@ final class CameraOrientationPolicyTests: XCTestCase {
                "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"]
             : ["UIInterfaceOrientationPortrait"]
         XCTAssertEqual(Set(orientations), Set(expected))
-        XCTAssertEqual(AppDelegate().application(UIApplication.shared, supportedInterfaceOrientationsFor: nil), .portrait)
+        XCTAssertEqual(AppDelegate().application(UIApplication.shared, supportedInterfaceOrientationsFor: nil),
+            UIDevice.current.userInterfaceIdiom == .pad ? .all : .portrait)
         XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "UIRequiresFullScreen") as? Bool,
             UIDevice.current.userInterfaceIdiom == .pad)
     }
@@ -33,33 +34,70 @@ final class CameraOrientationPolicyTests: XCTestCase {
     }
 
     @MainActor
-    func testIPadCameraRotationsAreScopedToItsSceneAndRestoredAfterLastOwner() async throws {
-        guard UIDevice.current.userInterfaceIdiom == .pad else { return }
+    func testIPadRotationsRemainEnabledAcrossNavigationAndModalPresentation() async throws {
+        try XCTSkipUnless(UIDevice.current.userInterfaceIdiom == .pad, "iPad rotation coverage")
         let scene = try await TestWindowScene.foreground()
-        let window = UIWindow(windowScene: scene)
+        let originalOrientation = scene.interfaceOrientation
+        let window = try XCTUnwrap(scene.windows.first { $0.isKeyWindow })
+        let previousRoot = window.rootViewController
         let root = UIViewController()
-        window.rootViewController = root
+        let navigation = UINavigationController(rootViewController: root)
+        window.rootViewController = navigation
         window.makeKeyAndVisible()
-        let first = CameraInterfaceOrientationSupport.Controller()
-        let second = CameraInterfaceOrientationSupport.Controller()
         defer {
-            first.restore()
-            second.restore()
-            window.isHidden = true
-            window.rootViewController = nil
+            window.rootViewController = previousRoot
+            if originalOrientation != .unknown {
+                scene.requestGeometryUpdate(.iOS(interfaceOrientations: mask(for: originalOrientation)))
+            }
         }
-        XCTAssertEqual(CameraInterfaceOrientationSupport.supportedOrientations(for: window), .portrait)
-        for controller in [first, second] {
-            root.addChild(controller)
-            root.view.addSubview(controller.view)
-            controller.enabled = true
-            controller.updateSupport()
+        let delegate = AppDelegate()
+        for sceneWindow in scene.windows {
+            sceneWindow.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
         }
-        XCTAssertEqual(AppDelegate().application(UIApplication.shared, supportedInterfaceOrientationsFor: window), .all)
-        first.restore()
-        XCTAssertEqual(CameraInterfaceOrientationSupport.supportedOrientations(for: window), .all)
-        second.restore()
-        XCTAssertEqual(CameraInterfaceOrientationSupport.supportedOrientations(for: window), .portrait)
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(UIApplication.shared.supportedInterfaceOrientations(for: window), .all)
+        XCTAssertEqual(navigation.supportedInterfaceOrientations, .all)
+        XCTAssertEqual(root.supportedInterfaceOrientations, .all)
+        for orientation: UIInterfaceOrientation in [.landscapeLeft, .portrait, .landscapeRight, .portraitUpsideDown] {
+            navigation.setNeedsUpdateOfSupportedInterfaceOrientations()
+            scene.requestGeometryUpdate(.iOS(interfaceOrientations: mask(for: orientation))) { error in
+                XCTFail("Scene rotation failed: \(error)")
+            }
+            for _ in 0..<60 {
+                if scene.interfaceOrientation == orientation { break }
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            XCTAssertEqual(scene.interfaceOrientation, orientation)
+            XCTAssertEqual(delegate.application(UIApplication.shared, supportedInterfaceOrientationsFor: window), .all)
+            navigation.pushViewController(UIViewController(), animated: false)
+            let sheet = UIViewController()
+            await withCheckedContinuation { continuation in
+                navigation.present(sheet, animated: false) { continuation.resume() }
+            }
+            XCTAssertEqual(delegate.application(UIApplication.shared, supportedInterfaceOrientationsFor: window), .all)
+            await withCheckedContinuation { continuation in
+                sheet.dismiss(animated: false) { continuation.resume() }
+            }
+            navigation.popToRootViewController(animated: false)
+            XCTAssertEqual(delegate.application(UIApplication.shared, supportedInterfaceOrientationsFor: window), .all)
+            XCTAssertEqual(scene.interfaceOrientation, orientation)
+        }
+    }
+
+    private func mask(for orientation: UIInterfaceOrientation) -> UIInterfaceOrientationMask {
+        switch orientation {
+        case .landscapeLeft: return .landscapeLeft
+        case .landscapeRight: return .landscapeRight
+        case .portraitUpsideDown: return .portraitUpsideDown
+        default: return .portrait
+        }
+    }
+
+    func testOnlyIPadOptsIntoEveryOrientation() {
+        XCTAssertEqual(AppInterfaceOrientationPolicy.supportedOrientations(for: .pad), .all)
+        for idiom: UIUserInterfaceIdiom in [.phone, .unspecified, .tv, .carPlay, .mac, .vision] {
+            XCTAssertEqual(AppInterfaceOrientationPolicy.supportedOrientations(for: idiom), .portrait)
+        }
     }
 
     func testEachWindowOrientationRetainsTheEntireSensorFrame() {

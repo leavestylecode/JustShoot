@@ -96,7 +96,6 @@ struct CameraView: View {
         .overlay {
             if isIPad { iPadBackButton }
         }
-        .background(CameraInterfaceOrientationSupport(enabled: isIPad))
         .ignoresSafeArea(.container, edges: isIPad ? .all : [])
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)

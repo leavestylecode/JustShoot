@@ -24,9 +24,7 @@ struct ContentView: View {
     @State private var usesLiveCustomFilters = false
     private func gridColumns(availableWidth: CGFloat) -> [GridItem] {
         let isRegular = sizeClass == .regular
-        let width = (isRegular ? min(availableWidth, PageLayout.browseWidth) : availableWidth) - (isRegular ? 48 : 28)
-        let count = PageLayout.gridColumns(width: width,
-            minimum: (isRegular ? 176 : 100) * gridScale, spacing: 14, maximum: 4)
+        let count = PageLayout.homeColumns(width: availableWidth, isRegular: isRegular, scale: gridScale)
         return Array(repeating: GridItem(.flexible(), spacing: 14, alignment: .top), count: count)
     }
 

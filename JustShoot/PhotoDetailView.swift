@@ -611,10 +611,11 @@ private struct ZoomablePhotoView: UIViewRepresentable {
 /// 让 UIScrollView 接管平移。bouncesZoom 让 pinch-out 越过 minimumZoomScale 时有原生 rubber-band。
 // 内容无关：承载任意 contentView（静图 UIImageView / Live Photo PHLivePhotoView）+ 一个
 // naturalSize（用于 aspect-fit）。缩放/平移/双击/边界翻页逻辑两类内容完全复用。
-private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
+final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     let contentView: UIView
     private var naturalSize: CGSize
     private var lastBoundsSize: CGSize = .zero
+    private var resizeAnchor: CGPoint?
     /// 下拉退出控制器（弱引用，由 SwiftUI 层持有）。dismissPan 把竖向位移回报给它。
     private weak var dismissController: DragDismissController?
     private var dismissPan: UIPanGestureRecognizer!
@@ -672,6 +673,23 @@ private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate, UIGes
 
     required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
 
+    override var bounds: CGRect {
+        willSet { captureResizeAnchor(for: newValue.size) }
+    }
+
+    override var frame: CGRect {
+        willSet { captureResizeAnchor(for: newValue.size) }
+    }
+
+    private func captureResizeAnchor(for size: CGSize) {
+        guard size != bounds.size, lastBoundsSize != .zero, resizeAnchor == nil,
+              contentView.bounds.width > 0, contentView.bounds.height > 0 else { return }
+        // Capture before UIScrollView adjusts offsets for the new viewport.
+        let center = convert(CGPoint(x: bounds.midX, y: bounds.midY), to: contentView)
+        resizeAnchor = CGPoint(x: center.x / contentView.bounds.width,
+            y: center.y / contentView.bounds.height)
+    }
+
     @objc private func handleSingleTap() { dismissController?.toggleChrome() }
 
     @objc private func toggleAccessibleControls() -> Bool {
@@ -712,23 +730,33 @@ private final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate, UIGes
             : CGSize(width: viewSize.height * aspect, height: viewSize.height)
 
         if resetZoom {
+            resizeAnchor = nil
+            setZoomScale(minimumZoomScale, animated: false)
             contentView.frame = CGRect(origin: .zero, size: fitted)
             contentSize = fitted
-            setZoomScale(minimumZoomScale, animated: false)
             return
         }
 
-        // 保 zoom：把 content frame 缩放到新 fit 尺寸；contentSize / contentOffset
-        // 按 viewport 缩放比例做线性映射，让屏幕上"看到"的相对位置基本不变。
-        let scaleX = oldBounds.width > 0 ? viewSize.width / oldBounds.width : 1
-        let scaleY = oldBounds.height > 0 ? viewSize.height / oldBounds.height : 1
-        let scale = min(scaleX, scaleY) // 安全起见取较小，避免越界
+        // Preserve the image point at the viewport's center, rather than scaling
+        // offsets by the window dimensions. Refit at 1x before restoring zoom:
+        // assigning a fitted frame to an already transformed view shrinks it twice.
         let oldZoom = zoomScale
-        let oldOffset = contentOffset
+        let oldSize = contentView.bounds.size
+        let center = convert(CGPoint(x: bounds.minX + oldBounds.width / 2,
+            y: bounds.minY + oldBounds.height / 2), to: contentView)
+        let anchor = resizeAnchor ?? CGPoint(x: oldSize.width > 0 ? center.x / oldSize.width : 0.5,
+            y: oldSize.height > 0 ? center.y / oldSize.height : 0.5)
+        resizeAnchor = nil
+        setZoomScale(minimumZoomScale, animated: false)
         contentView.frame = CGRect(origin: .zero, size: fitted)
-        contentSize = CGSize(width: fitted.width * oldZoom, height: fitted.height * oldZoom)
+        contentSize = fitted
         setZoomScale(oldZoom, animated: false)
-        contentOffset = CGPoint(x: oldOffset.x * scale, y: oldOffset.y * scale)
+        centerContent()
+        let target = CGPoint(x: anchor.x * contentSize.width - viewSize.width / 2,
+            y: anchor.y * contentSize.height - viewSize.height / 2)
+        contentOffset = CGPoint(
+            x: min(max(target.x, -contentInset.left), max(-contentInset.left, contentSize.width - viewSize.width + contentInset.right)),
+            y: min(max(target.y, -contentInset.top), max(-contentInset.top, contentSize.height - viewSize.height + contentInset.bottom)))
     }
 
     private func sameAspect(_ a: CGSize, _ b: CGSize) -> Bool {

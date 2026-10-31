@@ -2,12 +2,24 @@ import XCTest
 @testable import JustShoot
 
 final class PageLayoutTests: XCTestCase {
-    func testHomeKeepsFourReadableColumnsOnBothPortraitIPadSizes() {
-        for width in [CGFloat(834), 1032] {
-            let contentWidth = min(width, PageLayout.browseWidth) - 48
-            XCTAssertEqual(PageLayout.gridColumns(width: contentWidth, minimum: 176, spacing: 14, maximum: 4), 4)
-            XCTAssertEqual(PageLayout.gridColumns(width: contentWidth, minimum: 352, spacing: 14, maximum: 4), 2)
+    func testHomeAddsReadableColumnsAsIPadWindowWidens() {
+        for (width, expected) in [(CGFloat(834), 4), (1032, 5), (1194, 5), (1376, 5)] {
+            let columns = PageLayout.homeColumns(width: width, isRegular: true)
+            XCTAssertEqual(columns, expected)
+            let tileWidth = (min(width, PageLayout.browseWidth) - 48 - CGFloat(columns - 1) * 14) / CGFloat(columns)
+            XCTAssertGreaterThanOrEqual(tileWidth, 176)
         }
+        XCTAssertEqual(PageLayout.homeColumns(width: 393, isRegular: false), 3)
+        XCTAssertEqual(PageLayout.homeColumns(width: 320, isRegular: false), 2)
+        XCTAssertEqual(PageLayout.homeColumns(width: 834, isRegular: true, scale: 2), 2)
+    }
+
+    func testLandscapeDetailsRequireRoomForBothColumns() {
+        XCTAssertTrue(PageLayout.usesLandscapeColumns(in: CGSize(width: 1194, height: 744), isRegular: true))
+        for size in [CGSize(width: 834, height: 1094), CGSize(width: 1032, height: 1276), CGSize(width: 600, height: 450)] {
+            XCTAssertFalse(PageLayout.usesLandscapeColumns(in: size, isRegular: true))
+        }
+        XCTAssertFalse(PageLayout.usesLandscapeColumns(in: CGSize(width: 1194, height: 744), isRegular: false))
     }
 
     func testPhotoDensityUsesAvailableWidthAndStaysMonotonic() {

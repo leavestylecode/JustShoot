@@ -181,6 +181,7 @@ private enum CurveEditingChannel: String, CaseIterable, Identifiable {
 struct FilmCurveEditorView: View {
     @EnvironmentObject private var library: FilmCurveLibrary
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var draft: CustomFilmCurve
     @State private var channel: CurveEditingChannel = .master
     @State private var selectedPointIndex: Int?
@@ -194,44 +195,43 @@ struct FilmCurveEditorView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                TextField("Curve Name", text: $draft.name)
-                    .textInputAutocapitalization(.words)
-                    .onChange(of: draft.name) { _, value in
-                        if value.count > 40 {
-                            draft.name = String(value.prefix(40))
+        GeometryReader { geometry in
+            if PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular) {
+                HStack(alignment: .top, spacing: 24) {
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            channelPicker
+                            curveActionRow
+                            curveEditor
                         }
+                        .padding(.vertical, 16)
                     }
-            }
-
-            Section {
-                Picker("Channel", selection: $channel) {
-                    ForEach(CurveEditingChannel.allCases) { item in
-                        Text(item.shortName).tag(item)
+                    .frame(maxWidth: .infinity)
+                    Form {
+                        nameSection
+                        Section("Tone Curve") { pointControls }
+                    }
+                    .frame(width: 300)
+                    .scrollContentBackground(.hidden)
+                }
+                .padding(.horizontal, 24)
+                .pageContentWidth(PageLayout.browseWidth)
+            } else {
+                Form {
+                    nameSection
+                    Section {
+                        channelPicker
+                        curveActionRow
+                        curveEditor
+                        pointControls
+                    } header: {
+                        Text("Tone Curve")
                     }
                 }
-                .pickerStyle(.segmented)
-
-                curveActionRow
-
-                PhotoshopCurveEditor(
-                    points: selectedPoints,
-                    selectedIndex: $selectedPointIndex,
-                    accent: channel.color
-                )
-                .aspectRatio(1, contentMode: .fit)
-                .frame(maxWidth: PageLayout.curveEditorWidth)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
-
-                pointControls
-            } header: {
-                Text("Tone Curve")
+                .scrollContentBackground(.hidden)
+                .pageContentWidth()
             }
         }
-        .scrollContentBackground(.hidden)
-        .pageContentWidth()
         .background(Color.black)
         .tint(.white)
         .navigationTitle(isNew ? String(localized: "New Curve") : String(localized: "Edit Curve"))
@@ -244,6 +244,35 @@ struct FilmCurveEditorView: View {
                     .disabled(trimmedName.isEmpty || !library.canEdit)
             }
         }
+    }
+
+    private var nameSection: some View {
+        Section {
+            TextField("Curve Name", text: $draft.name)
+                .accessibilityIdentifier("curves.editor.name")
+                .textInputAutocapitalization(.words)
+                .onChange(of: draft.name) { _, value in
+                    if value.count > 40 { draft.name = String(value.prefix(40)) }
+                }
+        }
+    }
+
+    private var channelPicker: some View {
+        Picker("Channel", selection: $channel) {
+            ForEach(CurveEditingChannel.allCases) { item in
+                Text(item.shortName).tag(item)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var curveEditor: some View {
+        PhotoshopCurveEditor(points: selectedPoints, selectedIndex: $selectedPointIndex, accent: channel.color)
+            .aspectRatio(1, contentMode: .fit)
+            .frame(maxWidth: PageLayout.curveEditorWidth)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            .accessibilityIdentifier("curves.editor.graph")
     }
 
     @ViewBuilder

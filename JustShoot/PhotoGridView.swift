@@ -18,7 +18,7 @@ enum GalleryDensity: Int, CaseIterable, Identifiable {
         case .small: minimum = 112
         }
         return PageLayout.gridColumns(width: width - 28, minimum: minimum,
-            spacing: PhotoGridView.spacing, maximum: accessibilitySize ? 2 : 7)
+            spacing: PhotoGridView.spacing, maximum: accessibilitySize ? 2 : 9)
     }
     var displayName: LocalizedStringKey {
         switch self {
