@@ -27,7 +27,7 @@ struct ContentView: View {
         let width = (isRegular ? min(availableWidth, PageLayout.browseWidth) : availableWidth) - (isRegular ? 48 : 28)
         let count = PageLayout.gridColumns(width: width,
             minimum: (isRegular ? 176 : 100) * gridScale, spacing: 14, maximum: 4)
-        return Array(repeating: GridItem(.flexible(), spacing: 14), count: count)
+        return Array(repeating: GridItem(.flexible(), spacing: 14, alignment: .top), count: count)
     }
 
     init(preparedHome: HomePreparationSnapshot) {
@@ -314,20 +314,11 @@ struct FilmPresetTile: View {
                 .aspectRatio(1, contentMode: .fit)
                 .frame(maxWidth: .infinity)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(preset.rawSimulation?.displayName ?? preset.displayName)
-                    .font(.system(size: (sizeClass == .regular ? 15 : 11) * captionScale, weight: .semibold))
-                    .foregroundColor(.white)
-                    .lineLimit(2, reservesSpace: true)
-
-                Group {
-                    if preset.rawSimulation != nil { Text("Film simulation") }
-                    else { Text("ISO \(Int(preset.iso))") }
-                }
-                    .font(.system(size: (sizeClass == .regular ? 13 : 10) * captionScale))
-                    .foregroundColor(.white.opacity(0.5))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(preset.rawSimulation?.displayName ?? preset.displayName)
+                .font(.system(size: (sizeClass == .regular ? 15 : 11) * captionScale, weight: .semibold))
+                .foregroundColor(.white)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(preset.rawSimulation != nil ? Text(verbatim: preset.displayName) : Text("\(preset.displayName), ISO \(Int(preset.iso))"))
@@ -368,17 +359,11 @@ struct CustomLUTTile: View {
                 .aspectRatio(1, contentMode: .fit)
                 .frame(maxWidth: .infinity)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(lut.displayName)
-                    .font(.system(size: (sizeClass == .regular ? 15 : 11) * captionScale, weight: .semibold))
-                    .foregroundColor(.white)
-                    .lineLimit(2, reservesSpace: true)
-
-                Text("ISO \(Int(lut.iso))")
-                    .font(.system(size: (sizeClass == .regular ? 13 : 10) * captionScale))
-                    .foregroundColor(.white.opacity(0.5))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(lut.displayName)
+                .font(.system(size: (sizeClass == .regular ? 15 : 11) * captionScale, weight: .semibold))
+                .foregroundColor(.white)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text("Custom filter \(lut.displayName), ISO \(Int(lut.iso))"))

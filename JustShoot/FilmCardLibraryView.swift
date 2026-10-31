@@ -165,7 +165,7 @@ struct FilmCardLibraryView: View {
         let count = PageLayout.gridColumns(width: width,
             minimum: density.minimumWidth(isRegular: isRegular) * gridScale,
             spacing: density.itemSpacing, maximum: 8)
-        return Array(repeating: GridItem(.flexible(), spacing: density.itemSpacing), count: count)
+        return Array(repeating: GridItem(.flexible(), spacing: density.itemSpacing, alignment: .top), count: count)
     }
 
     static let mainISOs = FilmCardCatalogIndex.mainISOs
@@ -439,7 +439,7 @@ struct FilmCardThumbnail: View {
             }
             .font(.system(size: max(density.titleFontSize, sizeClass == .regular ? 14 : 0) * captionScale, weight: .medium))
             .foregroundColor(.white.opacity(0.85))
-            .lineLimit(2, reservesSpace: true)
+            .lineLimit(2)
 
             HStack(spacing: 4) {
                 if let iso = card.iso {

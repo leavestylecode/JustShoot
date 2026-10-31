@@ -27,25 +27,25 @@ struct MainTabView: View {
             Tab(value: 0) {
                 ContentView(preparedHome: home)
             } label: {
-                Label("Films", systemImage: "camera.filters")
+                Image(systemName: "camera.filters").accessibilityLabel("Films")
             }
 
             Tab(value: 1) {
                 NavigationStack { GalleryView(onStartShooting: { selectedTab = 0 }) }
             } label: {
-                Label("Photos", systemImage: "photo.stack")
+                Image(systemName: "photo.stack").accessibilityLabel("Photos")
             }
 
             Tab(value: 2) {
                 NavigationStack { FilmCardLibraryView() }
             } label: {
-                Label("Library", systemImage: "books.vertical")
+                Image(systemName: "books.vertical").accessibilityLabel("Library")
             }
 
             Tab(value: 3) {
                 SettingsView()
             } label: {
-                Label("Settings", systemImage: "gearshape")
+                Image(systemName: "gearshape").accessibilityLabel("Settings")
             }
         }
         // 向下滚动时自动收起成 mini tab 栏（iOS 26），上滑恢复——给内容腾出更多竖向空间。
