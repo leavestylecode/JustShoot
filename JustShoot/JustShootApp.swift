@@ -52,7 +52,9 @@ struct JustShootApp: App {
     var body: some Scene {
         WindowGroup {
             AppStartupContent(startup: startup, curveLibrary: curveLibrary, isRunningUnitTests: isRunningUnitTests)
-            .onChange(of: scenePhase, initial: true) { _, phase in startup.setActive(phase == .active) }
+                // Keep typography and scaled layout metrics at the design's default size.
+                .dynamicTypeSize(.large)
+                .onChange(of: scenePhase, initial: true) { _, phase in startup.setActive(phase == .active) }
         }
     }
 }
