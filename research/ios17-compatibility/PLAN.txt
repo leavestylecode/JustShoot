@@ -1,0 +1,275 @@
+JustShoot：iOS 17.0 兼容性分析与重构方案
+
+结论与范围
+
+建议保留现有 SwiftUI、SwiftData、AVFoundation、Metal/Core Image 架构，
+通过集中管理的兼容边界支持 iOS/iPadOS 17.0，同时保留新系统增强能力。
+主要工作集中在焦距映射、系统相机控件、HDR 输入、Live Photo 编码和导航外观。
+其中焦距、HDR 与 17.0–17.3 编码行为是发布前必须验证的核心风险。
+
+本轮为分析与方案，不实施适配。只新增本方案及 AUDIT.json；不修改源码、
+部署版本、资源、数据模型或签名。项目当前仍要求 iOS 26.0。
+审计基线提交：e081b22（ui: 优化 iPad 各页面布局与看图交互）。
+
+一、审计范围与实际验证
+
+1. 全项目扫描：93 个应用 Swift 文件（23,856 行）、89 个测试 Swift 文件
+   （10,710 行）、5 个 Metal shader；检查工程、共享 scheme、Info.plist、
+   entitlement、隐私声明、字符串目录和资源组织。按源码声明计数有 523 个
+   test 方法；这是静态清单，不是本次执行通过数量。
+2. 应用 target 没有 Swift Package 产品依赖；research 中的第三方研究材料
+   不等于应用运行时依赖。无需为兼容 iOS 17 增加兼容库。
+3. 保留当前工具链：Xcode.app / iOS Simulator 27.1 SDK，Swift 6，
+   complete strict concurrency。最低系统版本与 Swift 语言版本分别管理。
+4. XcodeBuildMCP 执行上下文：JustShoot.xcodeproj / JustShoot / Debug，
+   iPhone 17（iOS 26.4.1 Simulator），DerivedData 位于 /tmp/justshoot-ios17-audit。
+5. 原配置 Debug 构建通过。工具报告一个既有 UIRequiresFullScreen 弃用警告。
+6. 临时传入 IPHONEOS_DEPLOYMENT_TARGET=17.0、CODE_SIGNING_ALLOWED=NO，
+   编译器实际 target 为 arm64-apple-ios17.0-simulator。构建失败，原始日志中
+   去重后有 50 条 error，分布于 9 个文件。Tab result builder 等会对同一原因
+   产生多条诊断，因此不能解释为 50 个独立缺陷，也不是全部问题的上限。
+7. 静态扫描另发现 CameraSubviews.glassEffect、iOS 26 内容返回手势、
+   测试中的 preferredTransition 和相机控件协议等需要检查的调用。
+   修复首轮错误后，应继续以编译器诊断更新清单。
+8. 本机列出了 iOS 17.2/17.5 Simulator，但直接选择 17.2 时，Xcode 仍按
+   工程内的 26.0 部署配置拒绝该 destination。随后使用新系统模拟器完成
+   17.0 编译检查。本次没有运行 iOS 17 应用、XCTest、真机拍摄或性能测试。
+   不以“17.0 编译目标”代替“17.0 系统运行通过”。17.0 runtime 尚未验证。
+
+二、各模块判断
+
+启动与数据模型
+  JustShootApp、AppStartupPreparation、Models、PhotoSaver：保留。
+  SwiftData、Observation、VersionedSchema 和现有 NavigationStack 可用于 iOS 17。
+  首轮编译未在这些文件暴露版本错误，但仍需验证 17.0 SwiftData 的真实磁盘
+  存储、Predicate 翻译和跨 context 更新。现有启动/数据测试主要使用内存库。
+
+相机与拍摄入口
+  CameraManager（3,568 行）同时持有设备会话、控件、观察者、焦距和拍摄交付。
+  已有专用 hardwareQueue、generation/token、admission、readiness 和纯策略，
+  这些是应保留的稳定边界。此次只抽取有版本差异的接口，不整体重写管理器。
+  CameraView / CameraSubviews 保留现有快门反馈、控件布局及准备/错误状态。
+
+拍摄队列、持久化与恢复
+  CapturePipeline、CaptureJournal、CaptureStorageLedger、CaptureQueueState 等保留。
+  继续执行原片 checkpoint → 后台渲染 → Photos 资产 → SwiftData 索引的顺序。
+  维持单渲染 worker、独立 deferred 等待通道、后台取消和恢复、删除事务护栏。
+  系统 API 兼容不应引入另一套保存路径或放宽丢图保护。
+
+静态图、RAW 与胶片成像
+  FilmProcessor、FilmImagePipeline、RawFilmRenderer、FilmMaterialRenderer、
+  LUT/曲线/光学/颗粒共享数学保留。必要改动集中在 HDR 输入边界。
+  新拍摄计划默认 processed SDR；RAW 仍用于历史冻结任务和显式诊断。
+  不能因兼容旧系统就移除 RAW 恢复，也无需重烘焙 LUT 或改 Portra 材质参数。
+
+Metal 预览与缓存
+  MetalPreview、PreviewLUTTextureCache、PreviewTargetPool、Diffusion cache 保留。
+  5 个 shader 已进入 17.0 target 的编译/链接流程，首轮未报 shader 编译错误；
+  这不证明旧 GPU 的运行、精度和耗时。仍需在旧设备检查 pipeline 初始化、
+  像素一致性、资源峰值和前后台生命周期。
+
+Live Photo
+  LivePhotoRollingBuffer + LivePhotoProcessor 保留，不切回另一套原生 Live 管线。
+  普通预览与 Live 继续使用同一缩放视频流；保留有界队列、环形历史、音频、
+  shutter time、配对标识、封存及取消语义。编码器创建参数需要 17.4 分支。
+
+相册与详情
+  GalleryView 的 UIKit UICollectionView 网格、PhotoDetailView 的 iOS 17 分页、
+  共享请求、邻页预热与可取消加载保留。兼容重点是 Tab/导航栏联动及手势。
+  详情页 1,271 行不是本轮必须拆分的理由，避免把布局重写混入系统适配。
+
+胶片库、曲线、设置与资源
+  FilmCardLibraryView 的 zoom/glass、FilmCurveLibraryView 的工具栏 API 需要适配。
+  已有目录索引、封面共享缓存和后台解码保留；Settings、导入、分享的现有
+  系统组件优先复用。检查 SF Symbols 在 17.0 的实际显示、VoiceOver、动态字体、
+  减少动态效果/透明度。新提示进入 xcstrings；权限说明和恢复动作继续可见。
+
+三、确定需要处理的兼容边界
+
+A. 工程最低版本
+  project.pbxproj 有 6 处 IPHONEOS_DEPLOYMENT_TARGET=26.0：
+  Project、JustShoot、JustShootTests 各自的 Debug/Release。
+  集成阶段统一为 17.0，检查测试宿主、Release 和最终设备产物 MinimumOSVersion。
+  保留最新 Base SDK、Swift 6、严格并发和 iPhone/iPad 双设备族。
+
+B. Tab 与导航外观
+  MainTabView:26–52：Tab(value:) 要求 18，tabBarMinimizeBehavior 要求 26。
+  推荐四个页面共用 TabView + tabItem + tag；仅自动收缩行为在 26+ 启用。
+  保留 SceneStorage 的选中值和已有 NavigationStack，避免复制两套业务页面。
+  标准系统组件在新系统上仍会采用系统外观，不需要为保留玻璃感重造 Tab 栏。
+
+  FilmCardLibraryView:199/248：matchedTransitionSource / zoom navigation 为 18+。
+  封装源与目的转场 modifier：17 使用标准 push，18+ 保留 zoom。
+  CameraNavigationGestureBlocker:18：17 无需 navigationTransition(.automatic)，
+  18+ 仍显式使用标准转场，维持“相机仅通过返回按钮退出”的产品语义。
+
+  CameraNavigationGestureBlocker:78：interactiveContentPopGestureRecognizer 为 26+。
+  17+ 管理边缘返回，26+ 再管理内容返回；退出后恢复每个识别器的原始状态。
+  CameraNavigationGestureBlockerTests 也要分版本断言，不能在 17 强制 unwrap
+  不存在的内容手势；preferredTransition 断言同样只在支持的系统执行。
+
+  FilmCurveLibraryView:80/239：toolbarVisibility 为 18+，可直接统一使用现有
+  项目其他页面已采用的 toolbar(.hidden, for: .tabBar)。
+
+  CameraSubviews:117、FilmCardLibraryView:560：glassEffect 为 26+。
+  提供少量命名清楚的 surface modifier：26+ 原效果；17–18 用简单深色底、
+  描边或系统 Material。保持形状、触控区域和可读性，不模拟昂贵折射。
+
+C. 系统 Camera Control 与曝光范围
+  CameraManager:294/296、1554–1572、2016–2040、2517、3131、3196、3291：
+  picker、system exposure slider、control 安装/更新/移除、delegate 属于 18+。
+  新建 @available(iOS 18.0, *) 的 CameraSystemControlsAdapter，持有这些类型，
+  通过不暴露新版类型的私有协议与 CameraManager 通信；17 使用空实现/不安装。
+  建立、同步、禁用、销毁都走同一 adapter，保留 exposure epoch 和捕获锁定。
+  同时检查系统版本与 session/device 能力，不能只按 iPhone 名称判断。
+
+  特别注意：exposureRange 当前只在 installExposureBiasSlider 中赋值。
+  如果把整个函数简单包进 #available(18)，17 的屏幕 EV 控件将继续使用默认
+  -1...1，而非硬件范围。必须将范围解析独立出来：17 用 min/maxExposureTargetBias，
+  18+ 再与 systemRecommendedExposureBiasRange 取交集；不依赖硬件控件存在。
+
+  Constant Color（CameraManager:2870、CameraDeviceDiagnostics:68）为 18+。
+  只在版本与设备都支持且符合现有 flash/live/raw 条件时启用；17 保持普通闪光。
+  诊断的 cinematicExtendedEnhanced 也须分版本追加，不让调试日志阻塞旧系统构建。
+  已经受 #available(27) 保护的指定长焦 constituent lock 保持可选增强语义。
+
+D. 焦距与设备校准：最高风险之一
+  DeviceFocalInfo:135/138、CameraManager:2920、CameraDeviceDiagnostics:37 使用
+  nominalFocalLengthIn35mmFilm（26+）。它支撑镜头分类、档位、zoom、曝光上限
+  及日志，不能简单删除或给所有镜头统一填 26mm。
+
+  建议新建 CameraFocalCalibration，返回不可变的镜头锚点及来源/可信度：
+  26+ 读取有效的系统标称值；17–18 优先使用经实拍 EXIF 校验的设备/镜头校准，
+  对未知设备研究从 physical format 的视场角与画幅推导估计值。
+  FOV 是格式相关近似，不宣称等于照片标称焦距；未知且无法可靠推导时显式
+  表示未校准，不给虚构的毫米精度，必要时显示倍率。降级提示应简短且本地化。
+  校准不能通过启动时偷偷拍照实现，也不能在每帧/每次 View 更新查询设备。
+
+  保留 constituent 与 switch-over 顺序的绑定和双向 zoom 数学；不能因按估计
+  焦距排序而错配阈值。日志共享解析快照，不再次直接读取 26+ 属性。
+  测试单摄/双摄/三摄、非 24mm 主摄、不同长焦锚点、unknown/zero/NaN、
+  switch-over 边界、最大 zoom、正反换算与安全快门；真机比对预览、原片、
+  Live shutter frame、最终 EXIF。旧版分支必须有校准证据再宣布支持完成。
+
+E. HDR 到 SDR：最高风险之一
+  FilmImagePipeline.decodePhoto:14–17 的 contentHeadroom、toneMapHeadroom 为 18+。
+  不能在 17 直接 return 未映射 HDR 图像，否则 display LUT 输入和高光层次会变。
+  建议独立 PhotoInputDecoder：18+ 保留现有显式 headroom 映射；17 使用
+  CIImage 的 toneMapHDRtoSDR=true（14.1+）及 expandToHDR=false（17.0+）。
+  该候选方案需通过真实/合成 HDR 样本验证；不能先假设不同系统像素完全一致。
+  这一步处理输入合同，保持 SDR sRGB、方向、元数据、LUT 与材质参数稳定。
+
+  复用 FilmPhotoInputTests：PQ 高光阶梯映射后有界且不全裁白；SDR 不二次
+  映射；增加 HLG、gain-map HEIC/JPEG、广色域和方向样本。比较静态/Live/预览
+  的合同及容差，保留历史 RAW recipe。若解码策略影响冻结任务跨版本重放，
+  为新 recipe 冻结解码策略并提供旧字段缺失时的明确默认；不顺带修改 SwiftData schema。
+
+F. Live Photo 编码：必须覆盖 17.0–17.3
+  LivePhotoRollingBuffer:284 的 RequireHardwareAcceleratedVideoEncoder 要求 17.4。
+  17.4+ 保留明确要求硬编；17.0–17.3 候选是省略该 specification 键，让
+  VTCompressionSession 按该平台公开支持的默认路径创建 H.264 encoder。
+  EnableHardwareAcceleratedVideoEncoder 和 UsingHardwareAcceleratedVideoEncoder
+  在本地 SDK 中也标为 17.4+，不能拿它们充当前期系统的替代键或硬编证明。
+  不用字面字符串绕过 unavailable API。
+
+  抽取 LivePhotoEncoderConfiguration 负责创建参数和错误原因，保持现有
+  RealTime、30fps、无帧重排、颜色标签、最多 2 个待处理视频帧和历史字节上限。
+  17.0–17.3 必须实测编码实时性、资源占用和过载恢复，不能推断它一定走硬编。
+  无法稳定编码时明确报告 Live 不可用/失败并保留用户偏好；已得到的静态图
+  仍按现有机制保存并提示动态资源缺失，不静默关闭 Live 或永久改用户开关。
+  测试初始化失败、重试、尺寸改变、并发快门、音频、seal、取消、重启和配对播放。
+
+四、建议新增的边界（名称可在实现时调整）
+
+  PlatformViewModifiers.swift       少量 glass、zoom、Tab 行为兼容修饰器
+  CameraSystemControlsAdapter.swift 18+ 控件存储/delegate/生命周期及旧系统空实现
+  CameraFocalCalibration.swift      镜头焦距解析、校准来源与置信状态
+  PhotoInputDecoder.swift           系统版本对应的 SDR 输入解码策略
+  LivePhotoEncoderConfiguration.swift 17.4 前后的编码器配置
+
+能力快照在设备/format/session 改变后更新，不做永久全局硬件布尔值。
+系统版本判断集中在这些入口，状态机消费数值/能力结果；避免到处 if #available。
+保留 MainActor UI 所有权、串行硬件队列、有界后台工作、Sendable 正确性和取消传播。
+不以 Any/unsafe 全局状态、降低 Swift 版本或关闭并发检查解决编译错误。
+
+五、实施顺序与交付检查
+
+阶段 1：先打通核心兼容边界，暂保留工程最低 26.0
+  提取相机控件 adapter，修正独立 EV range；提取焦距校准、HDR 解码与编码配置。
+  为旧策略提供可直接注入的数值/配置入口，在当前测试宿主先跑逻辑与图像回归。
+  26/27 分支保持原行为；未知能力不编造数据。焦距和 17.0 编码保留实机验证项。
+  建议按“controls/焦距”和“HDR/Live 编码”拆两个可评审提交。
+
+阶段 2：完成 UI 兼容后，统一降低部署版本
+  统一 Tab 基础写法，加入 glass/zoom/导航手势分支及旧版工具栏写法。
+  所有新版存储类型、协议 conformance、测试断言都纳入可用性边界。
+  将全部 6 处最低版本设为 17.0，继续修复编译新暴露的问题，直到应用与测试
+  target 的 Debug/Release 均通过；检查设备构建、MinimumOSVersion 与 metallib。
+  更新 README 的平台描述。这一阶段结束才具备安装旧系统测试包的条件。
+
+阶段 3：跨系统功能与数据验收
+  17.0（如可取得）、现有 17.2 和 17.5、18、26/27 执行回归，至少包括一个旧 iPad。
+  对应版本的测试必须实际执行，不能把 17.5 通过等同于 17.0 分支通过。
+  检查真实持久化：新建磁盘库、关闭重开、插入/批删、@Query 跨 context 刷新、
+  自定义 LUT、externalStorage、历史 recipe/journal、失败导出与恢复、资源摘要。
+  覆盖 limited/denied/full Photos、iCloud 未下载、权限变化，避免误删不可见资产。
+  保留 SchemaV1；若真的需要模型变更，再独立建立冻结 schema 与迁移步骤。
+  不承诺新版 OS 创建的底层数据库可以无条件回退到旧版 OS。
+
+  模拟器检查四 Tab、push/pop、相机不可用恢复、曲线编辑、LUT 导入、相册多选、
+  分享/删除错误、分页缩放与返回、空库、iPad 竖屏及大字体/VoiceOver。
+  继续保留现有 UIRequiresFullScreen 与 ~iphone 配置；本轮不移除刚验证过的
+  竖屏方案，单独记录既有弃用警告并检查 17 上的布局。
+
+阶段 4：真机校准与旧设备性能验收
+  至少覆盖 17.0–17.3 真机及 17.4+，单/双/三摄与 iPad；记录机型和 OS。
+  执行现有 PhysicalCameraPipelineTests 的配置、无 Photos 取景、实际保存用例；
+  测试选择与权限准备按各环境实际完成，跳过不能计作通过。
+  各焦段比较预览/静态/Live 边缘、方向和 EXIF；检查低光跨镜头、EV/白平衡、
+  闪光、有声 Live、连续拍摄、退出相机和前后台交替、恢复及照片配对播放。
+
+  先测冷启动、首帧、切镜停帧、快门确认/实际曝光/保存分段、掉帧、P50/P95
+  编码耗时、峰值内存和持续拍摄热状态，再决定是否需要设备资源档位。
+  当前已有按内存限制的图像缓存、64 MiB LUT、32 MiB GPU LUT、纹理池和
+  12/2 MiB Live 视频/音频历史，不能把各缓存额度之和当真实峰值内存。
+  如旧设备存在压力，再独立调整预热邻域、缓存、预览分辨率/帧率；按设备能力
+  而非单按 iOS 版本分档，不改成片分辨率、胶片配方或已冻结任务的渲染语义。
+
+六、发布门槛
+
+  • 工程及测试 target 的 Debug/Release 最低版本均为 17.0，完整构建通过。
+  • 适配提交无新增警告；已有 UIRequiresFullScreen 例外单独记录。
+  • 17.0–17.3 与 17.4+ 路径各有实际系统证据；缺少 17.0 验证时明确列为缺口。
+  • 现有全量 XCTest 和新兼容回归通过，硬件/外部样本跳过项单列。
+  • 焦距校准、HDR 高光和 Live 实时性有真机/图像证据，无丢图、误删或静默变换格式。
+  • 26/27 的现有界面与拍摄能力回归通过，iPad 竖屏策略和交互保持可用。
+  • 旧系统新装/更新后的磁盘数据和 journal 恢复通过；无无关 schema、资源或权限改动。
+  • UI 截图/录像与设备型号、iOS 版本、构建和测试结果进入实施 PR。
+
+七、范围控制与待验证结论
+
+本轮无需把 SwiftData 换成 Core Data，不整体 actor 化 CameraManager，不重写
+UIKit 相册，不重烘焙胶片资源，不为 iOS 17 模拟 Liquid Glass，不取消完整并发检查。
+这些改动都不直接解决已发现的系统可用性问题，会扩大画质、数据和性能回归面。
+
+仍需实证：旧系统焦距校准准确度、系统 HDR 解码差异、17.4 前默认编码路径、
+17.0 SwiftData/导航的实际行为、旧 GPU 的精度和峰值资源。该方案提出候选实现
+与验收方式，尚未把这些候选描述成已修复或已测量的性能收益。
+
+八、参考依据
+
+主要依据：当前源码、XcodeBuildMCP 构建日志与本机 iOS 27.1 SDK 的公开 availability。
+逐条编译诊断、文件清单和构建上下文保存在同目录 AUDIT.json。
+
+Apple：SwiftData 自 iOS 17 引入
+https://developer.apple.com/videos/play/wwdc2024/10137/
+Apple：系统标准组件随当前系统采用 Liquid Glass 外观
+https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass
+Apple：标称焦距的含义及 virtual/external 返回 0 的语义
+https://developer.apple.com/documentation/avfoundation/avcapturedevice/nominalfocallengthin35mmfilm
+Apple：Core Image HDR-to-SDR 输入选项
+https://developer.apple.com/documentation/coreimage/ciimageoption/tonemaphdrtosdr
+Apple：VideoToolbox 编码配置/硬件加速属性
+https://developer.apple.com/documentation/videotoolbox/compression-properties
+状态更新（2026-10-31）：用户已授权实施，并明确旧系统不支持的功能直接移除入口和开关。
+以下为最初审计方案的历史快照；最终实施范围、支持矩阵和验证证据见同目录 IMPLEMENTATION.txt。

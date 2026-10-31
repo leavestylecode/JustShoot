@@ -87,6 +87,49 @@ final class LibraryFlowTests: XCTestCase {
         XCTAssertTrue(try context.fetch(FetchDescriptor<CustomLUT>()).isEmpty)
     }
 
+    func testDiskStoreKeepsOneLUTAndPhotoAfterFailedDeletionAndReopen() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let configuration = ModelConfiguration(url: root.appendingPathComponent("library.store"), cloudKitDatabase: .none)
+        let id: UUID
+        let photoID: UUID
+        let bytes = Data((0..<131_072).map { UInt8(truncatingIfNeeded: $0) })
+        do {
+            let store = try ModelContainer(for: Photo.self, CustomLUT.self, configurations: configuration)
+            let context = store.mainContext
+            context.autosaveEnabled = false
+            let lut = CustomLUT(displayName: "Disk LUT", fileName: "test-\(UUID()).cube", iso: 400, dimension: 65)
+            let photo = Photo(assetLocalIdentifier: nil, imageData: bytes)
+            id = lut.id
+            photoID = photo.id
+            context.insert(lut)
+            context.insert(photo)
+            try context.save()
+            let url = lut.fileURL
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try bytes.write(to: url)
+            defer { try? FileManager.default.removeItem(at: url) }
+            XCTAssertThrowsError(try CustomLUTPersistence.delete(lut, in: context, save: { _ in
+                throw CocoaError(.fileWriteOutOfSpace)
+            }))
+            XCTAssertEqual(try Data(contentsOf: url), bytes)
+            XCTAssertEqual(try context.fetch(FetchDescriptor<CustomLUT>()).map(\.id), [id])
+            try context.save()
+        }
+        let reopened = try ModelContainer(for: Photo.self, CustomLUT.self, configurations: configuration)
+        let luts = try reopened.mainContext.fetch(FetchDescriptor<CustomLUT>())
+        XCTAssertEqual(luts.map(\.id), [id], "Rollback repair must not duplicate a persisted row")
+        XCTAssertEqual(luts.first?.displayName, "Disk LUT")
+        XCTAssertEqual(luts.first?.dimension, 65)
+        let photos = try reopened.mainContext.fetch(FetchDescriptor<Photo>())
+        XCTAssertEqual(photos.map(\.id), [photoID])
+        XCTAssertEqual(photos.first?.imageData, bytes)
+        if let lut = luts.first { try CustomLUTPersistence.delete(lut, in: reopened.mainContext) }
+        XCTAssertTrue(try reopened.mainContext.fetch(FetchDescriptor<CustomLUT>()).isEmpty)
+        XCTAssertEqual(try reopened.mainContext.fetch(FetchDescriptor<Photo>()).count, 1)
+    }
+
     func testFallbackBecomingLiveAssetRefreshesTheSameGridItem() {
         let id = UUID(), unchanged = UUID(), added = UUID()
         let before = [id: PhotoGridItemRevision(assetID: nil, isLive: false),

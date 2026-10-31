@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - 底部 Tab 栏（iOS 26 原生 TabView）
+// MARK: - 底部 Tab 栏（iOS 17+ 原生 TabView）
 //
 // 4 个固定 tab：
 //   Films    首页胶片网格 + 拍摄（ContentView 本体——其内部已含 NavigationStack，承载
@@ -24,32 +24,21 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            Tab(value: 0) {
-                ContentView(preparedHome: home)
-            } label: {
-                Image(systemName: "camera.filters").accessibilityLabel("Films")
-            }
-
-            Tab(value: 1) {
-                NavigationStack { GalleryView(onStartShooting: { selectedTab = 0 }) }
-            } label: {
-                Image(systemName: "photo.stack").accessibilityLabel("Photos")
-            }
-
-            Tab(value: 2) {
-                NavigationStack { FilmCardLibraryView() }
-            } label: {
-                Image(systemName: "books.vertical").accessibilityLabel("Library")
-            }
-
-            Tab(value: 3) {
-                SettingsView()
-            } label: {
-                Image(systemName: "gearshape").accessibilityLabel("Settings")
-            }
+            ContentView(preparedHome: home)
+                .tabItem { Image(systemName: "camera.filters").accessibilityLabel("Films") }
+                .tag(0)
+            NavigationStack { GalleryView(onStartShooting: { selectedTab = 0 }) }
+                .tabItem { Image(systemName: "photo.stack").accessibilityLabel("Photos") }
+                .tag(1)
+            NavigationStack { FilmCardLibraryView() }
+                .tabItem { Image(systemName: "books.vertical").accessibilityLabel("Library") }
+                .tag(2)
+            SettingsView()
+                .tabItem { Image(systemName: "gearshape").accessibilityLabel("Settings") }
+                .tag(3)
         }
         // 向下滚动时自动收起成 mini tab 栏（iOS 26），上滑恢复——给内容腾出更多竖向空间。
-        .tabBarMinimizeBehavior(.onScrollDown)
+        .scrollingTabBar()
         .tint(.white)
         .preferredColorScheme(.dark)
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in

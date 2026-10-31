@@ -2,21 +2,28 @@
 #include "FilmMaterialMath.h"
 using namespace metal;
 
-float3 materialNode(coreimage::sampler table, float3 index, float dim) {
-    float2 p = float2(index.x, dim * dim - 1.0 - index.y - index.z * dim) + 0.5;
-    return table.sample(table.transform(p)).rgb;
+float4 cubeNode(coreimage::sampler table, float3 index, float dim, float2 size) {
+    float offset = index.x + index.y * dim + index.z * dim * dim;
+    float2 p = float2(fmod(offset, size.x), size.y - 1.0 - floor(offset / size.x)) + 0.5;
+    return table.sample(table.transform(p));
 }
-float3 materialLookup(coreimage::sampler table, float3 rgb, float dim) {
-    // Identity tables still clamp their domain; preserve this for HDR/RAW inputs
-    // and for energy added before density development.
-    if (dim == 0.0) return clamp(rgb, 0.0, 1.0);
+float4 cubeLookup(coreimage::sampler table, float3 rgb, float dim, float2 size) {
     float3 pos = clamp(rgb, 0.0, 1.0) * (dim - 1.0);
     float3 lo = floor(pos), hi = min(lo + 1.0, dim - 1.0), f = pos - lo;
-    float3 a = mix(materialNode(table, lo, dim), materialNode(table, float3(hi.x, lo.y, lo.z), dim), f.x);
-    float3 b = mix(materialNode(table, float3(lo.x, hi.y, lo.z), dim), materialNode(table, float3(hi.x, hi.y, lo.z), dim), f.x);
-    float3 c = mix(materialNode(table, float3(lo.x, lo.y, hi.z), dim), materialNode(table, float3(hi.x, lo.y, hi.z), dim), f.x);
-    float3 d = mix(materialNode(table, float3(lo.x, hi.y, hi.z), dim), materialNode(table, hi, dim), f.x);
+    float4 a = mix(cubeNode(table, lo, dim, size), cubeNode(table, float3(hi.x, lo.y, lo.z), dim, size), f.x);
+    float4 b = mix(cubeNode(table, float3(lo.x, hi.y, lo.z), dim, size), cubeNode(table, float3(hi.x, hi.y, lo.z), dim, size), f.x);
+    float4 c = mix(cubeNode(table, float3(lo.x, lo.y, hi.z), dim, size), cubeNode(table, float3(hi.x, lo.y, hi.z), dim, size), f.x);
+    float4 d = mix(cubeNode(table, float3(lo.x, hi.y, hi.z), dim, size), cubeNode(table, hi, dim, size), f.x);
     return mix(mix(a, b, f.y), mix(c, d, f.y), f.z);
+}
+float3 materialLookup(coreimage::sampler table, float3 rgb, float dim) {
+    // Identity tables still clamp HDR/RAW and energy added before development.
+    return dim == 0.0 ? clamp(rgb, 0.0, 1.0) : cubeLookup(table, rgb, dim, float2(dim, dim * dim)).rgb;
+}
+[[stitchable]] float4 justShootColorCube(coreimage::sampler image, coreimage::sampler table, float3 shape) {
+    float4 pixel = image.sample(image.coord());
+    // LUT entries contain premultiplied RGBA, as required by CIColorCube.
+    return cubeLookup(table, pixel.rgb / max(pixel.a, 0.000001), shape.x, shape.yz) * pixel.a;
 }
 [[stitchable]] float4 justShootMaterialInput(coreimage::sampler image, coreimage::sampler table, float dim) {
     float4 pixel = image.sample(image.coord());

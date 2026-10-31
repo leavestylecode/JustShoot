@@ -34,7 +34,7 @@ enum CameraDeviceDiagnostics {
 
         // 2) Constituent devices（虚拟设备的物理镜头组成）+ switchOver 阈值
         let constituentList = device.constituentDevices.map { c in
-            "\(c.localizedName)/\(String(format: "%.1f", c.nominalFocalLengthIn35mmFilm))mm"
+            "\(c.localizedName)/\(String(format: "%.1f", focalInfo.constituents.first { $0.device === c }?.nativeMm ?? 0))mm"
         }.joined(separator: ", ")
         let switchOvers = device.virtualDeviceSwitchOverVideoZoomFactors.map { String(format: "%.2f", CGFloat(truncating: $0)) }.joined(separator: ",")
         log.info("📷 constituents [\(constituentList, privacy: .public)] switchOvers=[\(switchOvers, privacy: .public)]")
@@ -65,7 +65,10 @@ enum CameraDeviceDiagnostics {
             @unknown default: return "unknown"
             }
         }()
-        log.info("📷 photo_caps supported=[\(photoDims, privacy: .public)] selected=\(outDims.width)x\(outDims.height) responsive=\(photoOutput.isResponsiveCaptureEnabled) fast_capture=\(photoOutput.isFastCapturePrioritizationEnabled) zsl=\(photoOutput.isZeroShutterLagEnabled) constant_color=\(photoOutput.isConstantColorSupported) quality_pri=\(qPri, privacy: .public)")
+        let constantColor: Bool
+        if #available(iOS 18.0, *) { constantColor = photoOutput.isConstantColorSupported }
+        else { constantColor = false }
+        log.info("📷 photo_caps supported=[\(photoDims, privacy: .public)] selected=\(outDims.width)x\(outDims.height) responsive=\(photoOutput.isResponsiveCaptureEnabled) fast_capture=\(photoOutput.isFastCapturePrioritizationEnabled) zsl=\(photoOutput.isZeroShutterLagEnabled) constant_color=\(constantColor) quality_pri=\(qPri, privacy: .public)")
 
         // 7) 闪光灯/低光增强
         log.info("📷 flash has_flash=\(device.hasFlash) flash_available=\(device.isFlashAvailable) torch=\(device.hasTorch) low_light_supported=\(device.isLowLightBoostSupported) low_light_active=\(device.isLowLightBoostEnabled)")
@@ -80,11 +83,13 @@ enum CameraDeviceDiagnostics {
         log.info("📷 modes focus_supported=[\(supportedFocus, privacy: .public)] focus_current=\(device.focusMode.rawValue) exposure_supported=[\(supportedExposure, privacy: .public)] exposure_current=\(device.exposureMode.rawValue) wb_supported=[\(supportedWB, privacy: .public)] wb_current=\(device.whiteBalanceMode.rawValue) smooth_focus=\(device.isSmoothAutoFocusEnabled) subject_area_monitor=\(device.isSubjectAreaChangeMonitoringEnabled)")
 
         // 8.5) 视频防抖
-        let stabModes: [(AVCaptureVideoStabilizationMode, String)] = [
+        var stabModes: [(AVCaptureVideoStabilizationMode, String)] = [
             (.off, "off"), (.standard, "std"), (.cinematic, "cine"),
-            (.cinematicExtended, "cineExt"), (.cinematicExtendedEnhanced, "cineExtEnh"),
-            (.previewOptimized, "preview"), (.lowLatency, "lowLat"), (.auto, "auto")
+            (.cinematicExtended, "cineExt"),
+            (.previewOptimized, "preview"), (.auto, "auto")
         ]
+        if #available(iOS 26.0, *) { stabModes.append((.lowLatency, "lowLat")) }
+        if #available(iOS 18.0, *) { stabModes.append((.cinematicExtendedEnhanced, "cineExtEnh")) }
         let supportedStab = stabModes.filter { fmt.isVideoStabilizationModeSupported($0.0) }.map { $0.1 }.joined(separator: ",")
         let stabName: (AVCaptureVideoStabilizationMode) -> String = { mode in
             switch mode {

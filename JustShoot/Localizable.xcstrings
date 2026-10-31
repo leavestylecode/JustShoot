@@ -226,6 +226,23 @@
         }
       }
     },
+    "About curve editing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About curve editing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲线编辑帮助"
+          }
+        }
+      }
+    },
     "About Safe Shutter Limit" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -255,23 +272,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "增强中间调反差。"
-          }
-        }
-      }
-    },
-    "About curve editing" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "About curve editing"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "曲线编辑帮助"
           }
         }
       }
@@ -438,6 +438,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apple ProRAW"
+          }
+        }
+      }
+    },
+    "Approximately %lldmm equivalent focal length" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approximately %lldmm equivalent focal length"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "约 %lld 毫米等效焦距"
           }
         }
       }
@@ -1006,22 +1023,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "色温与色调"
-          }
-        }
-      }
-    },
-    "Show color controls; hiding restores Auto" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show color controls; hiding restores Auto"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "显示色温与色调；关闭后恢复自动"
           }
         }
       }
@@ -2177,9 +2178,6 @@
           }
         }
       }
-    },
-    "ISO %lld" : {
-
     },
     "JustShoot" : {
       "extractionState" : "manual",
@@ -3839,6 +3837,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在相机中显示 %@"
+          }
+        }
+      }
+    },
+    "Show color controls; hiding restores Auto" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show color controls; hiding restores Auto"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示色温与色调；关闭后恢复自动"
           }
         }
       }

@@ -85,6 +85,7 @@ enum LivePhotoProcessor {
     }
 
     enum ProcessError: Error {
+        case unsupportedSystem
         case noVideoTrack
         case readerInitFailed
         case writerInitFailed
@@ -129,8 +130,9 @@ enum LivePhotoProcessor {
         outputURL: URL,
         trace: DiagnosticTrace? = nil
     ) async throws -> ProcessResult {
-        let trace = trace ?? DiagnosticTrace()
         try Task.checkCancellation()
+        guard #available(iOS 18.0, *) else { throw ProcessError.unsupportedSystem }
+        let trace = trace ?? DiagnosticTrace()
         do {
             let timer = Log.perf("livephoto_video", logger: Log.lut)
             let loading = trace.span("live_asset_load")

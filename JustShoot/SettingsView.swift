@@ -44,7 +44,9 @@ struct SettingsView: View {
                     if !capturePipeline.recoveryIssues.isEmpty { recoveryPhotosSection }
                     filmCurveSection
                     captureSection
-                    livePhotoSection
+                    if LivePhotoEncoderConfiguration.isSupported {
+                        livePhotoSection
+                    }
                     DisclosureGroup(isExpanded: $showsDiagnostics) {
                         diagnosticsSection
                             .padding(.top, 8)

@@ -291,10 +291,7 @@ class CameraManager: NSObject, ObservableObject {
     /// 设备真值 zoom（KVO 每次写入）——扩展裁切的分子。不复用 currentZoomFactor：
     /// UI 可能乐观写目标值，ramp 跨越钳制点的瞬间会把裁切瞬间拉满。
     private var lastObservedDeviceZoom: CGFloat = 1.0
-    private var focalLengthPicker: AVCaptureIndexPicker?
-    /// 系统级 EV 滑块（iOS 18+）。虚拟设备架构下 device 实例不变，整生命周期内只装一次。
-    private var exposureBiasSlider: AVCaptureSystemExposureBiasSlider?
-    private var exposureControlEpoch: UInt64 = 0
+    private var systemControls: (any CameraSystemControls)?
 
     // 位置管理器
     private let locationManager = CLLocationManager()
@@ -856,8 +853,7 @@ class CameraManager: NSObject, ObservableObject {
 
     private func updateCaptureControls() {
         let enabled = entryPreparation.isRevealed && readiness == .ready && !isExposing
-        focalLengthPicker?.isEnabled = enabled
-        exposureBiasSlider?.isEnabled = enabled
+        systemControls?.setEnabled(enabled)
     }
 
     /// Freeze hardware settings before the view awaits storage reservation.
@@ -1094,8 +1090,8 @@ class CameraManager: NSObject, ObservableObject {
     /// 两者皆开且麦克风已授权时才把麦克风挂上 session；据此 reconcile（幂等，状态未变即 no-op）。
     func setLivePhotoAudio(live: Bool, sound: Bool) {
         diagnostics.event("audio_requested", "live=\(live) sound=\(sound) permission=\(AVCaptureDevice.authorizationStatus(for: .audio).rawValue)")
-        livePhotoAudioDesired = live && sound
-        livePhotoCaptureDesired = live
+        livePhotoCaptureDesired = live && LivePhotoEncoderConfiguration.isSupported
+        livePhotoAudioDesired = livePhotoCaptureDesired && sound
         reconcilePhotoDelivery()
         reconcileAudioInput()
         updateLivePhotoBuffer()
@@ -1405,7 +1401,9 @@ class CameraManager: NSObject, ObservableObject {
                     focalFormat = device.activeFormat
                     // 关键：在 startRunning 之前把 videoZoomFactor 设到目标焦段，让 ZSL ring 一开始就
                     // 只收正确 constituent 的帧——见 setInitialFocalLength 注释里的 race 根因 + 修复。
-                    trace.measure("session_initial_focal") { self.setInitialFocalLength(on: device, focal: initialFocal, info: info) }
+                    if let info {
+                        trace.measure("session_initial_focal") { self.setInitialFocalLength(on: device, focal: initialFocal, info: info) }
+                    }
 
                     let photoSetup = trace.span("session_photo_output")
                     if captureSession.canAddOutput(output) {
@@ -1516,9 +1514,7 @@ class CameraManager: NSObject, ObservableObject {
         }
 
         focalInfo = configuredFocalInfo
-        if !focalInfo.options.contains(currentFocalLength) {
-            currentFocalLength = focalInfo.defaultOption
-        }
+        currentFocalLength = focalInfo.options.first(where: { $0 == currentFocalLength }) ?? focalInfo.defaultOption
 
         // 初始 zoom 已在 sessionQueue 配置阶段设好（setInitialFocalLength），这里不再重复
         // applyFocalLength（会多发一次 ramp）。仅同步 MainActor 上的 currentZoomFactor 反映已生效的
@@ -1548,28 +1544,22 @@ class CameraManager: NSObject, ObservableObject {
         #endif
 
         let controlsSetup = trace.span("main_camera_controls")
-        // Camera Control 硬件支持（iPhone 16+）：离散焦段选择器
-        if currentVideoInput != nil {
-            let titles = focalInfo.options.map { "\($0.rawValue)mm" }
-            let picker = AVCaptureIndexPicker(String(localized: "Focal length"), symbolName: "camera.metering.spot", localizedIndexTitles: titles)
-            if let idx = focalInfo.options.firstIndex(of: currentFocalLength) {
-                picker.selectedIndex = idx
-            }
-            picker.setActionQueue(.main) { [weak self] index in
-                guard let self, index < self.focalInfo.options.count else { return }
-                self.setFocalLength(self.focalInfo.options[index])
-            }
-            if session.canAddControl(picker) {
-                session.addControl(picker)
-                focalLengthPicker = picker
-                updateCaptureControls()
-                Log.session.info("camera_control_index_picker_added options=\(titles)")
-            }
-            // 系统 EV 滑块（绑当前设备）。机身 Camera Control 长按可在 picker / slider 间切换。
-            if let device = videoCaptureDevice {
-                installExposureBiasSlider(for: device)
-            }
-            session.setControlsDelegate(self, queue: .main)
+        // Screen EV is available independently of the hardware Camera Control.
+        exposureRange = CameraExposureRange.resolve(device: device)
+        if #available(iOS 18.0, *), currentVideoInput != nil {
+            systemControls?.invalidate()
+            systemControls = CameraSystemControlsAdapter(session: session, device: device,
+                titles: focalInfo.options.map { "\($0.label)mm" },
+                selectedIndex: focalInfo.options.firstIndex(of: currentFocalLength), trace: diagnostics,
+                onFocalLength: { [weak self] index in
+                    guard let self, self.focalInfo.options.indices.contains(index) else { return }
+                    self.setFocalLength(self.focalInfo.options[index])
+                }, onExposure: { [weak self] bias in
+                    guard let self, self.videoCaptureDevice === device, !self.isExposing else { return }
+                    self.exposureApplication.withLock { $0.acceptSystemChange() }
+                    self.exposureBias = bias
+                })
+            updateCaptureControls()
         }
 
         controlsSetup.end()
@@ -2010,37 +2000,6 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// 安装/重装系统 EV 滑块（绑定到指定设备）。AVCaptureSystemExposureBiasSlider 是 device-bound 的,
-    /// 设备 swap 后必须先 remove 旧的再 add 新的，否则滑块仍调旧设备的 exposureTargetBias，新设备无效。
-    /// 安全在 MainActor 调用：和 picker 一样不强制 begin/commitConfiguration（与现有 picker 逻辑一致）。
-    private func installExposureBiasSlider(for device: AVCaptureDevice) {
-        if let old = exposureBiasSlider {
-            session.removeControl(old)
-            exposureBiasSlider = nil
-        }
-        exposureControlEpoch &+= 1
-        let controlEpoch = exposureControlEpoch
-        exposureRange = CameraExposureRange(minimum: device.minExposureTargetBias, maximum: device.maxExposureTargetBias,
-            recommended: device.activeFormat.systemRecommendedExposureBiasRange)
-        let slider = AVCaptureSystemExposureBiasSlider(device: device) { [weak self] bias in
-            // Camera Control has already applied this change. Do not write it back.
-            guard let self, bias.isFinite,
-                  self.exposureControlEpoch == controlEpoch,
-                  self.videoCaptureDevice === device else { return }
-            guard !self.isExposing else { return }
-            self.exposureApplication.withLock { $0.acceptSystemChange() }
-            self.exposureBias = bias
-        }
-        if session.canAddControl(slider) {
-            session.addControl(slider)
-            exposureBiasSlider = slider
-            updateCaptureControls()
-            Log.session.info("camera_control_bias_slider_added device=\(device.localizedName, privacy: .public) range=\(String(format: "%.1f", device.minExposureTargetBias))–\(String(format: "%.1f", device.maxExposureTargetBias))ev")
-        } else {
-            Log.session.info("camera_control_bias_slider_skip device=\(device.localizedName, privacy: .public) reason=can_not_add")
-        }
-    }
-
     /// 把 zoom / focus / pressure / activePrimaryConstituent KVO 绑到 capture device。
     /// 虚拟设备架构下整个 session 生命周期内 device 实例不变，只在 configureAndStartSession 末尾调一次。
     private func bindDeviceObservers(to device: AVCaptureDevice) {
@@ -2324,7 +2283,7 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     private func updateLivePhotoCaptureState(reason: String) {
-        let state = LivePhotoCaptureState(supported: sessionConfigured,
+        let state = LivePhotoCaptureState(supported: sessionConfigured && LivePhotoEncoderConfiguration.isSupported,
             enabled: livePhotoCaptureDesired && livePhotoBuffer.isReady)
         if state != livePhotoCaptureState {
             livePhotoCaptureState = state
@@ -2514,10 +2473,8 @@ class CameraManager: NSObject, ObservableObject {
         if currentFocalLength != option {
             currentFocalLength = option
         }
-        if let picker = focalLengthPicker,
-           let idx = focalInfo.options.firstIndex(of: option),
-           picker.selectedIndex != idx {
-            picker.selectedIndex = idx
+        if let index = focalInfo.options.firstIndex(of: option) {
+            systemControls?.selectFocalLength(at: index)
         }
     }
 
@@ -2867,7 +2824,7 @@ class CameraManager: NSObject, ObservableObject {
 
         // 闪光灯下恒定色彩（Constant Color）减少白平衡偏移。Live Photo 与 Constant Color（内部走
         // bracketed capture）不兼容——live 时跳过，避免 AVF 拒绝 settings。
-        if request.rawFormat == nil, photoOutput.isConstantColorSupported, request.admission.flashEnabled, !wantsLive {
+        if #available(iOS 18.0, *), request.rawFormat == nil, photoOutput.isConstantColorSupported, request.admission.flashEnabled, !wantsLive {
             settings.isConstantColorEnabled = true
         }
 
@@ -2917,7 +2874,7 @@ class CameraManager: NSObject, ObservableObject {
             Log.capture.info("capture_dispatch flash=\(snapshotAdmission.flashEnabled ? "on" : "off", privacy: .public) rotation=\(rotationAngle.map { "\(Int($0))°" } ?? "nil", privacy: .public) max_dims=\(reqDims.width)x\(reqDims.height) safe_shutter=\(capStr, privacy: .public) live_exposure=\(liveStr, privacy: .public)")
             let activeLens = snapshotDevice?.activePrimaryConstituent
             let lensName = activeLens?.localizedName ?? "nil"
-            let lensNativeMm = activeLens?.nominalFocalLengthIn35mmFilm ?? 0
+            let lensNativeMm = snapshotFocalInfo.constituents.first { $0.device === activeLens }?.nativeMm ?? 0
             let liveZoom = snapshotDevice?.videoZoomFactor ?? 0
             let equivSet = snapshotAdmission.focalLength
             let equivLive = snapshotFocalInfo.equivalentMm(forZoom: liveZoom, activeConstituent: activeLens)
@@ -3128,9 +3085,8 @@ class CameraManager: NSObject, ObservableObject {
         whiteBalanceReadingObservation?.invalidate()
         whiteBalanceReadingObservation = nil
         currentVideoInput = nil
-        focalLengthPicker = nil
-        exposureBiasSlider = nil
-        exposureControlEpoch &+= 1
+        systemControls?.invalidate()
+        systemControls = nil
         rotationCoordinator = nil
         // 麦克风输入随 session 一并释放（最后的 sessionQueue 块停用音频会话）；下次入页由
         // reconcileAudioInput 按当时开关重新挂。
@@ -3193,7 +3149,9 @@ class CameraManager: NSObject, ObservableObject {
             captureSession.beginConfiguration()
             for input in captureSession.inputs { captureSession.removeInput(input) }
             for output in captureSession.outputs { captureSession.removeOutput(output) }
-            for control in captureSession.controls { captureSession.removeControl(control) }
+            if #available(iOS 18.0, *) {
+                for control in captureSession.controls { captureSession.removeControl(control) }
+            }
             captureSession.commitConfiguration()
             release.end()
             timer.end()
@@ -3284,24 +3242,6 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate, AVCapture
         // 不再 dispatch main 触发 setNeedsDisplay：MTKView 已切换到 CADisplayLink 驱动
         // （MetalPreview.swift），每个 vsync 调一次 draw(in:)，draw 内部按 frameId 去重。
         // 这里只负责把最新帧写入 lock 保护的 buffer，主队列零负担。
-    }
-}
-
-// MARK: - AVCaptureSessionControlsDelegate（Camera Control 控件激活必需）
-extension CameraManager: AVCaptureSessionControlsDelegate {
-    nonisolated func sessionControlsDidBecomeActive(_ session: AVCaptureSession) {
-        diagnostics.event("camera_controls_active")
-        Log.session.info("camera_controls_active")
-    }
-    nonisolated func sessionControlsWillEnterFullscreenAppearance(_ session: AVCaptureSession) {
-        diagnostics.event("camera_controls_fullscreen_enter")
-    }
-    nonisolated func sessionControlsWillExitFullscreenAppearance(_ session: AVCaptureSession) {
-        diagnostics.event("camera_controls_fullscreen_exit")
-    }
-    nonisolated func sessionControlsDidBecomeInactive(_ session: AVCaptureSession) {
-        diagnostics.event("camera_controls_inactive")
-        Log.session.info("camera_controls_inactive")
     }
 }
 

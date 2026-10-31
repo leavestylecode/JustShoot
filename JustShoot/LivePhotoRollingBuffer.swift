@@ -102,7 +102,8 @@ final class LivePhotoRollingBuffer: @unchecked Sendable {
     var isReady: Bool { gate.withLock { $0.enabled && $0.ready } }
     var statistics: Statistics { gate.withLock { $0.statistics } }
 
-    func setEnabled(_ enabled: Bool, audio: Bool = false) {
+    func setEnabled(_ requested: Bool, audio: Bool = false) {
+        let enabled = requested && LivePhotoEncoderConfiguration.isSupported
         let epoch = gate.withLock { state -> UInt64? in
             state.wantsAudio = enabled && audio
             guard state.enabled != enabled else { return nil }
@@ -281,7 +282,7 @@ final class LivePhotoRollingBuffer: @unchecked Sendable {
             guard ProcessInfo.processInfo.systemUptime >= encoderRetryAfter else { finishInput(epoch: epoch); return }
             reset(cancelExports: false)
             dimensions = size
-            let specification = [kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder: true] as CFDictionary
+            let specification = LivePhotoEncoderConfiguration.specification
             let status = VTCompressionSessionCreate(allocator: kCFAllocatorDefault, width: size.width, height: size.height,
                 codecType: kCMVideoCodecType_H264, encoderSpecification: specification, imageBufferAttributes: nil,
                 compressedDataAllocator: nil, outputCallback: nil, refcon: nil, compressionSessionOut: &encoder)

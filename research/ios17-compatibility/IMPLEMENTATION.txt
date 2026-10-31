@@ -1,0 +1,104 @@
+JustShoot：iOS 17.0 适配实施与验证
+日期：2026-10-31
+
+实施范围
+
+按用户确认实施：最低系统改为 iOS/iPadOS 17.0；旧系统无法支持的功能不显示入口、开关或不可用占位。
+本次不改变签名、权限声明、entitlement、照片数据库 SchemaV1 或资源目录结构。
+PLAN.txt 和 AUDIT.json 是实施前的审计快照；本文记录最终实现，取代其中尚未实施的状态说明。
+
+支持矩阵
+
+- iOS 17：保留 SDR 照片拍摄、实时调色、EV、白平衡/色调、曲线、自定义 LUT、照片浏览与恢复。
+  不提供 Live Photo 拍摄和声音设置，不因历史 Live 偏好而请求麦克风或启动编码器。
+  已保存的 Live Photo 浏览代码保留；真实 Photos 配对和播放需真机验证。
+- iOS 18+：保留现有 Live Photo 拍摄、sRGB 视频编码标记及 Camera Control 集成。
+  硬件能力和权限仍由原有流程管理，版本门槛不代表每台设备都具备 Camera Control 硬件。
+- iOS 26+：保留 Liquid Glass、滚动收起 Tab 栏、系统标称等效焦距及新导航手势管理。
+- iOS 17 的导航使用普通 push；卡片和相机控制条使用原有颜色/材质的兼容外观。
+- iOS 17–18 的焦距锚点由物理镜头 4:3 格式 FOV 估计，焦距显示纯数字，VoiceOver 保留估计来源提示。
+  镜头身份使用 deviceType，switch-over 顺序与系统 constituent 顺序一致；无效锚点不伪造数值。
+  估计值不覆盖相机原始 EXIF。iOS 26+ 继续优先使用 nominalFocalLengthIn35mmFilm。
+- iOS 17 解码 SDR 和 gain-map 照片的 SDR base，不尝试未经验证的独立 PQ/HLG 色调映射。
+  独立 PQ/HLG 输入返回处理失败，由现有 journal 恢复/原件导出流程保留源文件。
+  iOS 18+ 保留显式 headroom 映射。SDR、P3、PQ、HLG 均有生成式输入回归；未补齐真实 gain-map 照片样本验证。
+
+实现边界
+
+1. 工程和测试 target 的 Debug/Release 部署版本共六处均为 17.0；保留 Swift 6、complete strict concurrency。
+   MainTabView 改为统一 tabItem/tag；新 View API 通过 PlatformViewModifiers 集中隔离。
+2. CameraSystemControlsAdapter 隔离 iOS 18 的存储类型与 delegate conformance；取消后拒绝旧回调。
+   屏幕 EV 独立于硬件 Camera Control，旧系统使用硬件曝光范围；Constant Color 等 API 按版本访问。
+3. LivePhotoEncoderConfiguration 是版本能力边界，UI、麦克风、rolling buffer 和转码入口使用一致策略。
+   旧系统不写回用户历史偏好；遇到旧 Live 待处理任务时拒绝不支持的转码，不删除 checkpoint 原件。
+4. CameraFocalCalibration 在硬件队列一次性计算，不在视图更新或每帧扫描格式。
+   CaptureRecipe 增加可选 preservesSourceFocalLength，旧 journal 缺失该字段时保留旧行为；晚到视频时间复制保留该策略。
+5. iOS 17 的 CIColorCube 实测不接受 65³，而项目的 WB、曲线和导入 LUT 会使用 65³ 及更大数据。
+   大于 64³ 的 LUT 直接用 Core Image Metal kernel 做三线性采样，不缩小或重新拟合 LUT。
+   表格 reshape 为受限二维尺寸，避免 128² 高纹理超出旧渲染器限制；保留节点顺序和预乘 alpha。
+   白平衡烘焙复用同一入口，缓存/取消/串行处理机制保留。材质管线与预览一致性回归通过。
+6. SwiftData 旧系统差异：取图在每次挂起后检查 pending deletion，避免读取/发布已删除照片。
+   LUT 删除失败 rollback 若将已保存对象脱离 context，则重新附加同一对象；先保证索引提交，再删除文件。
+   增加真实磁盘存储、externalStorage 照片字节、失败后恢复、重新打开以及无重复行的回归。
+
+验证上下文
+
+工具：XcodeBuildMCP；项目 JustShoot.xcodeproj；scheme JustShoot。
+工具链：/Applications/Xcode.app，iOS 27.1 SDK；部署目标 17.0。
+DerivedData：/tmp/justshoot-ios17-implementation（未加入仓库）。
+日志根目录：/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/
+
+已完成：
+- 提交前复验 / iPhone 15 Pro / iOS 17.2 / Debug：全量 533 项，517 通过、0 失败、16 跳过，70.3 秒。
+  包含焦距纯数字标签、快门禁用变灰且无加载图标、色温/色调滑杆入口图标。
+  logs/test_sim_2026-10-31T10-46-55-483Z_pid5312_c13f8cec.log
+  result-bundles/test_sim_2026-10-31T10-46-55-488Z_pid5312_41757c6f.xcresult
+  快门正常、准备、拍摄及队列繁忙状态已通过 Xcode Preview 渲染检查；可访问性状态保留。
+- iPhone 15 Pro / iOS 17.2 / Debug：最终全量 533 项，517 通过、0 失败、16 跳过，54.1 秒。
+  已包含最后的 Live Photo 版本跳过条件和工作区并行 UI 调整。
+  logs/test_sim_2026-10-31T00-04-44-405Z_pid1085_c25f86d9.log
+  result-bundles/test_sim_2026-10-31T00-04-44-405Z_pid1085_afc0ae57.xcresult
+- iPhone 17 / iOS 26.4.1 / Debug：全量 533 项，522 通过、0 失败、11 跳过，66.5 秒。
+  logs/test_sim_2026-10-30T23-56-03-529Z_pid1085_5e576b54.log
+  result-bundles/test_sim_2026-10-30T23-56-03-529Z_pid1085_3320eca5.xcresult
+- iPhone 16 Pro / iOS 18.4 / Debug：24 项重点测试全部通过，0 失败、0 跳过，63.5 秒。
+  覆盖视频 sRGB 标记、Live 转码和配对元数据、HDR、大小 LUT、数据库恢复及导航。
+  logs/test_sim_2026-10-31T00-01-50-818Z_pid1085_82075a13.log
+  result-bundles/test_sim_2026-10-31T00-01-50-818Z_pid1085_3dfd354d.xcresult
+- iOS 通用真机架构 / Release / CODE_SIGNING_ALLOWED=NO：构建通过，62.6 秒。
+  logs/build_device_2026-10-31T00-00-24-660Z_pid1085_3b49653e.log
+  Release-iphoneos/JustShoot.app/Info.plist 的 MinimumOSVersion=17.0，包含 default.metallib。
+  这是未签名编译验证，没有安装到真机。
+- iOS 17.2 / Debug：build_run_sim 成功，启动和首屏九张胶片卡片及四个 Tab 渲染正常。
+  screenshots/ios17.2-home.jpg；未出现启动崩溃或主线程阻塞。
+  三项导航回归覆盖相机重复进入/显式返回、手势禁用与恢复，均通过。
+- iOS 17.5 / Release：build_run_sim 成功，89.4 秒，首屏渲染正常，产物 MinimumOSVersion=17.0。
+  screenshots/ios17.5-release-home.jpg
+  logs/build_run_sim_2026-10-31T00-02-34-382Z_pid1085_a5135a8b.log
+  该构建已包含工作区并行出现的 ContentView 卡片精简和 MainTabView 图标样式调整；这些 UI 调整保留原样。
+- 新增/扩展回归：FOV 推导与锚点顺序、版本能力、checkpoint 保留、65³/128³ 采样和 alpha、
+  PQ/HLG 拒绝、P3/SDR 像素与方向保留、journal 焦距策略、磁盘索引恢复。
+  因不支持的 Live 拍摄额外跳过五项视频/转码用例；硬件、Photos 权限及可选照片样本用例按原条件跳过。
+- 未发现新的 Swift 编译警告。工具链可能输出 AppIntents 元数据提取跳过提示；既有 iPad 全屏兼容配置未更改。
+
+环境限制与发布前验收
+
+- 没有安装 iOS 17.0 精确运行时；最低版本编译和产物均为 17.0，实际最早执行版本为 17.2。
+- iOS 18.2：测试产品编译成功；执行端四分钟无用例启动，日志包含 SDK 版本解析 invalidDigitCount 错误。
+  已取消该次测试，工具记录为 System Failure / Testing was canceled，0 项实际执行；不能计为通过。
+  logs/test_sim_2026-10-30T23-57-39-295Z_pid1085_80aaaf97.log
+- XcodeBuildMCP 在 iOS 17.2/17.5 只返回一个根节点，无法定位交互控件；Device Hub 的坐标点击也未传入旧运行时。
+  因此未完成四个 Tab、设置开关缺席、胶片详情及相机入口的完整手动触控巡检。首屏截图和导航单测不能替代它。
+- 发布前需在 iOS 17 真机验证：单/双/三摄焦段和视野、切镜、EV、安全快门、闪光、方向、后台恢复、
+  Photos 权限拒绝/恢复/写入/删除以及旧图库和待处理 journal；记录设备型号与系统版本。
+- 新系统还需真机验收 Camera Control 和带音频的 Live Photo 配对/播放。
+- iPadOS 17 的布局、竖屏及窗口行为尚无真实运行验证；本次保留现有方向配置。
+- 未测量真机帧率、快门延迟、内存或温度，不据模拟器结果声明性能收益。
+
+参考依据
+
+Apple 对 switch-over 的顺序与 constituentDevices 对应关系：
+https://developer.apple.com/documentation/avfoundation/avcapturedevice/virtualdeviceswitchovervideozoomfactors
+Apple ModelContext 生命周期与 deletedModelsArray：
+https://developer.apple.com/documentation/swiftdata/modelcontext
+其他 API 版本清单与官方链接见原始 PLAN.txt / AUDIT.json；实际兼容行为以本次运行结果为准。

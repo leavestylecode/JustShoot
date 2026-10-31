@@ -4,6 +4,7 @@ import CoreVideo
 /// Core Image renders these buffers as sRGB. Declare the same transfer function on both
 /// the buffer and writer, so encoding does not invent a different interpretation of its bytes.
 enum FilmVideoColorSpace {
+    @available(iOS 18.0, *)
     static var writerProperties: [String: String] {
         [
             AVVideoColorPrimariesKey: AVVideoColorPrimaries_ITU_R_709_2,

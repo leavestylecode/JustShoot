@@ -220,6 +220,7 @@ final class FilmMaterialTests: XCTestCase {
     }
 
     func testMaterialLiveVideoEncodesWithFrozenTablesAndStillImageTime() async throws {
+        guard LivePhotoEncoderConfiguration.isSupported else { throw XCTSkip("Live Photo requires iOS 18") }
         let lut = try FilmProcessor.shared.loadLUT(source: .preset(.kodakPortra400))
         let profile = FilmSource.preset(.kodakPortra400).captureRenderProfile
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

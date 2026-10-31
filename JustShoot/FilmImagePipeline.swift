@@ -9,14 +9,7 @@ enum FilmImagePipeline {
     /// Display LUTs consume SDR. An HDR-tagged input needs tone mapping before
     /// cube sampling; an auxiliary gain map must not silently expand it again.
     static func decodePhoto(_ data: Data, applyOrientation: Bool = false) -> CIImage? {
-        guard let image = CIImage(data: data, options: [.expandToHDR: false, .toneMapHDRtoSDR: false,
-            .applyOrientationProperty: applyOrientation]) else { return nil }
-        guard image.contentHeadroom > 1 else { return image }
-        let toneMap = CIFilter.toneMapHeadroom()
-        toneMap.inputImage = image
-        toneMap.sourceHeadroom = image.contentHeadroom
-        toneMap.targetHeadroom = 1
-        return toneMap.outputImage
+        PhotoInputDecoder.decode(data, applyOrientation: applyOrientation)
     }
 
     struct Stages {
@@ -28,11 +21,18 @@ enum FilmImagePipeline {
     /// Mutable and intentionally not Sendable. One transcode owns one instance, used only
     /// on its serial video queue. The cube and color space stay fixed across every frame.
     final class LUTFilter {
-        private let filter: CIFilter
+        private let filter: CIFilter?
+        private let largeCube: FilmMaterialRenderer.PreparedCube?
         let preparedMaterial: FilmMaterialRenderer.Prepared?
 
         init?(lut: CubeLUT) {
             preparedMaterial = lut.material.map(FilmMaterialRenderer.Prepared.init)
+            if lut.dimension > 64 {
+                filter = nil
+                largeCube = FilmMaterialRenderer.PreparedCube(lut)
+                return
+            }
+            largeCube = nil
             guard let filter = CIFilter(name: "CIColorCubeWithColorSpace") else { return nil }
             filter.setValue(lut.dimension, forKey: "inputCubeDimension")
             filter.setValue(lut.data, forKey: "inputCubeData")
@@ -42,6 +42,10 @@ enum FilmImagePipeline {
         }
 
         func applying(to image: CIImage) -> CIImage? {
+            if let largeCube {
+                return FilmMaterialRenderer.applyingCube(to: image, prepared: largeCube)
+            }
+            guard let filter else { return nil }
             filter.setValue(image, forKey: kCIInputImageKey)
             // outputImage is an immutable graph. Release the mutable filter's input after
             // taking that snapshot so it doesn't retain the previous camera buffer.

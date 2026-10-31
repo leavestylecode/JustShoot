@@ -24,19 +24,19 @@ final class CameraNavigationGestureBlockerTests: XCTestCase {
         let window = try await makeWindow(root: navigation)
         defer { window.isHidden = true; window.rootViewController = nil }
         let edge = try XCTUnwrap(navigation.interactivePopGestureRecognizer)
-        let content = try XCTUnwrap(navigation.interactiveContentPopGestureRecognizer)
-        let previousEdge = edge.isEnabled, previousContent = content.isEnabled
+        let content = try contentRecognizer(in: navigation)
+        let previousEdge = edge.isEnabled, previousContent = content?.isEnabled
         let camera = cameraController()
 
         navigation.pushViewController(camera, animated: false)
         try await Task.sleep(for: .milliseconds(50))
         XCTAssertFalse(edge.isEnabled)
-        XCTAssertFalse(content.isEnabled)
+        if let content { XCTAssertFalse(content.isEnabled) }
         XCTAssertTrue(navigation.popViewController(animated: false) === camera)
         try await Task.sleep(for: .milliseconds(50))
         XCTAssertTrue(navigation.topViewController === root)
         XCTAssertEqual(edge.isEnabled, previousEdge)
-        XCTAssertEqual(content.isEnabled, previousContent)
+        XCTAssertEqual(content?.isEnabled, previousContent)
     }
 
     func testOtherPagesRegainGesturesAndReturningToCameraBlocksThemAgain() async throws {
@@ -44,7 +44,7 @@ final class CameraNavigationGestureBlockerTests: XCTestCase {
         let window = try await makeWindow(root: navigation)
         defer { window.isHidden = true; window.rootViewController = nil }
         let edge = try XCTUnwrap(navigation.interactivePopGestureRecognizer)
-        let content = try XCTUnwrap(navigation.interactiveContentPopGestureRecognizer)
+        let content = try contentRecognizer(in: navigation)
         let camera = cameraController()
         navigation.pushViewController(camera, animated: false)
         try await Task.sleep(for: .milliseconds(50))
@@ -52,13 +52,13 @@ final class CameraNavigationGestureBlockerTests: XCTestCase {
         navigation.pushViewController(detail, animated: false)
         try await Task.sleep(for: .milliseconds(50))
         XCTAssertTrue(edge.isEnabled)
-        XCTAssertTrue(content.isEnabled)
+        if let content { XCTAssertTrue(content.isEnabled) }
 
         XCTAssertTrue(navigation.popViewController(animated: false) === detail)
         try await Task.sleep(for: .milliseconds(50))
         XCTAssertTrue(navigation.topViewController === camera)
         XCTAssertFalse(edge.isEnabled)
-        XCTAssertFalse(content.isEnabled)
+        if let content { XCTAssertFalse(content.isEnabled) }
     }
 
     func testSwiftUINavigationUsesStandardTransitionAndDismissActionAcrossRepeatedEntries() async throws {
@@ -69,15 +69,17 @@ final class CameraNavigationGestureBlockerTests: XCTestCase {
         let navigation = try XCTUnwrap(findNavigationController(in: host))
         let root = try XCTUnwrap(navigation.topViewController)
         let edge = try XCTUnwrap(navigation.interactivePopGestureRecognizer)
-        let content = try XCTUnwrap(navigation.interactiveContentPopGestureRecognizer)
+        let content = try contentRecognizer(in: navigation)
 
         for entry in 1...2 {
             state.path = [entry]
             try await waitUntil { navigation.viewControllers.count == 2 && state.dismiss != nil }
-            XCTAssertNil(navigation.topViewController?.preferredTransition,
-                         "Camera entry must not install zoom's independent dismissal gestures")
+            if #available(iOS 18.0, *) {
+                XCTAssertNil(navigation.topViewController?.preferredTransition,
+                             "Camera entry must not install zoom's independent dismissal gestures")
+            }
             XCTAssertFalse(edge.isEnabled)
-            XCTAssertFalse(content.isEnabled)
+            if let content { XCTAssertFalse(content.isEnabled) }
 
             // This is the same environment action used by the camera's Back button.
             let dismiss = try XCTUnwrap(state.dismiss)
@@ -85,6 +87,13 @@ final class CameraNavigationGestureBlockerTests: XCTestCase {
             dismiss()
             try await waitUntil { state.path.isEmpty && navigation.topViewController === root }
         }
+    }
+
+    private func contentRecognizer(in navigation: UINavigationController) throws -> UIGestureRecognizer? {
+        if #available(iOS 26.0, *) {
+            return try XCTUnwrap(navigation.interactiveContentPopGestureRecognizer)
+        }
+        return nil
     }
 
     private func findNavigationController(in controller: UIViewController) -> UINavigationController? {

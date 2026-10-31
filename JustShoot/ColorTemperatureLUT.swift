@@ -92,12 +92,9 @@ actor ColorTemperatureLUT {
         adjustment.neutral = CIVector(x: CGFloat(recipe.temperature), y: CGFloat(recipe.tint))
         adjustment.targetNeutral = CIVector(x: CGFloat(recipe.reference.temperature), y: CGFloat(recipe.reference.tint))
         guard let adjusted = adjustment.outputImage,
-              let cube = CIFilter(name: "CIColorCubeWithColorSpace") else { throw CubeLUT.ParseError.malformed }
-        cube.setValue(adjusted, forKey: kCIInputImageKey)
-        cube.setValue(base.dimension, forKey: "inputCubeDimension")
-        cube.setValue(base.data, forKey: "inputCubeData")
-        cube.setValue(colorSpace, forKey: "inputColorSpace")
-        guard let output = cube.outputImage else { throw CubeLUT.ParseError.malformed }
+              let output = FilmImagePipeline.LUTFilter(lut: base)?.applying(to: adjusted) else {
+            throw CubeLUT.ParseError.malformed
+        }
         if context == nil {
             // The table is small, not a camera frame. CPU rendering avoids competing with
             // the live viewfinder's GPU and happens only on this serial actor, never MainActor.

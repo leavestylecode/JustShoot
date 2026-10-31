@@ -7,6 +7,7 @@ import CoreMedia
 final class LivePhotoColorTests: XCTestCase {
     @MainActor
     func testProcessedLivePhotoCarriesSRGBColorTags() async throws {
+        guard #available(iOS 18.0, *) else { throw XCTSkip("Live capture requires iOS 18 sRGB video writing") }
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -68,6 +69,7 @@ final class LivePhotoColorTests: XCTestCase {
 
     /// Exercise both encoders with the same buffer tags and writer properties as production.
     private static func makeTaggedVideo(at url: URL, codec: AVVideoCodecType) async throws {
+        guard #available(iOS 18.0, *) else { throw XCTSkip("sRGB video writing requires iOS 18") }
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
         let settings: [String: Any] = [AVVideoCodecKey: codec, AVVideoWidthKey: 64,
             AVVideoHeightKey: 48, AVVideoColorPropertiesKey: FilmVideoColorSpace.writerProperties]

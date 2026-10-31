@@ -1,4 +1,5 @@
 import Foundation
+@preconcurrency import AVFoundation
 
 struct CameraExposureRange: Equatable, Sendable {
     let bounds: ClosedRange<Float>
@@ -9,6 +10,17 @@ struct CameraExposureRange: Equatable, Sendable {
         let lower = max(hardware.lowerBound, preferred.lowerBound)
         let upper = min(hardware.upperBound, preferred.upperBound)
         bounds = lower.isFinite && upper.isFinite && lower <= upper ? lower...upper : hardware
+    }
+
+    static func resolve(device: AVCaptureDevice) -> Self {
+        let recommended: ClosedRange<Float>?
+        if #available(iOS 18.0, *) {
+            recommended = device.activeFormat.systemRecommendedExposureBiasRange
+        } else {
+            recommended = nil
+        }
+        return Self(minimum: device.minExposureTargetBias, maximum: device.maxExposureTargetBias,
+            recommended: recommended)
     }
 
     func clamp(_ value: Float) -> Float? {

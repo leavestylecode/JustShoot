@@ -1,6 +1,25 @@
 import CoreImage
 
 enum FilmMaterialRenderer {
+    struct PreparedCube {
+        let image: CIImage
+        let shape: CIVector
+
+        init(_ lut: CubeLUT) {
+            // Avoid a 128²-tall bitmap, which exceeds older renderers' texture
+            // limits. Reshape the same ordered nodes; padding is never sampled.
+            let width = lut.dimension * 8
+            let count = lut.dimension * lut.dimension * lut.dimension
+            let height = (count + width - 1) / width
+            var data = lut.data
+            let padding = (width * height - count) * 16
+            if padding > 0 { data.append(Data(count: padding)) }
+            image = CIImage(bitmapData: data, bytesPerRow: width * 16,
+                size: CGSize(width: width, height: height), format: .RGBAf, colorSpace: nil).samplingNearest()
+            shape = CIVector(x: CGFloat(lut.dimension), y: CGFloat(width), z: CGFloat(height))
+        }
+    }
+
     /// Reused by the serial Live Photo filter. Bitmap tables are never rebuilt per frame.
     struct Prepared {
         let material: FilmMaterial
@@ -21,6 +40,7 @@ enum FilmMaterialRenderer {
         guard inputKernel != nil, finishKernel != nil, compositeKernel != nil else { throw CubeLUT.ParseError.malformed }
     }
     private static let inputKernel = kernel("justShootMaterialInput")
+    private static let cubeKernel = kernel("justShootColorCube")
     private static let finishKernel = kernel("justShootMaterialFinish")
     private static let compositeKernel: CIColorKernel? = {
         guard let data = library else { return nil }
@@ -33,6 +53,18 @@ enum FilmMaterialRenderer {
     private static func kernel(_ name: String) -> CIKernel? {
         guard let data = library else { return nil }
         return try? CIKernel(functionName: name, fromMetalLibraryData: data)
+    }
+
+    /// iOS 17's built-in cube filter is limited to 64³. Sample larger frozen
+    /// tables directly, preserving every node and the preview's trilinear math.
+    static func applyingCube(to image: CIImage, prepared: PreparedCube) -> CIImage? {
+        guard let cubeKernel,
+              let numeric = image.matchedFromWorkingSpace(to: FilmImagePipeline.colorSpace) else { return nil }
+        let table = prepared.image
+        return cubeKernel.apply(extent: numeric.extent, roiCallback: { index, rect in
+            index == 0 ? rect : table.extent
+        }, arguments: [numeric, table, prepared.shape])?
+            .matchedToWorkingSpace(from: FilmImagePipeline.colorSpace)
     }
 
     static func stages(image: CIImage, prepared: Prepared, optics: FilmOpticsParameters,

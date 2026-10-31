@@ -77,7 +77,7 @@ struct FilmCurveLibraryView: View {
         .background(Color.black)
         .navigationTitle("Film Curves")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarVisibility(.hidden, for: .tabBar)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             if showsDoneButton {
                 ToolbarItem(placement: .cancellationAction) {
@@ -236,7 +236,7 @@ struct FilmCurveEditorView: View {
         .tint(.white)
         .navigationTitle(isNew ? String(localized: "New Curve") : String(localized: "Edit Curve"))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarVisibility(.hidden, for: .tabBar)
+        .toolbar(.hidden, for: .tabBar)
         .onChange(of: channel) { _, _ in selectedPointIndex = nil }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {

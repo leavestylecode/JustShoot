@@ -82,6 +82,182 @@ struct CameraView: View {
     }
 
     var body: some View {
+        cameraContent
+        .allowsHitTesting(!cameraManager.entryPreparation.coversContent)
+        .accessibilityHidden(cameraManager.entryPreparation.coversContent)
+        .overlay {
+            if cameraManager.entryPreparation.coversContent {
+                cameraPreparationScreen
+                    .ignoresSafeArea()
+                    .zIndex(100)
+            }
+        }
+        // Keep Back outside the covered/disabled controls, including during camera preparation.
+        .cameraButtonOnlyNavigation()
+        .onAppear {
+            Diagnostics.start()
+            let manager = cameraManager
+            DiagnosticWatchdog.shared.addCamera(id: manager.diagnostics.id, flow: manager.flowDiagnostics) { [weak manager] in manager?.previewHealth() }
+            manager.diagnostics.event("camera_view_appear")
+            cameraManager.setEntrySceneActive(scenePhase == .active)
+            cameraManager.updateEntryPipelineReady(capturePipeline.isPrepared)
+            cameraManager.updateEntryLUT(expectedKey: previewLUTKey, preparedKey: preparedLUT?.key)
+            cameraManager.requestCameraPermission()
+            // 告知期望录音状态（live && sound）；session 配置完成后据此决定是否挂麦克风。
+            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
+        }
+        // 顶栏 Live 开关 / 设置页声音开关变化时，实时增删麦克风输入（在相机页内切换即时生效）。
+        .onChange(of: captureModeValue) { _, _ in
+            cameraManager.diagnostics.event("live_photo_preference_changed", "requested=\(wantsLiveCapture) supported=\(cameraManager.livePhotoCaptureState.supported) enabled=\(cameraManager.livePhotoCaptureState.enabled)")
+            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
+        }
+        .onChange(of: livePhotoSoundEnabled) { _, _ in
+            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
+        }
+        .onChange(of: cameraManager.flashMode) { _, mode in
+            cameraManager.diagnostics.event("flash_changed", "mode=\(mode.rawValue)")
+        }
+        .onChange(of: isShutterBusy) { _, busy in
+            cameraManager.diagnostics.event("camera_controls_changed", "shutter_busy=\(busy) readiness=\(cameraManager.readiness.logValue)")
+        }
+        .onChange(of: showFlash) { _, visible in
+            cameraManager.diagnostics.event("shutter_overlay_changed", "visible=\(visible)")
+        }
+        .onChange(of: previewGestureActive) { _, active in
+            if !active { resetPreviewGesture() }
+        }
+        .onChange(of: previewLUTKey) { _, key in
+            cameraManager.updateEntryLUT(expectedKey: key, preparedKey: preparedLUT?.key)
+            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
+        }
+        .onChange(of: capturePipeline.isPrepared) { _, ready in
+            cameraManager.updateEntryPipelineReady(ready)
+        }
+        .task(id: cameraManager.entryPreparation.isRevealed) {
+            // The hidden picker must not delay first preview or compete with entry preparation.
+            guard cameraManager.entryPreparation.isRevealed, preparedPickerCovers.isEmpty else { return }
+            do {
+                let covers = try await FilmSourcePickerStrip.preloadCovers(displayScale: displayScale)
+                try Task.checkCancellation()
+                preparedPickerCovers = covers
+            } catch is CancellationError {
+                return
+            } catch {
+                cameraManager.diagnostics.event("camera_picker_covers_failed", Diagnostics.errorFields(error))
+            }
+        }
+        // 编辑当前用户曲线时 ID 不变、内容指纹会变化；监听完整后缀可确保新 LUT 立即预热。
+        .task(id: previewLUTKey + "#retry-\(entryRetryRevision)") {
+            let key = previewLUTKey
+            cameraManager.updateEntryLUT(expectedKey: key, preparedKey: preparedLUT?.key)
+            guard preparedLUT?.key != key else { return }
+            let requestedSource = source
+            let curve = selectedCurve
+            let curveFields = curveDiagnosticFields(curve)
+            let selection = colorControls.temperature
+            let tint = colorControls.tint
+            let reference = cameraManager.automaticWhiteBalanceReading
+            guard ResolvedCameraColorAdjustment.resolve(temperature: selection, tint: tint, reading: reference) != nil else {
+                cameraManager.diagnostics.event("color_adjustment_waiting", "reason=automatic_reading_unavailable")
+                return
+            }
+            let requestedAt = ProcessInfo.processInfo.systemUptime
+            let delay = lutPreparationCadence.delay(at: requestedAt)
+            do {
+                if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
+                try Task.checkCancellation()
+            } catch { return }
+            guard key == previewLUTKey else { return }
+            lutPreparationCadence.started(at: ProcessInfo.processInfo.systemUptime)
+            let lutWait = cameraManager.diagnostics.span("camera_lut_prepare",
+                "\(curveFields) \(colorAdjustmentDiagnosticFields) cadence_wait_ms=\(Diagnostics.milliseconds(since: requestedAt))")
+            do {
+                let lut = try await ColorTemperatureLUT.shared.prepare(source: requestedSource, curve: curve, selection: selection, tint: tint, reference: reference)
+                try await FilmCapturePreparation.shared.prepareRendering()
+                try Task.checkCancellation()
+                let texture = try await PreviewLUTTextureCache.shared.prepare(key: key, lut: lut)
+                lutWait.end("ok", "cancelled=\(Task.isCancelled)")
+                guard !Task.isCancelled, key == previewLUTKey else { return }
+                let adjustment = selection.isAutomatic && tint.isAutomatic ? nil
+                    : ResolvedCameraColorAdjustment.resolve(temperature: selection, tint: tint, reading: reference)
+                preparedLUT = (key, lut, texture, requestedSource.captureRenderProfile, adjustment)
+                cameraManager.updateEntryLUT(expectedKey: key, preparedKey: key)
+                cameraManager.diagnostics.event("camera_lut_ready", "dimension=\(lut.dimension) \(curveFields) \(colorAdjustmentDiagnosticFields)")
+                await waitForCurrentLookPresentation(key: key)
+            } catch is CancellationError {
+                lutWait.end("cancelled")
+            } catch let error as PreviewLUTTextureCache.PreparationError {
+                lutWait.end("error", Diagnostics.errorFields(error))
+                guard !Task.isCancelled, key == previewLUTKey else { return }
+                if cameraManager.entryPreparation.isRevealed {
+                    captureError = String(localized: "The camera preview could not be prepared. Please try again.")
+                } else {
+                    cameraManager.previewRendererUnavailable()
+                }
+            } catch {
+                lutWait.end("error", Diagnostics.errorFields(error))
+                guard !Task.isCancelled, key == previewLUTKey else { return }
+                if !selection.isAutomatic || !tint.isAutomatic {
+                    colorControls.resetAutomatic()
+                    captureError = String(localized: "Color adjustments could not be applied. Auto has been restored.")
+                } else {
+                    if !cameraManager.entryLUTPreparationFailed(key: key) {
+                        captureError = String(localized: "This LUT is invalid or unsupported.")
+                    }
+                }
+            }
+        }
+        .onReceive(capturePipeline.$lastCompletion) { completion in
+            guard let completion, completion.filterName == source.photoFilterName else { return }
+            guard lastPhotoThumbnail?.filterName != completion.filterName
+                || (lastPhotoThumbnail?.captureDate ?? .distantPast) <= completion.captureDate else { return }
+            lastPhotoThumbnail = RecentPhotoThumbnail(id: completion.id, filterName: completion.filterName,
+                image: completion.thumbnail, captureDate: completion.captureDate)
+        }
+        .onDisappear {
+            cameraManager.diagnostics.event("camera_view_disappear")
+            DiagnosticWatchdog.shared.removeCamera(id: cameraManager.diagnostics.id)
+            cameraManager.stopSession()
+        }
+        // 后台/前台切换：按 Home 键 / 切到其他 app → pause；回前台 → resume。
+        // 不在 .background 完整 stopSession，因为 onDisappear 没触发（页面仍在导航栈），
+        // 只调 pauseSessionForBackground 释放摄像头硬件，配置/observers 全部保留。
+        // 没有这条监听，回前台只看到黑屏（pixelBuffer 是 stale 的）+ session 不再产帧。
+        .onChange(of: scenePhase) { _, newPhase in
+            cameraManager.setEntrySceneActive(newPhase == .active)
+            switch newPhase {
+            case .background:
+                cameraManager.pauseSessionForBackground()
+            case .inactive:
+                break
+            case .active:
+                cameraManager.resumeSessionIfPossible()
+            @unknown default:
+                break
+            }
+        }
+        // Camera Control 硬件快门按钮（iPhone 16+）
+        .cameraShutterEvent { Task { await capturePhoto() } }
+        .alert("Capture failed", isPresented: Binding(
+            get: { captureError != nil },
+            set: { if !$0 { captureError = nil } }
+        )) {
+            if preparedLUT?.key != previewLUTKey {
+                Button("Try Again") { retryCameraEntry() }
+            }
+            Button("OK", role: .cancel) { captureError = nil }
+        } message: {
+            Text(captureError ?? "")
+        }
+        .sheet(isPresented: $showCurveManager) {
+            NavigationStack {
+                FilmCurveLibraryView(showsDoneButton: true)
+            }
+            .preferredColorScheme(.dark)
+        }
+    }
+
+    private var cameraContent: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
@@ -306,10 +482,14 @@ struct CameraView: View {
 
                 // Keep the control visible while support/enablement is being negotiated.
                 // If availability is lost, an existing On preference can still be switched Off.
-                ToolbarItem(placement: .primaryAction) {
-                    livePhotoControl
+                if LivePhotoEncoderConfiguration.isSupported {
+                    ToolbarItem(placement: .primaryAction) {
+                        livePhotoControl
+                    }
+                    if #available(iOS 26.0, *) {
+                        ToolbarSpacer(.fixed, placement: .primaryAction)
+                    }
                 }
-                ToolbarSpacer(.fixed, placement: .primaryAction)
 
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -325,7 +505,9 @@ struct CameraView: View {
                     .accessibilityLabel(cameraManager.flashMode == .on ? Text("Flash on") : Text("Flash off"))
                     .accessibilityHint("Toggle flash")
                 }
-                ToolbarSpacer(.fixed, placement: .primaryAction)
+                if #available(iOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                }
 
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -335,7 +517,7 @@ struct CameraView: View {
                         cameraManager.diagnostics.event("color_controls_visibility_changed",
                             "visible=\(visible) \(colorAdjustmentDiagnosticFields)")
                     } label: {
-                        Image(systemName: "thermometer.medium")
+                        Image(systemName: "slider.horizontal.3")
                             .rotationEffect(controlRotationAngle)
                             .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
                     }
@@ -416,182 +598,6 @@ struct CameraView: View {
             }
             .padding(.bottom, 10)
         }
-        .allowsHitTesting(!cameraManager.entryPreparation.coversContent)
-        .accessibilityHidden(cameraManager.entryPreparation.coversContent)
-        .overlay {
-            if cameraManager.entryPreparation.coversContent {
-                cameraPreparationScreen
-                    .ignoresSafeArea()
-                    .zIndex(100)
-            }
-        }
-        // Keep Back outside the covered/disabled controls, including during camera preparation.
-        .cameraButtonOnlyNavigation()
-        .onAppear {
-            Diagnostics.start()
-            let manager = cameraManager
-            DiagnosticWatchdog.shared.addCamera(id: manager.diagnostics.id, flow: manager.flowDiagnostics) { [weak manager] in manager?.previewHealth() }
-            manager.diagnostics.event("camera_view_appear")
-            cameraManager.setEntrySceneActive(scenePhase == .active)
-            cameraManager.updateEntryPipelineReady(capturePipeline.isPrepared)
-            cameraManager.updateEntryLUT(expectedKey: previewLUTKey, preparedKey: preparedLUT?.key)
-            cameraManager.requestCameraPermission()
-            // 告知期望录音状态（live && sound）；session 配置完成后据此决定是否挂麦克风。
-            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
-        }
-        // 顶栏 Live 开关 / 设置页声音开关变化时，实时增删麦克风输入（在相机页内切换即时生效）。
-        .onChange(of: captureModeValue) { _, _ in
-            cameraManager.diagnostics.event("live_photo_preference_changed", "requested=\(wantsLiveCapture) supported=\(cameraManager.livePhotoCaptureState.supported) enabled=\(cameraManager.livePhotoCaptureState.enabled)")
-            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
-        }
-        .onChange(of: livePhotoSoundEnabled) { _, _ in
-            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
-        }
-        .onChange(of: cameraManager.flashMode) { _, mode in
-            cameraManager.diagnostics.event("flash_changed", "mode=\(mode.rawValue)")
-        }
-        .onChange(of: isShutterBusy) { _, busy in
-            cameraManager.diagnostics.event("camera_controls_changed", "shutter_busy=\(busy) readiness=\(cameraManager.readiness.logValue)")
-        }
-        .onChange(of: showFlash) { _, visible in
-            cameraManager.diagnostics.event("shutter_overlay_changed", "visible=\(visible)")
-        }
-        .onChange(of: previewGestureActive) { _, active in
-            if !active { resetPreviewGesture() }
-        }
-        .onChange(of: previewLUTKey) { _, key in
-            cameraManager.updateEntryLUT(expectedKey: key, preparedKey: preparedLUT?.key)
-            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
-        }
-        .onChange(of: capturePipeline.isPrepared) { _, ready in
-            cameraManager.updateEntryPipelineReady(ready)
-        }
-        .task(id: cameraManager.entryPreparation.isRevealed) {
-            // The hidden picker must not delay first preview or compete with entry preparation.
-            guard cameraManager.entryPreparation.isRevealed, preparedPickerCovers.isEmpty else { return }
-            do {
-                let covers = try await FilmSourcePickerStrip.preloadCovers(displayScale: displayScale)
-                try Task.checkCancellation()
-                preparedPickerCovers = covers
-            } catch is CancellationError {
-                return
-            } catch {
-                cameraManager.diagnostics.event("camera_picker_covers_failed", Diagnostics.errorFields(error))
-            }
-        }
-        // 编辑当前用户曲线时 ID 不变、内容指纹会变化；监听完整后缀可确保新 LUT 立即预热。
-        .task(id: previewLUTKey + "#retry-\(entryRetryRevision)") {
-            let key = previewLUTKey
-            cameraManager.updateEntryLUT(expectedKey: key, preparedKey: preparedLUT?.key)
-            guard preparedLUT?.key != key else { return }
-            let requestedSource = source
-            let curve = selectedCurve
-            let curveFields = curveDiagnosticFields(curve)
-            let selection = colorControls.temperature
-            let tint = colorControls.tint
-            let reference = cameraManager.automaticWhiteBalanceReading
-            guard ResolvedCameraColorAdjustment.resolve(temperature: selection, tint: tint, reading: reference) != nil else {
-                cameraManager.diagnostics.event("color_adjustment_waiting", "reason=automatic_reading_unavailable")
-                return
-            }
-            let requestedAt = ProcessInfo.processInfo.systemUptime
-            let delay = lutPreparationCadence.delay(at: requestedAt)
-            do {
-                if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
-                try Task.checkCancellation()
-            } catch { return }
-            guard key == previewLUTKey else { return }
-            lutPreparationCadence.started(at: ProcessInfo.processInfo.systemUptime)
-            let lutWait = cameraManager.diagnostics.span("camera_lut_prepare",
-                "\(curveFields) \(colorAdjustmentDiagnosticFields) cadence_wait_ms=\(Diagnostics.milliseconds(since: requestedAt))")
-            do {
-                let lut = try await ColorTemperatureLUT.shared.prepare(source: requestedSource, curve: curve, selection: selection, tint: tint, reference: reference)
-                try await FilmCapturePreparation.shared.prepareRendering()
-                try Task.checkCancellation()
-                let texture = try await PreviewLUTTextureCache.shared.prepare(key: key, lut: lut)
-                lutWait.end("ok", "cancelled=\(Task.isCancelled)")
-                guard !Task.isCancelled, key == previewLUTKey else { return }
-                let adjustment = selection.isAutomatic && tint.isAutomatic ? nil
-                    : ResolvedCameraColorAdjustment.resolve(temperature: selection, tint: tint, reading: reference)
-                preparedLUT = (key, lut, texture, requestedSource.captureRenderProfile, adjustment)
-                cameraManager.updateEntryLUT(expectedKey: key, preparedKey: key)
-                cameraManager.diagnostics.event("camera_lut_ready", "dimension=\(lut.dimension) \(curveFields) \(colorAdjustmentDiagnosticFields)")
-                await waitForCurrentLookPresentation(key: key)
-            } catch is CancellationError {
-                lutWait.end("cancelled")
-            } catch let error as PreviewLUTTextureCache.PreparationError {
-                lutWait.end("error", Diagnostics.errorFields(error))
-                guard !Task.isCancelled, key == previewLUTKey else { return }
-                if cameraManager.entryPreparation.isRevealed {
-                    captureError = String(localized: "The camera preview could not be prepared. Please try again.")
-                } else {
-                    cameraManager.previewRendererUnavailable()
-                }
-            } catch {
-                lutWait.end("error", Diagnostics.errorFields(error))
-                guard !Task.isCancelled, key == previewLUTKey else { return }
-                if !selection.isAutomatic || !tint.isAutomatic {
-                    colorControls.resetAutomatic()
-                    captureError = String(localized: "Color adjustments could not be applied. Auto has been restored.")
-                } else {
-                    if !cameraManager.entryLUTPreparationFailed(key: key) {
-                        captureError = String(localized: "This LUT is invalid or unsupported.")
-                    }
-                }
-            }
-        }
-        .onReceive(capturePipeline.$lastCompletion) { completion in
-            guard let completion, completion.filterName == source.photoFilterName else { return }
-            guard lastPhotoThumbnail?.filterName != completion.filterName
-                || (lastPhotoThumbnail?.captureDate ?? .distantPast) <= completion.captureDate else { return }
-            lastPhotoThumbnail = RecentPhotoThumbnail(id: completion.id, filterName: completion.filterName,
-                image: completion.thumbnail, captureDate: completion.captureDate)
-        }
-        .onDisappear {
-            cameraManager.diagnostics.event("camera_view_disappear")
-            DiagnosticWatchdog.shared.removeCamera(id: cameraManager.diagnostics.id)
-            cameraManager.stopSession()
-        }
-        // 后台/前台切换：按 Home 键 / 切到其他 app → pause；回前台 → resume。
-        // 不在 .background 完整 stopSession，因为 onDisappear 没触发（页面仍在导航栈），
-        // 只调 pauseSessionForBackground 释放摄像头硬件，配置/observers 全部保留。
-        // 没有这条监听，回前台只看到黑屏（pixelBuffer 是 stale 的）+ session 不再产帧。
-        .onChange(of: scenePhase) { _, newPhase in
-            cameraManager.setEntrySceneActive(newPhase == .active)
-            switch newPhase {
-            case .background:
-                cameraManager.pauseSessionForBackground()
-            case .inactive:
-                break
-            case .active:
-                cameraManager.resumeSessionIfPossible()
-            @unknown default:
-                break
-            }
-        }
-        // Camera Control 硬件快门按钮（iPhone 16+）
-        .onCameraCaptureEvent { event in
-            if event.phase == .ended {
-                Task { await capturePhoto() }
-            }
-        }
-        .alert("Capture failed", isPresented: Binding(
-            get: { captureError != nil },
-            set: { if !$0 { captureError = nil } }
-        )) {
-            if preparedLUT?.key != previewLUTKey {
-                Button("Try Again") { retryCameraEntry() }
-            }
-            Button("OK", role: .cancel) { captureError = nil }
-        } message: {
-            Text(captureError ?? "")
-        }
-        .sheet(isPresented: $showCurveManager) {
-            NavigationStack {
-                FilmCurveLibraryView(showsDoneButton: true)
-            }
-            .preferredColorScheme(.dark)
-        }
     }
 
     private var exposureControl: some View {
@@ -646,7 +652,10 @@ struct CameraView: View {
     }
 
     private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }
-    private var captureMode: PhotoCaptureMode { PhotoCaptureMode(rawValue: captureModeValue) ?? .quality }
+    private var captureMode: PhotoCaptureMode {
+        LivePhotoEncoderConfiguration.isSupported
+            ? PhotoCaptureMode(rawValue: captureModeValue) ?? .quality : .quality
+    }
     private var wantsLiveCapture: Bool { captureMode == .livePhoto }
     private var capturePlan: PhotoCapturePlan {
         .resolve(mode: captureMode)
@@ -823,7 +832,8 @@ struct CameraView: View {
             profile: renderProfile, grainSeed: grainBaseSeed, location: location,
             lutDimension: capturedLUT.dimension, chromaticSceneCCT: chromaticSceneCCT, photoDisplayTime: nil,
             plan: plan, colorAdjustment: preparedLUT.adjustment,
-            frozenChromaticGain: previewFrame.chromaticGain)
+            frozenChromaticGain: previewFrame.chromaticGain,
+            preservesSourceFocalLength: cameraManager.focalInfo.constituent(for: FocalLengthOption(focalMm))?.calibrationSource == .fieldOfView)
         capturePipeline.preparePreview(previewFrame, recipe: recipe, lut: capturedLUT)
         cameraManager.capturePhoto(admission: admission, live: wantsLive, previewFrame: previewFrame, trace: captureTrace, onWillCapture: {
             // AVF 主曝光起始帧——开闪光灯时即氙气主脉冲发射的瞬间，关闪光灯时 ZSL/responsive

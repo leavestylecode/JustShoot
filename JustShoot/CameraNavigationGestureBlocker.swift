@@ -15,7 +15,7 @@ private struct CameraButtonOnlyNavigationModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .navigationTransition(.automatic)
+            .standardCameraTransition()
             .navigationBarBackButtonHidden(true)
             .toolbar(.visible, for: .navigationBar)
             .background(CameraNavigationGestureBlocker())
@@ -74,8 +74,10 @@ struct CameraNavigationGestureBlocker: UIViewControllerRepresentable {
 
         func disableIfVisible() {
             guard isVisible, let navigationController else { return }
-            let recognizers = [navigationController.interactivePopGestureRecognizer,
-                               navigationController.interactiveContentPopGestureRecognizer].compactMap { $0 }
+            var recognizers = [navigationController.interactivePopGestureRecognizer].compactMap { $0 }
+            if #available(iOS 26.0, *), let content = navigationController.interactiveContentPopGestureRecognizer {
+                recognizers.append(content)
+            }
             for recognizer in recognizers {
                 if !savedStates.contains(where: { $0.recognizer === recognizer }) {
                     savedStates.append((recognizer, recognizer.isEnabled))

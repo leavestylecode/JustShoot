@@ -196,7 +196,7 @@ struct FilmCardLibraryView: View {
                                                   showsCaption: showsCaption)
                             }
                             .buttonStyle(.plain)
-                            .matchedTransitionSource(id: card.id, in: zoomNamespace)
+                            .filmTransitionSource(id: card.id, in: zoomNamespace)
                         }
                     }
                 }
@@ -245,7 +245,7 @@ struct FilmCardLibraryView: View {
             }
             .navigationDestination(for: FilmCard.self) { card in
                 FilmCardDetailView(card: card)
-                    .navigationTransition(.zoom(sourceID: card.id, in: zoomNamespace))
+                    .filmZoomTransition(id: card.id, in: zoomNamespace)
             }
             .task {
                 await library.loadIfNeeded()
@@ -557,7 +557,7 @@ struct FilmCardDetailView: View {
         .aspectRatio(1, contentMode: .fit)
         .frame(maxWidth: .infinity)
         .clipShape(shape)
-        .glassEffect(.regular, in: shape)
+        .filmCardSurface(in: shape)
     }
 
     /// Brand (small uppercase) stacked above the product name (large bold).

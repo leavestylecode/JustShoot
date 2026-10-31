@@ -61,6 +61,11 @@ struct CaptureRecipe: Codable, Sendable {
     /// Freeze the renderer's smoothed gain, rather than recomputing from a later AWB reading.
     var frozenChromaticGain: SIMD3<Float>? = nil
 
+    /// FOV estimates guide framing on older systems; they must not replace the
+    /// camera's measured EXIF. Missing on legacy recipes preserves their behavior.
+    var preservesSourceFocalLength: Bool? = nil
+    var metadataFocalLength: Int? { preservesSourceFocalLength == true ? nil : focalLength }
+
     var requiresRawLUT: Bool { raw?.requiresRawLUT == true }
 
     func withPhotoDisplayTime(_ time: Double?) -> Self {
@@ -68,7 +73,8 @@ struct CaptureRecipe: Codable, Sendable {
             focalLength: focalLength, outputQuality: outputQuality, profile: profile, grainSeed: grainSeed,
             location: location, lutDimension: lutDimension, chromaticSceneCCT: chromaticSceneCCT,
             photoDisplayTime: time, raw: raw, plan: plan, materialSHA256: materialSHA256,
-            colorAdjustment: colorAdjustment, frozenChromaticGain: frozenChromaticGain)
+            colorAdjustment: colorAdjustment, frozenChromaticGain: frozenChromaticGain,
+            preservesSourceFocalLength: preservesSourceFocalLength)
     }
 }
 

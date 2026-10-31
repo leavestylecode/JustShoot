@@ -4,6 +4,27 @@ import XCTest
 @testable import JustShoot
 
 final class FilmPhotoInputTests: XCTestCase {
+    func testOlderPathRejectsHLGAndKeepsWideGamutSDR() throws {
+        let context = CIContext(options: [.workingColorSpace: FilmImagePipeline.colorSpace])
+        let image = CIImage(color: CIColor(red: 0.3, green: 0.6, blue: 0.2))
+            .cropped(to: CGRect(x: 0, y: 0, width: 64, height: 48))
+        let hlg = try XCTUnwrap(CGColorSpace(name: CGColorSpace.itur_2100_HLG))
+        let hlgData = try context.heif10Representation(of: image, colorSpace: hlg)
+        XCTAssertNil(PhotoInputDecoder.decodeSDROnly(hlgData))
+        let p3 = try XCTUnwrap(CGColorSpace(name: CGColorSpace.displayP3))
+        let p3Data = try XCTUnwrap(context.jpegRepresentation(of: image, colorSpace: p3))
+        let decoded = try XCTUnwrap(PhotoInputDecoder.decodeSDROnly(p3Data))
+        let original = try XCTUnwrap(CIImage(data: p3Data))
+        func pixel(_ input: CIImage) -> [UInt8] {
+            var value = [UInt8](repeating: 0, count: 4)
+            context.render(input, toBitmap: &value, rowBytes: 4,
+                bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8,
+                colorSpace: FilmImagePipeline.colorSpace)
+            return value
+        }
+        XCTAssertEqual(pixel(decoded), pixel(original))
+    }
+
     func testHDRPhotoIsToneMappedBeforeDisplayLUTSampling() async throws {
         let work = BlockingImageWork(maximumConcurrentOperations: 1, label: "com.justshoot.test-hdr-input")
         let result = await work.run { () -> Result<Void, any Error>? in
@@ -20,7 +41,12 @@ final class FilmPhotoInputTests: XCTestCase {
                 let context = CIContext(options: [.workingColorSpace: linear, .cacheIntermediates: false])
                 let data = try context.heif10Representation(of: input, colorSpace: pq)
                 let hdr = try XCTUnwrap(CIImage(data: data, options: [.toneMapHDRtoSDR: false]))
-                let sdr = try XCTUnwrap(FilmImagePipeline.decodePhoto(data))
+                XCTAssertNil(PhotoInputDecoder.decodeSDROnly(data), "The older path must refuse unsupported PQ rather than corrupt the source")
+                guard #available(iOS 18.0, *) else {
+                    XCTAssertNil(FilmImagePipeline.decodePhoto(data))
+                    return
+                }
+                let decoded = try [XCTUnwrap(FilmImagePipeline.decodePhoto(data))]
                 let displayContext = CIContext(options: [.workingColorSpace: FilmImagePipeline.colorSpace,
                     .cacheIntermediates: false])
                 func samples(_ image: CIImage) -> [Float] {
@@ -29,11 +55,13 @@ final class FilmPhotoInputTests: XCTestCase {
                         bounds: CGRect(x: 0, y: 0, width: 64, height: 16), format: .RGBAf, colorSpace: linear)
                     return stride(from: 0, to: pixels.count, by: 4).map { pixels[$0] }
                 }
-                let mapped = samples(sdr)
                 XCTAssertGreaterThan(samples(hdr).max() ?? 0, 2, "The fixture must actually contain HDR values")
-                XCTAssertLessThanOrEqual(mapped.max() ?? 0, 1.001, "A display LUT must receive SDR")
-                XCTAssertLessThan(mapped[20], mapped[36] - 0.03, "Tone mapping must retain highlight steps instead of clipping both to white")
-                XCTAssertEqual(sdr.extent, input.extent)
+                for sdr in decoded {
+                    let mapped = samples(sdr)
+                    XCTAssertLessThanOrEqual(mapped.max() ?? 0, 1.001, "A display LUT must receive SDR")
+                    XCTAssertLessThan(mapped[20], mapped[36] - 0.03, "Tone mapping must retain highlight steps instead of clipping both to white")
+                    XCTAssertEqual(sdr.extent, input.extent)
+                }
             }
         }
         try XCTUnwrap(result).get()
@@ -62,6 +90,10 @@ final class FilmPhotoInputTests: XCTestCase {
                     return value
                 }
                 XCTAssertEqual(sample(decoded), sample(original), "An SDR input must not be tone mapped a second time")
+                let legacy = try XCTUnwrap(PhotoInputDecoder.decodeSDROnly(data))
+                let legacyOriented = try XCTUnwrap(PhotoInputDecoder.decodeSDROnly(data, applyOrientation: true))
+                XCTAssertEqual(sample(legacy), sample(original))
+                XCTAssertEqual(legacyOriented.extent.size, CGSize(width: 48, height: 64))
             }
         }
         try XCTUnwrap(result).get()

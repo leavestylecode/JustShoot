@@ -1,6 +1,14 @@
 # JustShoot
 
-SwiftUI film camera for iOS 26 and later. Build with Xcode 27 using the `JustShoot` scheme.
+SwiftUI film camera for iOS 17.0 and later. Build with Xcode 27 using the `JustShoot` scheme.
+
+iOS 17 uses standard tab items, push navigation and material surfaces. Live Photo capture and
+its sound controls are omitted on iOS 17; iOS 18+ retains them. Camera Control integration starts
+on iOS 18 and Liquid Glass starts on iOS 26. Earlier systems estimate equivalent focal lengths
+from lens field of view, display plain numeric labels, and preserve the camera's original focal
+length EXIF. SDR capture and large imported LUTs remain supported. Standalone PQ/HLG photo
+inputs require iOS 18's headroom mapping; iOS 17 retains unsupported source files for recovery.
+Implementation and validation: [iOS 17 compatibility](research/ios17-compatibility/IMPLEMENTATION.txt).
 
 New Portra 400 captures use a versioned Portra/Endura material pipeline: developed-sRGB input
 adjustment → exposure diffusion → film layer-density LUT → density-domain grain → print/scan LUT
@@ -65,8 +73,8 @@ regressions cover deferred rendering, separate LUTs and changing frames with the
 chain.
 
 Shutter touch feedback is immediate, and `shutter_acknowledged` records acknowledgement before
-storage checks. A progress indicator shows film preparation or native capture; an hourglass
-indicates a full save queue. VoiceOver names each state. Safe admission, still checkpointing
+storage checks. The shutter turns gray while film preparation, native capture or a full save
+queue prevents capture. VoiceOver names each state. Safe admission, still checkpointing
 and the real exposure flash timing remain enforced. The recent-photo badge observes only the
 newest indexed photo for its film, loading the full browsing snapshot when opened. Queue counts
 publish only when they change. Camera entry failures use a short state title and recovery
@@ -77,7 +85,7 @@ actions; permission guidance remains explicit.
 - `CameraManager` owns capture session configuration, device controls and per-request capture delivery. Hardware configuration and teardown share a process-wide serial queue; generation checks discard starts superseded by navigation or background transitions. Both ordinary and Live modes request a normally zoomed video stream, bounded to a 1920-pixel long edge at the active format's exact aspect ratio. Metal drawable dimensions remain independently bounded.
 - iPhone and iPad both use a portrait interface. Supported orientations agree in Debug/Release and in the app delegate. On iPad, `UIRequiresFullScreen` compatibility sizing is required for iPadOS 27 to honor that restriction; the `~iphone` override leaves iPhone windowing unchanged. Apple has deprecated this compatibility key, and Xcode reports a deprecation warning. The renderer still reads its attached scene so a system-imposed window orientation remains safe. The Metal view, native transition underlay, viewfinder aspect and tap-to-focus share that geometry. Motion sensing remains independent: controls and EV/film gestures follow physical holding, and still/Live capture orientation is frozen from the physical camera at shutter admission. A stale preview from a previous window orientation cannot authorize capture.
 - `CameraCaptureAdmission` owns the shutter from storage reservation through native still checkpointing. It freezes session/focal identity, user EV, flash and rotation, and disables hardware controls during that interval. Backgrounding cancels requests that have not exposed; generation/token checks prevent an old request from firing after resume.
-- Live Photo buffer availability/readiness and the saved on/off preference are separate. `LivePhotoRollingBuffer` hardware-encodes the same ordinary video samples used by the viewfinder at up to 30 fps; native still capture remains independent. Native photo-preview proxies are avoided because device captures reproduced focal-dependent proxy zoom errors. The toolbar control stays visible; unavailable capture capability does not silently delete the control or overwrite the user's preference. A requested Live Photo fails explicitly if capability is lost before capture. If movie assembly fails after a usable still arrives, the still is saved and a global notice reports the missing dynamic resource.
+- Live Photo buffer availability/readiness and the saved on/off preference are separate. On iOS 18+, `LivePhotoRollingBuffer` hardware-encodes the same ordinary video samples used by the viewfinder at up to 30 fps; native still capture remains independent. Native photo-preview proxies are avoided because device captures reproduced focal-dependent proxy zoom errors. On supported systems the toolbar control stays visible while hardware readiness changes, preserving the user's preference. iOS 17 omits the feature and its controls entirely. A requested Live Photo fails explicitly if capability is lost before capture. If movie assembly fails after a usable still arrives, the still is saved and a global notice reports the missing dynamic resource.
 - `CapturePipeline` coordinates one processing worker across camera views. Before exposure it reserves queue capacity and disk headroom. `CaptureJournal` checkpoints the original still and frozen LUT/render recipe under Application Support/PendingCaptures before releasing the shutter. Buffered movie delivery completes that job later; foreground retries leave still-in-flight captures alone. After a process restart, incomplete native captures recover their still and any usable movie.
 - Heavy rendering is serial at utility priority. Deferred PhotoKit finalization and editing-input requests use a separate lane with at most two waits, so an older 24 MP request cannot block a ready photo. Backgrounding cancels both lanes and propagates cooperative cancellation into still rendering while retaining the journal. A synchronous codec operation already executing can finish before cancellation is observed. Foregrounding or restarting resumes pending captures. `CaptureQueueState` owns reservation, active, retained and recovery-issue slots; committed deletion immediately releases the corresponding slots. Terminal results advance the recovery revision so older inventories cannot restore a completed slot or hide a deferred one. Successful cleanup refreshes the inventory and clears resolved attention issues.
 - `CameraLensCaptureGate` waits for hardware acknowledgement, target zoom and an uninterrupted ZSL grace period. Timeouts and configuration failures reject capture until a new focal request; a later hardware callback cannot silently clear failure. iOS 27 telephoto locking gets a new grace period after switching the physical source. Capture admission also checks PhotoOutput readiness.

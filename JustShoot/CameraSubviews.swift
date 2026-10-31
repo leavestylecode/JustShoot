@@ -108,13 +108,15 @@ struct FocalLengthStrip: View {
                         focalButton(for: option)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(Text("\(option.rawValue)mm equivalent focal length"))
+                    .accessibilityLabel(option.isApproximate
+                        ? Text("Approximately \(option.rawValue)mm equivalent focal length")
+                        : Text("\(option.rawValue)mm equivalent focal length"))
                     .accessibilityAddTraits(option == current ? [.isButton, .isSelected] : .isButton)
                 }
             }
             .padding(.horizontal, Self.leadingInset)
             .padding(.vertical, 4)
-            .glassEffect(.regular, in: .capsule)
+            .cameraControlSurface()
             .coordinateSpace(Self.coordSpace)
             // simultaneousGesture：tap 与 drag 共存——静态点击仍走 Button.action，移动 ≥8pt 时
             // 进入 drag 路径。两者最终都通过 onSelect 触发同一切档逻辑（haptic + setFocalLength）。

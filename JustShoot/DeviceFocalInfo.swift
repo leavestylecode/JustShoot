@@ -7,19 +7,20 @@ import os
 // 焦距档位**不是固定枚举**，而是根据设备实际物理镜头动态生成（见 DeviceFocalInfo.buildOptions）：
 // 单 / 双 / 三镜头设备各自得到匹配的档位。每个档位是 35mm 等效焦距（整数）+ 是否落在某颗镜头原生焦距。
 //
-// 焦距模型（与 iPhone 原相机一致）：**每颗 constituent 用自己 Apple 标称的 nominalFocalLengthIn35mmFilm
-// 锚定**——在 constituent c 的活跃区间里 等效焦距 = c.nativeMm × (zoom / c.lowerBound)。
+// 焦距模型：每颗 constituent 用系统标称焦距（26+）或显式标记的 FOV 估计值锚定——在 constituent c 的活跃区间里 等效焦距 = c.nativeMm × (zoom / c.lowerBound)。
 // 例：主摄(24mm) 在 1x(zoom=lowerBound) = 24mm，2x = 48mm；长焦(100mm) 同理。正向(virtualZoomFactor)
-// 与反向(equivalentMm)共用这一个模型，保证 picker 标签 / EXIF / 实际视野三者一致。
+// 与反向(equivalentMm)共用同一模型。旧系统的估计值仅用于取景，导出保留相机原始 EXIF。
 struct FocalLengthOption: Identifiable, Hashable, Sendable {
     /// 35mm 等效焦距（整数 mm，如 13 / 24 / 35 / 100）
     let value: Int
     /// 是否落在某颗物理镜头的原生焦距上（无数字裁切、画质最佳）。UI 可据此给原生档加标记。
     let isNative: Bool
+    let isApproximate: Bool
 
-    init(_ value: Int, isNative: Bool = false) {
+    init(_ value: Int, isNative: Bool = false, isApproximate: Bool = false) {
         self.value = value
         self.isNative = isNative
+        self.isApproximate = isApproximate
     }
 
     var id: Int { value }
@@ -38,14 +39,15 @@ struct FocalLengthOption: Identifiable, Hashable, Sendable {
 struct ConstituentInfo: Sendable {
     /// 物理镜头实例（KVO 比对：activePrimaryConstituentDevice === device 即代表已锁到此镜头）
     let device: AVCaptureDevice
-    /// 35mm 等效焦距（Apple 标称 nominalFocalLengthIn35mmFilm，如 W=24mm、T=100mm）
+    /// 系统标称或 FOV 估计的 35mm 等效焦距；来源由 calibrationSource 记录。
     let nativeMm: Float
+    let calibrationSource: CameraFocalCalibration.Source
     /// 此镜头在虚拟设备 zoom 坐标里被系统选用的范围（下界 = 上一个 switchOver 或 1.0）。
     let virtualZoomRange: ClosedRange<CGFloat>
 
-    /// 硬件分类（按 35mm 等效标称）：超广 < 20mm；主摄 20–50mm；长焦 > 50mm。
-    var isUltraWide: Bool { nativeMm < DeviceFocalInfo.ultraWideNativeMmCeiling }
-    var isTele: Bool { nativeMm > DeviceFocalInfo.teleNativeMmFloor }
+    /// 用物理设备类型分类，不让旧系统的 FOV 估计误差改变镜头身份。
+    var isUltraWide: Bool { device.deviceType == .builtInUltraWideCamera }
+    var isTele: Bool { device.deviceType == .builtInTelephotoCamera }
 }
 
 struct DeviceFocalInfo: Sendable {
@@ -56,7 +58,7 @@ struct DeviceFocalInfo: Sendable {
 
     /// 可用焦段选项（按设备实际镜头生成，升序）
     let options: [FocalLengthOption]
-    /// 按 nativeMm 升序的 constituent 列表（UW < W < T）。仅含至少一颗。
+    /// 按系统 switch-over 顺序的 constituent 列表（UW < W < T）。
     let constituents: [ConstituentInfo]
     /// 最广 constituent 的原生 35mm 等效（虚拟设备 zoom=1.0 对应它）。
     /// 仅作 equivalentMm 在「无活跃 constituent」时的兜底锚点；正常焦距换算按每镜头各自锚定。
@@ -69,7 +71,7 @@ struct DeviceFocalInfo: Sendable {
         primaryNativeMm: 24
     )
 
-    /// 超广角 / 长焦 constituent（按标称焦距分类；硬件没有则为 nil）。
+    /// 超广角 / 长焦 constituent（按设备类型分类；硬件没有则为 nil）。
     var ultraWideConstituent: ConstituentInfo? { constituents.first(where: \.isUltraWide) }
     var teleConstituent: ConstituentInfo? { constituents.last(where: \.isTele) }
 
@@ -87,8 +89,8 @@ struct DeviceFocalInfo: Sendable {
 
     /// 档位 → 虚拟设备 videoZoomFactor（正向）。
     /// 模型：在承载镜头 c 的活跃区间里 等效焦距 = c.nativeMm × (zoom / c.lowerBound)，
-    /// 反推 zoom = mm × c.lowerBound / c.nativeMm。每颗镜头用自己 Apple 标称焦距做锚，
-    /// 与 iPhone 原相机一致（主摄 1x=24mm、2x=48mm；长焦 100mm），各原生焦段精确命中标称值。
+    /// 反推 zoom = mm × c.lowerBound / c.nativeMm。每颗镜头使用自己的焦距锚点；
+    /// iOS 26+ 使用系统标称值，旧系统使用 FOV 估计值，来源保留在校准元数据中。
     /// 例（17 Pro：UW=13[1-2], W=24[2-8], T=100[8-189]）：
     ///   13→1.00(UW)  24→2.00(W)  35→2.92(W)  50→4.17(W)  100→8.00(T)  200→16.00(T)
     func virtualZoomFactor(for option: FocalLengthOption) -> CGFloat {
@@ -128,42 +130,60 @@ struct DeviceFocalInfo: Sendable {
     /// 在 session 配置完成、虚拟设备已运行后调用。读 constituentDevices +
     /// virtualDeviceSwitchOverVideoZoomFactors 推导每颗 constituent 的 virtualZoomRange，
     /// 并据实际镜头生成焦段档位。
-    static func from(virtualDevice device: AVCaptureDevice) -> DeviceFocalInfo {
-        // 1) 收集物理 constituent（单镜头设备把自己当唯一 constituent），按等效焦距升序
-        var raws: [(device: AVCaptureDevice, nativeMm: Float)] = []
-        if device.constituentDevices.isEmpty {
-            raws.append((device, device.nominalFocalLengthIn35mmFilm > 0 ? device.nominalFocalLengthIn35mmFilm : 26.0))
-        } else {
-            for c in device.constituentDevices {
-                let mm = c.nominalFocalLengthIn35mmFilm > 0 ? c.nominalFocalLengthIn35mmFilm : 26.0
-                raws.append((c, mm))
+    static func from(virtualDevice device: AVCaptureDevice) -> DeviceFocalInfo? {
+        // Preserve AVFoundation's constituent order: each switch-over belongs
+        // to that order. Invalid or non-monotonic estimates are rejected below.
+        let devices = device.constituentDevices.isEmpty ? [device] : device.constituentDevices
+        var raws: [(device: AVCaptureDevice, calibration: CameraFocalCalibration)] = []
+        for lens in devices {
+            guard let calibration = CameraFocalCalibration.resolve(device: lens) else {
+                Log.session.error("focal_calibration_unavailable device=\(lens.localizedName, privacy: .public)")
+                return nil
             }
+            let anchor = calibration.source == .fieldOfView
+                ? CameraFocalCalibration(millimeters: calibration.millimeters.rounded(), source: .fieldOfView)
+                : calibration
+            raws.append((lens, anchor))
         }
-        raws.sort { $0.nativeMm < $1.nativeMm }
-
-        // virtualDeviceSwitchOverVideoZoomFactors 与 constituentDevices 顺序一致：
-        // factors[i] = 从 constituent[i] 切到 constituent[i+1] 的虚拟 zoom 阈值；长度 = 镜头数 - 1。
         let switchOvers: [CGFloat] = device.virtualDeviceSwitchOverVideoZoomFactors.map { CGFloat(truncating: $0) }
         let maxZoom = device.activeFormat.videoMaxZoomFactor
+        guard validAnchors(raws.map { $0.calibration.millimeters }, switchOvers: switchOvers, maxZoom: maxZoom) else {
+            Log.session.error("focal_calibration_unavailable reason=invalid_lens_intervals")
+            return nil
+        }
 
         // 2) 每颗 constituent 的虚拟 zoom 区间（越界保护：数组长度异常时两端退回 maxZoom）
         var constituents: [ConstituentInfo] = []
         for (idx, raw) in raws.enumerated() {
             let lower: CGFloat = idx == 0 ? 1.0 : (idx - 1 < switchOvers.count ? switchOvers[idx - 1] : maxZoom)
             let upper: CGFloat = idx < switchOvers.count ? switchOvers[idx] : maxZoom
-            constituents.append(ConstituentInfo(device: raw.device, nativeMm: raw.nativeMm, virtualZoomRange: lower...upper))
+            constituents.append(ConstituentInfo(device: raw.device, nativeMm: raw.calibration.millimeters,
+                calibrationSource: raw.calibration.source, virtualZoomRange: lower...max(lower, upper)))
         }
-        let primaryMm = constituents.first?.nativeMm ?? 26.0
+        guard let primaryMm = constituents.first?.nativeMm else { return nil }
 
         // 3) 据实际镜头生成档位
         let options = buildOptions(constituents: constituents, maxZoom: maxZoom)
+        guard !options.isEmpty else { return nil }
 
         let constituentLog = constituents.map { c in
-            "\(Int(c.nativeMm))mm[\(String(format: "%.2f", c.virtualZoomRange.lowerBound))-\(String(format: "%.2f", c.virtualZoomRange.upperBound))]"
+            "\(Int(c.nativeMm))mm/\(c.calibrationSource.rawValue)[\(String(format: "%.2f", c.virtualZoomRange.lowerBound))-\(String(format: "%.2f", c.virtualZoomRange.upperBound))]"
         }.joined(separator: ",")
         Log.session.info("focal_info virtual=\(device.localizedName, privacy: .public) primaryMm=\(primaryMm) constituents=[\(constituentLog, privacy: .public)] switchOvers=\(switchOvers.map { String(format: "%.2f", $0) }) maxZoom=\(String(format: "%.2f", maxZoom)) options=\(options.map { $0.value })")
 
         return DeviceFocalInfo(options: options, constituents: constituents, primaryNativeMm: primaryMm)
+    }
+
+    /// Reject malformed calibration instead of assigning a switch-over to the
+    /// wrong physical lens or admitting an out-of-range hardware zoom.
+    static func validAnchors(_ millimeters: [Float], switchOvers: [CGFloat], maxZoom: CGFloat) -> Bool {
+        guard !millimeters.isEmpty, maxZoom.isFinite, maxZoom >= 1,
+              switchOvers.count == millimeters.count - 1,
+              millimeters.allSatisfy({ $0.isFinite && $0 > 0 }),
+              zip(millimeters, millimeters.dropFirst()).allSatisfy({ $0 < $1 }) else { return false }
+        let limits = [CGFloat(1)] + switchOvers
+        return limits.allSatisfy { $0.isFinite && $0 >= 1 && $0 <= maxZoom }
+            && zip(limits, limits.dropFirst()).allSatisfy { $0 < $1 }
     }
 
     /// 档位集合的纯函数核心（可单测）。产品语义（2026-10-08 用户拍板）：
@@ -197,9 +217,9 @@ struct DeviceFocalInfo: Sendable {
             guard let host = constituents.last(where: { $0.nativeMm <= Float(mm) + 0.5 }) ?? constituents.first,
                   host.nativeMm > 0 else { return nil }
             let zoom = CGFloat(Float(mm)) * host.virtualZoomRange.lowerBound / CGFloat(host.nativeMm)
-            guard zoom <= maxZoom + 0.5 else { return nil }
+            guard zoom >= 1, zoom <= maxZoom else { return nil }
             let isNative = constituents.contains { Int($0.nativeMm.rounded()) == mm }
-            return FocalLengthOption(mm, isNative: isNative)
+            return FocalLengthOption(mm, isNative: isNative, isApproximate: host.calibrationSource == .fieldOfView)
         }
     }
 }

@@ -48,6 +48,18 @@ final class CaptureEncodingRecipeTests: XCTestCase {
             from: JSONSerialization.data(withJSONObject: legacy)).colorAdjustment)
     }
 
+    func testEstimatedFocalLengthPolicySurvivesRecoveryAndLateMovieTiming() throws {
+        var frozen = recipe(quality: nil)
+        frozen.preservesSourceFocalLength = true
+        let restored = try JSONDecoder().decode(CaptureRecipe.self, from: JSONEncoder().encode(frozen))
+        XCTAssertNil(restored.metadataFocalLength)
+        XCTAssertNil(restored.withPhotoDisplayTime(0.5).metadataFocalLength)
+        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(frozen)) as? [String: Any])
+        legacy.removeValue(forKey: "preservesSourceFocalLength")
+        let old = try JSONDecoder().decode(CaptureRecipe.self, from: JSONSerialization.data(withJSONObject: legacy))
+        XCTAssertEqual(old.metadataFocalLength, 35)
+    }
+
     func testPortraitGrainResponseSurvivesCheckpointRecoveryAndLateTiming() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

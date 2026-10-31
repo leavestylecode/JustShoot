@@ -332,7 +332,13 @@ enum CustomLUTPersistence {
         let key = FilmSource.from(lut).lutCacheKey
         context.delete(lut)
         do { try save(context) }
-        catch { context.rollback(); throw error }
+        catch {
+            context.rollback()
+            // iOS 17 can detach a previously saved model during rollback.
+            // Reattach the same identity; the source file is still intact.
+            if lut.modelContext == nil { context.insert(lut) }
+            throw error
+        }
         FilmProcessor.shared.removeCachedLUT(cacheKey: key)
         do {
             if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }

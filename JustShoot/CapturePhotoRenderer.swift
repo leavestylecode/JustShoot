@@ -22,7 +22,7 @@ enum CapturePhotoRenderer {
             chromaticGainOverride: recipe.frozenChromaticGain,
             outputQuality: recipe.outputQuality.map { CGFloat($0) },
             encodingMode: recipe.plan == nil ? .automatic : .quality, location: recipe.location?.location,
-            captureDate: recipe.captureDate, focalLengthIn35mm: recipe.focalLength,
+            captureDate: recipe.captureDate, focalLengthIn35mm: recipe.metadataFocalLength,
             contentIdentifier: contentIdentifier, diagnosticCaptureID: recipe.id, cancellation: cancellation)
     }
 }

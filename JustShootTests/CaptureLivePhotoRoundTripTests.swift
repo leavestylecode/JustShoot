@@ -8,6 +8,7 @@ import Photos
 @MainActor
 final class CaptureLivePhotoRoundTripTests: XCTestCase {
     func testProcessedLivePhotoSavesOnePairedAssetAndLoadsForPlayback() async throws {
+        guard LivePhotoEncoderConfiguration.isSupported else { throw XCTSkip("Live Photo capture requires iOS 18") }
         guard PhotoLibrary.isAuthorized else { throw XCTSkip("Photos access is required for the round trip") }
         let journal = CaptureJournal(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
         defer { try? FileManager.default.removeItem(at: journal.root) }

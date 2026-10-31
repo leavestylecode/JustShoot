@@ -1,13 +1,17 @@
 import SwiftUI
 
-/// Small, persistent feedback stays with the control while storage and AVFoundation prepare.
+/// A gray shutter indicates that capture is unavailable; detailed status remains accessible.
 struct CameraShutterButton: View {
+    @Environment(\.isEnabled) private var isEnabled
+
     let isCapturing: Bool
     let isPreparingFilm: Bool
     let canCapture: Bool
     let isPressed: Bool
     let action: () -> Void
 
+    private var isUnavailable: Bool { isCapturing || isPreparingFilm || !canCapture }
+    private var shutterColor: Color { isEnabled && !isUnavailable ? .white : .gray }
     private var isWaitingForSave: Bool { !isCapturing && !isPreparingFilm && !canCapture }
     private var status: LocalizedStringKey {
         if isCapturing { return "Capturing" }
@@ -20,30 +24,20 @@ struct CameraShutterButton: View {
         Button(action: action) {
             ZStack {
                 Circle()
-                    .stroke(.white, lineWidth: 4)
+                    .stroke(shutterColor, lineWidth: 4)
                     .frame(width: 72, height: 72)
                 Circle()
-                    .fill(.white.opacity(isCapturing || isWaitingForSave ? 0.35 : 1))
+                    .fill(shutterColor)
                     .frame(width: 60, height: 60)
                     .scaleEffect(isPressed ? 0.85 : 1)
                     .animation(.easeInOut(duration: 0.1), value: isPressed)
-                if isCapturing || isPreparingFilm {
-                    ProgressView()
-                        .tint(isCapturing ? .white : .black)
-                        .accessibilityHidden(true)
-                } else if isWaitingForSave {
-                    Image(systemName: "hourglass")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.white)
-                        .accessibilityHidden(true)
-                }
             }
         }
         .buttonStyle(CaptureShutterButtonStyle())
         .accessibilityLabel("Capture")
         .accessibilityHint("Take a photo")
         .accessibilityValue(Text(status))
-        .disabled(isCapturing || isPreparingFilm || !canCapture)
+        .disabled(isUnavailable)
     }
 }
 
