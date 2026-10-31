@@ -72,11 +72,10 @@ extension UIDeviceOrientation {
     }
 }
 
-// MARK: - 焦段切换条（仿 iPhone 相机样式）
-/// 焦距选择条（iOS 26 Liquid Glass）：整条胶囊容器套 .glassEffect()，
-/// 选中项在内部用黄色胶囊高亮，配合 matchedGeometryEffect 在选项间滑动。
-/// 视觉与 iPhone 17 Camera 对齐：玻璃质感不依赖背景，亮/暗场景下都有稳定对比度。
-/// **交互**：tap 单点切换 + 横向 drag 滑动选档（手指落在哪个胶囊就选哪个），
+// MARK: - 焦段切换条
+/// iPhone 使用横向玻璃胶囊，iPad 使用窄竖向胶囊；选中项以黄色标识。
+/// matchedGeometryEffect 让选中标识在选项间平滑移动。
+/// **交互**：tap 单点切换 + 沿排列方向 drag 滑动选档（iPhone 横排，iPad 竖排），
 ///          drag 跨选项时通过 onSelect 自然触发逐档切换 + 触感反馈。
 /// **方向**：`contentRotation` 仅旋转每个选项的数字 Text，整条容器/选中胶囊位置不变,
 ///          与 iPhone Camera 横屏时"数字转向、容器不动"行为一致。
@@ -86,23 +85,26 @@ struct FocalLengthStrip: View {
     let focalInfo: DeviceFocalInfo
     let current: FocalLengthOption
     let contentRotation: Angle
+    var axis: Axis = .horizontal
     let onSelect: (FocalLengthOption) -> Void
 
     @Namespace private var selectionNamespace
     @State private var lastDraggedOption: FocalLengthOption?
 
     private var buttonWidth: CGFloat { sizeClass == .regular ? 56 * min(labelScale, 1.3) : 44 }
-    private var buttonStride: CGFloat { buttonWidth + 2 }
-    /// HStack 容器的水平 padding（用于把 drag x 坐标减去 leading inset）
+    private var buttonStride: CGFloat { (axis == .horizontal ? buttonWidth : 44) + 2 }
+    /// 沿排列方向的容器 padding，用于把 drag 坐标换算为选项位置。
     private static let leadingInset: CGFloat = 6
     /// 视图坐标空间名称
     private static let coordSpace = NamedCoordinateSpace.named("focalStrip")
 
     var body: some View {
-        if focalInfo.options.count <= 1 {
+        if focalInfo.options.count <= 1 && axis == .horizontal {
             EmptyView()
         } else {
-            HStack(spacing: 2) {
+            let layout = axis == .horizontal
+                ? AnyLayout(HStackLayout(spacing: 2)) : AnyLayout(VStackLayout(spacing: 2))
+            layout {
                 ForEach(focalInfo.options) { option in
                     Button { onSelect(option) } label: {
                         focalButton(for: option)
@@ -112,11 +114,10 @@ struct FocalLengthStrip: View {
                         ? Text("Approximately \(option.rawValue)mm equivalent focal length")
                         : Text("\(option.rawValue)mm equivalent focal length"))
                     .accessibilityAddTraits(option == current ? [.isButton, .isSelected] : .isButton)
+                    .accessibilityIdentifier("camera.focal_length.\(option.rawValue)")
                 }
             }
-            .padding(.horizontal, Self.leadingInset)
-            .padding(.vertical, 4)
-            .cameraControlSurface()
+            .modifier(FocalStripSurface(axis: axis))
             .coordinateSpace(Self.coordSpace)
             // simultaneousGesture：tap 与 drag 共存——静态点击仍走 Button.action，移动 ≥8pt 时
             // 进入 drag 路径。两者最终都通过 onSelect 触发同一切档逻辑（haptic + setFocalLength）。
@@ -125,8 +126,9 @@ struct FocalLengthStrip: View {
                     .onChanged { value in
                         let count = focalInfo.options.count
                         guard count > 0 else { return }
-                        let x = max(0, value.location.x - Self.leadingInset)
-                        let index = min(count - 1, max(0, Int(x / buttonStride)))
+                        let location = axis == .horizontal ? value.location.x : value.location.y
+                        let offset = max(0, location - (axis == .horizontal ? Self.leadingInset : 4))
+                        let index = min(count - 1, max(0, Int(offset / buttonStride)))
                         let option = focalInfo.options[index]
                         // 仅在跨入新选项时触发；首次进入时如果落点已是当前档则跳过，避免重复 setFocalLength。
                         guard option != lastDraggedOption else { return }
@@ -141,6 +143,7 @@ struct FocalLengthStrip: View {
             )
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Focal length selector")
+            .accessibilityIdentifier("camera.focal_length")
         }
     }
 
@@ -149,23 +152,59 @@ struct FocalLengthStrip: View {
         let isSelected = option == current
         let isCrop = focalInfo.isDigitalCrop(option)
 
-        Text(option.label)
-            .font(.system(size: (sizeClass == .regular ? 17 : 14) * min(labelScale, 1.3), weight: isSelected ? .bold : .medium, design: .rounded))
-            .foregroundStyle(isSelected ? .yellow : isCrop ? .white.opacity(0.45) : .white.opacity(0.78))
-            // 仅旋转数字本身，胶囊背景与容器位置保持不变（横屏时数字立起来给用户看）
-            .rotationEffect(contentRotation)
-            .animation(.spring(duration: 0.35, bounce: 0.15), value: contentRotation)
-            .frame(width: buttonWidth, height: 44)
-            .background {
-                if isSelected {
-                    // matchedGeometryEffect 让选中胶囊在选项间平滑滑动，对齐 iPhone Camera 体验。
-                    Capsule()
-                        .fill(.yellow.opacity(0.22))
-                        .matchedGeometryEffect(id: "focal_selection", in: selectionNamespace)
+        if axis == .vertical {
+            Text(option.label)
+                .font(.system(size: 16 * min(labelScale, 1.3), weight: isSelected ? .semibold : .medium))
+                .monospacedDigit()
+                .foregroundStyle(isSelected ? .yellow : .white.opacity(isCrop ? 0.70 : 0.92))
+                .rotationEffect(contentRotation)
+                .animation(.spring(duration: 0.35, bounce: 0.15), value: contentRotation)
+                .frame(width: 44, height: 44)
+                .background {
+                    if isSelected {
+                        Circle()
+                            .fill(.white.opacity(0.10))
+                            .padding(4)
+                            .matchedGeometryEffect(id: "focal_selection", in: selectionNamespace)
+                    }
                 }
-            }
-            .contentShape(Capsule())
-            .animation(.spring(duration: 0.32, bounce: 0.18), value: isSelected)
+                .contentShape(Circle())
+                .animation(.spring(duration: 0.3, bounce: 0.12), value: isSelected)
+        } else {
+            Text(option.label)
+                .font(.system(size: (sizeClass == .regular ? 17 : 14) * min(labelScale, 1.3), weight: isSelected ? .bold : .medium, design: .rounded))
+                .foregroundStyle(isSelected ? .yellow : isCrop ? .white.opacity(0.45) : .white.opacity(0.78))
+                // 仅旋转数字本身，胶囊背景与容器位置保持不变（横屏时数字立起来给用户看）
+                .rotationEffect(contentRotation)
+                .animation(.spring(duration: 0.35, bounce: 0.15), value: contentRotation)
+                .frame(width: buttonWidth, height: 44)
+                .background {
+                    if isSelected {
+                        // matchedGeometryEffect 让选中胶囊在选项间平滑滑动，对齐 iPhone Camera 体验。
+                        Capsule()
+                            .fill(.yellow.opacity(0.22))
+                            .matchedGeometryEffect(id: "focal_selection", in: selectionNamespace)
+                    }
+                }
+                .contentShape(Capsule())
+                .animation(.spring(duration: 0.32, bounce: 0.18), value: isSelected)
+        }
+    }
+}
+
+private struct FocalStripSurface: ViewModifier {
+    let axis: Axis
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if axis == .horizontal {
+            content.padding(.horizontal, 6).padding(.vertical, 4).cameraControlSurface()
+        } else {
+            content.padding(4)
+                .background(.black.opacity(0.30), in: Capsule())
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay(Capsule().strokeBorder(.white.opacity(0.12), lineWidth: 0.5))
+        }
     }
 }
 
@@ -255,6 +294,7 @@ struct WhiteBalanceControl: View {
     let onAutomaticTemperature: () -> Void
     let onAutomaticTint: () -> Void
     let onEditingEnded: () -> Void
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var temperatureValue: Float? {
         selection.isAutomatic ? automaticReading?.temperature : selection.kelvin
@@ -320,7 +360,7 @@ struct WhiteBalanceControl: View {
                                  action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text("Auto")
-                .font(.system(size: 9, weight: .semibold))
+                .font(.system(size: horizontalSizeClass == .regular ? 11 : 9, weight: .semibold))
                 .foregroundStyle(selected ? Color(red: 1, green: 0.86, blue: 0.52) : .white.opacity(0.55))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -365,13 +405,15 @@ private struct CameraColorSlider: UIViewRepresentable {
     let onEditingEnded: () -> Void
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     func makeUIView(context: Context) -> CameraColorSliderView { CameraColorSliderView() }
 
     func updateUIView(_ view: CameraColorSliderView, context: Context) {
         view.onChange = onChange
         view.onEditingEnded = onEditingEnded
-        view.configure(kind: kind, value: value, automatic: automatic, enabled: isEnabled, reduceMotion: reduceMotion)
+        view.configure(kind: kind, value: value, automatic: automatic, enabled: isEnabled,
+            reduceMotion: reduceMotion, regularMetrics: horizontalSizeClass == .regular)
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: CameraColorSliderView, context: Context) -> CGSize? {
@@ -393,6 +435,7 @@ final class CameraColorSliderView: UIControl {
     private var value: Float?
     private var automatic = true
     private var reduceMotion = false
+    private var regularMetrics = false
     private var previousBounds: CGRect = .zero
     private var drag: CameraColorSliderDrag?
     private var lastEmittedValue: Float?
@@ -444,12 +487,19 @@ final class CameraColorSliderView: UIControl {
     override var intrinsicContentSize: CGSize { CGSize(width: 90, height: 44) }
 
     private var trackRect: CGRect {
-        // With the capsule's 10/6 pt padding, both end regions are 56 pt wide.
-        // The value and 44 pt Auto button sit at their respective region centers.
-        CGRect(x: 46, y: bounds.midY - 2.25, width: max(12, bounds.width - 52), height: 4.5)
+        let leading: CGFloat = regularMetrics ? 62 : 46
+        return CGRect(x: leading, y: bounds.midY - 2.25,
+            width: max(12, bounds.width - leading - 6), height: 4.5)
     }
 
-    func configure(kind: CameraColorSliderKind, value: Float?, automatic: Bool, enabled: Bool, reduceMotion: Bool) {
+    func configure(kind: CameraColorSliderKind, value: Float?, automatic: Bool, enabled: Bool,
+                   reduceMotion: Bool, regularMetrics: Bool = false) {
+        if self.regularMetrics != regularMetrics {
+            self.regularMetrics = regularMetrics
+            number.font = .monospacedDigitSystemFont(ofSize: regularMetrics ? 12 : 9, weight: .medium)
+            previousBounds = .null
+            setNeedsLayout()
+        }
         let next = value.flatMap { $0.isFinite ? $0 : nil }
         isEnabled = enabled && next != nil
         if !isEnabled, drag != nil { cancelTracking(with: nil) }
@@ -486,7 +536,7 @@ final class CameraColorSliderView: UIControl {
         previousBounds = bounds
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        number.frame = CGRect(x: 0, y: 0, width: 36, height: bounds.height)
+        number.frame = CGRect(x: 0, y: 0, width: regularMetrics ? 52 : 36, height: bounds.height)
         gradient.frame = trackRect
         let path = UIBezierPath()
         for fraction in [CGFloat(0.25), 0.5, 0.75] {

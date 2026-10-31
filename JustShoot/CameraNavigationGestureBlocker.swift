@@ -5,31 +5,36 @@ extension View {
     /// Zoom transitions install their own interactive dismissal gestures, beyond
     /// UINavigationController's edge/content pans. Use the standard transition
     /// and block those pans together so only the camera's Back button exits.
-    func cameraButtonOnlyNavigation() -> some View {
-        modifier(CameraButtonOnlyNavigationModifier())
+    func cameraButtonOnlyNavigation(customBackButton: Bool = false) -> some View {
+        modifier(CameraButtonOnlyNavigationModifier(customBackButton: customBackButton))
     }
 }
 
 private struct CameraButtonOnlyNavigationModifier: ViewModifier {
     @Environment(\.dismiss) private var dismiss
+    let customBackButton: Bool
 
     func body(content: Content) -> some View {
         content
             .standardCameraTransition()
             .navigationBarBackButtonHidden(true)
-            .toolbar(.visible, for: .navigationBar)
+            .toolbar(customBackButton ? .hidden : .visible, for: .navigationBar)
             .background(CameraNavigationGestureBlocker())
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "chevron.left")
-                            .fontWeight(.semibold)
-                    }
-                    .tint(.white)
-                    .accessibilityIdentifier("camera.back")
-                    .accessibilityLabel("Back")
+                if !customBackButton {
+                    ToolbarItem(placement: .navigationBarLeading) { backButton }
                 }
             }
+    }
+
+    private var backButton: some View {
+        Button { dismiss() } label: {
+            Image(systemName: "chevron.left")
+                .fontWeight(.semibold)
+        }
+        .tint(.white)
+        .accessibilityIdentifier("camera.back")
+        .accessibilityLabel("Back")
     }
 }
 

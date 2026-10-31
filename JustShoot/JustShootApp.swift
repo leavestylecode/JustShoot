@@ -26,11 +26,10 @@ extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
     }
 }
 
-// Both device families keep a portrait interface. Camera controls and captured
-// media still follow physical holding through the camera's motion monitoring.
+// iPad camera scenes rotate with the window; browsing and iPhone stay portrait.
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
-        .portrait
+        CameraInterfaceOrientationSupport.supportedOrientations(for: window)
     }
 }
 

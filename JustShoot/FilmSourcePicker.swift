@@ -284,6 +284,11 @@ struct CapturePreviewReview: View {
     }
 }
 
+enum CameraPickerStyle {
+    case standard
+    case iPadOverlay
+}
+
 // MARK: - 底部胶片选择条
 /// 右下角胶片封面点开后从底部弹出的横向胶片选择条。胶片顺序：
 ///   1. 内置预设（FilmPreset.allCases）
@@ -297,6 +302,7 @@ struct FilmSourcePickerStrip: View {
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
     var preparedCovers: [FilmPreset: UIImage] = [:]
+    var style: CameraPickerStyle = .standard
     let onSelect: (FilmSource) -> Void
 
     /// Completion means the bounded worker finished preparing all eight images for display.
@@ -307,34 +313,40 @@ struct FilmSourcePickerStrip: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(FilmPreset.allCases) { preset in
-                        let s = FilmSource.preset(preset)
-                        FilmSourcePickerCell(
-                            source: s,
-                            isSelected: s.id == current.id,
-                            contentRotation: contentRotation,
-                            orientation: orientation,
-                            preparedImage: preparedCovers[preset]
-                        ) { onSelect(s) }
-                        .id(s.id)
+            GeometryReader { geometry in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: style == .iPadOverlay ? 8 : 10) {
+                        ForEach(FilmPreset.allCases) { preset in
+                            let s = FilmSource.preset(preset)
+                            FilmSourcePickerCell(
+                                source: s,
+                                isSelected: s.id == current.id,
+                                contentRotation: contentRotation,
+                                orientation: orientation,
+                                preparedImage: preparedCovers[preset],
+                                style: style
+                            ) { onSelect(s) }
+                            .id(s.id)
+                        }
+                        ForEach(customLUTs) { lut in
+                            let s = FilmSource.from(lut)
+                            FilmSourcePickerCell(
+                                source: s,
+                                isSelected: s.id == current.id,
+                                contentRotation: contentRotation,
+                                orientation: orientation,
+                                style: style
+                            ) { onSelect(s) }
+                            .id(s.id)
+                        }
                     }
-                    ForEach(customLUTs) { lut in
-                        let s = FilmSource.from(lut)
-                        FilmSourcePickerCell(
-                            source: s,
-                            isSelected: s.id == current.id,
-                            contentRotation: contentRotation,
-                            orientation: orientation
-                        ) { onSelect(s) }
-                        .id(s.id)
-                    }
+                    .padding(.horizontal, style == .iPadOverlay ? 16 : 12)
+                    .padding(.vertical, 8)
+                    .frame(minWidth: style == .iPadOverlay ? geometry.size.width : nil)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
             }
-            .frame(height: sizeClass == .regular ? 88 : 68)
+            .frame(height: style == .iPadOverlay
+                ? (sizeClass == .regular ? 88 : 76) : (sizeClass == .regular ? 88 : 68))
             .onAppear {
                 // 展开后下一帧滚到当前胶片，避免 ScrollView 还没布局完就 scrollTo 失效。
                 Task { @MainActor in
@@ -364,32 +376,39 @@ struct FilmCurvePickerStrip: View {
     let current: FilmCurve
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
+    var style: CameraPickerStyle = .standard
     let onManage: () -> Void
     let onSelect: (FilmCurve) -> Void
 
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(curves) { curve in
-                        FilmCurvePickerCell(
-                            curve: curve,
-                            isSelected: curve == current,
+            GeometryReader { geometry in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(curves) { curve in
+                            FilmCurvePickerCell(
+                                curve: curve,
+                                isSelected: curve == current,
+                                contentRotation: contentRotation,
+                                orientation: orientation,
+                                style: style
+                            ) { onSelect(curve) }
+                            .id(curve.id)
+                        }
+                        CurveManagerPickerCell(
                             contentRotation: contentRotation,
-                            orientation: orientation
-                        ) { onSelect(curve) }
-                        .id(curve.id)
+                            orientation: orientation,
+                            style: style,
+                            onTap: onManage
+                        )
                     }
-                    CurveManagerPickerCell(
-                        contentRotation: contentRotation,
-                        orientation: orientation,
-                        onTap: onManage
-                    )
+                    .padding(.horizontal, style == .iPadOverlay ? 16 : 10)
+                    .padding(.vertical, 5)
+                    .frame(minWidth: style == .iPadOverlay ? geometry.size.width : nil)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
             }
-            .frame(height: sizeClass == .regular ? 98 : 78)
+            .frame(height: style == .iPadOverlay
+                ? (sizeClass == .regular ? 72 : 64) : (sizeClass == .regular ? 98 : 78))
             .onAppear {
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 30_000_000)
@@ -414,24 +433,50 @@ struct FilmCurvePickerCell: View {
     let isSelected: Bool
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
+    var style: CameraPickerStyle = .standard
     let onTap: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: onTap) {
-            FilmCurvePreviewCard(curve: curve, isSelected: isSelected,
-                cardSize: sizeClass == .regular ? CGSize(width: 88, height: 88) : CGSize(width: 68, height: 68),
-                graphSize: sizeClass == .regular ? CGSize(width: 70, height: 46) : CGSize(width: 54, height: 34))
+            Group {
+                if style == .iPadOverlay {
+                    iPadCurveCard
+                } else {
+                    FilmCurvePreviewCard(curve: curve, isSelected: isSelected,
+                        cardSize: sizeClass == .regular ? CGSize(width: 88, height: 88) : CGSize(width: 68, height: 68),
+                        graphSize: sizeClass == .regular ? CGSize(width: 70, height: 46) : CGSize(width: 54, height: 34))
+                }
+            }
             .rotationEffect(contentRotation)
             .animation(.spring(duration: 0.35, bounce: 0.15), value: orientation)
-            .scaleEffect(reduceMotion ? 1.0 : (isSelected ? 1.04 : 1.0))
+            .scaleEffect(reduceMotion || style == .iPadOverlay ? 1.0 : (isSelected ? 1.04 : 1.0))
             .animation(reduceMotion ? nil : .spring(duration: 0.28, bounce: 0.22), value: isSelected)
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text(curve.displayName))
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private var iPadCurveCard: some View {
+        VStack(spacing: 4) {
+            CurveGraphView(curve: curve, accent: isSelected ? .yellow : .white.opacity(0.8))
+                .frame(width: sizeClass == .regular ? 50 : 44, height: 26)
+            Text(curve.displayName)
+                .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
+                .foregroundStyle(isSelected ? .yellow : .white.opacity(0.75))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(width: sizeClass == .regular ? 72 : 64, height: sizeClass == .regular ? 62 : 54)
+        .background(isSelected ? .yellow.opacity(0.08) : .white.opacity(0.035), in: .rect(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(isSelected ? Color.yellow.opacity(0.85) : .white.opacity(0.07),
+                    lineWidth: isSelected ? 1 : 0.5)
+        }
     }
 }
 
@@ -506,6 +551,7 @@ private struct CurveManagerPickerCell: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
+    var style: CameraPickerStyle = .standard
     let onTap: () -> Void
 
     var body: some View {
@@ -513,13 +559,16 @@ private struct CurveManagerPickerCell: View {
             VStack(spacing: 5) {
                 Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 19, weight: .semibold))
-                Text("Manage")
-                    .font(.system(size: sizeClass == .regular ? 12 : 9, weight: .semibold, design: .rounded))
-                    .lineLimit(1)
+                if style == .standard {
+                    Text("Manage")
+                        .font(.system(size: sizeClass == .regular ? 12 : 9, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                }
             }
             .foregroundStyle(.white.opacity(0.84))
-            .frame(width: sizeClass == .regular ? 88 : 68, height: sizeClass == .regular ? 88 : 68)
-            .background(Color.white.opacity(0.07), in: .rect(cornerRadius: 12))
+            .frame(width: style == .iPadOverlay ? 44 : (sizeClass == .regular ? 88 : 68),
+                height: style == .iPadOverlay ? 44 : (sizeClass == .regular ? 88 : 68))
+            .background(Color.white.opacity(style == .iPadOverlay ? 0.035 : 0.07), in: .rect(cornerRadius: 12))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(.white.opacity(0.14), lineWidth: 0.5)
@@ -661,6 +710,7 @@ struct FilmSourcePickerCell: View {
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
     var preparedImage: UIImage? = nil
+    var style: CameraPickerStyle = .standard
     let onTap: () -> Void
 
     @State private var image: UIImage?
@@ -672,7 +722,9 @@ struct FilmSourcePickerCell: View {
 
     private static let customAccent = Color(red: 0.6, green: 0.5, blue: 0.8)
     static let coverSize: CGFloat = 52
-    private var displayCoverSize: CGFloat { sizeClass == .regular ? 72 : Self.coverSize }
+    private var displayCoverSize: CGFloat {
+        sizeClass == .regular ? (style == .iPadOverlay ? 64 : 72) : Self.coverSize
+    }
 
     /// 封面解码像素：52pt × scale × 1.5 余量，下限 100。供 cell 的 .task 与
     /// `FilmSourcePickerStrip.preloadCovers` 共用，确保预热与实际加载的 maxPixel 一致。
@@ -686,13 +738,15 @@ struct FilmSourcePickerCell: View {
             // （未选 0.08 / 选中黄 2pt），不像 glass 那样有高光，整块旋转不显得放大。
             cover
                 .frame(width: displayCoverSize, height: displayCoverSize)
+                .padding(style == .iPadOverlay ? 4 : 0)
                 .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(isSelected ? Color.yellow : .white.opacity(0.08), lineWidth: isSelected ? 2 : 0.5)
+                    RoundedRectangle(cornerRadius: style == .iPadOverlay ? 12 : 8, style: .continuous)
+                        .strokeBorder(isSelected ? Color.yellow : .white.opacity(style == .iPadOverlay ? 0 : 0.08),
+                            lineWidth: isSelected ? (style == .iPadOverlay ? 1.5 : 2) : 0.5)
                 }
                 .rotationEffect(contentRotation)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: orientation)
-                .scaleEffect(reduceMotion ? 1.0 : (isSelected ? 1.06 : 1.0))
+                .scaleEffect(reduceMotion || style == .iPadOverlay ? 1.0 : (isSelected ? 1.06 : 1.0))
                 .animation(reduceMotion ? nil : .spring(duration: 0.28, bounce: 0.25), value: isSelected)
         }
         .buttonStyle(.plain)

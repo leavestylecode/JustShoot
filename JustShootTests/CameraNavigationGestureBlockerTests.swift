@@ -72,8 +72,10 @@ final class CameraNavigationGestureBlockerTests: XCTestCase {
         let content = try contentRecognizer(in: navigation)
 
         for entry in 1...2 {
+            state.customBackButton = entry == 2
             state.path = [entry]
             try await waitUntil { navigation.viewControllers.count == 2 && state.dismiss != nil }
+            XCTAssertEqual(navigation.isNavigationBarHidden, state.customBackButton)
             if #available(iOS 18.0, *) {
                 XCTAssertNil(navigation.topViewController?.preferredTransition,
                              "Camera entry must not install zoom's independent dismissal gestures")
@@ -113,6 +115,7 @@ final class CameraNavigationGestureBlockerTests: XCTestCase {
 @MainActor
 private final class NavigationState: ObservableObject {
     @Published var path: [Int] = []
+    var customBackButton = false
     var dismiss: DismissAction?
 }
 
@@ -136,7 +139,10 @@ private struct NavigationTestCamera: View {
 
     var body: some View {
         Color.black
-            .cameraButtonOnlyNavigation()
+            .cameraButtonOnlyNavigation(customBackButton: state.customBackButton)
+            .overlay {
+                if state.customBackButton { IPadCameraBackButton() }
+            }
             .onAppear { state.dismiss = dismiss }
     }
 }

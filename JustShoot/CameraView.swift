@@ -14,8 +14,7 @@ import os
 //   - MetalPreview.swift（RealtimePreviewView + Metal Coordinator）
 
 struct CameraView: View {
-    /// 当前选中的胶片源。底部右侧封面打开 picker 后可切换——`@State` 让 toolbar title、
-    /// 预览 LUT (RealtimePreviewView.lutCacheKey)、右下封面、左下最近照片 badge 都自动跟随。
+    /// 当前胶片源；预览 LUT、胶片封面与最近照片 badge 随选择更新。
     @State private var source: FilmSource
     /// Preserve the saved Live Photo preference; the still-photo format is automatic.
     @AppStorage("photoCaptureMode") private var captureModeValue = PhotoCaptureMode.quality.rawValue
@@ -64,7 +63,7 @@ struct CameraView: View {
     /// 拍照失败提示。photo data nil / LUT 失败 / SwiftData save 失败时弹 alert，
     /// 不再静默——避免用户以为拍成功而相册没新照片。
     @State private var captureError: String?
-    /// 底部胶片与曲线面板展开状态。只由右下封面开关，选择后保持展开以便连续比较。
+    /// 胶片与曲线面板展开状态。选择后保持展开，以便连续比较。
     @State private var showFilmPicker = false
     /// 从相机曲线条直接进入管理页；保存后曲线条和实时预览由 EnvironmentObject 自动刷新。
     @State private var showCurveManager = false
@@ -93,7 +92,14 @@ struct CameraView: View {
             }
         }
         // Keep Back outside the covered/disabled controls, including during camera preparation.
-        .cameraButtonOnlyNavigation()
+        .cameraButtonOnlyNavigation(customBackButton: isIPad)
+        .overlay {
+            if isIPad { iPadBackButton }
+        }
+        .background(CameraInterfaceOrientationSupport(enabled: isIPad))
+        .ignoresSafeArea(.container, edges: isIPad ? .all : [])
+        .statusBarHidden()
+        .persistentSystemOverlays(.hidden)
         .onAppear {
             Diagnostics.start()
             let manager = cameraManager
@@ -261,161 +267,13 @@ struct CameraView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            // 预览 + 焦距/LUT 控制区：自上而下成一个整体并**靠上排布**——预览在上、焦距条紧贴其下、
-            // LUT 选择条按需展开落在焦距条之下。靠上排布让顶部不再空出大块「居中余量」，富余空间
-            // 落到控制区与底部快门之间。焦距/LUT 都在预览下方独立命中区，取景时不会误触。
-            VStack(spacing: 12) {
-                // 预览区
-                GeometryReader { geometry in
-                    ZStack(alignment: .bottom) {
-                        // Keep the preview mounted and opaque while the independent entry
-                        // cover is visible, so Metal can obtain and render its first drawable.
-                        Group {
-                            // 镜头切换过渡底衬：系统合成预览层（Apple 官方推荐的预览显示路径），
-                            // 切镜头时拿到系统 crossfade 而非停帧。常态完全被上层 Metal 预览盖住
-                            //（opacity 0）；镜头切换停顿的窗口内由 PreviewUnderlayBlender 把上层淡出、
-                            // 露出这层实时画面。见 MetalPreview.swift 与 LensTransitionCompositor.swift。
-                            CameraPreviewUnderlayView(manager: cameraManager)
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                .allowsHitTesting(false)
-
-                            // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade,
-                            // 预览不黑屏），不再需要 bridgeImage 帧桥接。
-                            // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
-                            RealtimePreviewView(
-                                manager: cameraManager,
-                                lutCacheKey: preparedLUT?.key ?? previewLUTKey,
-                                preparedLUT: preparedLUT?.texture,
-                                grain: preparedLUT?.profile.grain ?? source.captureRenderProfile.grain,
-                                optics: preparedLUT?.profile.optics ?? source.captureRenderProfile.optics,
-                                chromatic: preparedLUT?.profile.effectiveChromatic ?? source.captureRenderProfile.effectiveChromatic,
-                                isContentVisible: !isReviewingPhotos
-                            )
-                                .id(entryRetryRevision)
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                .contentShape(Rectangle())
-                                .gesture(unifiedPreviewGesture(viewportSize: geometry.size))
-                        }
-
-                        if showFocusIndicator, let point = focusPoint {
-                            FocusIndicatorView()
-                                .position(point)
-                                .allowsHitTesting(false)
-
-                            // 曝光补偿 sun rail（iPhone Camera 风格）：靠近预览右边缘时翻到对焦框左侧,
-                            // 永远保持在可视区域内。allowsHitTesting(false) 让手势穿透到下层预览,
-                            // 用户可以直接在 sun 图标上继续拖动。
-                            ExposureSunRail(
-                                bias: cameraManager.exposureBias,
-                                range: cameraManager.exposureRange,
-                                isAdjusting: isAdjustingExposure
-                            )
-                            // 长轴始终沿用户视角竖直——controlRotationAngle 把内容旋转到用户上方为正。
-                            // sunYOffset(bias>0) 在旋转后的局部坐标里 = "用户视角向上"，与上滑变亮的手势同向。
-                            .rotationEffect(controlRotationAngle)
-                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
-                            .position(sunRailPosition(focus: point, viewport: geometry.size))
-                            .allowsHitTesting(false)
-                        }
-                    }
-                    .overlay {
-                        if colorControls.isVisible {
-                            WhiteBalanceControl(
-                                selection: colorControls.temperature,
-                                tint: colorControls.tint,
-                                automaticReading: cameraManager.automaticWhiteBalanceReading,
-                                onTemperature: { value in
-                                    if let kelvin = CameraWhiteBalancePolicy.temperature(value) {
-                                        colorControls.temperature = .temperature(kelvin)
-                                    }
-                                },
-                                onTint: { value in
-                                    if let tint = CameraWhiteBalancePolicy.tint(value) { colorControls.tint = .value(tint) }
-                                },
-                                onAutomaticTemperature: { colorControls.temperature = .automatic },
-                                onAutomaticTint: { colorControls.tint = .automatic },
-                                onEditingEnded: {
-                                    cameraManager.diagnostics.event("color_adjustment_selected", colorAdjustmentDiagnosticFields)
-                                }
-                            )
-                            .disabled(isShutterBusy)
-                        }
-                    }
-                    .overlay(alignment: .topLeading) {
-                        if abs(cameraManager.exposureBias) > 0.01 || isAdjustingExposure {
-                            exposureControl
-                                .padding(.horizontal, 10)
-                                .padding(.top, colorControls.isVisible ? 64 : 10)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                // Match the full-width photo viewer as well as the still's aspect.
-                .aspectRatio(cameraManager.previewAspectRatio, contentMode: .fit)
-
-                // 焦距选择条（iPhone Camera 风格）：常驻，紧贴预览底边。容器/位置在所有方向下都不变，
-                // 只内部数字随设备方向旋转，让用户视角下文字方向正确。
-                FocalLengthStrip(
-                    focalInfo: cameraManager.focalInfo,
-                    current: cameraManager.currentFocalLength,
-                    contentRotation: controlRotationAngle
-                ) { option in
-                    cameraManager.hapticSoft.impactOccurred()
-                    cameraManager.setFocalLength(option)
-                }
-                .padding(.horizontal, 16)
-
-                // 胶片(LUT)与曲线选择条按需展开：位于焦距条下方、同层纵向排布，不遮挡取景区。
-                // 右下封面负责开关；选择后保持展开，便于快速比较 LUT × 曲线组合。
-                if showFilmPicker {
-                    // 曲线选择条：与胶片条同层纵向排布，展开胶片 picker 时一并出现。
-                    // 曲线与 LUT 叠加（烘焙进合成键），选中即时反映到预览。
-                    FilmCurvePickerStrip(
-                        curves: curveLibrary.visibleCurves,
-                        current: selectedCurve,
-                        contentRotation: controlRotationAngle,
-                        orientation: cameraManager.controlsOrientation,
-                        onManage: { showCurveManager = true }
-                    ) { curve in
-                        guard curveLibrary.canEdit else {
-                            showCurveManager = true
-                            return
-                        }
-                        if curve.id != selectedCurve.id {
-                            cameraManager.hapticSoft.impactOccurred()
-                            curveLibrary.select(curve)
-                        }
-                    }
-                    .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
-                    .padding(.horizontal, 16)
-                    .pageContentWidth(PageLayout.cameraControlsWidth)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-
-                    FilmSourcePickerStrip(
-                        current: source,
-                        customLUTs: customLUTs,
-                        contentRotation: controlRotationAngle,
-                        orientation: cameraManager.controlsOrientation,
-                        preparedCovers: preparedPickerCovers
-                    ) { newSource in
-                        if newSource.id != source.id {
-                            cameraManager.hapticSoft.impactOccurred()
-                            source = newSource
-                            // 通常 ContentView 启动时已 preload；冷启动后从 picker 第一次切到某胶片
-                            // 也走一次保险——FilmProcessor cache 命中时零开销。曲线合成条目一并生成。
-                        }
-                        // 不自动收起：列表保持展开便于连读对比，仅右下角封面 tap 关闭。
-                    }
-                    // 阴影让它读作浮层而非贴底的条带。
-                    .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
-                    .padding(.horizontal, 16)
-                    .pageContentWidth(PageLayout.cameraControlsWidth)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            Group {
+                if isIPad {
+                    iPadCameraContent
+                } else {
+                    iPhoneCameraContent
                 }
             }
-            // 整组垂直居中：富余空间在组上下平分（spacer / 预览 / 焦距 /(LUT) / spacer）。
-            // 展开 LUT 栏时整组变高、自然向上下两侧扩展，预览与焦距条始终居中而非被推到一边。
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .disabled(cameraManager.readiness != .ready || isShutterBusy)
             .allowsHitTesting(cameraManager.readiness == .ready && !isShutterBusy)
             .accessibilityHidden(cameraManager.readiness != .ready)
@@ -461,7 +319,7 @@ struct CameraView: View {
         // 全屏相机 push 时隐藏底部 tab 栏——否则 tab 栏会压在取景器/快门之上。
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
-            if !cameraManager.entryPreparation.coversContent {
+            if !isIPad && !cameraManager.entryPreparation.coversContent {
                 // 中间：仅可选的位置状态（胶片名标题已去掉——当前胶片由底部右下封面 + picker 表达，
                 // 取景器中央保持干净）。位置被拒时才显示一个警示按钮。
                 ToolbarItem(placement: .principal) {
@@ -491,118 +349,369 @@ struct CameraView: View {
                     }
                 }
 
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        cameraManager.toggleFlashMode()
-                    } label: {
-                        Image(systemName: cameraManager.flashMode == .on ? "bolt.fill" : "bolt.slash.fill")
-                            .rotationEffect(controlRotationAngle)
-                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
-                    }
-                    .tint(cameraManager.flashMode == .on ? .yellow : .white)
-                    .disabled(cameraManager.readiness != .ready || isShutterBusy)
-                    .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
-                    .accessibilityLabel(cameraManager.flashMode == .on ? Text("Flash on") : Text("Flash off"))
-                    .accessibilityHint("Toggle flash")
-                }
+                ToolbarItem(placement: .primaryAction) { flashControl }
                 if #available(iOS 26.0, *) {
                     ToolbarSpacer(.fixed, placement: .primaryAction)
                 }
 
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        cameraManager.hapticSoft.impactOccurred()
-                        let visible = !colorControls.isVisible
-                        colorControls.setVisible(visible)
-                        cameraManager.diagnostics.event("color_controls_visibility_changed",
-                            "visible=\(visible) \(colorAdjustmentDiagnosticFields)")
-                    } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .rotationEffect(controlRotationAngle)
-                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
-                    }
-                    .buttonBorderShape(.circle)
-                    .tint(colorControls.isVisible ? .yellow : .white)
-                    .disabled(isShutterBusy)
-                    .accessibilityLabel("Color controls")
-                    .accessibilityHint("Show color controls; hiding restores Auto")
-                    .accessibilityAddTraits(colorControls.isVisible ? [.isSelected] : [])
-                    .accessibilityIdentifier("camera.white_balance.toggle")
-                }
+                ToolbarItem(placement: .primaryAction) { colorControl }
             }
         }
-        // 底部快门行。焦距条 / LUT 选择条已上移到预览下方的控制区（见 body 顶部 VStack），
-        // 这里只保留「最近照片 / 快门 / 胶片封面」一行。
-        .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 18) {
+        .safeAreaInset(edge: .bottom, spacing: isIPad ? 0 : nil) {
+            if !isIPad {
                 HStack {
-                    // 左：最近照片缩略图。后处理（LUT+save+thumbnail）期间叠加 spinner —
-                    // 48MP 10-bit HEIF 编码 1.5-3s，用户需要明确"系统在干活"的反馈。
-                    // 子视图持有 source 过滤的 @Query；source 切换时它会重建并从新过滤集 bootstrap thumbnail。
-                    RecentPhotosBadge(
-                        source: source,
-                        lastThumbnailHint: $lastPhotoThumbnail,
-                        pendingPreview: capturePipeline.lastPreview,
-                        isShutterBusy: isShutterBusy,
-                        isProcessing: capturePipeline.pendingCount > 0,
-                        controlRotationAngle: controlRotationAngle,
-                        orientation: cameraManager.controlsOrientation,
-                        onPresentationChanged: { isReviewingPhotos = $0 }
-                    )
-
+                    recentPhotosControl
                     Spacer()
-
-                    CameraShutterButton(
-                        isCapturing: isShutterBusy,
-                        isPreparingFilm: preparedLUT?.key != previewLUTKey || !cameraManager.entryPreparation.isCurrentLookRendered,
-                        canCapture: capturePipeline.canCapture,
-                        isPressed: shutterPressed
-                    ) {
-                        Task { await capturePhoto() }
-                    }
-
+                    shutterControl
                     Spacer()
-
-                    // 右：当前胶片封面缩略图——tap 展开 / 收起底部胶片选择条。
-                    // 当前胶片封面，同时作为胶片选择器的入口。
-                    Button {
-                        cameraManager.hapticLight.impactOccurred()
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            showFilmPicker.toggle()
-                        }
-                    } label: {
-                        // 整块随设备方向旋转，与左下角照片角标（RecentPhotosBadge）同款 rotationEffect
-                        // + 同款 spring，旋转手感完全一致。封面无 glass 描边，整块旋转也不会显得放大。
-                        FilmSourceCoverThumbnail(source: source)
-                            .frame(width: sizeClass == .regular ? 56 : 46, height: sizeClass == .regular ? 56 : 46)
-                            .overlay {
-                                // 展开时给封面一个淡黄色描边，提示当前处于"切换中"状态。
-                                if showFilmPicker {
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .stroke(Color.yellow.opacity(0.85), lineWidth: 1.5)
-                                }
-                            }
-                            .rotationEffect(controlRotationAngle)
-                            .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Text("Switch film"))
-                    .accessibilityHint(showFilmPicker ? Text("Tap to close film picker") : Text("Tap to pick another film"))
+                    filmPickerControl
                 }
-                // Keep the controls inset from the screen edges below the full-width viewfinder.
                 .padding(.horizontal, 16)
                 .pageContentWidth(PageLayout.cameraControlsWidth)
+                .padding(.bottom, 10)
                 .disabled(cameraManager.readiness != .ready || isShutterBusy)
                 .opacity(cameraManager.readiness == .ready ? 1 : 0.42)
                 .animation(.easeOut(duration: 0.2), value: cameraManager.readiness)
             }
-            .padding(.bottom, 10)
         }
+    }
+
+    private var isIPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+
+    private var iPhoneCameraContent: some View {
+        VStack(spacing: 12) {
+            viewfinder
+            focalLengthControl.padding(.horizontal, 16)
+            if showFilmPicker {
+                filmCurvePicker
+                    .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+                    .padding(.horizontal, 16)
+                    .pageContentWidth(PageLayout.cameraControlsWidth)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                filmSourcePicker
+                    .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+                    .padding(.horizontal, 16)
+                    .pageContentWidth(PageLayout.cameraControlsWidth)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    private var iPadBackButton: some View {
+        GeometryReader { geometry in
+            let layout = IPadCameraLayoutGeometry(size: geometry.size, aspect: cameraManager.previewAspectRatio,
+                pickerHeight: IPadCameraLayoutGeometry.pickerHeight(for: sizeClass),
+                toolCount: LivePhotoEncoderConfiguration.isSupported ? 4 : 3,
+                zoomCount: cameraManager.focalInfo.options.count)
+            IPadCameraBackButton().position(layout.back)
+        }
+    }
+
+    private var iPadCameraContent: some View {
+        IPadCameraLayout(aspect: cameraManager.previewAspectRatio, showsPicker: showFilmPicker,
+            toolCount: LivePhotoEncoderConfiguration.isSupported ? 4 : 3,
+            zoomCount: cameraManager.focalInfo.options.count) {
+            viewfinder
+        } tools: { axis in
+            IPadCameraTools(axis: axis) {
+                flashControl.iPadCameraTool(compact: axis == .horizontal)
+                if LivePhotoEncoderConfiguration.isSupported {
+                    livePhotoControl.iPadCameraTool(compact: axis == .horizontal)
+                }
+                colorControl.iPadCameraTool(compact: axis == .horizontal)
+                filmPickerButton(size: axis == .horizontal ? 44 : 56)
+            }
+        } shutter: {
+            shutterControl
+        } recentPhoto: {
+            recentPhotosControl
+        } zoom: {
+            iPadFocalLengthControl
+        } picker: {
+            IPadCameraLookPanel {
+                filmCurvePicker
+            } films: {
+                filmSourcePicker
+            }
+        } overlays: { layout in
+            if colorControls.isVisible {
+                let frame = layout.adjustmentFrame(showsPicker: showFilmPicker)
+                whiteBalanceControls
+                    .frame(width: frame.width, height: frame.height)
+                    .position(x: frame.midX, y: frame.midY)
+            }
+            if abs(cameraManager.exposureBias) > 0.01 || isAdjustingExposure {
+                exposureControl.position(layout.exposurePosition(
+                    showsColorControls: colorControls.isVisible, showsPicker: showFilmPicker))
+            }
+            if cameraManager.locationPermissionDenied {
+                Button(action: openAppSettings) {
+                    Image(systemName: "location.slash.fill")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(.orange)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .cameraControlSurface()
+                .accessibilityLabel("Location off")
+                .accessibilityHint("Open Settings and allow Location Services to geo-tag photos")
+                .position(x: 108, y: 38)
+            }
+        }
+    }
+
+    private var iPadFocalLengthControl: some View {
+        FocalLengthStrip(
+            focalInfo: cameraManager.focalInfo,
+            current: cameraManager.currentFocalLength,
+            contentRotation: controlRotationAngle,
+            axis: .vertical
+        ) { option in
+            cameraManager.hapticSoft.impactOccurred()
+            cameraManager.setFocalLength(option)
+        }
+    }
+
+    private var viewfinder: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .bottom) {
+                // Keep the preview mounted and opaque while the independent entry
+                // cover is visible, so Metal can obtain and render its first drawable.
+                Group {
+                    // 镜头切换过渡底衬：系统合成预览层（Apple 官方推荐的预览显示路径），
+                    // 切镜头时拿到系统 crossfade 而非停帧。常态完全被上层 Metal 预览盖住
+                    //（opacity 0）；镜头切换停顿的窗口内由 PreviewUnderlayBlender 把上层淡出、
+                    // 露出这层实时画面。见 MetalPreview.swift 与 LensTransitionCompositor.swift。
+                    CameraPreviewUnderlayView(manager: cameraManager)
+                        .clipShape(RoundedRectangle(cornerRadius: isIPad ? 0 : 12, style: .continuous))
+                        .allowsHitTesting(false)
+
+                    // 虚拟设备架构：constituent 切换由系统在内部完成（硬件级 crossfade,
+                    // 预览不黑屏），不再需要 bridgeImage 帧桥接。
+                    // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
+                    RealtimePreviewView(
+                        manager: cameraManager,
+                        lutCacheKey: preparedLUT?.key ?? previewLUTKey,
+                        preparedLUT: preparedLUT?.texture,
+                        grain: preparedLUT?.profile.grain ?? source.captureRenderProfile.grain,
+                        optics: preparedLUT?.profile.optics ?? source.captureRenderProfile.optics,
+                        chromatic: preparedLUT?.profile.effectiveChromatic ?? source.captureRenderProfile.effectiveChromatic,
+                        isContentVisible: !isReviewingPhotos
+                    )
+                        .id(entryRetryRevision)
+                        .clipShape(RoundedRectangle(cornerRadius: isIPad ? 0 : 12, style: .continuous))
+                        .contentShape(Rectangle())
+                        .gesture(unifiedPreviewGesture(viewportSize: geometry.size))
+                }
+
+                if showFocusIndicator, let point = focusPoint {
+                    FocusIndicatorView()
+                        .position(point)
+                        .allowsHitTesting(false)
+
+                    // 曝光补偿 sun rail（iPhone Camera 风格）：靠近预览右边缘时翻到对焦框左侧,
+                    // 永远保持在可视区域内。allowsHitTesting(false) 让手势穿透到下层预览,
+                    // 用户可以直接在 sun 图标上继续拖动。
+                    ExposureSunRail(
+                        bias: cameraManager.exposureBias,
+                        range: cameraManager.exposureRange,
+                        isAdjusting: isAdjustingExposure
+                    )
+                    // 长轴始终沿用户视角竖直——controlRotationAngle 把内容旋转到用户上方为正。
+                    // sunYOffset(bias>0) 在旋转后的局部坐标里 = "用户视角向上"，与上滑变亮的手势同向。
+                    .rotationEffect(controlRotationAngle)
+                    .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
+                    .position(sunRailPosition(focus: point, viewport: geometry.size))
+                    .allowsHitTesting(false)
+                }
+            }
+            .overlay {
+                if !isIPad && colorControls.isVisible {
+                    whiteBalanceControls
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if !isIPad && (abs(cameraManager.exposureBias) > 0.01 || isAdjustingExposure) {
+                    exposureControl
+                        .padding(.horizontal, 10)
+                        .padding(.top, colorControls.isVisible ? 64 : 10)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        // Match the full-width photo viewer as well as the still's aspect.
+        .aspectRatio(cameraManager.previewAspectRatio, contentMode: .fit)
+    }
+
+    private var focalLengthControl: some View {
+        FocalLengthStrip(
+            focalInfo: cameraManager.focalInfo,
+            current: cameraManager.currentFocalLength,
+            contentRotation: controlRotationAngle
+        ) { option in
+            cameraManager.hapticSoft.impactOccurred()
+            cameraManager.setFocalLength(option)
+        }
+    }
+
+    private var filmCurvePicker: some View {
+        FilmCurvePickerStrip(
+            curves: curveLibrary.visibleCurves,
+            current: selectedCurve,
+            contentRotation: controlRotationAngle,
+            orientation: cameraManager.controlsOrientation,
+            style: isIPad ? .iPadOverlay : .standard,
+            onManage: { showCurveManager = true }
+        ) { curve in
+            guard curveLibrary.canEdit else {
+                showCurveManager = true
+                return
+            }
+            if curve.id != selectedCurve.id {
+                cameraManager.hapticSoft.impactOccurred()
+                curveLibrary.select(curve)
+            }
+        }
+    }
+
+    private var filmSourcePicker: some View {
+        FilmSourcePickerStrip(
+            current: source,
+            customLUTs: customLUTs,
+            contentRotation: controlRotationAngle,
+            orientation: cameraManager.controlsOrientation,
+            preparedCovers: preparedPickerCovers,
+            style: isIPad ? .iPadOverlay : .standard
+        ) { newSource in
+            if newSource.id != source.id {
+                cameraManager.hapticSoft.impactOccurred()
+                source = newSource
+                // 通常 ContentView 启动时已 preload；冷启动后从 picker 第一次切到某胶片
+                // 也走一次保险——FilmProcessor cache 命中时零开销。曲线合成条目一并生成。
+            }
+            // 选择后保留面板，便于连续比较。
+        }
+    }
+
+    private var recentPhotosControl: some View {
+        RecentPhotosBadge(
+            source: source,
+            lastThumbnailHint: $lastPhotoThumbnail,
+            pendingPreview: capturePipeline.lastPreview,
+            isShutterBusy: isShutterBusy,
+            isProcessing: capturePipeline.pendingCount > 0,
+            controlRotationAngle: controlRotationAngle,
+            orientation: cameraManager.controlsOrientation,
+            onPresentationChanged: { isReviewingPhotos = $0 }
+        )
+    }
+
+    private var shutterControl: some View {
+        CameraShutterButton(
+            isCapturing: isShutterBusy,
+            isPreparingFilm: preparedLUT?.key != previewLUTKey || !cameraManager.entryPreparation.isCurrentLookRendered,
+            canCapture: capturePipeline.canCapture,
+            isPressed: shutterPressed
+        ) {
+            Task { await capturePhoto() }
+        }
+    }
+
+    private var filmPickerControl: some View {
+        filmPickerButton(size: sizeClass == .regular ? 56 : 46)
+    }
+
+    private func filmPickerButton(size: CGFloat) -> some View {
+        Button {
+            cameraManager.hapticLight.impactOccurred()
+            withAnimation(.easeInOut(duration: 0.22)) {
+                showFilmPicker.toggle()
+            }
+        } label: {
+            // 整块随设备方向旋转，与最近照片角标（RecentPhotosBadge）同款 rotationEffect
+            // + 同款 spring，旋转手感完全一致。封面无 glass 描边，整块旋转也不会显得放大。
+            FilmSourceCoverThumbnail(source: source)
+                .frame(width: size, height: size)
+                .overlay {
+                    // 展开时给封面一个淡黄色描边，提示当前处于"切换中"状态。
+                    if showFilmPicker {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color.yellow.opacity(0.85), lineWidth: 1.5)
+                    }
+                }
+                .rotationEffect(controlRotationAngle)
+                .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("camera.film_picker")
+        .accessibilityLabel(Text("Switch film"))
+        .accessibilityHint(showFilmPicker ? Text("Tap to close film picker") : Text("Tap to pick another film"))
+    }
+
+    private var flashControl: some View {
+        Button {
+            cameraManager.toggleFlashMode()
+        } label: {
+            Image(systemName: cameraManager.flashMode == .on ? "bolt.fill" : "bolt.slash.fill")
+                .foregroundStyle(cameraManager.flashMode == .on ? Color.yellow : .white)
+                .rotationEffect(controlRotationAngle)
+                .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
+        }
+        .tint(cameraManager.flashMode == .on ? .yellow : .white)
+        .disabled(cameraManager.readiness != .ready || isShutterBusy)
+        .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
+        .accessibilityLabel(cameraManager.flashMode == .on ? Text("Flash on") : Text("Flash off"))
+        .accessibilityHint("Toggle flash")
+    }
+
+    private var colorControl: some View {
+        Button {
+            cameraManager.hapticSoft.impactOccurred()
+            let visible = !colorControls.isVisible
+            colorControls.setVisible(visible)
+            cameraManager.diagnostics.event("color_controls_visibility_changed",
+                "visible=\(visible) \(colorAdjustmentDiagnosticFields)")
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .foregroundStyle(colorControls.isVisible ? Color.yellow : .white)
+                .rotationEffect(controlRotationAngle)
+                .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
+        }
+        .buttonBorderShape(.circle)
+        .tint(colorControls.isVisible ? .yellow : .white)
+        .disabled(isShutterBusy)
+        .accessibilityLabel("Color controls")
+        .accessibilityHint("Show color controls; hiding restores Auto")
+        .accessibilityAddTraits(colorControls.isVisible ? [.isSelected] : [])
+        .accessibilityIdentifier("camera.white_balance.toggle")
     }
 
     private var exposureControl: some View {
         ExposureCompensationControl(bias: cameraManager.exposureBias, setBias: cameraManager.setExposureBias)
         .disabled(isShutterBusy || cameraManager.readiness != .ready)
+    }
+
+    private var whiteBalanceControls: some View {
+        WhiteBalanceControl(
+            selection: colorControls.temperature,
+            tint: colorControls.tint,
+            automaticReading: cameraManager.automaticWhiteBalanceReading,
+            onTemperature: { value in
+                if let kelvin = CameraWhiteBalancePolicy.temperature(value) {
+                    colorControls.temperature = .temperature(kelvin)
+                }
+            },
+            onTint: { value in
+                if let tint = CameraWhiteBalancePolicy.tint(value) { colorControls.tint = .value(tint) }
+            },
+            onAutomaticTemperature: { colorControls.temperature = .automatic },
+            onAutomaticTint: { colorControls.tint = .automatic },
+            onEditingEnded: {
+                cameraManager.diagnostics.event("color_adjustment_selected", colorAdjustmentDiagnosticFields)
+            }
+        )
+        .disabled(isShutterBusy)
     }
 
     /// Initial entry has its own readiness timeout. A later look change also
@@ -640,6 +749,7 @@ struct CameraView: View {
             captureModeValue = live ? PhotoCaptureMode.livePhoto.rawValue : PhotoCaptureMode.quality.rawValue
         } label: {
             Image(systemName: wantsLiveCapture ? "livephoto" : "livephoto.slash")
+                .foregroundStyle(wantsLiveCapture ? Color.yellow : .white)
                 .rotationEffect(controlRotationAngle)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
         }
@@ -1125,7 +1235,7 @@ struct CameraView: View {
         let effectiveDx = abs(actual) >= abs(predicted) ? actual : predicted
 
         if abs(effectiveDx) <= Self.filmSwipeThreshold {
-            // 未达切换阈值。picker 保持展开——列表只由右下角封面 tap 开关，
+            // 未达切换阈值。picker 保持展开——列表由胶片封面开关，
             // 预览区 tap / 短滑不再作为关闭手势（选定胶片后要连读对比）。
             return
         }

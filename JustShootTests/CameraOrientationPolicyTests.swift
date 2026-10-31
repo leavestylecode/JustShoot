@@ -6,14 +6,22 @@ final class CameraOrientationPolicyTests: XCTestCase {
     private let interfaces: [UIInterfaceOrientation] = [.portrait, .landscapeLeft, .portraitUpsideDown, .landscapeRight]
 
     @MainActor
-    func testDeviceFamilyDeclaresPortraitOnlyWhileMotionStillRotatesControls() throws {
+    func testIPadDeclaresCameraRotationsWhileIPhoneKeepsPortrait() throws {
         // Bundle resolves platform/device qualifiers; installation may strip the
         // other family's keys. Validate the effective declaration on each device.
         let orientations = try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: "UISupportedInterfaceOrientations") as? [String])
-        XCTAssertEqual(orientations, ["UIInterfaceOrientationPortrait"])
+        let expected = UIDevice.current.userInterfaceIdiom == .pad
+            ? ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown",
+               "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"]
+            : ["UIInterfaceOrientationPortrait"]
+        XCTAssertEqual(Set(orientations), Set(expected))
         XCTAssertEqual(AppDelegate().application(UIApplication.shared, supportedInterfaceOrientationsFor: nil), .portrait)
         XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "UIRequiresFullScreen") as? Bool,
             UIDevice.current.userInterfaceIdiom == .pad)
+    }
+
+    @MainActor
+    func testLockedPortraitPreviewStillCompensatesPhysicalControls() {
         let manager = CameraManager()
         for device: UIDeviceOrientation in [.portrait, .landscapeLeft, .landscapeRight, .portraitUpsideDown] {
             manager.currentDeviceOrientation = device
@@ -22,6 +30,36 @@ final class CameraOrientationPolicyTests: XCTestCase {
             XCTAssertEqual(manager.previewAspectRatio, 3.0 / 4.0)
             XCTAssertEqual(manager.controlsOrientation, device)
         }
+    }
+
+    @MainActor
+    func testIPadCameraRotationsAreScopedToItsSceneAndRestoredAfterLastOwner() async throws {
+        guard UIDevice.current.userInterfaceIdiom == .pad else { return }
+        let scene = try await TestWindowScene.foreground()
+        let window = UIWindow(windowScene: scene)
+        let root = UIViewController()
+        window.rootViewController = root
+        window.makeKeyAndVisible()
+        let first = CameraInterfaceOrientationSupport.Controller()
+        let second = CameraInterfaceOrientationSupport.Controller()
+        defer {
+            first.restore()
+            second.restore()
+            window.isHidden = true
+            window.rootViewController = nil
+        }
+        XCTAssertEqual(CameraInterfaceOrientationSupport.supportedOrientations(for: window), .portrait)
+        for controller in [first, second] {
+            root.addChild(controller)
+            root.view.addSubview(controller.view)
+            controller.enabled = true
+            controller.updateSupport()
+        }
+        XCTAssertEqual(AppDelegate().application(UIApplication.shared, supportedInterfaceOrientationsFor: window), .all)
+        first.restore()
+        XCTAssertEqual(CameraInterfaceOrientationSupport.supportedOrientations(for: window), .all)
+        second.restore()
+        XCTAssertEqual(CameraInterfaceOrientationSupport.supportedOrientations(for: window), .portrait)
     }
 
     func testEachWindowOrientationRetainsTheEntireSensorFrame() {

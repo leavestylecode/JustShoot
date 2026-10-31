@@ -35,6 +35,7 @@ struct CameraShutterButton: View {
         }
         .buttonStyle(CaptureShutterButtonStyle())
         .accessibilityLabel("Capture")
+        .accessibilityIdentifier("camera.shutter")
         .accessibilityHint("Take a photo")
         .accessibilityValue(Text(status))
         .disabled(isUnavailable)
