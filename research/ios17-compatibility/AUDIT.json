@@ -1,0 +1,1386 @@
+{
+  "baseCommit": "e081b228e7e05d22e089ccc3c8fe8bf68144fb7e",
+  "scope": "Read-only source analysis plus plan/evidence artifacts; no implementation changes.",
+  "requestedMinimumIOS": "17.0",
+  "currentProjectMinimumIOS": "26.0",
+  "project": "JustShoot.xcodeproj",
+  "scheme": "JustShoot",
+  "configuration": "Debug",
+  "toolchain": "/Applications/Xcode.app; iOS Simulator 27.1 SDK; Swift 6; complete strict concurrency",
+  "executionTool": "XcodeBuildMCP",
+  "derivedDataPath": "/tmp/justshoot-ios17-audit",
+  "baselineBuild": {
+    "status": "SUCCEEDED",
+    "destination": "iPhone 17 / iOS 26.4.1 Simulator",
+    "extraArgs": [
+      "CODE_SIGNING_ALLOWED=NO"
+    ],
+    "logPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_sim_2026-10-30T15-59-36-936Z_pid1085_0755b5e4.log",
+    "knownWarning": "UIRequiresFullScreen deprecated since iOS 26.0",
+    "successMarkerPresent": true
+  },
+  "ios17CompileProbe": {
+    "status": "FAILED",
+    "destination": "iPhone 17 / iOS 26.4.1 Simulator",
+    "extraArgs": [
+      "IPHONEOS_DEPLOYMENT_TARGET=17.0",
+      "CODE_SIGNING_ALLOWED=NO"
+    ],
+    "swiftTarget": "arm64-apple-ios17.0-simulator",
+    "metalTarget": "air64-apple-ios17.0-simulator",
+    "logPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_sim_2026-10-30T15-58-06-644Z_pid1085_1a82bb51.log",
+    "uniqueSourceDiagnostics": 50,
+    "uniqueFilesWithSourceDiagnostics": 9,
+    "diagnosticCountByFile": {
+      "JustShoot/CameraManager.swift": 17,
+      "JustShoot/FilmCardLibraryView.swift": 4,
+      "JustShoot/FilmCurveLibraryView.swift": 2,
+      "JustShoot/FilmImagePipeline.swift": 3,
+      "JustShoot/LivePhotoRollingBuffer.swift": 1,
+      "JustShoot/MainTabView.swift": 15,
+      "JustShoot/DeviceFocalInfo.swift": 3,
+      "JustShoot/CameraDeviceDiagnostics.swift": 3,
+      "JustShoot/CameraNavigationGestureBlocker.swift": 2
+    },
+    "diagnostics": [
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 294,
+        "column": 36,
+        "severity": "error",
+        "message": "'AVCaptureIndexPicker' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/FilmCardLibraryView.swift",
+        "line": 199,
+        "column": 30,
+        "severity": "error",
+        "message": "'matchedTransitionSource(id:in:)' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/FilmCardLibraryView.swift",
+        "line": 248,
+        "column": 22,
+        "severity": "error",
+        "message": "'navigationTransition' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/FilmCardLibraryView.swift",
+        "line": 248,
+        "column": 44,
+        "severity": "error",
+        "message": "'zoom(sourceID:in:)' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/FilmCardLibraryView.swift",
+        "line": 560,
+        "column": 10,
+        "severity": "error",
+        "message": "'glassEffect(_:in:)' is only available in iOS 26.0 or newer"
+      },
+      {
+        "file": "JustShoot/FilmCurveLibraryView.swift",
+        "line": 80,
+        "column": 10,
+        "severity": "error",
+        "message": "'toolbarVisibility(_:for:)' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/FilmCurveLibraryView.swift",
+        "line": 239,
+        "column": 10,
+        "severity": "error",
+        "message": "'toolbarVisibility(_:for:)' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/FilmImagePipeline.swift",
+        "line": 14,
+        "column": 21,
+        "severity": "error",
+        "message": "'contentHeadroom' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/FilmImagePipeline.swift",
+        "line": 15,
+        "column": 32,
+        "severity": "error",
+        "message": "'toneMapHeadroom()' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/FilmImagePipeline.swift",
+        "line": 17,
+        "column": 40,
+        "severity": "error",
+        "message": "'contentHeadroom' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/LivePhotoRollingBuffer.swift",
+        "line": 284,
+        "column": 34,
+        "severity": "error",
+        "message": "'kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder' is only available in iOS 17.4 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 26,
+        "column": 9,
+        "severity": "error",
+        "message": "'init(selection:content:)' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 27,
+        "column": 13,
+        "severity": "error",
+        "message": "conformance of 'Tab<Value, Content, Label>' to 'TabContent' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 27,
+        "column": 13,
+        "severity": "error",
+        "message": "'Tab' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 27,
+        "column": 13,
+        "severity": "error",
+        "message": "'init(value:content:label:)' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 33,
+        "column": 13,
+        "severity": "error",
+        "message": "conformance of 'Tab<Value, Content, Label>' to 'TabContent' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 33,
+        "column": 13,
+        "severity": "error",
+        "message": "'Tab' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 33,
+        "column": 13,
+        "severity": "error",
+        "message": "'init(value:content:label:)' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 39,
+        "column": 13,
+        "severity": "error",
+        "message": "conformance of 'Tab<Value, Content, Label>' to 'TabContent' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 39,
+        "column": 13,
+        "severity": "error",
+        "message": "'Tab' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 39,
+        "column": 13,
+        "severity": "error",
+        "message": "'init(value:content:label:)' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 45,
+        "column": 13,
+        "severity": "error",
+        "message": "conformance of 'Tab<Value, Content, Label>' to 'TabContent' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 45,
+        "column": 13,
+        "severity": "error",
+        "message": "'Tab' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 45,
+        "column": 13,
+        "severity": "error",
+        "message": "'init(value:content:label:)' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 26,
+        "column": 42,
+        "severity": "error",
+        "message": "'buildBlock' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/MainTabView.swift",
+        "line": 52,
+        "column": 10,
+        "severity": "error",
+        "message": "'tabBarMinimizeBehavior' is only available in iOS 26.0 or newer"
+      },
+      {
+        "file": "JustShoot/DeviceFocalInfo.swift",
+        "line": 135,
+        "column": 41,
+        "severity": "error",
+        "message": "'nominalFocalLengthIn35mmFilm' is only available in iOS 26.0 or newer"
+      },
+      {
+        "file": "JustShoot/DeviceFocalInfo.swift",
+        "line": 135,
+        "column": 83,
+        "severity": "error",
+        "message": "'nominalFocalLengthIn35mmFilm' is only available in iOS 26.0 or newer"
+      },
+      {
+        "file": "JustShoot/DeviceFocalInfo.swift",
+        "line": 138,
+        "column": 28,
+        "severity": "error",
+        "message": "'nominalFocalLengthIn35mmFilm' is only available in iOS 26.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraDeviceDiagnostics.swift",
+        "line": 37,
+        "column": 60,
+        "severity": "error",
+        "message": "'nominalFocalLengthIn35mmFilm' is only available in iOS 26.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraDeviceDiagnostics.swift",
+        "line": 68,
+        "column": 310,
+        "severity": "error",
+        "message": "'isConstantColorSupported' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraDeviceDiagnostics.swift",
+        "line": 85,
+        "column": 48,
+        "severity": "error",
+        "message": "'cinematicExtendedEnhanced' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 296,
+        "column": 37,
+        "severity": "error",
+        "message": "'AVCaptureSystemExposureBiasSlider' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 1554,
+        "column": 26,
+        "severity": "error",
+        "message": "'AVCaptureIndexPicker' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 1558,
+        "column": 20,
+        "severity": "error",
+        "message": "'setActionQueue(_:action:)' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 1562,
+        "column": 24,
+        "severity": "error",
+        "message": "'canAddControl' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 1563,
+        "column": 25,
+        "severity": "error",
+        "message": "'addControl' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 1572,
+        "column": 21,
+        "severity": "error",
+        "message": "'setControlsDelegate(_:queue:)' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 2018,
+        "column": 21,
+        "severity": "error",
+        "message": "'removeControl' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 2024,
+        "column": 46,
+        "severity": "error",
+        "message": "'systemRecommendedExposureBiasRange' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 2025,
+        "column": 22,
+        "severity": "error",
+        "message": "'AVCaptureSystemExposureBiasSlider' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 2034,
+        "column": 20,
+        "severity": "error",
+        "message": "'canAddControl' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 2035,
+        "column": 21,
+        "severity": "error",
+        "message": "'addControl' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 2870,
+        "column": 50,
+        "severity": "error",
+        "message": "'isConstantColorSupported' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 2871,
+        "column": 22,
+        "severity": "error",
+        "message": "'isConstantColorEnabled' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 2920,
+        "column": 44,
+        "severity": "error",
+        "message": "'nominalFocalLengthIn35mmFilm' is only available in iOS 26.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 3196,
+        "column": 43,
+        "severity": "error",
+        "message": "'controls' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraManager.swift",
+        "line": 3196,
+        "column": 69,
+        "severity": "error",
+        "message": "'removeControl' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraNavigationGestureBlocker.swift",
+        "line": 18,
+        "column": 14,
+        "severity": "error",
+        "message": "'navigationTransition' is only available in iOS 18.0 or newer"
+      },
+      {
+        "file": "JustShoot/CameraNavigationGestureBlocker.swift",
+        "line": 18,
+        "column": 36,
+        "severity": "error",
+        "message": "'automatic' is only available in iOS 18.0 or newer"
+      }
+    ],
+    "qualification": "Compiler stops after errors. This is a lower bound, not a complete list of compatibility defects."
+  },
+  "ios17RuntimeAttempt": {
+    "status": "DESTINATION_REJECTED",
+    "destination": "iPhone 15 Pro / iOS 17.2 Simulator",
+    "logPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_sim_2026-10-30T15-57-32-873Z_pid1085_834834b7.log",
+    "reason": "Xcode destination matching still reported the project deployment target as 26.0 despite the command-line override."
+  },
+  "staticAdditionalAvailabilityFindings": [
+    {
+      "file": "JustShoot/CameraSubviews.swift",
+      "line": 117,
+      "api": "glassEffect",
+      "minimumIOS": "26.0"
+    },
+    {
+      "file": "JustShoot/CameraNavigationGestureBlocker.swift",
+      "line": 78,
+      "api": "interactiveContentPopGestureRecognizer",
+      "minimumIOS": "26.0"
+    },
+    {
+      "file": "JustShoot/CameraManager.swift",
+      "line": 3291,
+      "api": "AVCaptureSessionControlsDelegate conformance",
+      "minimumIOS": "18.0"
+    },
+    {
+      "file": "JustShootTests/CameraNavigationGestureBlockerTests.swift",
+      "line": 27,
+      "api": "interactiveContentPopGestureRecognizer",
+      "minimumIOS": "26.0"
+    },
+    {
+      "file": "JustShootTests/CameraNavigationGestureBlockerTests.swift",
+      "line": 77,
+      "api": "preferredTransition",
+      "minimumIOS": "18.0",
+      "note": "Test assertion needs an availability guard; not part of the failed app-only build."
+    }
+  ],
+  "inventory": {
+    "JustShoot": {
+      "fileCount": 93,
+      "lineCount": 23856,
+      "declaredTestMethods": 0,
+      "files": [
+        {
+          "file": "JustShoot/AppStartupPreparation.swift",
+          "lines": 204,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/AppSupportLinks.swift",
+          "lines": 30,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/ByteBudgetLRU.swift",
+          "lines": 57,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraAdjustmentPolicy.swift",
+          "lines": 180,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraCaptureAdmission.swift",
+          "lines": 71,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraCapturePolicy.swift",
+          "lines": 70,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraConstituentSwitchingPolicy.swift",
+          "lines": 30,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraDeviceDiagnostics.swift",
+          "lines": 144,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraEntryPreparation.swift",
+          "lines": 168,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraExposurePolicy.swift",
+          "lines": 81,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraFlowDiagnostics.swift",
+          "lines": 220,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraFraming.swift",
+          "lines": 54,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraLensCaptureGate.swift",
+          "lines": 112,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraManager.swift",
+          "lines": 3568,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraNavigationGestureBlocker.swift",
+          "lines": 93,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraOrientationPolicy.swift",
+          "lines": 56,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraPerformancePolicy.swift",
+          "lines": 233,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraPhotoDiagnostics.swift",
+          "lines": 37,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraPreviewFrame.swift",
+          "lines": 68,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraRAWCapturePolicy.swift",
+          "lines": 33,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraShutterButton.swift",
+          "lines": 69,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraSubviews.swift",
+          "lines": 639,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CameraView.swift",
+          "lines": 1174,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CaptureComparisonDiagnostics.swift",
+          "lines": 113,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CaptureJournal.swift",
+          "lines": 563,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CapturePhotoRenderer.swift",
+          "lines": 28,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CapturePipeline.swift",
+          "lines": 737,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CapturePreviewRenderer.swift",
+          "lines": 41,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CaptureQueueState.swift",
+          "lines": 125,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CaptureRenderCancellation.swift",
+          "lines": 16,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CaptureStorageLedger.swift",
+          "lines": 36,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/ColorTemperatureLUT.swift",
+          "lines": 121,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/ContentView.swift",
+          "lines": 403,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CubeLUT.swift",
+          "lines": 87,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CurveLUTComposer.swift",
+          "lines": 63,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/CurvePreset.swift",
+          "lines": 508,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/DeferredPhotoEditingRequest.swift",
+          "lines": 86,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/DeferredPhotoState.swift",
+          "lines": 20,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/DeviceFocalInfo.swift",
+          "lines": 205,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/DiagnosticLogStore.swift",
+          "lines": 123,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmCardCatalog.swift",
+          "lines": 177,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmCardCatalogIndex.swift",
+          "lines": 98,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmCardCoverBackground.swift",
+          "lines": 409,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmCardLibraryView.swift",
+          "lines": 846,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmCurveLibrary.swift",
+          "lines": 160,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmCurveLibraryView.swift",
+          "lines": 639,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmGrain.swift",
+          "lines": 303,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmGrainSampling.swift",
+          "lines": 71,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmImageKernels.swift",
+          "lines": 37,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmImagePipeline.swift",
+          "lines": 87,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmLookRefinement.swift",
+          "lines": 109,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmMaterial.swift",
+          "lines": 105,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmMaterialRenderer.swift",
+          "lines": 80,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmOptics.swift",
+          "lines": 211,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmPresetCoverPreparation.swift",
+          "lines": 53,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmProcessor.swift",
+          "lines": 675,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmSourcePicker.swift",
+          "lines": 740,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/FilmVideoColorSpace.swift",
+          "lines": 23,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/GalleryView.swift",
+          "lines": 290,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/ImageLoader.swift",
+          "lines": 359,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/JustShootApp.swift",
+          "lines": 83,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/LUTImportPreparation.swift",
+          "lines": 94,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/LegacyCurveMigration.swift",
+          "lines": 34,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/LensTransitionCompositor.swift",
+          "lines": 125,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/LivePhotoCaptureState.swift",
+          "lines": 7,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/LivePhotoProcessor.swift",
+          "lines": 546,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/LivePhotoRollingBuffer.swift",
+          "lines": 448,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/Logging.swift",
+          "lines": 51,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/MainTabView.swift",
+          "lines": 90,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/MetalPreview.swift",
+          "lines": 925,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/Models.swift",
+          "lines": 398,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PageLayout.swift",
+          "lines": 33,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PhotoCapturePlan.swift",
+          "lines": 78,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PhotoDetailImagePolicy.swift",
+          "lines": 17,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PhotoDetailView.swift",
+          "lines": 1271,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PhotoEncodingPolicy.swift",
+          "lines": 35,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PhotoGridView.swift",
+          "lines": 503,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PhotoImageEncoder.swift",
+          "lines": 39,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PhotoLibrary.swift",
+          "lines": 841,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PhotoPageImageLoader.swift",
+          "lines": 33,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PhotoSaver.swift",
+          "lines": 270,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PhotoShare.swift",
+          "lines": 215,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PreparationScreen.swift",
+          "lines": 75,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PreviewDiffusionKernelCache.swift",
+          "lines": 95,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PreviewLUTTextureCache.swift",
+          "lines": 137,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PreviewRenderReadiness.swift",
+          "lines": 92,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/PreviewTargetPool.swift",
+          "lines": 79,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/RawFilmLUT.swift",
+          "lines": 177,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/RawFilmRenderer.swift",
+          "lines": 95,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/RecoveryOriginalShareSheet.swift",
+          "lines": 29,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/RuntimeDiagnostics.swift",
+          "lines": 306,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/SettingsView.swift",
+          "lines": 436,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShoot/SharedImageRequests.swift",
+          "lines": 61,
+          "declaredTestMethods": 0
+        }
+      ]
+    },
+    "JustShootTests": {
+      "fileCount": 89,
+      "lineCount": 10710,
+      "declaredTestMethods": 523,
+      "files": [
+        {
+          "file": "JustShootTests/AppStartupPreparationTests.swift",
+          "lines": 200,
+          "declaredTestMethods": 8
+        },
+        {
+          "file": "JustShootTests/AppSupportLinksTests.swift",
+          "lines": 30,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/BlockingImageWorkTests.swift",
+          "lines": 63,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/BundledFilmLUTTests.swift",
+          "lines": 116,
+          "declaredTestMethods": 4
+        },
+        {
+          "file": "JustShootTests/CameraAdjustmentPolicyTests.swift",
+          "lines": 172,
+          "declaredTestMethods": 17
+        },
+        {
+          "file": "JustShootTests/CameraCaptureAdmissionTests.swift",
+          "lines": 78,
+          "declaredTestMethods": 5
+        },
+        {
+          "file": "JustShootTests/CameraCaptureDeliveryTests.swift",
+          "lines": 25,
+          "declaredTestMethods": 2
+        },
+        {
+          "file": "JustShootTests/CameraCapturePolicyTests.swift",
+          "lines": 93,
+          "declaredTestMethods": 10
+        },
+        {
+          "file": "JustShootTests/CameraColorControlsTests.swift",
+          "lines": 157,
+          "declaredTestMethods": 8
+        },
+        {
+          "file": "JustShootTests/CameraConstituentSwitchingPolicyTests.swift",
+          "lines": 41,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/CameraEntryPreparationTests.swift",
+          "lines": 211,
+          "declaredTestMethods": 14
+        },
+        {
+          "file": "JustShootTests/CameraExposurePolicyTests.swift",
+          "lines": 72,
+          "declaredTestMethods": 6
+        },
+        {
+          "file": "JustShootTests/CameraFlowDiagnosticsTests.swift",
+          "lines": 54,
+          "declaredTestMethods": 4
+        },
+        {
+          "file": "JustShootTests/CameraFramingTests.swift",
+          "lines": 49,
+          "declaredTestMethods": 4
+        },
+        {
+          "file": "JustShootTests/CameraLensCaptureGateTests.swift",
+          "lines": 149,
+          "declaredTestMethods": 10
+        },
+        {
+          "file": "JustShootTests/CameraNavigationGestureBlockerTests.swift",
+          "lines": 133,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/CameraOrientationPolicyTests.swift",
+          "lines": 79,
+          "declaredTestMethods": 6
+        },
+        {
+          "file": "JustShootTests/CameraPerformancePolicyTests.swift",
+          "lines": 312,
+          "declaredTestMethods": 27
+        },
+        {
+          "file": "JustShootTests/CameraPhotoDiagnosticsTests.swift",
+          "lines": 49,
+          "declaredTestMethods": 1
+        },
+        {
+          "file": "JustShootTests/CameraPreviewFrameTests.swift",
+          "lines": 75,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/CameraPreviewLifecycleTests.swift",
+          "lines": 184,
+          "declaredTestMethods": 10
+        },
+        {
+          "file": "JustShootTests/CameraPreviewPresentationLeaseTests.swift",
+          "lines": 67,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/CaptureAsyncFlowTests.swift",
+          "lines": 258,
+          "declaredTestMethods": 7
+        },
+        {
+          "file": "JustShootTests/CaptureCheckpointTests.swift",
+          "lines": 115,
+          "declaredTestMethods": 7
+        },
+        {
+          "file": "JustShootTests/CaptureEncodingRecipeTests.swift",
+          "lines": 68,
+          "declaredTestMethods": 4
+        },
+        {
+          "file": "JustShootTests/CaptureLivePhotoRoundTripTests.swift",
+          "lines": 61,
+          "declaredTestMethods": 1
+        },
+        {
+          "file": "JustShootTests/CapturePipelineTests.swift",
+          "lines": 374,
+          "declaredTestMethods": 17
+        },
+        {
+          "file": "JustShootTests/CaptureQueueStateTests.swift",
+          "lines": 108,
+          "declaredTestMethods": 8
+        },
+        {
+          "file": "JustShootTests/CaptureRecoveryTests.swift",
+          "lines": 164,
+          "declaredTestMethods": 8
+        },
+        {
+          "file": "JustShootTests/CaptureRenderCancellationTests.swift",
+          "lines": 35,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/CaptureSchedulingTests.swift",
+          "lines": 91,
+          "declaredTestMethods": 1
+        },
+        {
+          "file": "JustShootTests/CaptureStorageLedgerTests.swift",
+          "lines": 145,
+          "declaredTestMethods": 8
+        },
+        {
+          "file": "JustShootTests/ColorTemperatureLUTTests.swift",
+          "lines": 241,
+          "declaredTestMethods": 18
+        },
+        {
+          "file": "JustShootTests/CurveLUTComposerTests.swift",
+          "lines": 115,
+          "declaredTestMethods": 5
+        },
+        {
+          "file": "JustShootTests/CurveMathTests.swift",
+          "lines": 85,
+          "declaredTestMethods": 6
+        },
+        {
+          "file": "JustShootTests/CurvePresetTests.swift",
+          "lines": 103,
+          "declaredTestMethods": 8
+        },
+        {
+          "file": "JustShootTests/DeferredPhotoStateTests.swift",
+          "lines": 72,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/DeviceFocalInfoTests.swift",
+          "lines": 50,
+          "declaredTestMethods": 5
+        },
+        {
+          "file": "JustShootTests/DiagnosticLogStoreTests.swift",
+          "lines": 64,
+          "declaredTestMethods": 5
+        },
+        {
+          "file": "JustShootTests/ExposureControlPresentationTests.swift",
+          "lines": 37,
+          "declaredTestMethods": 1
+        },
+        {
+          "file": "JustShootTests/FilmCardCatalogIndexTests.swift",
+          "lines": 74,
+          "declaredTestMethods": 6
+        },
+        {
+          "file": "JustShootTests/FilmCardImageCacheTests.swift",
+          "lines": 133,
+          "declaredTestMethods": 6
+        },
+        {
+          "file": "JustShootTests/FilmChromaticResponseTests.swift",
+          "lines": 136,
+          "declaredTestMethods": 11
+        },
+        {
+          "file": "JustShootTests/FilmCurveLibraryTests.swift",
+          "lines": 261,
+          "declaredTestMethods": 13
+        },
+        {
+          "file": "JustShootTests/FilmCurveRenderingTests.swift",
+          "lines": 93,
+          "declaredTestMethods": 4
+        },
+        {
+          "file": "JustShootTests/FilmCurveTests.swift",
+          "lines": 74,
+          "declaredTestMethods": 6
+        },
+        {
+          "file": "JustShootTests/FilmGrainTests.swift",
+          "lines": 346,
+          "declaredTestMethods": 11
+        },
+        {
+          "file": "JustShootTests/FilmImageKernelsTests.swift",
+          "lines": 23,
+          "declaredTestMethods": 1
+        },
+        {
+          "file": "JustShootTests/FilmImagePipelineReuseTests.swift",
+          "lines": 98,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/FilmInputProtectionTests.swift",
+          "lines": 224,
+          "declaredTestMethods": 7
+        },
+        {
+          "file": "JustShootTests/FilmLookRefinementReference.swift",
+          "lines": 66,
+          "declaredTestMethods": 0
+        },
+        {
+          "file": "JustShootTests/FilmLookRefinementTests.swift",
+          "lines": 136,
+          "declaredTestMethods": 7
+        },
+        {
+          "file": "JustShootTests/FilmMaterialTests.swift",
+          "lines": 385,
+          "declaredTestMethods": 12
+        },
+        {
+          "file": "JustShootTests/FilmPhotoInputTests.swift",
+          "lines": 69,
+          "declaredTestMethods": 2
+        },
+        {
+          "file": "JustShootTests/FilmPresetCatalogTests.swift",
+          "lines": 32,
+          "declaredTestMethods": 2
+        },
+        {
+          "file": "JustShootTests/FilmPresetCoverPreparationTests.swift",
+          "lines": 72,
+          "declaredTestMethods": 6
+        },
+        {
+          "file": "JustShootTests/FilmProcessorCacheTests.swift",
+          "lines": 96,
+          "declaredTestMethods": 5
+        },
+        {
+          "file": "JustShootTests/FilmSceneParityTests.swift",
+          "lines": 193,
+          "declaredTestMethods": 1
+        },
+        {
+          "file": "JustShootTests/LUTCacheBudgetTests.swift",
+          "lines": 61,
+          "declaredTestMethods": 5
+        },
+        {
+          "file": "JustShootTests/LUTImportPreparationTests.swift",
+          "lines": 72,
+          "declaredTestMethods": 5
+        },
+        {
+          "file": "JustShootTests/LensTransitionCompositorTests.swift",
+          "lines": 172,
+          "declaredTestMethods": 14
+        },
+        {
+          "file": "JustShootTests/LibraryFlowTests.swift",
+          "lines": 161,
+          "declaredTestMethods": 10
+        },
+        {
+          "file": "JustShootTests/LivePhotoCaptureStateTests.swift",
+          "lines": 24,
+          "declaredTestMethods": 2
+        },
+        {
+          "file": "JustShootTests/LivePhotoColorTests.swift",
+          "lines": 121,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/LivePhotoRollingBufferTests.swift",
+          "lines": 190,
+          "declaredTestMethods": 7
+        },
+        {
+          "file": "JustShootTests/PageLayoutTests.swift",
+          "lines": 33,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/PhotoCapturePlanTests.swift",
+          "lines": 37,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/PhotoDeletionPolicyTests.swift",
+          "lines": 29,
+          "declaredTestMethods": 4
+        },
+        {
+          "file": "JustShootTests/PhotoDetailImagePolicyTests.swift",
+          "lines": 19,
+          "declaredTestMethods": 2
+        },
+        {
+          "file": "JustShootTests/PhotoDisplayRoundTripTests.swift",
+          "lines": 160,
+          "declaredTestMethods": 2
+        },
+        {
+          "file": "JustShootTests/PhotoEncodingPolicyTests.swift",
+          "lines": 44,
+          "declaredTestMethods": 4
+        },
+        {
+          "file": "JustShootTests/PhotoGridLifecycleTests.swift",
+          "lines": 50,
+          "declaredTestMethods": 2
+        },
+        {
+          "file": "JustShootTests/PhotoImageEncoderTests.swift",
+          "lines": 92,
+          "declaredTestMethods": 2
+        },
+        {
+          "file": "JustShootTests/PhotoImageLoadingTests.swift",
+          "lines": 186,
+          "declaredTestMethods": 6
+        },
+        {
+          "file": "JustShootTests/PhotoImageRequestStateTests.swift",
+          "lines": 70,
+          "declaredTestMethods": 5
+        },
+        {
+          "file": "JustShootTests/PhotoPageImageLoaderTests.swift",
+          "lines": 90,
+          "declaredTestMethods": 4
+        },
+        {
+          "file": "JustShootTests/PhotoViewerInteractionTests.swift",
+          "lines": 28,
+          "declaredTestMethods": 2
+        },
+        {
+          "file": "JustShootTests/PhysicalCameraPipelineTests.swift",
+          "lines": 611,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/PreviewDiffusionKernelCacheTests.swift",
+          "lines": 162,
+          "declaredTestMethods": 6
+        },
+        {
+          "file": "JustShootTests/PreviewDrawableResizePolicyTests.swift",
+          "lines": 81,
+          "declaredTestMethods": 7
+        },
+        {
+          "file": "JustShootTests/PreviewLUTTextureCacheTests.swift",
+          "lines": 120,
+          "declaredTestMethods": 5
+        },
+        {
+          "file": "JustShootTests/PreviewMetalResourcesTests.swift",
+          "lines": 69,
+          "declaredTestMethods": 3
+        },
+        {
+          "file": "JustShootTests/PreviewRenderReadinessTests.swift",
+          "lines": 85,
+          "declaredTestMethods": 6
+        },
+        {
+          "file": "JustShootTests/PreviewTargetPoolTests.swift",
+          "lines": 138,
+          "declaredTestMethods": 8
+        },
+        {
+          "file": "JustShootTests/ProcessingDiagnosticsTests.swift",
+          "lines": 64,
+          "declaredTestMethods": 2
+        },
+        {
+          "file": "JustShootTests/RawFilmPipelineTests.swift",
+          "lines": 457,
+          "declaredTestMethods": 14
+        },
+        {
+          "file": "JustShootTests/RecentPhotoPresentationTests.swift",
+          "lines": 88,
+          "declaredTestMethods": 5
+        },
+        {
+          "file": "JustShootTests/RuntimeDiagnosticsTests.swift",
+          "lines": 72,
+          "declaredTestMethods": 7
+        },
+        {
+          "file": "JustShootTests/TestWindowScene.swift",
+          "lines": 18,
+          "declaredTestMethods": 0
+        }
+      ]
+    }
+  },
+  "metalFiles": [
+    "JustShoot/FilmGrainKernel.ci.metal",
+    "JustShoot/FilmMaterialKernel.ci.metal",
+    "JustShoot/FilmOpticsKernel.ci.metal",
+    "JustShoot/LUTShader.metal",
+    "JustShoot/RawFilmKernel.ci.metal"
+  ],
+  "notValidated": [
+    "iOS 17.0 runtime",
+    "iOS 17 application launch",
+    "XCTest execution in this audit",
+    "Release configuration in this audit",
+    "Device build in this audit",
+    "Physical camera, Photos, microphone, GPS or motion behavior in this audit",
+    "Physical-device frame rate, memory, thermal state or encoder performance"
+  ],
+  "candidateImplementationsRequireValidation": [
+    "Legacy focal calibration and unknown-device behavior",
+    "iOS 17 HDR decode using toneMapHDRtoSDR=true and expandToHDR=false",
+    "iOS 17.0-17.3 VTCompressionSession creation without the iOS 17.4 hardware specification key",
+    "Real on-disk SwiftData store behavior and query notifications on iOS 17"
+  ]
+}
