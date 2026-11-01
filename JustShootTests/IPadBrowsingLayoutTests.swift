@@ -35,7 +35,7 @@ final class IPadBrowsingLayoutTests: XCTestCase {
             ImageLoader.shared.removeDiskCache(for: photo.id)
         }
         let pages: [(String, AnyView)] = [
-            ("films", AnyView(ContentView(preparedHome: home))),
+            ("films", AnyView(FilmHomeView(preparedHome: home))),
             ("library", AnyView(NavigationStack { FilmCardLibraryView() })),
             ("film-detail", AnyView(NavigationStack { FilmCardDetailView(card: card) })),
             ("settings", AnyView(SettingsView())),

@@ -12,7 +12,16 @@ after measuring them on a physical device.
 
 ## Project Structure & Module Organization
 
-`JustShoot/` contains the SwiftUI application. `JustShootApp.swift` is the entry point; camera and capture code lives in `CameraView.swift`, `CameraManager.swift`, and related camera files. Photo processing and persistence are centered in `FilmProcessor.swift`, `LivePhotoProcessor.swift`, `PhotoLibrary.swift`, and `Models.swift`. Gallery, film-card, and settings views are grouped by feature through descriptive filenames.
+`JustShoot/` contains one SwiftUI app target, organized by responsibility:
+
+- `App/`: entry point, startup preparation and navigation composition.
+- `Features/`: camera, films, gallery, film-card library, curves and settings. Camera separates `Presentation/`, `Coordination/`, `Hardware/`, `Preview/` and pure `Policies/`; gallery detail components live in `Gallery/Detail/`.
+- `Capture/`: durable capture orchestration, admission storage, journal and recovery contracts.
+- `Imaging/`: film rendering, LUTs, metadata parsing, encoding and shared Metal resources/shaders.
+- `Persistence/`: SwiftData models/schema/index transactions, Photos export/reconciliation and custom LUT files.
+- `Shared/`: image loading, reusable UI and diagnostics.
+
+Views own presentation and selection. `CameraCoordinator` freezes shutter recipes and coordinates native capture with `CapturePipeline`; `CameraManager` retains native session ownership and its serial hardware queue. Share photo deletion through `PhotoDeletionService`. Keep policies independent of views, and avoid importing SwiftUI or persistent model types into rendering code. These are source boundaries within one target, not separate packages; see README for dependency and lifetime rules.
 
 Bundled LUTs, `cards.json`, and film-card images live under `JustShoot/Resources/`; asset catalogs and localized strings live in `Assets.xcassets` and the `.xcstrings` files. Maintenance utilities are in `scripts/`. `JustShoot.xcodeproj` defines the single `JustShoot` app target and scheme. Its file-system-synchronized group automatically includes files added beneath `JustShoot/`.
 

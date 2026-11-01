@@ -181,7 +181,7 @@ final class AppStartupPreparationTests: XCTestCase {
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data("test LUT".utf8).write(to: file)
         defer { try? FileManager.default.removeItem(at: file) }
-        XCTAssertTrue(try ContentView.deletePreparedCustomFilter(id: id, queried: [], in: context))
+        XCTAssertTrue(try CustomLUTPersistence.deletePreparedCustomFilter(id: id, queried: [], in: context))
         XCTAssertTrue(try context.fetch(FetchDescriptor<CustomLUT>()).isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
     }
@@ -194,7 +194,7 @@ final class AppStartupPreparationTests: XCTestCase {
         let original = Data("kept until normal orphan maintenance".utf8)
         try original.write(to: file)
         defer { try? FileManager.default.removeItem(at: file) }
-        XCTAssertFalse(try ContentView.deletePreparedCustomFilter(id: missing.id, queried: [], in: store.mainContext))
+        XCTAssertFalse(try CustomLUTPersistence.deletePreparedCustomFilter(id: missing.id, queried: [], in: store.mainContext))
         XCTAssertEqual(try Data(contentsOf: file), original)
     }
 }

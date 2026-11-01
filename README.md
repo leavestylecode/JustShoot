@@ -80,6 +80,55 @@ newest indexed photo for its film, loading the full browsing snapshot when opene
 publish only when they change. Camera entry failures use a short state title and recovery
 actions; permission guidance remains explicit.
 
+## Source structure and ownership
+
+The app remains a single target with filesystem-synchronized source groups. Folders express
+ownership; they do not introduce packages, inheritance layers or additional runtime workers.
+
+```text
+JustShoot/
+├── App/                         Entry, startup and navigation composition
+├── Features/
+│   ├── Camera/
+│   │   ├── Presentation/        SwiftUI controls, selection and gestures
+│   │   ├── Coordination/        Shutter flow and session-entry preparation
+│   │   ├── Hardware/            AVFoundation, location and rolling capture
+│   │   ├── Preview/             Renderer and bounded frame exchange
+│   │   └── Policies/            Value types and capture/readiness decisions
+│   ├── Films/                   Film home and LUT import UI
+│   ├── Gallery/Detail/          Paging, zooming, scrubber and photo information
+│   ├── FilmLibrary/
+│   ├── Curves/
+│   └── Settings/
+├── Capture/                     Durable jobs, journal and recovery
+├── Imaging/{LUT,Metal,Encoding,Metadata}/
+├── Persistence/{SwiftData,Photos,CustomLUT}/
+├── Shared/{ImageLoading,UI,Diagnostics}/
+└── Resources/                   Bundled LUTs, film cards and catalog
+```
+
+App composition supplies feature dependencies. Camera presentation delegates shutter work to
+`CameraCoordinator`, which uses narrow native-capture and processing contracts. Native hardware
+stays in `CameraManager`; heavy processing stays in the application-wide `CapturePipeline` and
+`Imaging`. Rendering consumes immutable recipe/source values rather than SwiftData models. Shared film
+source/preset definitions, color adjustment values and crop geometry belong to `Imaging`, so the
+image graph does not depend on camera controls or the film home.
+Persistence owns model transactions and platform storage; Photos reconciliation and launch
+cleanup have separate actors from the capture index writer. `PhotoDeletionService` is the shared
+feature-level transaction joining Photos, the local index, recovery and image caches.
+
+The camera view and coordinator share one manager. Entry tasks belong to that manager's current
+session generation and are cancelled on stop; stale native/GPU/resource callbacks cannot reveal
+a newer entry. Accepted capture callbacks retain the shutter coordinator until delivery to the
+durable worker. Shutter release is keyed by capture identity, so an older Live Photo result cannot
+unlock a newer exposure. `CameraPreviewFrameStore` retains only the latest native and presented
+frames, without retaining UI objects. The process-wide hardware queue, single durable processing
+worker, cache budgets and existing cancellation/checkpoint order remain authoritative.
+
+`Photo` and `CustomLUT` keep their existing persisted fields and schema version. Model convenience
+presentation, LUT file access and EXIF parsing live separately. Metal shaders and their quoted
+headers stay together under `Imaging/Metal`; bundled resource names and paths remain stable.
+
 ## Capture architecture
 
 - `CameraManager` owns capture session configuration, device controls and per-request capture delivery. Hardware configuration and teardown share a process-wide serial queue; generation checks discard starts superseded by navigation or background transitions. Both ordinary and Live modes request a normally zoomed video stream, bounded to a 1920-pixel long edge at the active format's exact aspect ratio. Metal drawable dimensions remain independently bounded.
@@ -199,6 +248,18 @@ Custom curve tables are prepared once and reused by selection, graphs, gray samp
 Non-neutral compositions use at least a 33³ cube. A 2³ or 3³ identity import otherwise samples only the endpoints or midpoint, where Contrast and Soft are unchanged, and silently loses the requested curve. Low-dimensional sources are interpolated before curve baking; original source data stays intact, and the resulting roughly 562 KiB table remains inside the existing byte-budget caches. Higher-dimensional sources keep their resolution.
 
 ## Validation
+
+The November 1, 2026 structure refactor used `JustShoot.xcodeproj` / `JustShoot` in Debug
+with complete strict concurrency. Full simulator suites passed on iPhone 17 Pro / iOS 26.5
+(546 passed, 14 skipped) and iPhone 15 Pro / iOS 17.5 (541 passed, 19 skipped), with zero
+failures or compiler warnings. Seventeen added tests cover shutter admission, frozen delivery,
+stale Live Photo callbacks, entry cancellation/resource failures, concurrent frame exchange and
+deletion commit ordering. iPhone 17 Pro / iOS 26.5 and iPad Pro 11-inch (M5) / iOS 27 app
+builds and entry inspection passed; camera-unavailable recovery and Back were checked on iPhone.
+An isolated iOS 17.5 follow-up passed all 27 selected tests after giving the cold-cache image
+test its own in-memory SwiftData container, removing its dependency on earlier startup tests.
+Persisted fields, schema version, bundled resource paths and shader bytes are unchanged.
+Physical camera, GPS, microphone, Photos/Live Photo integration and performance remain device checks.
 
 The October 21, 2026 first-interaction follow-up passed a Debug build with no Swift compilation warnings and 395/396 tests on the iPhone SE (3rd generation), iOS 26.5 Simulator, using `JustShoot.xcodeproj` / `JustShoot`. Xcode emitted its existing AppIntents metadata-extraction warning; the Photos-authorization integration test remained skipped, with no test failures. Nine new regressions cover duplicate focal selection and retry, shared effect kernels, off-main diffusion preparation, obsolete queued films, bounded cache eviction, preparation failure recovery and actual Metal blur output matching the previous implementation. Simulator inspection verified camera-unavailable recovery, Retry and Back. Hardware lens switching, first-exposure latency and sustained preview timing still require physical-device measurements.
 

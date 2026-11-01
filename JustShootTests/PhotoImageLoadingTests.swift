@@ -32,9 +32,16 @@ final class PhotoImageLoadingTests: XCTestCase {
     }
 
     func testColdDiskThumbnailAndPreviewWorkWithoutOriginalBytes() async throws {
+        // iOS 17 requires an active container even before a model is inserted. Keep this
+        // test independent of startup/storage tests that may have run earlier in the suite.
+        let container = try ModelContainer(for: Photo.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        defer { withExtendedLifetime(container) {} }
         let directory = try root()
         defer { try? FileManager.default.removeItem(at: directory) }
         let photo = Photo(assetLocalIdentifier: nil, imageData: nil)
+        container.mainContext.insert(photo)
+        try container.mainContext.save()
         let data = try jpeg()
         for (folder, suffix) in [("Thumbs", "t_96"), ("Previews", "p_256")] {
             let path = directory.appendingPathComponent(folder)

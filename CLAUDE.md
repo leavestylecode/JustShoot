@@ -5,10 +5,12 @@ Follow `AGENTS.md` for repository conventions and build/test workflows. `README.
 ## Runtime structure
 
 - `JustShootApp` opens the versioned SwiftData store without deleting it on failure.
-- `CameraView` owns presentation, gestures and film/curve/color selection. It freezes an immutable capture recipe and LUT for every accepted shutter request.
+- `CameraView` owns presentation, gestures and film/curve/color selection. Its `CameraCoordinator` freezes an immutable capture recipe and LUT for every accepted shutter request and rechecks native admission after suspension points.
 - `CameraManager` owns AVFoundation, device controls and native capture callbacks. Hardware configuration, focal changes and teardown use one process-wide serial queue. Session generations invalidate work superseded by navigation or backgrounding.
+- `CameraEntryCoordinator` owns session-generation preparation and active-time accounting. `CameraPreviewFrameStore` exchanges bounded native/presented frames under locks; `CameraLocationProvider` owns location authorization and updates. These components do not own a SwiftUI or Metal view.
 - `CapturePipeline` owns one durable processing worker across camera views. `CaptureJournal` retains originals, the frozen LUT and progress until Photos export and SwiftData indexing succeed.
 - `PhotoLibrary` writes finished media into Photos. `PhotoSaver` stores the lightweight asset/film index; internal image data is a fallback for failed exports and older versions.
+- `PhotoLibraryReconciler` handles Photos/index reconciliation; `LibraryMaintenance` handles launch cleanup. `PhotoDeletionService` holds the capture/recovery gate through Photos confirmation, index commit and cache invalidation for both gallery deletion entry points.
 - `PhotoImage` selects PhotoKit or internal storage. Image decoding uses bounded blocking work; image requests and view lifetimes propagate cancellation.
 
 ## Entry preparation
