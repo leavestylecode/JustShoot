@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 struct FilmHomeView: View {
     let preparedHome: HomePreparationSnapshot
-    let textVisibility: FilmTileTextVisibility
+    @StateObject private var settings: FilmPageSettings
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.locale) private var locale
@@ -24,16 +24,21 @@ struct FilmHomeView: View {
     @State private var importTask: Task<Void, Never>?
     @State private var initialCustomFilters: [HomeCustomFilter]
     @State private var usesLiveCustomFilters = false
-    private func gridColumns(availableWidth: CGFloat) -> [GridItem] {
+    @State private var showsManagement = false
+    @State private var pendingDelete: FilmSource?
+
+    private var textVisibility: FilmTileTextVisibility { settings.textVisibility }
+
+    private func gridColumns(availableWidth: CGFloat, textVisibility: FilmTileTextVisibility) -> [GridItem] {
         let isRegular = sizeClass == .regular
         let count = PageLayout.homeColumns(width: availableWidth, isRegular: isRegular, scale: gridScale,
             minimumTileWidth: FilmTileLayout.minimumWidth(locale: locale, textVisibility: textVisibility))
         return Array(repeating: GridItem(.flexible(), spacing: 14, alignment: .top), count: count)
     }
 
-    init(preparedHome: HomePreparationSnapshot, textVisibility: FilmTileTextVisibility = .init()) {
+    init(preparedHome: HomePreparationSnapshot, settings: FilmPageSettings? = nil) {
         self.preparedHome = preparedHome
-        self.textVisibility = textVisibility
+        _settings = StateObject(wrappedValue: settings ?? FilmPageSettings())
         _initialCustomFilters = State(initialValue: preparedHome.customFilters)
     }
 
@@ -42,41 +47,43 @@ struct FilmHomeView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        let sources = FilmPreset.allCases.map(FilmSource.preset) + visibleCustomFilters.map(\.source)
+        let visibleFilms = settings.preferences.ordered(sources).filter(settings.preferences.isVisible)
+        let hasOfficialFilms = visibleFilms.contains { if case .preset = $0 { return true }; return false }
+        let gridTextVisibility = FilmTileTextVisibility(showsTitle: textVisibility.showsTitle,
+            showsSubtitle: textVisibility.showsSubtitle && hasOfficialFilms)
+
+        return NavigationStack {
             GeometryReader { geometry in
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 14) {
-                        LazyVGrid(columns: gridColumns(availableWidth: geometry.size.width),
-                            spacing: FilmTileLayout.rowSpacing(showsText: textVisibility.showsText)) {
-                            ForEach(FilmPreset.allCases) { preset in
-                                let source = FilmSource.preset(preset)
-                                NavigationLink(value: source) {
-                                    FilmPresetTile(preset: preset, image: preparedHome.presetCovers[preset], textVisibility: textVisibility)
-                                }
-                                .buttonStyle(.plain)
+                        if visibleFilms.isEmpty {
+                            ContentUnavailableView {
+                                Label("No films shown", systemImage: "camera.filters")
+                            } actions: {
+                                Button("Manage Films") { showsManagement = true }
+                                    .buttonStyle(.bordered)
                             }
-                        }
-
-                        if !visibleCustomFilters.isEmpty {
-                            Text("Custom filters")
-                                .font(.caption.weight(.medium))
-                                .foregroundColor(.white.opacity(0.4))
-                                .accessibilityAddTraits(.isHeader)
-                                .padding(.top, 4)
-
-                            LazyVGrid(columns: gridColumns(availableWidth: geometry.size.width),
-                                spacing: FilmTileLayout.rowSpacing(showsText: textVisibility.showsTitle)) {
-                                ForEach(visibleCustomFilters) { lut in
-                                    let source = lut.source
+                            .frame(minHeight: 300)
+                        } else {
+                            LazyVGrid(columns: gridColumns(availableWidth: geometry.size.width, textVisibility: gridTextVisibility),
+                                spacing: FilmTileLayout.rowSpacing(showsText: gridTextVisibility.showsText)) {
+                                ForEach(visibleFilms) { source in
                                     NavigationLink(value: source) {
-                                        CustomLUTTile(lut: lut, image: preparedHome.customCover, textVisibility: textVisibility)
+                                        switch source {
+                                        case .preset(let preset):
+                                            FilmPresetTile(preset: preset, image: preparedHome.presetCovers[preset], textVisibility: textVisibility)
+                                        case .custom(let id, let name, let iso, let fileName):
+                                            CustomLUTTile(lut: HomeCustomFilter(id: id, displayName: name, iso: iso, fileName: fileName),
+                                                image: preparedHome.customCover, textVisibility: textVisibility)
+                                        }
                                     }
                                     .buttonStyle(.plain)
                                     .contextMenu {
-                                        Button(role: .destructive) {
-                                            deleteCustomLUT(lut)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
+                                        if case .custom = source {
+                                            Button(role: .destructive) { pendingDelete = source } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
                                         }
                                     }
                                 }
@@ -92,7 +99,13 @@ struct FilmHomeView: View {
                 .navigationTitle("Films")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Button { showsManagement = true } label: {
+                            Image(systemName: "slider.horizontal.3")
+                        }
+                        .accessibilityLabel("Manage Films")
+                        .accessibilityIdentifier("films.manage")
+
                         Button {
                             showFileImporter = true
                         } label: {
@@ -126,6 +139,11 @@ struct FilmHomeView: View {
                     .interactiveDismissDisabled(isImporting)
                     .onDisappear { if !isImporting { cancelImport() } }
                 }
+                .sheet(isPresented: $showsManagement) {
+                    FilmManagementView(settings: settings, sources: sources,
+                        presetCovers: preparedHome.presetCovers, onDelete: deleteCustomLUT)
+                }
+                .modifier(FilmDeletionConfirmation(pending: $pendingDelete, onDelete: deleteCustomLUT))
                 .alert(operationErrorTitle, isPresented: $showImportError) {
                     Button("OK", role: .cancel) {}
                 } message: {
@@ -222,14 +240,9 @@ struct FilmHomeView: View {
         importedCube = nil
     }
 
-    private func deleteCustomLUT(_ snapshot: HomeCustomFilter) {
-        do {
-            _ = try CustomLUTPersistence.deletePreparedCustomFilter(id: snapshot.id, queried: customLUTs, in: modelContext)
-            initialCustomFilters.removeAll { $0.id == snapshot.id }
-        } catch {
-            operationErrorTitle = "Could not delete filter"
-            importError = String(format: String(localized: "Save failed: %@"), error.localizedDescription)
-            showImportError = true
-        }
+    private func deleteCustomLUT(_ id: UUID) throws {
+        _ = try CustomLUTPersistence.deletePreparedCustomFilter(id: id, queried: customLUTs, in: modelContext)
+        initialCustomFilters.removeAll { $0.id == id }
+        settings.removeCustomFilm(id: id)
     }
 }

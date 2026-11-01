@@ -7,6 +7,13 @@ struct HomeCustomFilter: Identifiable, Sendable {
     let iso: Float
     let fileName: String
 
+    init(id: UUID, displayName: String, iso: Float, fileName: String) {
+        self.id = id
+        self.displayName = displayName
+        self.iso = iso
+        self.fileName = fileName
+    }
+
     init(_ model: CustomLUT) {
         id = model.id
         displayName = model.displayName
