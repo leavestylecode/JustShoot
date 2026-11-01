@@ -4808,6 +4808,366 @@
           }
         }
       }
+    },
+    "Architecture" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Architecture"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "建筑"
+          }
+        }
+      }
+    },
+    "Backlight" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backlight"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "逆光"
+          }
+        }
+      }
+    },
+    "Beach" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beach"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "海滩"
+          }
+        }
+      }
+    },
+    "Cloudy" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloudy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "阴天"
+          }
+        }
+      }
+    },
+    "Flowers" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flowers"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "花卉"
+          }
+        }
+      }
+    },
+    "Food" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Food"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "美食"
+          }
+        }
+      }
+    },
+    "Forest" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forest"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "森林"
+          }
+        }
+      }
+    },
+    "Indoor" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indoor"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "室内"
+          }
+        }
+      }
+    },
+    "Landscape" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Landscape"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "风光"
+          }
+        }
+      }
+    },
+    "Neon" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neon"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "霓虹"
+          }
+        }
+      }
+    },
+    "Night" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Night"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "夜景"
+          }
+        }
+      }
+    },
+    "Portrait" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portrait"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "人像"
+          }
+        }
+      }
+    },
+    "Rainy" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rainy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "雨天"
+          }
+        }
+      }
+    },
+    "Snow" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snow"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "雪景"
+          }
+        }
+      }
+    },
+    "Still life" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still life"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "静物"
+          }
+        }
+      }
+    },
+    "Street" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Street"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "街拍"
+          }
+        }
+      }
+    },
+    "Sunny" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunny"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晴天"
+          }
+        }
+      }
+    },
+    "Sunrise" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunrise"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日出"
+          }
+        }
+      }
+    },
+    "Sunset" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日落"
+          }
+        }
+      }
+    },
+    "Travel" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "旅行"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

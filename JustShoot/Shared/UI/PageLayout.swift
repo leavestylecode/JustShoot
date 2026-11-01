@@ -9,9 +9,9 @@ enum PageLayout {
     static let detailCoverWidth: CGFloat = 400
     static let curveEditorWidth: CGFloat = 420
 
-    static func homeColumns(width: CGFloat, isRegular: Bool, scale: CGFloat = 1) -> Int {
-        let contentWidth = (isRegular ? min(width, browseWidth) : width) - (isRegular ? 48 : 28)
-        return gridColumns(width: contentWidth, minimum: (isRegular ? 176 : 100) * scale,
+    static func homeColumns(width: CGFloat, isRegular: Bool, scale: CGFloat = 1, minimumTileWidth: CGFloat = 100) -> Int {
+        let contentWidth = width - (isRegular ? 48 : 28)
+        return gridColumns(width: contentWidth, minimum: max(isRegular ? 176 : 100, minimumTileWidth) * scale,
             spacing: 14, maximum: isRegular ? 6 : 4)
     }
 

@@ -3,15 +3,22 @@ import XCTest
 
 final class PageLayoutTests: XCTestCase {
     func testHomeAddsReadableColumnsAsIPadWindowWidens() {
-        for (width, expected) in [(CGFloat(834), 4), (1032, 5), (1194, 5), (1376, 5)] {
+        for (width, expected) in [(CGFloat(744), 3), (768, 3), (834, 4), (1032, 5), (1194, 6), (1376, 6)] {
             let columns = PageLayout.homeColumns(width: width, isRegular: true)
             XCTAssertEqual(columns, expected)
-            let tileWidth = (min(width, PageLayout.browseWidth) - 48 - CGFloat(columns - 1) * 14) / CGFloat(columns)
+            let tileWidth = (width - 48 - CGFloat(columns - 1) * 14) / CGFloat(columns)
             XCTAssertGreaterThanOrEqual(tileWidth, 176)
         }
         XCTAssertEqual(PageLayout.homeColumns(width: 393, isRegular: false), 3)
         XCTAssertEqual(PageLayout.homeColumns(width: 320, isRegular: false), 2)
         XCTAssertEqual(PageLayout.homeColumns(width: 834, isRegular: true, scale: 2), 2)
+    }
+
+    func testHomeUsesWidthBeyondTheReadingGridLimit() {
+        let cappedColumns = PageLayout.homeColumns(width: PageLayout.browseWidth, isRegular: true)
+        let fullWidthColumns = PageLayout.homeColumns(width: 1194, isRegular: true)
+        XCTAssertGreaterThan(fullWidthColumns, cappedColumns)
+        XCTAssertEqual(fullWidthColumns, 6)
     }
 
     func testLandscapeDetailsRequireRoomForBothColumns() {

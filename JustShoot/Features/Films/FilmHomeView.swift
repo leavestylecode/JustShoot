@@ -5,8 +5,10 @@ import UniformTypeIdentifiers
 
 struct FilmHomeView: View {
     let preparedHome: HomePreparationSnapshot
+    let textVisibility: FilmTileTextVisibility
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.locale) private var locale
     @ScaledMetric(relativeTo: .body) private var gridScale = 1.0
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @State private var showFileImporter = false
@@ -24,12 +26,14 @@ struct FilmHomeView: View {
     @State private var usesLiveCustomFilters = false
     private func gridColumns(availableWidth: CGFloat) -> [GridItem] {
         let isRegular = sizeClass == .regular
-        let count = PageLayout.homeColumns(width: availableWidth, isRegular: isRegular, scale: gridScale)
+        let count = PageLayout.homeColumns(width: availableWidth, isRegular: isRegular, scale: gridScale,
+            minimumTileWidth: FilmTileLayout.minimumWidth(locale: locale, textVisibility: textVisibility))
         return Array(repeating: GridItem(.flexible(), spacing: 14, alignment: .top), count: count)
     }
 
-    init(preparedHome: HomePreparationSnapshot) {
+    init(preparedHome: HomePreparationSnapshot, textVisibility: FilmTileTextVisibility = .init()) {
         self.preparedHome = preparedHome
+        self.textVisibility = textVisibility
         _initialCustomFilters = State(initialValue: preparedHome.customFilters)
     }
 
@@ -42,11 +46,12 @@ struct FilmHomeView: View {
             GeometryReader { geometry in
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 14) {
-                        LazyVGrid(columns: gridColumns(availableWidth: geometry.size.width), spacing: 12) {
+                        LazyVGrid(columns: gridColumns(availableWidth: geometry.size.width),
+                            spacing: FilmTileLayout.rowSpacing(showsText: textVisibility.showsText)) {
                             ForEach(FilmPreset.allCases) { preset in
                                 let source = FilmSource.preset(preset)
                                 NavigationLink(value: source) {
-                                    FilmPresetTile(preset: preset, image: preparedHome.presetCovers[preset])
+                                    FilmPresetTile(preset: preset, image: preparedHome.presetCovers[preset], textVisibility: textVisibility)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -59,11 +64,12 @@ struct FilmHomeView: View {
                                 .accessibilityAddTraits(.isHeader)
                                 .padding(.top, 4)
 
-                            LazyVGrid(columns: gridColumns(availableWidth: geometry.size.width), spacing: 12) {
+                            LazyVGrid(columns: gridColumns(availableWidth: geometry.size.width),
+                                spacing: FilmTileLayout.rowSpacing(showsText: textVisibility.showsTitle)) {
                                 ForEach(visibleCustomFilters) { lut in
                                     let source = lut.source
                                     NavigationLink(value: source) {
-                                        CustomLUTTile(lut: lut, image: preparedHome.customCover)
+                                        CustomLUTTile(lut: lut, image: preparedHome.customCover, textVisibility: textVisibility)
                                     }
                                     .buttonStyle(.plain)
                                     .contextMenu {
@@ -80,13 +86,13 @@ struct FilmHomeView: View {
                     .padding(.horizontal, sizeClass == .regular ? 24 : 14)
                     .padding(.top, 8)
                     .padding(.bottom, 20)
-                    .pageContentWidth(PageLayout.browseWidth)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .background(Color.black)
                 .navigationTitle("Films")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
+                    ToolbarItem(placement: .primaryAction) {
                         Button {
                             showFileImporter = true
                         } label: {
