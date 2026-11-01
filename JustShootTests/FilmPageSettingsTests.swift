@@ -94,6 +94,26 @@ final class FilmPageSettingsTests: XCTestCase {
         }
     }
 
+    func testResetOrderPersistsDefaultOrderAndKeepsAppearanceAndHiddenFilms() throws {
+        try withDefaults { defaults in
+            let settings = FilmPageSettings(defaults: defaults)
+            let sources: [FilmSource] = [.preset(.fujiRawVelvia), .preset(.fujiRawASTIA), custom(), custom()]
+            settings.preferences.showsTitle = false
+            settings.preferences.showsSubtitle = false
+            settings.setVisible(.fujiRawASTIA, false)
+            settings.move(from: [2, 3], to: 0, in: sources)
+            XCTAssertNotEqual(settings.preferences.ordered(sources), sources)
+
+            settings.resetOrder()
+
+            let restored = FilmPageSettings(defaults: defaults)
+            XCTAssertEqual(restored.preferences.ordered(sources), sources)
+            XCTAssertEqual(restored.textVisibility, FilmTileTextVisibility(showsTitle: false, showsSubtitle: false))
+            XCTAssertEqual(restored.preferences.ordered(sources).filter(restored.preferences.isVisible),
+                [sources[0], sources[2], sources[3]])
+        }
+    }
+
     func testRemovedOfficialFilmsSwitchDoesNotOverrideIndividualVisibility() throws {
         try withDefaults { defaults in
             let oldData = Data(#"{"showsOfficialFilms":false,"hiddenPresetIDs":["fujiRawASTIA"],"orderedFilmIDs":["fujiRawASTIA","fujiRawVelvia"]}"#.utf8)

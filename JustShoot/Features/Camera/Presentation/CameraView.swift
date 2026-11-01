@@ -664,7 +664,7 @@ struct CameraView: View {
             cameraManager.diagnostics.event("color_controls_visibility_changed",
                 "visible=\(visible) \(colorAdjustmentDiagnosticFields)")
         } label: {
-            Image(systemName: "slider.horizontal.3")
+            Image(systemName: "drop.halffull")
                 .foregroundStyle(colorControls.isVisible ? Color.yellow : .white)
                 .rotationEffect(controlRotationAngle)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)

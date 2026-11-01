@@ -99,13 +99,14 @@ struct FilmHomeView: View {
                 .navigationTitle("Films")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItemGroup(placement: .primaryAction) {
+                    ToolbarItem(placement: .topBarLeading) {
                         Button { showsManagement = true } label: {
                             Image(systemName: "slider.horizontal.3")
                         }
                         .accessibilityLabel("Manage Films")
                         .accessibilityIdentifier("films.manage")
-
+                    }
+                    ToolbarItem(placement: .primaryAction) {
                         Button {
                             showFileImporter = true
                         } label: {

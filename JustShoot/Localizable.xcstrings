@@ -5220,6 +5220,23 @@
         }
       }
     },
+    "Reset Film Order" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Film Order"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置胶片排序"
+          }
+        }
+      }
+    },
     "Film Order" : {
       "extractionState" : "manual",
       "localizations" : {

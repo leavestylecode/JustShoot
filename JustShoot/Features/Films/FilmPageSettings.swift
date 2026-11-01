@@ -83,6 +83,10 @@ final class FilmPageSettings: ObservableObject {
     func removeCustomFilm(id: UUID) {
         preferences.orderedFilmIDs.removeAll { $0 == id.uuidString }
     }
+
+    func resetOrder() {
+        preferences.orderedFilmIDs = []
+    }
 }
 
 extension FilmSource {

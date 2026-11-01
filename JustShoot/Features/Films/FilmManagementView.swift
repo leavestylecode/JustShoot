@@ -11,6 +11,8 @@ struct FilmManagementView: View {
     @State private var showsHelp = false
 
     var body: some View {
+        let orderedSources = settings.preferences.ordered(sources)
+
         NavigationStack {
             List {
                 Section("Appearance") {
@@ -21,12 +23,25 @@ struct FilmManagementView: View {
                         .tint(.green)
                         .accessibilityIdentifier("films.showSubtitles")
                 }
-                Section("Film Order") {
-                    ForEach(settings.preferences.ordered(sources)) { source in
+                Section {
+                    ForEach(orderedSources) { source in
                         filmRow(source)
                     }
                     .onMove { offsets, destination in
                         settings.move(from: offsets, to: destination, in: sources)
+                    }
+                } header: {
+                    HStack {
+                        Text("Film Order")
+                        Spacer()
+                        Button("Reset") { settings.resetOrder() }
+                            .font(.subheadline)
+                            .textCase(nil)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .buttonStyle(.borderless)
+                            .disabled(orderedSources == sources)
+                            .accessibilityLabel("Reset Film Order")
+                            .accessibilityIdentifier("films.resetOrder")
                     }
                 }
             }
