@@ -5169,19 +5169,19 @@
         }
       }
     },
-    "Appearance" : {
+    "Text Display" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Appearance"
+            "value" : "Text Display"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示选项"
+            "value" : "文案显示"
           }
         }
       }
@@ -5267,40 +5267,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "管理胶片"
-          }
-        }
-      }
-    },
-    "Film Management Help" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Film Management Help"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "胶片管理帮助"
-          }
-        }
-      }
-    },
-    "Drag the handles to reorder films. Tap the eye to show or hide an official film, or the trash to delete a custom film." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Drag the handles to reorder films. Tap the eye to show or hide an official film, or the trash to delete a custom film."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拖动右侧手柄调整顺序，点按眼睛显示或隐藏官方胶片，点按垃圾桶删除自定义胶片。"
           }
         }
       }

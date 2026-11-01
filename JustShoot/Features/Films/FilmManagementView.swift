@@ -8,14 +8,13 @@ struct FilmManagementView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var pendingDelete: FilmSource?
-    @State private var showsHelp = false
 
     var body: some View {
         let orderedSources = settings.preferences.ordered(sources)
 
         NavigationStack {
             List {
-                Section("Appearance") {
+                Section("Text Display") {
                     Toggle("Show Titles", isOn: $settings.preferences.showsTitle)
                         .tint(.green)
                         .accessibilityIdentifier("films.showTitles")
@@ -52,18 +51,9 @@ struct FilmManagementView: View {
             .navigationTitle("Manage Films")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button { showsHelp = true } label: { Image(systemName: "questionmark.circle") }
-                        .accessibilityLabel("Film Management Help")
-                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
-            }
-            .alert("Manage Films", isPresented: $showsHelp) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Drag the handles to reorder films. Tap the eye to show or hide an official film, or the trash to delete a custom film.")
             }
             .modifier(FilmDeletionConfirmation(pending: $pendingDelete, onDelete: onDelete))
         }
