@@ -10,13 +10,44 @@ length EXIF. SDR capture and large imported LUTs remain supported. Standalone PQ
 inputs require iOS 18's headroom mapping; iOS 17 retains unsupported source files for recovery.
 Implementation and validation: [iOS 17 compatibility](research/ios17-compatibility/IMPLEMENTATION.txt).
 
-New Portra 400 captures use a versioned Portra/Endura material pipeline: developed-sRGB input
+New Portra 400 captures use a versioned Spektrafilm-derived Portra/Endura material pipeline: developed-sRGB input
 adjustment → exposure diffusion → film layer-density LUT → density-domain grain → print/scan LUT
-→ bounded portrait refinement → user curve and output headroom. Preview, stills and Live Photo
-share its math and frozen parameters. Other looks and legacy capture jobs retain their existing
-RGB-LUT pipeline. The first phase preserves Apple SDR RAW development; it does not claim calibrated
+→ bounded portrait refinement → display tone calibration → user curve and output headroom. Preview, stills and Live Photo
+share its math and frozen parameters. The new schema-2 tables retain the reference's spectral
+response and local DIR layer coupling. Density has an explicit CMY optical-density contract and
+per-channel minimum/maximum, including below-fog headroom; it is never interpreted as RGB.
+Other looks retain their RGB-LUT pipeline, and older captures keep their frozen model and color
+preference. The first phase preserves Apple SDR RAW development; it does not claim calibrated
 scene radiance or a measured match to physical film. The migration plan and validation are in
 [research/film-material-2026-10-29/PLAN.txt](research/film-material-2026-10-29/PLAN.txt).
+
+The Spektrafilm runtime runs only in the separate offline research environment. Its pinned
+65³ density/print tables, manifest, original license and modification notice ship as CC BY-SA 4.0
+data attributed to Andrea Volpato; no upstream GPL Python implementation is included in the app.
+Reproduction: `scripts/bake_spektrafilm_material.py`. The deterministic core is distinct from the
+existing empirical grain and diffusion approximations: spatial DIR and statistical particle grain
+are not yet migrated. Schema 2 uses bounded SDR diffusion to avoid merging near-white input levels
+before the density table. Schema 1 keeps its original diffusion and grain calculation. The default
+material no longer reads/refines/retains an unused legacy RGB cube. Numerical, native-photo and
+compatibility evidence: [spectral core review](research/spectral-core-2026-11-01/REVIEW.txt).
+
+The current spectral recipe also freezes an optional SDR tone/grain calibration. A smooth,
+monotonic luma curve opens shadows/midtones and becomes identity above encoded luma 0.60;
+a source toe gate preserves printed black, and interpolation toward white avoids new channel clipping. Density-grain amplitude is scaled
+independently of the LUT transport range. This is a product preference, not measured particle
+grain. It runs inside the shared finish shader before user curves without new image passes or
+tables. Missing parameters retain the first spectral rendering, and its old cache key resolves
+explicitly to that rendering. Validation: `scripts/validate_spectral_calibration.py` and
+[calibration review](research/spectral-calibration-2026-11-01/REVIEW.txt).
+
+New Portra recipes also freeze a bounded color-balance preference after portrait refinement:
+low-chroma shadows retain more of their input hue, and skin-like colors lose part of the added
+orange shift. The current portrait response also covers muted red/pink skin hues that the first
+yellow-orange gate missed. The adjustment preserves encoded-sRGB luma before user curves/headroom and cannot
+increase chroma. Bright warm light and saturated signature colors are gated out. It shares the
+existing preview/still/Live finish shader. Both the first color-balance response and older
+material payloads without these parameters keep their frozen rendering. Comparison method and limits:
+[Portra color-balance review](research/portra-color-balance-2026-11-01/REVIEW.txt).
 
 The material performance follow-up preserves the accepted softer highlight/contrast treatment.
 Exact identity input and finish tables use domain-clamping fast paths in both Metal and Core Image,

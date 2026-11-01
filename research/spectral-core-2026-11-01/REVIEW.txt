@@ -1,0 +1,115 @@
+JustShoot / Spektrafilm：Portra 核心迁入第一阶段
+2026-11-01
+
+本轮结果
+
+新 Portra 默认已切换为 Spektrafilm 派生的确定性色彩核心，并保留 JustShoot 的
+肤色／中性色保护、用户曲线、输出柔肩。不是把两张成品图按比例混合。
+其他胶片仍走原有链路。空间 DIR 和粒子统计颗粒尚未迁入，不能称为完整移植。
+
+新核心：已显影 sRGB → 光谱响应／曝光／局部 DIR 显影 → CMY 光学密度
+       → 相纸曝光／显影／光谱扫描 → sRGB。
+其中确定性点运算由上游官方 2-LUT baker 离线计算为两张 65³ 表；手机仍只在
+现有 GPU 材料链路中采样，不在帧内运行 Python、光谱积分或额外文件读取。
+
+技术契约
+
+- 上游：https://github.com/andreavolpato/spektrafilm
+  固定提交：3bb2c2d2801ff68b92019cf1dbcbb133d60832bc，烘焙前检查提交及工作区。
+- 胶片 kodak_portra_400，相纸 kodak_portra_endura。
+- 官方 BundleSpec：2lut，65³，sRGB 输入／输出，stops_above_midgray=None。
+  这里输入线性增益为 1，不采用官方 baker 的默认 SDR +4 stops 曝光布局。
+- lut_mode=True：局部 DIR 保留，空间扩散／随机项／自动曝光／图像全局高光
+  boost／扫描锐化关闭；扫描黑白修正关闭；相纸曝光固定。输入／输出色域压缩
+  使用该提交的官方默认值（xy / CAM16-UCS）。完整设置存于材料清单。
+- 输入是 Apple 已显影 SDR 的近似，不是测量得到的场景辐射，也不能恢复已剪切细节。
+- 新材料 schema=2，identifier=spek-portra-endura-density-v1。
+  显式 contract：developed_srgb → cmy_optical_density → encoded_srgb。
+  密度编码 code=(D-min)/(max-min)，min=(-0.2,-0.2,-0.2)，
+  max=(1.2954,1.3394,1.7602)。数据纹理没有颜色空间解释。
+- 旧 schema=1、portra-endura-density-v1 仍由独立 loadLegacy 解析。
+  未知模型、跨版本契约、缺失范围、无穷或 NaN、损坏表拒绝解析。
+
+高光修复
+
+回归发现：在线性化的 SDR 上直接添加扩散光，最终输入超过 1 后被密度表夹断，
+1025 级灰阶末端的两个相邻差值变成 0。新 schema-2 将扩散光按剩余白点空间
+有界合成：E'=E+(1-E)*(1-exp(-S))，E 为 [0,1] 线性 SDR，S 为扩散项。
+它仍是 SDR 近似，不是声称真实胶片的无限曝光范围。它保留源白点并避免扩散
+把多个近白输入级别推到同一查表边界。旧 schema-1 使用原有合成方式。
+修复后，测试逐级检查输入 0.75...1 的所有相邻灰阶，在纯色彩及完整光学分支
+均有正亮度差；原有输出柔肩参数未改。
+
+兼容与性能边界
+
+- 新默认键使用 #spek-material-v1#color-balance-v2，与旧 #material-v1 分离。
+  旧无平衡、第一版平衡、第二版平衡的三个键仍加载各自的旧模型／参数。
+- 捕获 journal 独立冻结表、契约和 SHA；材料缺失／篡改不会悄悄回退新默认。
+- 预览、照片、Live Photo 共用密度范围、肤色修饰和扩散算法。
+- 新 Portra 的外层 CubeLUT 使用 2³ 身份载体，跳过不再参与渲染的旧 33³ RGB
+  表的读取与逐节点修饰。白平衡与用户曲线继续位于独立输入／输出表。
+- 两张 65³ RGBA32F 表共 8,788,000 字节；加输入／输出身份表 256 字节。
+  新增同等体积的 bundled 数据，保留旧资源供旧任务恢复。现有 32 MiB／8 配方
+  预览缓存和弱纹理复用规则继续生效，未增加逐帧表上传或额外全屏处理阶段。
+- 这证明计算／I/O 路径简化，不代表测得真机帧率、热量、峰值内存或电量提升。
+
+验证证据
+
+环境：JustShoot.xcodeproj，JustShoot scheme，Debug，XcodeBuildMCP；
+iPhone 17 模拟器，iOS 26.4，UUID 06CBF94A-F235-4319-A5F9-3548DDC86AD2。
+DerivedData：/tmp/justshoot-spektrafilm-derived。
+
+1. 完整点运算参考 vs 两表三线性采样（不套肤色／光学／颗粒）：
+   8192 个固定种子随机 RGB、4097 个灰阶、25 个锚点，共 12314 样本。
+   ΔE00 中位数 0.01767045，P95 0.05771671，最大 0.15104280。
+   最大 RGB 误差 0.00232527。该误差是拟合参考计算，不是真实胶片准确度。
+2. Core Image 原生锚点与参考：每通道误差限 0.004；sRGB / 线性工作空间
+   一致性限 0.002。Metal 预览与照片／Live filter 的比较误差限 0.003。
+3. 8 张公开已显影照片＋1 张合成控制图，固定种子 123，共 54 张原生 PNG：
+   旧 v2、新核心无肤色修饰、新默认，各自纯色彩／完整成品两种模式。
+   每种模式还检查照片和复用 Live filter 的浮点输出完全一致。
+   原生纯核心 PNG 与完整点运算参考 PNG：每场景 RGB P95 差值 0 个码值，
+   最大 1/255。8 位量化展示不替代上述浮点数值核对。
+4. 历史 v2 完整成品像素回归：42370560 个 RGB 通道样本中，29 个相差 1/255，
+   其余一致。属于极小浮点／量化边界差异，不宣称旧 PNG 全文件字节相同。
+5. 联合回归 61 项：60 通过、0 失败、1 跳过；跳过的是上一轮可选色彩平衡
+   照片导出，本轮新核心原生导出已实际运行。覆盖白平衡、曲线、缓存预算与
+   取消／复用、journal 恢复、DNG 方向、Live 编码、Metal 一致性。
+   最后将历史加载入口明确命名 loadLegacy 后，相关 25 项复验：22 通过，
+   0 失败，3 个照片导出因未重复提供环境变量而跳过。
+6. build_run_sim 成功，应用启动与资料库可见。无新增 Swift / Metal 警告；
+   构建日志仍有已有 AppIntents 依赖缺失的元数据跳过提示。
+7. 本地报告场景及阶段切换已在浏览器核验。没有真实拍摄／实物胶片扫描真值，
+   没有真机性能测量，也没有完成 iOS 17 实机兼容验证。
+
+审美判断
+
+新核心的绿色、霓虹和暗部颜色区分更明显，直接采用则会让人像更暗、更暖。
+保留现有输入相关的肤色／中性色保护后，在这批样本上是我更推荐的默认组合。
+这是样本上的主观判断，不是“模型更复杂所以任何照片都更好”的证明。
+
+许可与产物
+
+源 profiles、派生密度／相纸表及清单按 CC BY-SA 4.0 保留 Andrea Volpato 署名。
+SPEKTRAFILM_LICENSE.txt 原样随 app 资源保存；Spektrafilm-CHANGELOG.txt 说明
+烘焙设置与格式改动。没有将上游 GPL Python 实现打入 app；baker 使用独立的
+离线研究环境。输出照片不据此声称需要相同许可证。
+旧 MIT spectral_film_lut 资源及其许可证继续保留，供其他胶片与历史配方使用。
+
+重现脚本：scripts/bake_spektrafilm_material.py，先输出到临时目录，验证后复制
+数据资源。脚本要求固定上游提交与安装了其依赖的独立 Python 环境。
+原生导出：FilmSpectralMaterialTests 的可选照片测试，环境变量
+JUSTSHOOT_SCENE_FIXTURES、JUSTSHOOT_SPECTRAL_EXPORT。
+报告：scripts/make_spectral_material_review.py --research-root ... --reference ...。
+
+本机完整产物：
+/Users/leavestyle/.codex/visualizations/2026/11/01/01a1962b-0d35-7a33-861f-04a780544e7d/spektrafilm-comparison/spectral-core
+包含 native/、reference/、photo-metrics.json、test-result.json、对比总览及页面。
+页面：http://127.0.0.1:8768/spectral-core/index.html
+
+后续技术阶段
+
+在已冻结的真实密度契约上，分别实现并验证按物理尺度变化的统计颗粒与非局部
+DIR 扩散。它们无法由当前点运算 LUT 复现，应做关闭／开启消融、分辨率与裁切
+一致性检查、逐帧种子策略和真机成本测量，再决定默认强度。最后以实际胶片
+扫描或受控实拍校准，随后推广其他胶片。

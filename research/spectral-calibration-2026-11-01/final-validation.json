@@ -1,0 +1,478 @@
+{
+  "scope": "Portra spectral core and product calibration; code review before commit",
+  "sourceCommit": "3bb2c2d2801ff68b92019cf1dbcbb133d60832bc",
+  "assetValidation": {
+    "density": {
+      "file": "SpekPortraEndura-density-v1.bin",
+      "bytes": 4394000,
+      "sha256": "7fb4b421fab0e0560fef1f54d7cdf6e31b3cb3557589a0077608c23727708d44",
+      "dimension": 65,
+      "finiteInUnitRange": true,
+      "alphaOne": true
+    },
+    "print": {
+      "file": "SpekPortraEndura-print-v1.bin",
+      "bytes": 4394000,
+      "sha256": "69355f97b993b636779a4303eff7f930cc9fd1ac5ea9ef2ed5abdc34379a1024",
+      "dimension": 65,
+      "finiteInUnitRange": true,
+      "alphaOne": true
+    }
+  },
+  "previewParameterLayout": {
+    "matchingFields": 46,
+    "allScalar32Bit": true
+  },
+  "unalteredUpstreamLicense": true,
+  "focusedTests": {
+    "summary": {
+      "status": "SUCCEEDED",
+      "durationMs": 88925,
+      "counts": {
+        "passed": 29,
+        "failed": 0,
+        "skipped": 0
+      },
+      "target": "simulator"
+    },
+    "artifacts": {
+      "buildLogPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-11-01T15-35-58-168Z_pid10210_5b52d010.log",
+      "xcresultPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-11-01T15-35-58-168Z_pid10210_f5c06630.xcresult",
+      "testProductsPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/test-products/test_sim_2026-11-01T15-35-58-168Z_pid10210_6e7aaeca.xctestproducts"
+    },
+    "diagnostics": {
+      "warnings": [],
+      "errors": [],
+      "testFailures": []
+    }
+  },
+  "fullTests": {
+    "summary": {
+      "status": "SUCCEEDED",
+      "durationMs": 75040,
+      "counts": {
+        "passed": 576,
+        "failed": 0,
+        "skipped": 17
+      },
+      "target": "simulator"
+    },
+    "artifacts": {
+      "buildLogPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/test_sim_2026-11-01T15-38-16-743Z_pid10210_3c9f4b3e.log",
+      "xcresultPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/result-bundles/test_sim_2026-11-01T15-38-16-744Z_pid10210_81017fd8.xcresult",
+      "testProductsPath": "~/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/test-products/test_sim_2026-11-01T15-38-16-744Z_pid10210_7d5071e9.xctestproducts"
+    },
+    "diagnostics": {
+      "warnings": [],
+      "errors": [],
+      "testFailures": []
+    },
+    "skipped": [
+      {
+        "suite": "CameraOrientationPolicyTests",
+        "test": "testIPadRotationsRemainEnabledAcrossNavigationAndModalPresentation",
+        "status": "skipped",
+        "durationMs": 17
+      },
+      {
+        "suite": "CaptureLivePhotoRoundTripTests",
+        "test": "testProcessedLivePhotoSavesOnePairedAssetAndLoadsForPlayback",
+        "status": "skipped",
+        "durationMs": 7
+      },
+      {
+        "suite": "FilmColorBalanceTests",
+        "test": "testOptionalPhotographsExportBeforeAfterAndKeepStillLiveIdentical",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmMaterialCalibrationTests",
+        "test": "testOptionalGrainCandidatesOnPortraitsAndNightScene",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmMaterialTests",
+        "test": "testOptionalSDRPhotographsMatchStillAndLiveWithFullMaterialEffects",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "FilmSpectralMaterialTests",
+        "test": "testOptionalPhotographsExportCoreAndBalancedWithStillLiveParity",
+        "status": "skipped",
+        "durationMs": 2
+      },
+      {
+        "suite": "IPadBrowsingLayoutTests",
+        "test": "testBrowsingPagesResizeBetweenPortraitAndLandscapeWithoutLosingEditorDraft",
+        "status": "skipped",
+        "durationMs": 7
+      },
+      {
+        "suite": "IPadBrowsingLayoutTests",
+        "test": "testGalleryKeepsSelectionAndFitsCellsWhenWindowWidthChanges",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "LivePhotoRollingBufferTests",
+        "test": "testHardwareBufferWritesTimedRotatedMovieWithAudio",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "LivePhotoRollingBufferTests",
+        "test": "testSealFinishesAlreadyRequestedAndLateStillMovies",
+        "status": "skipped",
+        "durationMs": 2
+      },
+      {
+        "suite": "LivePhotoRollingBufferTests",
+        "test": "testWaitingHardwareRequestCancelsAndDisableInterruptsAnotherRequest",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhotoDisplayRoundTripTests",
+        "test": "testFilmAdjustmentUpdatesTheSameAssetAndKeepsTheOriginal",
+        "status": "skipped",
+        "durationMs": 2
+      },
+      {
+        "suite": "PhotoDisplayRoundTripTests",
+        "test": "testRenderedHEICRoundTripsThroughPhotoLibrary",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhysicalCameraPipelineTests",
+        "test": "testLivePhotoPreviewConfigurationSurvivesColdStartAndRoundTrips",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhysicalCameraPipelineTests",
+        "test": "testLivePhotoShutterFramingWithoutSavingToPhotos",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "PhysicalCameraPipelineTests",
+        "test": "testRealCaptureThroughDurablePipelineAndPhotos",
+        "status": "skipped",
+        "durationMs": 1
+      },
+      {
+        "suite": "RawFilmPipelineTests",
+        "test": "testPublicAppleProRAWDevelopsToSRGBWhenExternalFixtureIsProvided",
+        "status": "skipped",
+        "durationMs": 1
+      }
+    ]
+  },
+  "buildRun": {
+    "schema": "xcodebuildmcp.output.build-run-result",
+    "schemaVersion": "2",
+    "didError": false,
+    "error": null,
+    "data": {
+      "summary": {
+        "status": "SUCCEEDED",
+        "durationMs": 11596,
+        "target": "simulator"
+      },
+      "artifacts": {
+        "appPath": "/tmp/justshoot-spektrafilm-derived/Build/Products/Debug-iphonesimulator/JustShoot.app",
+        "bundleId": "leavestylecode.JustShoot",
+        "processId": 56743,
+        "simulatorId": "06CBF94A-F235-4319-A5F9-3548DDC86AD2",
+        "buildLogPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/build_run_sim_2026-11-01T15-39-43-402Z_pid10210_943b61a2.log",
+        "runtimeLogPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/leavestylecode.JustShoot_2026-11-01T15-39-53-787Z_helperpid56732_ownerpid10210_aacdbcaa.log",
+        "osLogPath": "/Users/leavestyle/Library/Developer/XcodeBuildMCP/workspaces/JustShoot-4ff2f8a8e2d6/logs/leavestylecode.JustShoot_oslog_2026-11-01T15-39-54-951Z_helperpid56858_ownerpid10210_52c438e9.log"
+      },
+      "diagnostics": {
+        "warnings": [],
+        "errors": []
+      }
+    },
+    "nextSteps": [
+      "Stop app in simulator: stop_app_sim({ simulatorId: \"06CBF94A-F235-4319-A5F9-3548DDC86AD2\", bundleId: \"leavestylecode.JustShoot\" })"
+    ]
+  },
+  "photographicValidation": {
+    "calibration": {
+      "shadowLift": 0.65,
+      "toneCeiling": 0.6,
+      "grainScale": 0.65
+    },
+    "scenes": {
+      "portrait-daylight": {
+        "previous_color_frozenMaxCodes": 0,
+        "previous_full_frozenMaxCodes": 0,
+        "core_color_frozenMaxCodes": 0,
+        "core_full_frozenMaxCodes": 0,
+        "balanced_color_frozenMaxCodes": 0,
+        "balanced_full_frozenMaxCodes": 0,
+        "tonePredictionP95Codes": 0.7287249478660524,
+        "tonePredictionMaxCodes": 1.142411310014814,
+        "highlightPixels": 887753,
+        "highlightMaxCodes": 0.0
+      },
+      "portrait-backlit": {
+        "previous_color_frozenMaxCodes": 0,
+        "previous_full_frozenMaxCodes": 0,
+        "core_color_frozenMaxCodes": 0,
+        "core_full_frozenMaxCodes": 0,
+        "balanced_color_frozenMaxCodes": 0,
+        "balanced_full_frozenMaxCodes": 0,
+        "tonePredictionP95Codes": 0.687471685082347,
+        "tonePredictionMaxCodes": 1.1208770629936822,
+        "highlightPixels": 788553,
+        "highlightMaxCodes": 0.0
+      },
+      "portrait-window": {
+        "previous_color_frozenMaxCodes": 0,
+        "previous_full_frozenMaxCodes": 0,
+        "core_color_frozenMaxCodes": 0,
+        "core_full_frozenMaxCodes": 0,
+        "balanced_color_frozenMaxCodes": 0,
+        "balanced_full_frozenMaxCodes": 0,
+        "tonePredictionP95Codes": 0.6225846739557555,
+        "tonePredictionMaxCodes": 1.142411310014814,
+        "highlightPixels": 1010336,
+        "highlightMaxCodes": 0.0
+      },
+      "cafe-sunlight": {
+        "previous_color_frozenMaxCodes": 0,
+        "previous_full_frozenMaxCodes": 0,
+        "core_color_frozenMaxCodes": 0,
+        "core_full_frozenMaxCodes": 0,
+        "balanced_color_frozenMaxCodes": 0,
+        "balanced_full_frozenMaxCodes": 0,
+        "tonePredictionP95Codes": 0.7416301606205283,
+        "tonePredictionMaxCodes": 1.1298284312471838,
+        "highlightPixels": 523523,
+        "highlightMaxCodes": 0.0
+      },
+      "cafe-night": {
+        "previous_color_frozenMaxCodes": 0,
+        "previous_full_frozenMaxCodes": 0,
+        "core_color_frozenMaxCodes": 0,
+        "core_full_frozenMaxCodes": 0,
+        "balanced_color_frozenMaxCodes": 0,
+        "balanced_full_frozenMaxCodes": 0,
+        "tonePredictionP95Codes": 0.7951354718704373,
+        "tonePredictionMaxCodes": 1.142411310014814,
+        "highlightPixels": 98773,
+        "highlightMaxCodes": 0.0
+      },
+      "forest": {
+        "previous_color_frozenMaxCodes": 0,
+        "previous_full_frozenMaxCodes": 0,
+        "core_color_frozenMaxCodes": 0,
+        "core_full_frozenMaxCodes": 0,
+        "balanced_color_frozenMaxCodes": 0,
+        "balanced_full_frozenMaxCodes": 0,
+        "tonePredictionP95Codes": 0.7137926747777898,
+        "tonePredictionMaxCodes": 1.1774218656795619,
+        "highlightPixels": 499160,
+        "highlightMaxCodes": 0.0
+      },
+      "flowers": {
+        "previous_color_frozenMaxCodes": 0,
+        "previous_full_frozenMaxCodes": 0,
+        "core_color_frozenMaxCodes": 0,
+        "core_full_frozenMaxCodes": 0,
+        "balanced_color_frozenMaxCodes": 0,
+        "balanced_full_frozenMaxCodes": 0,
+        "tonePredictionP95Codes": 0.6760588639445742,
+        "tonePredictionMaxCodes": 1.119374569863534,
+        "highlightPixels": 676864,
+        "highlightMaxCodes": 0.0
+      },
+      "neon": {
+        "previous_color_frozenMaxCodes": 0,
+        "previous_full_frozenMaxCodes": 0,
+        "core_color_frozenMaxCodes": 0,
+        "core_full_frozenMaxCodes": 0,
+        "balanced_color_frozenMaxCodes": 0,
+        "balanced_full_frozenMaxCodes": 0,
+        "tonePredictionP95Codes": 0.7646823635820392,
+        "tonePredictionMaxCodes": 1.1774218656795619,
+        "highlightPixels": 161540,
+        "highlightMaxCodes": 0.0
+      },
+      "controls": {
+        "previous_color_frozenMaxCodes": 0,
+        "previous_full_frozenMaxCodes": 0,
+        "core_color_frozenMaxCodes": 0,
+        "core_full_frozenMaxCodes": 0,
+        "balanced_color_frozenMaxCodes": 0,
+        "balanced_full_frozenMaxCodes": 0,
+        "tonePredictionP95Codes": 0.6610667923501654,
+        "tonePredictionMaxCodes": 0.9558882271926274,
+        "highlightPixels": 394496,
+        "highlightMaxCodes": 0.0
+      }
+    },
+    "rois": {
+      "portrait-daylight": {
+        "roiCenter": [
+          0.5,
+          0.45
+        ],
+        "roiSize": 256,
+        "beforeLinearY": 0.011022574047338148,
+        "afterLinearY": 0.01626083740896799,
+        "oldLinearY": 0.01797703987400883,
+        "gainedEV": 0.5609403872687073,
+        "beforeVsOldEV": -0.7056943153992282,
+        "afterVsOldEV": -0.14475392813052101
+      },
+      "portrait-window": {
+        "roiCenter": [
+          0.55,
+          0.3
+        ],
+        "roiSize": 256,
+        "beforeLinearY": 0.09559203813686865,
+        "afterLinearY": 0.10157616750911302,
+        "oldLinearY": 0.12468350483650087,
+        "gainedEV": 0.0875995806783702,
+        "beforeVsOldEV": -0.38330824839064254,
+        "afterVsOldEV": -0.2957086677122725
+      }
+    },
+    "grain": {
+      "measurements": 12,
+      "deviationRatioMin": 0.6498504655447775,
+      "deviationRatioMax": 0.6500264928997855,
+      "maxMeanShift": 1.951589365489781e-05
+    },
+    "status": "passed"
+  },
+  "grainMeasurements": [
+    {
+      "calibratedDeviation": 2.8683962661720663e-05,
+      "calibratedMean": 0.10028718410376314,
+      "inputGray": 0.11999999731779099,
+      "quietMean": 0.10028653591871262,
+      "seed": 123,
+      "unscaledDeviation": 4.412916803166316e-05,
+      "unscaledMean": 0.10028753053938999,
+      "width": 256
+    },
+    {
+      "calibratedDeviation": 2.8574704354335224e-05,
+      "calibratedMean": 0.10028615458668355,
+      "inputGray": 0.11999999731779099,
+      "quietMean": 0.10028653591871262,
+      "seed": 9876,
+      "unscaledDeviation": 4.396107441188448e-05,
+      "unscaledMean": 0.10028594675895874,
+      "width": 256
+    },
+    {
+      "calibratedDeviation": 0.00025845484756544565,
+      "calibratedMean": 0.3490518662692921,
+      "inputGray": 0.3499999940395355,
+      "quietMean": 0.3490460515022278,
+      "seed": 123,
+      "unscaledDeviation": 0.00039762303314551747,
+      "unscaledMean": 0.34905497866202495,
+      "width": 256
+    },
+    {
+      "calibratedDeviation": 0.00025748156215179863,
+      "calibratedMean": 0.34904262110285345,
+      "inputGray": 0.3499999940395355,
+      "quietMean": 0.3490460515022278,
+      "seed": 9876,
+      "unscaledDeviation": 0.000396126175086944,
+      "unscaledMean": 0.34904075493614073,
+      "width": 256
+    },
+    {
+      "calibratedDeviation": 0.0003146606556961269,
+      "calibratedMean": 0.6130077356283437,
+      "inputGray": 0.6000000238418579,
+      "quietMean": 0.6130006313323975,
+      "seed": 123,
+      "unscaledDeviation": 0.0004840959827674868,
+      "unscaledMean": 0.6130115417327033,
+      "width": 256
+    },
+    {
+      "calibratedDeviation": 0.00031347091121967105,
+      "calibratedMean": 0.6129964763604221,
+      "inputGray": 0.6000000238418579,
+      "quietMean": 0.6130006313323975,
+      "seed": 9876,
+      "unscaledDeviation": 0.0004822597811766849,
+      "unscaledMean": 0.61299421871081,
+      "width": 256
+    },
+    {
+      "calibratedDeviation": 0.00013609122546873453,
+      "calibratedMean": 0.10028829660708045,
+      "inputGray": 0.11999999731779099,
+      "quietMean": 0.10028653591871262,
+      "seed": 123,
+      "unscaledDeviation": 0.00020936437500200677,
+      "unscaledMean": 0.10028927844465822,
+      "width": 1536
+    },
+    {
+      "calibratedDeviation": 0.00013647183075929555,
+      "calibratedMean": 0.10028680016603175,
+      "inputGray": 0.11999999731779099,
+      "quietMean": 0.10028653591871262,
+      "seed": 9876,
+      "unscaledDeviation": 0.00020994810557719128,
+      "unscaledMean": 0.10028697660845864,
+      "width": 1536
+    },
+    {
+      "calibratedDeviation": 0.001226327956370637,
+      "calibratedMean": 0.3490618158666621,
+      "inputGray": 0.3499999940395355,
+      "quietMean": 0.3490460515022278,
+      "seed": 123,
+      "unscaledDeviation": 0.0018866948425864845,
+      "unscaledMean": 0.349070538556892,
+      "width": 1536
+    },
+    {
+      "calibratedDeviation": 0.001229770433505985,
+      "calibratedMean": 0.349048336026802,
+      "inputGray": 0.3499999940395355,
+      "quietMean": 0.3490460515022278,
+      "seed": 9876,
+      "unscaledDeviation": 0.0018919829241523856,
+      "unscaledMean": 0.3490498016793329,
+      "width": 1536
+    },
+    {
+      "calibratedDeviation": 0.0014929299807253222,
+      "calibratedMean": 0.6130201472260524,
+      "inputGray": 0.6000000238418579,
+      "quietMean": 0.6130006313323975,
+      "seed": 123,
+      "unscaledDeviation": 0.0022973262743235575,
+      "unscaledMean": 0.6130309906099379,
+      "width": 1536
+    },
+    {
+      "calibratedDeviation": 0.0014971211097750121,
+      "calibratedMean": 0.6130037458436467,
+      "inputGray": 0.6000000238418579,
+      "quietMean": 0.6130006313323975,
+      "seed": 9876,
+      "unscaledDeviation": 0.0023037932403725484,
+      "unscaledMean": 0.6130057428369279,
+      "width": 1536
+    }
+  ]
+}

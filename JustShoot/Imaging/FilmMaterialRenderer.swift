@@ -85,7 +85,7 @@ enum FilmMaterialRenderer {
             let halo = energy.applyingGaussianBlur(sigma: CGFloat(optics.radiusPixels(optics.halationRadius, forLongEdge: longEdge) * 0.55)).cropped(to: input.extent)
             let bloom = energy.applyingGaussianBlur(sigma: CGFloat(optics.radiusPixels(optics.bloomRadius, forLongEdge: longEdge) * 0.45)).cropped(to: input.extent)
             guard let combined = compositeKernel.apply(extent: input.extent,
-                arguments: [input, halo, bloom, optics.halationAmount, optics.halationHue, optics.bloomAmount]) else { return nil }
+                arguments: [input, halo, bloom, optics.halationAmount, optics.halationHue, optics.bloomAmount, material.exposureResponse]) else { return nil }
             exposed = combined
         }
         guard cancellation?.isCancelled != true else { return nil }
@@ -98,7 +98,15 @@ enum FilmMaterialRenderer {
             }, arguments: [source] + tables + [
                 CIVector(x: CGFloat(material.density.dimension), y: CGFloat(material.print.dimension), z: CGFloat(prepared.finishDimension)),
                 CIVector(x: CGFloat(material.densityMaximum.x), y: CGFloat(material.densityMaximum.y), z: CGFloat(material.densityMaximum.z)),
+                CIVector(x: CGFloat(material.densityFloor.x), y: CGFloat(material.densityFloor.y), z: CGFloat(material.densityFloor.z)),
                 CIVector(x: CGFloat(material.refinement.x), y: CGFloat(material.refinement.y), z: CGFloat(material.refinement.z), w: CGFloat(material.refinement.w)),
+                CIVector(x: CGFloat(material.colorBalance?.neutralRetention ?? 0),
+                    y: CGFloat(material.colorBalance?.skinHueRetention ?? 0),
+                    z: CGFloat(material.colorBalance?.skinChromaRetention ?? 0),
+                    w: CGFloat(material.colorBalance?.shaderResponse ?? 0)),
+                CIVector(x: CGFloat(material.calibration?.shadowLift ?? 0),
+                    y: CGFloat(material.calibration?.toneCeiling ?? 0.6),
+                    z: CGFloat(material.calibration?.grainScale ?? 1)),
                 CIVector(x: CGFloat(amount), y: CGFloat(size), z: CGFloat(grain.chroma), w: 0), Float(seed & 0x00FF_FFFF),
                 CIVector(x: CGFloat(headroom), y: CGFloat(optics.headroomShoulder))
             ])?.matchedToWorkingSpace(from: FilmImagePipeline.colorSpace)

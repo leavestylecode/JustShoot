@@ -30,18 +30,20 @@ float3 materialLookup(coreimage::sampler table, float3 rgb, float dim) {
     return float4(materialLookup(table, pixel.rgb / max(pixel.a, 0.000001), dim) * pixel.a, pixel.a);
 }
 [[stitchable]] float4 justShootMaterialComposite(coreimage::sample_t base,
-    coreimage::sample_t halo, coreimage::sample_t bloom, float amount, float hue, float bloomAmount) {
-    return float4(justShootMaterialExposure(base.rgb, halo.r, bloom.r, amount, hue, bloomAmount), base.a);
+    coreimage::sample_t halo, coreimage::sample_t bloom, float amount, float hue, float bloomAmount, float response) {
+    return float4(justShootMaterialExposure(base.rgb, halo.r, bloom.r, amount, hue, bloomAmount, response), base.a);
 }
 [[stitchable]] float4 justShootMaterialFinish(coreimage::sampler image, coreimage::sampler density,
-    coreimage::sampler paper, coreimage::sampler finish, float3 dimensions, float3 maximum,
-    float4 refinement, float4 grain, float seed, float2 headroom, coreimage::destination destination) {
+    coreimage::sampler paper, coreimage::sampler finish, float3 dimensions, float3 maximum, float3 minimum,
+    float4 refinement, float4 colorBalance, float3 calibration, float4 grain, float seed, float2 headroom, coreimage::destination destination) {
     float4 pixel = image.sample(image.coord());
     float3 source = pixel.rgb / max(pixel.a, 0.000001);
     float3 d = materialLookup(density, source, dimensions.x);
-    d = justShootMaterialGrain(d, maximum, destination.coord(), grain.x, grain.y, grain.z, uint(seed));
+    d = justShootMaterialGrain(d, minimum, maximum, destination.coord(), grain.x * calibration.z, grain.y, grain.z, uint(seed));
     float3 color = materialLookup(paper, d, dimensions.y);
     color = justShootMaterialRefine(clamp(source, 0.0, 1.0), color, refinement);
+    color = justShootMaterialColorBalance(clamp(source, 0.0, 1.0), color, colorBalance);
+    color = justShootMaterialTone(clamp(source, 0.0, 1.0), color, calibration.x, calibration.y);
     color = materialLookup(finish, color, dimensions.z);
     return float4(justShootApplyHeadroom(color, headroom.x, headroom.y) * pixel.a, pixel.a);
 }

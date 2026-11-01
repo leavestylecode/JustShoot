@@ -15,7 +15,11 @@ struct PreviewFilmMaterial: @unchecked Sendable {
     let paper: any MTLTexture
     let finish: any MTLTexture
     let maximum: SIMD3<Float>
+    let minimum: SIMD3<Float>
     let refinement: SIMD4<Float>
+    let colorBalance: FilmColorBalanceParameters?
+    let calibration: FilmMaterialCalibration?
+    let exposureResponse: Float
     let identityFlags: UInt32
 }
 
@@ -108,7 +112,9 @@ final class PreviewLUTTextureCache: Sendable {
             return PreviewLUTTexture(key: key, texture: input.texture, dimension: input.dimension,
                 byteCount: input.byteCount + density.byteCount + paper.byteCount + finish.byteCount,
                 material: PreviewFilmMaterial(density: density.texture, paper: paper.texture, finish: finish.texture,
-                    maximum: material.densityMaximum, refinement: material.refinement,
+                    maximum: material.densityMaximum, minimum: material.densityFloor, refinement: material.refinement,
+                    colorBalance: material.colorBalance, calibration: material.calibration,
+                    exposureResponse: material.exposureResponse,
                     identityFlags: (material.input.isIdentity ? 1 : 0) | (material.finish.isIdentity ? 2 : 0)))
         }
         guard let device = PreviewMetalResources.shared.device else { return nil }

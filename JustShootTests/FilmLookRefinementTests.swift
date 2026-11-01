@@ -21,6 +21,13 @@ final class FilmLookRefinementTests: XCTestCase {
         }
     }
 
+    /// These fixtures describe the RGB refinement module. A material's carrier
+    /// cube is intentionally identity; its output is tested through the renderer.
+    private func refinedRGB(_ film: FilmPreset, processor: FilmProcessor) throws -> CubeLUT {
+        let original = try processor.loadCubeLUT(resourceName: film.lutResourceName)
+        return try FilmLookRefinement.applying(to: original, preset: film)
+    }
+
     private func luma(_ rgb: SIMD3<Float>) -> Float {
         rgb.x * 0.2126 + rgb.y * 0.7152 + rgb.z * 0.0722
     }
@@ -30,10 +37,10 @@ final class FilmLookRefinementTests: XCTestCase {
         return atan2((rgb.x - y) / 1.5748, (rgb.z - y) / 1.8556)
     }
 
-    func testEveryPreparedLookMatchesIndependentPythonReference() throws {
+    func testRGBRefinementMatchesIndependentPythonReference() throws {
         let processor = FilmProcessor()
         for item in FilmLookRefinementReference.samples {
-            let cube = try processor.loadLUT(source: .preset(item.film))
+            let cube = try refinedRGB(item.film, processor: processor)
             let actual = sample(cube, item.input)
             for channel in 0..<3 {
                 XCTAssertEqual(actual[channel], item.output[channel], accuracy: 0.000002,
@@ -48,7 +55,7 @@ final class FilmLookRefinementTests: XCTestCase {
             SIMD3(0.15, 0.45, 0.18), SIMD3(repeating: 0.75)]
         for film in FilmPreset.allCases {
             let original = try processor.loadCubeLUT(resourceName: film.lutResourceName)
-            let refined = try processor.loadLUT(source: .preset(film))
+            let refined = try refinedRGB(film, processor: processor)
             XCTAssertEqual(refined.dimension, original.dimension)
             for input in probes {
                 let before = sample(original, input), after = sample(refined, input)
@@ -66,7 +73,7 @@ final class FilmLookRefinementTests: XCTestCase {
         let skin: [SIMD3<Float>] = [SIMD3(0.78, 0.59, 0.48), SIMD3(0.55, 0.39, 0.30)]
         for film in FilmPreset.allCases where film != .fujiRawACROS {
             let original = try processor.loadCubeLUT(resourceName: film.lutResourceName)
-            let refined = try processor.loadLUT(source: .preset(film))
+            let refined = try refinedRGB(film, processor: processor)
             for input in skin {
                 let before = sample(original, input), after = sample(refined, input)
                 let oldError = abs(hue(before) - hue(input)), newError = abs(hue(after) - hue(input))
@@ -81,7 +88,7 @@ final class FilmLookRefinementTests: XCTestCase {
         let processor = FilmProcessor()
         for film in [FilmPreset.fujiRawVelvia, .fujiRawClassicChrome, .fujiRawACROS, .fujiProvia100F] {
             let original = try processor.loadCubeLUT(resourceName: film.lutResourceName)
-            let refined = try processor.loadLUT(source: .preset(film))
+            let refined = try refinedRGB(film, processor: processor)
             let low = SIMD3<Float>(repeating: 0.04), high = SIMD3<Float>(repeating: 0.10)
             let before = luma(sample(original, high)) - luma(sample(original, low))
             let after = luma(sample(refined, high)) - luma(sample(refined, low))

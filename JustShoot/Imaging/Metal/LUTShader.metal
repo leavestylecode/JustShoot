@@ -38,10 +38,21 @@ struct PreviewParams {
     float materialMaximumR;
     float materialMaximumG;
     float materialMaximumB;
+    float materialMinimumR;
+    float materialMinimumG;
+    float materialMinimumB;
     float materialRefineX;
     float materialRefineY;
     float materialRefineZ;
     float materialRefineW;
+    float materialNeutralRetention;
+    float materialSkinHueRetention;
+    float materialSkinChromaRetention;
+    float materialSkinResponse;
+    float materialExposureResponse;
+    float materialShadowLift;
+    float materialToneCeiling;
+    float materialGrainScale;
     uint materialIdentityFlags; // bit 0: input, bit 1: finish
 };
 
@@ -107,15 +118,21 @@ kernel void previewMaterialFinish(
     constexpr sampler s(filter::linear, address::clamp_to_edge);
     float2 uv = (float2(gid) + 0.5) / float2(output.get_width(), output.get_height());
     float3 source = justShootMaterialExposure(float3(exposed.read(gid).rgb),
-        float(halo.sample(s, uv).r), float(bloom.sample(s, uv).r), p.halationAmount, p.halationHue, p.bloomAmount);
+        float(halo.sample(s, uv).r), float(bloom.sample(s, uv).r), p.halationAmount, p.halationHue, p.bloomAmount,
+        p.materialExposureResponse);
     float dim = p.materialDensityDimension;
     float3 d = density.sample(s, clamp(source, 0.0, 1.0) * ((dim - 1.0) / dim) + 0.5 / dim).rgb;
-    d = justShootMaterialGrain(d, float3(p.materialMaximumR, p.materialMaximumG, p.materialMaximumB),
-        float2(gid) + 0.5, p.grainAmount, p.grainSize, p.grainChroma, p.grainSeed & 0x00FFFFFFu);
+    d = justShootMaterialGrain(d, float3(p.materialMinimumR, p.materialMinimumG, p.materialMinimumB),
+        float3(p.materialMaximumR, p.materialMaximumG, p.materialMaximumB),
+        float2(gid) + 0.5, p.grainAmount * p.materialGrainScale, p.grainSize, p.grainChroma, p.grainSeed & 0x00FFFFFFu);
     dim = p.materialPrintDimension;
     float3 color = paper.sample(s, d * ((dim - 1.0) / dim) + 0.5 / dim).rgb;
     color = justShootMaterialRefine(clamp(source, 0.0, 1.0), color,
         float4(p.materialRefineX, p.materialRefineY, p.materialRefineZ, p.materialRefineW));
+    color = justShootMaterialColorBalance(clamp(source, 0.0, 1.0), color,
+        float4(p.materialNeutralRetention, p.materialSkinHueRetention, p.materialSkinChromaRetention,
+            p.materialSkinResponse));
+    color = justShootMaterialTone(clamp(source, 0.0, 1.0), color, p.materialShadowLift, p.materialToneCeiling);
     dim = p.materialFinishDimension;
     color = (p.materialIdentityFlags & 2u) != 0 ? clamp(color, 0.0, 1.0)
         : finish.sample(s, color * ((dim - 1.0) / dim) + 0.5 / dim).rgb;

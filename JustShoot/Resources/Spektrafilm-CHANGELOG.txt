@@ -1,0 +1,8 @@
+2026-11-01: JustShoot material adaptation of Spektrafilm by Andrea Volpato.
+Source: https://github.com/andreavolpato/spektrafilm/tree/3bb2c2d2801ff68b92019cf1dbcbb133d60832bc
+Profiles, generated density/print tables and manifest: CC BY-SA 4.0.
+Changes: 65-cube 2-LUT bake, sRGB input/output, native exposure gain 1;
+local DIR retained; spatial effects, random effects and sharpening disabled
+by upstream lut_mode; repacked to RGBA Float32, red fastest, alpha=1.
+No upstream Python implementation is shipped in the app.
+License: SPEKTRAFILM_LICENSE.txt (unaltered). No warranty or endorsement.

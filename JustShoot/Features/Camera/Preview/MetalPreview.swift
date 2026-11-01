@@ -379,10 +379,21 @@ struct RealtimePreviewView: UIViewRepresentable {
             var materialMaximumR: Float = 0
             var materialMaximumG: Float = 0
             var materialMaximumB: Float = 0
+            var materialMinimumR: Float = 0
+            var materialMinimumG: Float = 0
+            var materialMinimumB: Float = 0
             var materialRefineX: Float = 0
             var materialRefineY: Float = 0
             var materialRefineZ: Float = 0
             var materialRefineW: Float = 0
+            var materialNeutralRetention: Float = 0
+            var materialSkinHueRetention: Float = 0
+            var materialSkinChromaRetention: Float = 0
+            var materialSkinResponse: Float = 0
+            var materialExposureResponse: Float = 0
+            var materialShadowLift: Float = 0
+            var materialToneCeiling: Float = 0.6
+            var materialGrainScale: Float = 1
             var materialIdentityFlags: UInt32 = 0
         }
 
@@ -655,10 +666,21 @@ struct RealtimePreviewView: UIViewRepresentable {
                 params.materialMaximumR = material.maximum.x
                 params.materialMaximumG = material.maximum.y
                 params.materialMaximumB = material.maximum.z
+                params.materialMinimumR = material.minimum.x
+                params.materialMinimumG = material.minimum.y
+                params.materialMinimumB = material.minimum.z
                 params.materialRefineX = material.refinement.x
                 params.materialRefineY = material.refinement.y
                 params.materialRefineZ = material.refinement.z
                 params.materialRefineW = material.refinement.w
+                params.materialNeutralRetention = material.colorBalance?.neutralRetention ?? 0
+                params.materialSkinHueRetention = material.colorBalance?.skinHueRetention ?? 0
+                params.materialSkinChromaRetention = material.colorBalance?.skinChromaRetention ?? 0
+                params.materialSkinResponse = material.colorBalance?.shaderResponse ?? 0
+                params.materialExposureResponse = material.exposureResponse
+                params.materialShadowLift = material.calibration?.shadowLift ?? 0
+                params.materialToneCeiling = material.calibration?.toneCeiling ?? 0.6
+                params.materialGrainScale = material.calibration?.grainScale ?? 1
                 params.materialIdentityFlags = material.identityFlags
             }
 

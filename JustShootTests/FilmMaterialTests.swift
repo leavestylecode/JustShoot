@@ -10,10 +10,10 @@ final class FilmMaterialTests: XCTestCase {
     private let space = FilmImagePipeline.colorSpace
 
     private func material(refine: Bool = true) throws -> FilmMaterial {
-        let m = try XCTUnwrap(FilmMaterial.load(preset: .kodakPortra400))
+        let m = try XCTUnwrap(FilmMaterial.loadLegacy(preset: .kodakPortra400))
         return FilmMaterial(version: m.version, identifier: m.identifier, input: m.input, density: m.density,
             print: m.print, finish: m.finish, densityMaximum: m.densityMaximum,
-            refinement: refine ? m.refinement : .zero)
+            refinement: refine ? m.refinement : .zero, colorBalance: refine ? m.colorBalance : nil)
     }
     private func image(_ values: [Float], width: Int, height: Int) -> CIImage {
         CIImage(bitmapData: values.withUnsafeBufferPointer { Data(buffer: $0) }, bytesPerRow: width * 16,
@@ -305,7 +305,9 @@ final class FilmMaterialTests: XCTestCase {
         let adjusted = try await ColorTemperatureLUT.shared.prepare(source: .preset(.kodakPortra400),
             curve: .builtIn(.matte), selection: .temperature(4700), tint: .value(8))
         let plain = try FilmProcessor.shared.loadLUT(source: .preset(.kodakPortra400))
-        for (index, lut) in [plain, adjusted].enumerated() {
+        var spectral = FilmMaterial.identity().cube
+        spectral.material = try FilmMaterial.loadSpectralPortra()
+        for (index, lut) in [plain, adjusted, spectral].enumerated() {
             let textures = try await PreviewLUTTextureCache.shared.prepare(key: "material-render-parity-\(index)", lut: lut)
             let material = try XCTUnwrap(textures.material)
             let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
@@ -343,8 +345,17 @@ final class FilmMaterialTests: XCTestCase {
                     materialDensityDimension: Float(material.density.width), materialPrintDimension: Float(material.paper.width),
                     materialFinishDimension: Float(material.finish.width), materialMaximumR: material.maximum.x,
                     materialMaximumG: material.maximum.y, materialMaximumB: material.maximum.z,
+                    materialMinimumR: material.minimum.x, materialMinimumG: material.minimum.y, materialMinimumB: material.minimum.z,
                     materialRefineX: material.refinement.x, materialRefineY: material.refinement.y,
                     materialRefineZ: material.refinement.z, materialRefineW: material.refinement.w,
+                    materialNeutralRetention: material.colorBalance?.neutralRetention ?? 0,
+                    materialSkinHueRetention: material.colorBalance?.skinHueRetention ?? 0,
+                    materialSkinChromaRetention: material.colorBalance?.skinChromaRetention ?? 0,
+                    materialSkinResponse: material.colorBalance?.shaderResponse ?? 0,
+                    materialExposureResponse: material.exposureResponse,
+                    materialShadowLift: material.calibration?.shadowLift ?? 0,
+                    materialToneCeiling: material.calibration?.toneCeiling ?? 0.6,
+                    materialGrainScale: material.calibration?.grainScale ?? 1,
                     materialIdentityFlags: material.identityFlags)
                 let command = try XCTUnwrap(queue.makeCommandBuffer())
                 let first = try XCTUnwrap(command.makeComputeCommandEncoder())
