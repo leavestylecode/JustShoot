@@ -23,6 +23,11 @@ final class DragDismissController: ObservableObject {
     @Published var chromeHidden = false
     /// 触发实际关闭（PhotoDetailView 在 onAppear 注入 `dismiss()`）。
     var onDismiss: (() -> Void)?
+    let usesSystemTransition: Bool
+
+    init(usesSystemTransition: Bool = false) {
+        self.usesSystemTransition = usesSystemTransition
+    }
 
     private let dismissDistance: CGFloat = 150   // 位移阈值
     private let dismissVelocity: CGFloat = 900   // 速度阈值（快速向下甩）
@@ -53,7 +58,11 @@ final class DragDismissController: ObservableObject {
 struct PhotoDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var dismisser = DragDismissController()
+    @StateObject private var dismisser: DragDismissController
+    private let initialPhotoID: UUID
+    private let initialImage: UIImage?
+    private let onSelectionChanged: (UUID) -> Void
+    private let onClose: (() -> Void)?
 
     @State private var photos: [Photo]
     /// `scrollPosition(id:)` 与所有 cross-component 同步都按 photo.id 走，不按 index。
@@ -85,7 +94,14 @@ struct PhotoDetailView: View {
     /// Warm only the nearby strip, and release PhotoKit's previous preheat window.
     private static let preheatThumbnailRadius = PhotoDetailImagePolicy.thumbnailRadius
 
-    init(photo: Photo, allPhotos: [Photo]) {
+    init(photo: Photo, allPhotos: [Photo], initialImage: UIImage? = nil,
+         usesSystemTransition: Bool = false, onSelectionChanged: @escaping (UUID) -> Void = { _ in },
+         onClose: (() -> Void)? = nil) {
+        self.initialPhotoID = photo.id
+        self.initialImage = initialImage
+        self.onSelectionChanged = onSelectionChanged
+        self.onClose = onClose
+        _dismisser = StateObject(wrappedValue: DragDismissController(usesSystemTransition: usesSystemTransition))
         _photos = State(initialValue: allPhotos)
         _currentPhotoID = State(initialValue: photo.id)
         // 在 init 里一次性算 preview 解码尺寸——SwiftUI View init 是 @MainActor，可以直接读 screen。
@@ -147,7 +163,8 @@ struct PhotoDetailView: View {
                                         isCurrent: photoItem.id == currentPhotoID,
                                         loadsPreview: isVisible && previewIDs.contains(photoItem.id),
                                         previewMaxPixel: previewMaxPixel,
-                                        dismisser: dismisser
+                                        dismisser: dismisser,
+                                        initialImage: photoItem.id == initialPhotoID ? initialImage : nil
                                     )
                                     .frame(width: viewport.size.width, height: viewport.size.height)
                                     .id(photoItem.id)
@@ -201,7 +218,8 @@ struct PhotoDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        // 详情页（从相册 push 进来）始终不显示底部 tab 栏。
+        .softScrollEdges()
+        // 详情页始终不显示底部 tab 栏。
         .toolbar(.hidden, for: .tabBar)
         // 下拉退出时把系统导航栏/底部工具栏一起隐藏，只留照片在动（与 iPhone 相册一致）。
         .toolbar(chromeVisible ? .visible : .hidden, for: .navigationBar)
@@ -212,11 +230,12 @@ struct PhotoDetailView: View {
             isVisible = true
             Diagnostics.emit("photo_detail_open", id: currentPhotoID?.uuidString ?? "photo-detail",
                 fields: "count=\(photos.count) photos_auth=\(PHPhotoLibrary.authorizationStatus(for: .readWrite).rawValue)")
-            dismisser.onDismiss = { dismiss() }
+            dismisser.onDismiss = close
             reconcilePhotos()
             schedulePreheat()
         }
         .onChange(of: currentPhotoID) { _, _ in
+            if let currentPhotoID { onSelectionChanged(currentPhotoID) }
             limitsPreviewsToCurrent = false
             Diagnostics.emit("photo_detail_selection", id: currentPhotoID?.uuidString ?? "photo-detail")
             // Debounce strip preheat; page identity changes independently cancel obsolete previews.
@@ -239,6 +258,11 @@ struct PhotoDetailView: View {
         .onReceive(NotificationCenter.default.publisher(for: .photoLibraryDidReconcile)) { _ in
             reconcilePhotos()
         }
+    }
+
+    private func close() {
+        if let onClose { onClose() }
+        else { dismiss() }
     }
 
     // MARK: - Loading
@@ -382,7 +406,7 @@ struct PhotoDetailView: View {
             if let first = photos.first {
                 currentPhotoID = first.id
             } else {
-                dismiss()
+                close()
             }
         }
     }

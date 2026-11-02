@@ -50,6 +50,7 @@ struct FilmManagementView: View {
             .background(Color.black)
             .navigationTitle("Manage Films")
             .navigationBarTitleDisplayMode(.inline)
+            .softScrollEdges()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }

@@ -64,6 +64,7 @@ struct SettingsView: View {
             .background(Color.black)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
+            .softScrollEdges()
             .onAppear { refreshMicrophoneStatus() }
             .onChange(of: livePhotoSoundEnabled) { _, _ in refreshMicrophoneStatus() }
         }

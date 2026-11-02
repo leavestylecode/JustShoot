@@ -110,6 +110,9 @@ final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate, UIGestureReco
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handleDismissPan(_:)))
         pan.maximumNumberOfTouches = 1
         pan.delegate = self
+        // The native zoom transition owns interactive dismissal on iOS 18+.
+        // A second dismiss pan would move the photo twice and steal its gesture.
+        pan.isEnabled = !dismiss.usesSystemTransition
         addGestureRecognizer(pan)
         dismissPan = pan
     }

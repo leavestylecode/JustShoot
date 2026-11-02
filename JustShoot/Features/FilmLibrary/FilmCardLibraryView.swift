@@ -211,6 +211,7 @@ struct FilmCardLibraryView: View {
             .background(Color.black)
             .navigationTitle(Text("Film Library"))
             .navigationBarTitleDisplayMode(.inline)
+            .softScrollEdges()
             .searchable(text: $query, prompt: "Search films")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -505,6 +506,7 @@ struct FilmCardDetailView: View {
             )
         )
         .navigationBarTitleDisplayMode(.inline)
+        .softScrollEdges()
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -678,6 +680,7 @@ struct FilmCardFilterSheet: View {
             .background(Color(.systemBackground))
             .navigationTitle(Text("Filter · \(resultCount)"))
             .navigationBarTitleDisplayMode(.inline)
+            .softScrollEdges()
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Reset", action: reset)

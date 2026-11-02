@@ -98,6 +98,7 @@ struct FilmHomeView: View {
                 .background(Color.black)
                 .navigationTitle("Films")
                 .navigationBarTitleDisplayMode(.inline)
+                .softScrollEdges()
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button { showsManagement = true } label: {

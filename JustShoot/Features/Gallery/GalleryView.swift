@@ -11,7 +11,7 @@ import ImageIO
 // 网格本体（滚动 / cell / 预取 / 原生两指拖动多选）在 PhotoGridView.swift（UICollectionView）——
 // SwiftUI LazyVGrid + 自定义手势在大网格下既卡顿、又无法与滚动共存（详见 PhotoGridView 顶部注释）。
 // 本文件保留 SwiftUI 外壳：导航标题、选择模式工具栏（Select / Select All / xmark / Download /
-// Delete）、tab 栏隐藏、批量保存/删除、详情 push。选择状态通过 @Binding 与 PhotoGridView 双向同步。
+// Delete）、tab 栏隐藏、批量保存/删除、详情呈现。选择状态通过 @Binding 与 PhotoGridView 双向同步。
 struct GalleryView: View {
     var onStartShooting: () -> Void = {}
     @Environment(\.modelContext) private var modelContext
@@ -19,7 +19,8 @@ struct GalleryView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query(sort: \Photo.timestamp, order: .reverse) private var photos: [Photo]
 
-    @State private var selectedDetail: DetailPayload?
+    @State private var selectedDetail: PhotoDetailSelection?
+    @State private var transitionSource = PhotoGridTransitionSource()
     @State private var isSelecting = false
     @State private var selectedPhotos: Set<UUID> = []
     @State private var isPreparingShare = false
@@ -44,9 +45,12 @@ struct GalleryView: View {
                         isSelecting: $isSelecting,
                         selectedPhotos: $selectedPhotos,
                         onOpen: { photo in
-                            selectedDetail = DetailPayload(startPhoto: photo, photos: Array(photos))
+                            guard selectedDetail == nil else { return }
+                            transitionSource.currentPhotoID = photo.id
+                            selectedDetail = PhotoDetailSelection(startPhoto: photo, photos: photos)
                         },
-                        isActive: isVisible && selectedDetail == nil
+                        isActive: isVisible && selectedDetail == nil,
+                        transitionSource: transitionSource
                     )
                     // 忽略上下安全区：collection view 延伸到 nav 栏 / tab 栏之下，靠
                     // contentInsetAdjustmentBehavior=.automatic 把首/末行内边距顶到安全区内，
@@ -60,6 +64,7 @@ struct GalleryView: View {
         .onAppear { isVisible = true }
         .onDisappear { isVisible = false }
         .navigationBarTitleDisplayMode(.inline)
+        .softScrollEdges()
         // 选择模式隐藏底部 tab 栏，让位给 Download / Delete 操作栏（Photos.app 一致）。
         .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
         .toolbar {
@@ -134,22 +139,9 @@ struct GalleryView: View {
             await CapturePipeline.shared.retryPending()
             await PhotoLibrarySync.shared.reconcile()
         }
-        // 详情用 fullScreenCover 呈现：**真全屏**（边到边，无 sheet 顶部留白/圆角），照片占满整屏。
-        // 下滑退出由 PhotoDetailView 内的交互式 drag-to-dismiss 实现（fit 比例下拉照片跟手缩小+背景
-        // 渐暗+chrome 隐藏，过阈值松手关闭）；右上 xmark 作为补充关闭入口。
-        .fullScreenCover(item: $selectedDetail) { payload in
-            NavigationStack {
-                PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button { selectedDetail = nil } label: {
-                                Image(systemName: "xmark").fontWeight(.semibold)
-                            }
-                            .tint(.white)
-                        }
-                    }
-            }
-            .preferredColorScheme(.dark)
+        .background {
+            PhotoDetailPresentation(selection: $selectedDetail, source: transitionSource,
+                container: modelContext.container)
         }
     }
 
@@ -271,13 +263,4 @@ private struct GallerySaveIndicator: View {
             }
         }
     }
-}
-
-// MARK: - Detail navigation payload
-private struct DetailPayload: Identifiable, Equatable, Hashable {
-    var id: UUID { startPhoto.id }
-    let startPhoto: Photo
-    let photos: [Photo]
-    static func == (lhs: DetailPayload, rhs: DetailPayload) -> Bool { lhs.startPhoto.id == rhs.startPhoto.id }
-    func hash(into hasher: inout Hasher) { hasher.combine(startPhoto.id) }
 }

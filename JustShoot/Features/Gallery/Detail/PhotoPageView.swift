@@ -21,6 +21,7 @@ struct PagerImage: View {
     let loadsPreview: Bool
     let previewMaxPixel: Int
     let dismisser: DragDismissController
+    var initialImage: UIImage?
 
     @State private var preview: UIImage?
     @State private var asyncThumb: UIImage?
@@ -49,6 +50,7 @@ struct PagerImage: View {
             ?? asyncThumb
             ?? assetCachedThumb
             ?? ImageLoader.shared.anyCachedThumbnail(for: photo.id)
+            ?? initialImage
     }
 
     /// 资产路径的同步首帧探测：grid/scrubber 已把 placeholder 尺寸缩略图写进 AssetImageLoader

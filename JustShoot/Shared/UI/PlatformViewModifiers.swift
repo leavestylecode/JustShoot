@@ -1,6 +1,16 @@
 import SwiftUI
 
 extension View {
+    /// Keep content behind navigation and bottom bars softly feathered on Liquid Glass.
+    @ViewBuilder
+    func softScrollEdges() -> some View {
+        if #available(iOS 26.0, *) {
+            scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
+        } else {
+            self
+        }
+    }
+
     @ViewBuilder
     func cameraShutterEvent(_ action: @escaping @MainActor () -> Void) -> some View {
         if #available(iOS 18.0, *) {

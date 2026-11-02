@@ -47,7 +47,7 @@ enum GalleryShape: String, CaseIterable, Identifiable {
 //      （要么误选、要么卡死滚动）。（两指平移直接起手多选已禁用——见 shouldBegin… 返回 false。）
 //
 // 与 SwiftUI 外壳的分工：网格滚动/cell/预取/多选在这里（UIKit）；选择状态、工具栏、tab 栏
-// 隐藏、下载/删除、详情 push 仍在 GalleryView（SwiftUI），通过 @Binding 双向同步。
+// 隐藏、下载/删除、详情呈现仍在 GalleryView（SwiftUI），通过 @Binding 双向同步。
 struct PhotoGridItemRevision: Equatable {
     let assetID: String?
     let isLive: Bool
@@ -65,6 +65,7 @@ struct PhotoGridView: UIViewRepresentable {
     @Binding var selectedPhotos: Set<UUID>
     let onOpen: (Photo) -> Void
     var isActive = true
+    var transitionSource: PhotoGridTransitionSource?
 
     nonisolated static let spacing: CGFloat = 6
     static let sectionInsets = UIEdgeInsets(top: 8, left: 14, bottom: 20, right: 14)
@@ -83,6 +84,11 @@ struct PhotoGridView: UIViewRepresentable {
         cv.delegate = context.coordinator
         cv.prefetchDataSource = context.coordinator
         cv.contentInsetAdjustmentBehavior = .automatic
+        if #available(iOS 26.0, *) {
+            cv.topEdgeEffect.style = .soft
+            cv.bottomEdgeEffect.style = .soft
+        }
+        transitionSource?.collectionView = cv
         cv.register(PhotoCell.self, forCellWithReuseIdentifier: PhotoCell.reuseID)
         context.coordinator.cornerRadius = cornerRadius
         context.coordinator.makeDataSource(for: cv)
@@ -93,6 +99,7 @@ struct PhotoGridView: UIViewRepresentable {
     func updateUIView(_ cv: UICollectionView, context: Context) {
         let coord = context.coordinator
         coord.parent = self
+        transitionSource?.collectionView = cv
         coord.apply(photos: photos, animating: true)
         coord.setActive(isActive, in: cv)
         // 形状切换：动画更新可见 cell 圆角
@@ -144,7 +151,8 @@ struct PhotoGridView: UIViewRepresentable {
                 guard let self, let photo = self.photoByID[id] else { return cell }
                 cell.configure(photo: photo, editing: cv.isEditing,
                                maxPixel: self.thumbPixel(for: cv), cornerRadius: self.cornerRadius,
-                               isActive: self.parent.isActive)
+                               isActive: self.parent.isActive,
+                               retainingImage: self.parent.transitionSource?.currentPhotoID != nil)
                 return cell
             }
         }
@@ -229,14 +237,14 @@ struct PhotoGridView: UIViewRepresentable {
             if !active { cancelPrefetches() }
             for case let cell as PhotoCell in cv.visibleCells {
                 if active { cell.resumeLoading() }
-                else { cell.suspendLoading() }
+                else { cell.suspendLoading(retainingImage: parent.transitionSource?.currentPhotoID != nil) }
             }
         }
 
         func collectionView(_ cv: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
             guard let cell = cell as? PhotoCell else { return }
             if isActive { cell.resumeLoading() }
-            else { cell.suspendLoading() }
+            else { cell.suspendLoading(retainingImage: parent.transitionSource?.currentPhotoID != nil) }
         }
 
         func collectionView(_ cv: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
@@ -327,6 +335,7 @@ final class PhotoCell: UICollectionViewCell {
     static let reuseID = "PhotoCell"
 
     private let imageView = UIImageView()
+    var transitionImage: UIImage? { imageView.image }
     private let dimOverlay = UIView()
     private let badge = UIImageView()
     /// Live Photo 角标（左上，仿系统相册）。与右上的选择角标分居两角，不冲突。
@@ -416,7 +425,8 @@ final class PhotoCell: UICollectionViewCell {
         loadToken = UUID()
     }
 
-    func configure(photo: Photo, editing: Bool, maxPixel: Int, cornerRadius: CGFloat, isActive: Bool = true) {
+    func configure(photo: Photo, editing: Bool, maxPixel: Int, cornerRadius: CGFloat, isActive: Bool = true,
+                   retainingImage: Bool = false) {
         if configuredPhoto?.id != photo.id { imageView.image = nil }
         configuredPhoto = photo
         self.maxPixel = maxPixel
@@ -430,14 +440,14 @@ final class PhotoCell: UICollectionViewCell {
             isSuspended = false
             loadThumbnail(photo: photo, maxPixel: maxPixel)
         } else {
-            suspendLoading()
+            suspendLoading(retainingImage: retainingImage)
         }
     }
 
-    func suspendLoading() {
+    func suspendLoading(retainingImage: Bool = false) {
         isSuspended = true
         cancelLoading()
-        imageView.image = nil
+        if !retainingImage { imageView.image = nil }
     }
 
     func resumeLoading() {

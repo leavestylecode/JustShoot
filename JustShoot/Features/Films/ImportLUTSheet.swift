@@ -31,6 +31,7 @@ struct ImportLUTSheet: View {
             .disabled(isImporting)
             .navigationTitle("Import LUT")
             .navigationBarTitleDisplayMode(.inline)
+            .softScrollEdges()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)
