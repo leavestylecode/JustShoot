@@ -78,7 +78,9 @@ struct FocalLengthStrip: View {
     @Namespace private var selectionNamespace
     @State private var lastDraggedOption: FocalLengthOption?
 
-    private var buttonWidth: CGFloat { sizeClass == .regular ? 56 * min(labelScale, 1.3) : 44 }
+    private var isIPhone: Bool { UIDevice.current.userInterfaceIdiom == .phone }
+    private var buttonWidth: CGFloat { isIPhone ? 36 : (sizeClass == .regular ? 56 * min(labelScale, 1.3) : 44) }
+    private var horizontalLabelSize: CGFloat { isIPhone ? 13 : (sizeClass == .regular ? 17 : 14) * min(labelScale, 1.3) }
     private var buttonStride: CGFloat { (axis == .horizontal ? buttonWidth : 44) + 2 }
     /// 沿排列方向的容器 padding，用于把 drag 坐标换算为选项位置。
     private static let leadingInset: CGFloat = 6
@@ -159,12 +161,12 @@ struct FocalLengthStrip: View {
                 .animation(.spring(duration: 0.3, bounce: 0.12), value: isSelected)
         } else {
             Text(option.label)
-                .font(.system(size: (sizeClass == .regular ? 17 : 14) * min(labelScale, 1.3), weight: isSelected ? .bold : .medium, design: .rounded))
+                .font(.system(size: horizontalLabelSize, weight: isSelected ? .bold : .medium, design: .rounded))
                 .foregroundStyle(isSelected ? .yellow : isCrop ? .white.opacity(0.45) : .white.opacity(0.78))
                 // 仅旋转数字本身，胶囊背景与容器位置保持不变（横屏时数字立起来给用户看）
                 .rotationEffect(contentRotation)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: contentRotation)
-                .frame(width: buttonWidth, height: 44)
+                .frame(width: buttonWidth, height: isIPhone ? 30 : 44)
                 .background {
                     if isSelected {
                         // matchedGeometryEffect 让选中胶囊在选项间平滑滑动，对齐 iPhone Camera 体验。
