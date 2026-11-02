@@ -13,16 +13,14 @@ protocol CameraSystemControls: AnyObject {
 @available(iOS 18.0, *)
 @MainActor
 final class CameraSystemControlsAdapter: NSObject, CameraSystemControls, AVCaptureSessionControlsDelegate {
-    private let session: AVCaptureSession
     private let trace: DiagnosticTrace
     private var picker: AVCaptureIndexPicker?
     private var slider: AVCaptureSystemExposureBiasSlider?
-    private var active = true
+    private var state = CameraSystemControlsState()
 
     init(session: AVCaptureSession, device: AVCaptureDevice, titles: [String], selectedIndex: Int?,
          trace: DiagnosticTrace, onFocalLength: @escaping @MainActor (Int) -> Void,
          onExposure: @escaping @MainActor (Float) -> Void) {
-        self.session = session
         self.trace = trace
         super.init()
         guard session.supportsControls else { return }
@@ -30,7 +28,7 @@ final class CameraSystemControlsAdapter: NSObject, CameraSystemControls, AVCaptu
             symbolName: "camera.metering.spot", localizedIndexTitles: titles)
         if let selectedIndex { picker.selectedIndex = selectedIndex }
         picker.setActionQueue(.main) { [weak self] index in
-            guard self?.active == true, titles.indices.contains(index) else { return }
+            guard self?.state.isActive == true, titles.indices.contains(index) else { return }
             onFocalLength(index)
         }
         if session.canAddControl(picker) {
@@ -38,7 +36,7 @@ final class CameraSystemControlsAdapter: NSObject, CameraSystemControls, AVCaptu
             self.picker = picker
         }
         let slider = AVCaptureSystemExposureBiasSlider(device: device) { [weak self] bias in
-            guard self?.active == true, bias.isFinite else { return }
+            guard self?.state.isActive == true, bias.isFinite else { return }
             onExposure(bias)
         }
         if session.canAddControl(slider) {
@@ -51,20 +49,21 @@ final class CameraSystemControlsAdapter: NSObject, CameraSystemControls, AVCaptu
     }
 
     func setEnabled(_ enabled: Bool) {
-        picker?.isEnabled = active && enabled
-        slider?.isEnabled = active && enabled
+        guard state.updateEnabled(enabled) else { return }
+        let update = trace.span("main_camera_controls_enabled", "enabled=\(enabled)")
+        picker?.isEnabled = enabled
+        slider?.isEnabled = enabled
+        update.end()
     }
 
     func selectFocalLength(at index: Int) {
-        guard active, picker?.selectedIndex != index else { return }
+        guard state.isActive, picker?.selectedIndex != index else { return }
         picker?.selectedIndex = index
     }
 
     func invalidate() {
-        active = false
-        setEnabled(false)
-        session.setControlsDelegate(nil, queue: nil)
-        // The manager removes session controls on its serial hardware queue.
+        state.invalidate()
+        // The manager detaches the delegate and removes controls on its hardware queue.
     }
 
     nonisolated func sessionControlsDidBecomeActive(_ session: AVCaptureSession) {

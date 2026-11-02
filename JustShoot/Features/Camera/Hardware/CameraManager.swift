@@ -432,6 +432,12 @@ final class CameraManager: NSObject, ObservableObject {
     /// UI ready 的单一判定点：session 配置完成、当前周期首帧已到、初始焦段与 ZSL grace 已稳定。
     private func promoteReadinessIfPossible() {
         guard isCameraVisible, !sessionInterrupted, sessionIntent.withLock({ $0.wantsRunning }) else { return }
+        if lensCaptureGate.hasFailed {
+            // An entry cannot recover by polling a terminally failed focal request.
+            // After entry, leave the focal controls available for an explicit retry.
+            if entryPreparation.isPreparing { setReadiness(.failed) }
+            return
+        }
         guard sessionConfigured,
               hasReceivedPreviewFrame,
               !lensCaptureGate.isTransitioning else {
@@ -1275,9 +1281,6 @@ final class CameraManager: NSObject, ObservableObject {
         // zoom，让 UI 的焦距条立刻准。
         currentZoomFactor = focalInfo.virtualZoomFactor(for: currentFocalLength)
         lastObservedDeviceZoom = device.videoZoomFactor
-        // 启动期同样登记一次镜头切换：让前 ~250ms 的 startRunning warmup 帧被 isReadyToCapture 挡在外面
-        // 排空。zoom 启动即在 target（setInitialFocalLength 已设），到位即起 250ms ZSL grace；600ms 兜底。
-        beginLensSwitch(zoom: currentZoomFactor, zslGraceMs: 250, maxWaitMs: 600)
         applyVideoOrientationToOutputs()
         configTimer.end("zoom=\(String(format: "%.2f", currentZoomFactor))x")
 
@@ -1399,6 +1402,10 @@ final class CameraManager: NSObject, ObservableObject {
         // 与 setInitialFocalLength 内的设备侧归零对应：冷启动 UI 状态也回 0
         exposureApplication.withLock { $0.reset() }
         exposureBias = 0
+        // Native control installation can synchronously occupy MainActor for hundreds
+        // of milliseconds. Start the 250 ms grace / 600 ms deadline only after that work,
+        // so the settle task can actually observe the device throughout its budget.
+        beginLensSwitch(zoom: currentZoomFactor, zslGraceMs: 250, maxWaitMs: 600)
         sessionConfigured = true
         updateLivePhotoBuffer()
         trace.event("camera_configuration_complete", "generation=\(token)")
@@ -2133,6 +2140,9 @@ final class CameraManager: NSObject, ObservableObject {
         latestFocalRequest.withLock { $0 = stamp.focalSequence }
         lensCaptureGate.begin(zoom: zoom, graceMs: zslGraceMs, hardwarePending: hardwarePending, stamp: stamp)
         lensSwitchFailed = false
+        // Record an already-applied position before yielding to another main-actor task.
+        // Pending hardware still has to acknowledge its request before grace can begin.
+        evaluateLensSettle()
         pollLensSettle(maxWaitMs: maxWaitMs)
     }
 
@@ -2803,6 +2813,10 @@ final class CameraManager: NSObject, ObservableObject {
     func stopSession() {
         flowDiagnostics.flush(reason: "camera_close", force: true)
         diagnostics.event("camera_close_requested")
+        // Invalidate callbacks before publishing entry changes, which also update controls.
+        // Native delegate removal is serialized with session teardown below.
+        systemControls?.invalidate()
+        systemControls = nil
         isCameraVisible = false
         finishLivePhotoRecording()
         sessionIntent.withLock { _ = $0.request(running: false) }
@@ -2816,12 +2830,13 @@ final class CameraManager: NSObject, ObservableObject {
         capturePreparationTask?.cancel()
         capturePreparationTask = nil
 
-        stopLocationServices()
+        diagnostics.measure("main_location_stop") { stopLocationServices() }
         focusHoldTimer?.invalidate()
         focusHoldTimer = nil
         isEditingExposure = false
         exposureApplication.withLock { $0.reset() }
         // 及早失效所有 KVO，避免 session 停止期间仍有回调被派发到已释放的闭包
+        let observersRelease = diagnostics.span("main_camera_observers_release")
         lensSourceStability.withLock { _ = $0.invalidateObservations() }
         focusObservation?.invalidate()
         focusObservation = nil
@@ -2836,9 +2851,8 @@ final class CameraManager: NSObject, ObservableObject {
         whiteBalanceReadingObservation?.invalidate()
         whiteBalanceReadingObservation = nil
         currentVideoInput = nil
-        systemControls?.invalidate()
-        systemControls = nil
         rotationCoordinator = nil
+        observersRelease.end()
         // 麦克风输入随 session 一并释放（最后的 sessionQueue 块停用音频会话）；下次入页由
         // reconcileAudioInput 按当时开关重新挂。
         livePhotoAudioDesired = false
@@ -2890,6 +2904,11 @@ final class CameraManager: NSObject, ObservableObject {
             trace.event("session_stop_dequeued", "wait_ms=\(Diagnostics.milliseconds(since: stopQueuedAt))")
             let stopping = trace.span("session_stop_release")
             let timer = Log.perf("session_stop_release", logger: Log.session)
+            if #available(iOS 18.0, *) {
+                trace.measure("session_controls_delegate_detach") {
+                    captureSession.setControlsDelegate(nil, queue: nil)
+                }
+            }
             trace.measure("session_detach_delegate") {
                 videoOutput.setSampleBufferDelegate(nil, queue: nil)
                 audioOutput.setSampleBufferDelegate(nil, queue: nil)
