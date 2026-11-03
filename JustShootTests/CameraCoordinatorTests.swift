@@ -88,14 +88,43 @@ private final class CapturePipelineStub: CaptureProcessing {
 
 @MainActor
 final class CameraCoordinatorTests: XCTestCase {
-    private func selection(live: Bool = false) throws -> CameraCaptureSelection {
+    private func selection(live: Bool = false, lutKey: String = "film") throws -> CameraCaptureSelection {
         let text = "LUT_3D_SIZE 2\n" + (0...1).flatMap { b in
             (0...1).flatMap { g in (0...1).map { r in "\(r) \(g) \(b)" } }
         }.joined(separator: "\n")
         let source = FilmSource.preset(.fujiC200)
-        return CameraCaptureSelection(source: source, lutKey: "film", lut: try CubeLUT.parse(text),
+        return CameraCaptureSelection(source: source, lutKey: lutKey, lut: try CubeLUT.parse(text),
             profile: source.captureRenderProfile, adjustment: nil, plan: .resolve(mode: live ? .livePhoto : .quality),
             curveFields: "curve=original", colorFields: "temperature=auto")
+    }
+
+    func testColorAdjustmentWaitsForTheSelectedLUTAndItsRenderedFrameBeforeCapture() async throws {
+        let camera = try CaptureCameraStub()
+        defer { camera.callbacks.removeAll() }
+        let pipeline = CapturePipelineStub()
+        let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
+        var accepted = 0
+        camera.entryPreparation.updateLUT(expectedKey: "warm-film", preparedKey: "film")
+        await coordinator.capture(selection: try selection(), currentLookKey: { "warm-film" },
+            isSceneActive: { true }, onAccepted: { accepted += 1 }, onWillCapture: {})
+        XCTAssertEqual(accepted, 0)
+        XCTAssertTrue(pipeline.reserved.isEmpty)
+        XCTAssertTrue(camera.callbacks.isEmpty)
+
+        camera.entryPreparation.updateLUT(expectedKey: "warm-film", preparedKey: "warm-film")
+        let selected = try selection(lutKey: "warm-film")
+        await coordinator.capture(selection: selected, currentLookKey: { "warm-film" },
+            isSceneActive: { true }, onAccepted: { accepted += 1 }, onWillCapture: {})
+        XCTAssertEqual(accepted, 0)
+        XCTAssertTrue(pipeline.reserved.isEmpty)
+        XCTAssertTrue(camera.callbacks.isEmpty)
+
+        camera.entryPreparation.rendered(generation: 1, lutKey: "warm-film", capturedAt: 2)
+        await coordinator.capture(selection: selected, currentLookKey: { "warm-film" },
+            isSceneActive: { true }, onAccepted: { accepted += 1 }, onWillCapture: {})
+        XCTAssertEqual(accepted, 1)
+        XCTAssertEqual(camera.callbacks.count, 1)
+        camera.callbacks.first?.ready()
     }
 
     func testChangedLookDuringStorageReservationCancelsBeforeExposure() async throws {
