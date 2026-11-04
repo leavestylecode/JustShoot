@@ -168,8 +168,8 @@ enum CurvePreset: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .none: return String(localized: "Keep the film's original tones.")
         case .filmSoft: return String(localized: "Reduce midtone contrast.")
-        case .punch: return String(localized: "Add contrast through the midtones.")
-        case .matte: return String(localized: "Lift blacks while keeping midtone contrast.")
+        case .punch: return String(localized: "Gently increase midtone contrast.")
+        case .matte: return String(localized: "Lift blacks and soften highlights and midtone contrast.")
         case .crossProcess: return String(localized: "Cool shadows and warm highlights.")
         }
     }
@@ -186,20 +186,18 @@ enum CurvePreset: String, CaseIterable, Identifiable, Codable, Sendable {
             ])
             return (points, points, points)
         case .punch:
-            // 暗部校准：曲线作用在 LUT 输出上，若底部保持 0.12→0.045 的陡降，会与胶片本身的
-            // 反差叠加把可见纹理挤到黑端。抬高暗部两个控制点（0.12→0.07、0.28→0.20），
-            // 中高调斜率基本不变——"punch" 的观感来自中间调反差，不靠压碎阴影。
+            // A gentle S on the film output: retain modest separation without stacking
+            // another strong contrast response on an already developed film LUT.
             let points = CurveMath.points([
-                (0, 0), (0.12, 0.07), (0.28, 0.20), (0.50, 0.50),
-                (0.72, 0.84), (0.88, 0.955), (1, 1)
+                (0, 0), (0.12, 0.10), (0.28, 0.245), (0.50, 0.50),
+                (0.72, 0.775), (0.88, 0.915), (1, 1)
             ])
             return (points, points, points)
         case .matte:
-            // Lift only the black endpoint, then dip the shadows and raise the lights.
-            // The S-shaped middle keeps separation instead of lifting the whole shadow range.
+            // Fade the whole tonal range gently. A raised floor must not squeeze shadow
+            // detail into a flat toe or hide a steep S through skin and other midtones.
             let points = CurveMath.points([
-                (0, 0.075), (0.32, 0.22), (0.50, 0.50),
-                (0.72, 0.84), (0.88, 0.955), (1, 1)
+                (0, 0.055), (0.25, 0.285), (0.50, 0.50), (0.75, 0.715), (1, 0.95)
             ])
             return (points, points, points)
         case .crossProcess:

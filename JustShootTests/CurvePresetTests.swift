@@ -48,23 +48,32 @@ final class CurvePresetTests: XCTestCase {
         XCTAssertGreaterThan(highlight - shadow, gray(.none, 0.75) - gray(.none, 0.25))
         XCTAssertEqual(gray(.punch, 0), 0)
         XCTAssertEqual(gray(.punch, 1), 1)
+        let middleSlope = (gray(.punch, 0.6) - gray(.punch, 0.4)) / 0.2
+        XCTAssertGreaterThan(middleSlope, 1)
+        XCTAssertLessThan(middleSlope, 1.35, "Contrast must remain gentle when stacked after a film LUT")
+        XCTAssertGreaterThan(gray(.punch, 0.18), 0.14, "Keep visible shadow tones away from the black floor")
     }
 
-    func testMatteLiftsTheBlackPointAndKeepsBrightWhites() {
+    func testMatteLiftsBlackAndGentlyLowersTheWhitePoint() {
         XCTAssertGreaterThan(gray(.matte, 0), 0.03)
-        XCTAssertLessThan(gray(.matte, 0), 0.12)
-        XCTAssertGreaterThan(gray(.matte, 1), 0.95)
-        XCTAssertEqual(gray(.matte, 1), 1)
+        XCTAssertLessThan(gray(.matte, 0), 0.08)
+        XCTAssertGreaterThan(gray(.matte, 1), 0.92)
+        XCTAssertLessThan(gray(.matte, 1), 0.98)
     }
 
-    func testMatteCombinesALiftedBlackFloorWithShadowAndHighlightContrast() {
-        XCTAssertEqual(gray(.matte, 0), 0.075, accuracy: 0.00001)
-        // A lifted black floor can coexist with darker shadow midtones.
-        XCTAssertGreaterThan(gray(.matte, 0.05), 0.05)
-        XCTAssertLessThan(gray(.matte, 0.25), 0.20)
-        XCTAssertEqual(gray(.matte, 0.5), 0.5, accuracy: 0.0001)
-        XCTAssertGreaterThan(gray(.matte, 0.75), 0.84)
-        XCTAssertGreaterThan(gray(.matte, 0.75) - gray(.matte, 0.25), 0.65)
+    func testMatteSoftensMidtonesWithoutCompressingShadowDetailIntoAFlatToe() {
+        XCTAssertGreaterThan(gray(.matte, 0.25), 0.25)
+        XCTAssertLessThan(gray(.matte, 0.75), 0.75)
+        XCTAssertEqual(gray(.matte, 0.5), 0.5, accuracy: 0.001)
+        let middleSlope = (gray(.matte, 0.6) - gray(.matte, 0.4)) / 0.2
+        XCTAssertGreaterThan(middleSlope, 0.75)
+        XCTAssertLessThan(middleSlope, 1)
+        let table = CurvePreset.matte.previewData.master
+        for (before, after) in zip(table, table.dropFirst()) {
+            let slope = (after - before) * Float(table.count - 1)
+            XCTAssertGreaterThan(slope, 0.7, "Fading must preserve local shadow separation")
+            XCTAssertLessThan(slope, 1.05, "Fading must not add a hard midtone S-curve")
+        }
     }
 
     func testTonePresetsLeaveNeutralGraysNeutralWhileXProSplitsTheirColor() {

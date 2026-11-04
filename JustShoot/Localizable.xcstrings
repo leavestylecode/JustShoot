@@ -260,18 +260,18 @@
         }
       }
     },
-    "Add contrast through the midtones." : {
+    "Gently increase midtone contrast." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add contrast through the midtones."
+            "value" : "Gently increase midtone contrast."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "增强中间调反差。"
+            "value" : "轻微增强中间调反差。"
           }
         }
       }
@@ -2310,18 +2310,18 @@
         }
       }
     },
-    "Lift blacks while keeping midtone contrast." : {
+    "Lift blacks and soften highlights and midtone contrast." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lift blacks while keeping midtone contrast."
+            "value" : "Lift blacks and soften highlights and midtone contrast."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "抬高黑位，保留中间调反差。"
+            "value" : "抬高黑位，缓和高光与中间调反差。"
           }
         }
       }
