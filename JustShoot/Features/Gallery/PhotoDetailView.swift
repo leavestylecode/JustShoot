@@ -371,6 +371,25 @@ struct PhotoDetailView: View {
         }
 
         ToolbarItem(placement: .navigationBarTrailing) {
+            // 一键分享当前照片到其他 app：导出全分辨率原图临时文件 → 系统分享面板。
+            // 导出期间（异步取原始字节）显示 spinner 并禁用，防连点。
+            Button {
+                shareCurrentPhoto()
+            } label: {
+                if isPreparingShare {
+                    ProgressView()
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+            .disabled(isPreparingShare || isDeleting || currentPhoto == nil)
+            .accessibilityLabel("Share this photo")
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var bottomToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
             Button {
                 showingInfo.toggle()
             } label: {
@@ -388,26 +407,6 @@ struct PhotoDetailView: View {
                         .presentationDetents([.medium, .large])
                 }
             }
-        }
-    }
-
-    @ToolbarContentBuilder
-    private var bottomToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .bottomBar) {
-            // 一键分享当前照片到其他 app：导出全分辨率原图临时文件 → 系统分享面板。
-            // 导出期间（异步取原始字节）显示 spinner 并禁用，防连点。
-            Button {
-                shareCurrentPhoto()
-            } label: {
-                if isPreparingShare {
-                    ProgressView()
-                } else {
-                    Image(systemName: "square.and.arrow.up")
-                }
-            }
-            .disabled(isPreparingShare || isDeleting || currentPhoto == nil)
-            .accessibilityLabel("Share this photo")
-
             Spacer()
 
             // 照片已在系统相册（JustShoot 相簿），无需「保存到相册」。删除走 PhotoKit，系统弹原生

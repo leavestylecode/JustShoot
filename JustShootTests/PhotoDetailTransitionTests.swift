@@ -324,7 +324,7 @@ final class PhotoDetailTransitionTests: XCTestCase {
             let detail = try XCTUnwrap(root.presentedViewController as? PhotoDetailHostingController)
             if #available(iOS 18.0, *) { XCTAssertNotNil(detail.preferredTransition) }
             let detailNavigation = try XCTUnwrap(viewControllers(in: detail).compactMap { $0 as? UINavigationController }.first)
-            XCTAssertEqual(toolbarItems(detailNavigation).count, 2, "Detail must retain its own close and information buttons")
+            XCTAssertEqual(toolbarItems(detailNavigation).count, 2, "Detail must retain its own close and share buttons")
             detail.dismiss(animated: true)
             try await assertToolbar(navigation, remains: originalButtons)
             try await waitFor { root.presentedViewController == nil && root.transitionCoordinator == nil }
