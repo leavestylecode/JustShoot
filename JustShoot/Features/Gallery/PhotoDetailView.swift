@@ -61,10 +61,12 @@ struct PhotoDetailView: View {
     @StateObject private var dismisser: DragDismissController
     private let initialPhotoID: UUID
     private let initialImage: UIImage?
+    private let modelIDs: [UUID: PersistentIdentifier]
     private let onSelectionChanged: (UUID) -> Void
     private let onClose: (() -> Void)?
 
     @State private var photos: [Photo]
+    @State private var orderedPhotoIDs: [UUID]
     /// `scrollPosition(id:)` 与所有 cross-component 同步都按 photo.id 走，不按 index。
     /// 旧实现 `.tag(index)` + `selection: $currentIndex`（Int）在删除时易错位——index 跟着数组左移
     /// 一格，binding 没及时同步会一帧错配。改用 ID 后 selection 与 ForEach identity 同源，删除/重排
@@ -79,6 +81,10 @@ struct PhotoDetailView: View {
     @State private var previewMaxPixel: Int
     @State private var showingInfo = false
     @State private var isPreparingShare = false
+    @State private var shareTask: Task<Void, Never>?
+    @State private var isDeleting = false
+    @State private var localDeletionID: UUID?
+    @State private var actionError: String?
     @State private var thumbWarmupTask: Task<Void, Never>?
     @State private var preheatedAssetIDs: [String] = []
     @State private var isVisible = false
@@ -99,10 +105,12 @@ struct PhotoDetailView: View {
          onClose: (() -> Void)? = nil) {
         self.initialPhotoID = photo.id
         self.initialImage = initialImage
+        self.modelIDs = Dictionary(uniqueKeysWithValues: allPhotos.map { ($0.id, $0.persistentModelID) })
         self.onSelectionChanged = onSelectionChanged
         self.onClose = onClose
         _dismisser = StateObject(wrappedValue: DragDismissController(usesSystemTransition: usesSystemTransition))
         _photos = State(initialValue: allPhotos)
+        _orderedPhotoIDs = State(initialValue: allPhotos.map(\.id))
         _currentPhotoID = State(initialValue: photo.id)
         // 在 init 里一次性算 preview 解码尺寸——SwiftUI View init 是 @MainActor，可以直接读 screen。
         // 兜底 2556（iPhone 14 Pro 长边 × scale=3）防止 connectedScenes 早期返回空。
@@ -113,13 +121,13 @@ struct PhotoDetailView: View {
     }
 
     private var currentIndex: Int {
-        photos.firstIndex(where: { $0.id == currentPhotoID }) ?? 0
+        orderedPhotoIDs.firstIndex(of: currentPhotoID ?? initialPhotoID) ?? 0
     }
 
     private var currentPhoto: Photo? {
         // 同时排除已失效（跨视图删除 / 状态恢复后留下的 stale）模型——对已删除的 SwiftData
         // @Model 访问属性会触发 "object has been deleted" 崩溃。
-        photos.first(where: { $0.id == currentPhotoID && !$0.isDeleted })
+        photos.first(where: { !$0.isDeleted && $0.id == currentPhotoID })
     }
 
     /// 下拉进度 0…1（位移 / 触发距离的 ~1.6 倍，让缩放/渐暗更克制）。驱动内容 scale + 背景透明度。
@@ -173,7 +181,11 @@ struct PhotoDetailView: View {
                             .scrollTargetLayout()
                         }
                         .scrollTargetBehavior(.paging)
-                        .scrollPosition(id: $currentPhotoID)
+                        .scrollPosition(id: Binding(get: { currentPhotoID }, set: {
+                            // Layout can transiently report no visible page. Keep the last
+                            // selection so actions and deletion reconciliation stay anchored.
+                            if let id = $0 { currentPhotoID = id }
+                        }))
                         .scrollIndicators(.hidden)
                         // Toolbars must not add content insets and shift the fitted image.
                         .contentMargins(.all, 0, for: .scrollContent)
@@ -243,6 +255,8 @@ struct PhotoDetailView: View {
         }
         .onDisappear {
             isVisible = false
+            shareTask?.cancel()
+            shareTask = nil
             cancelPreheat()
             ImageLoader.shared.clearPreviewCache()
         }
@@ -256,7 +270,20 @@ struct PhotoDetailView: View {
         // 「照片」app 删掉当前资产 → PhotoLibrarySync 剪掉索引行 → 快照数组里留下已删 @Model，
         // 渲染读其属性即崩。监听 reconcile 完成通知，把快照与底层数据重新对齐。
         .onReceive(NotificationCenter.default.publisher(for: .photoLibraryDidReconcile)) { _ in
-            reconcilePhotos()
+            reconcilePhotos(reloadIndex: true)
+        }
+        .alert("Photo action failed", isPresented: Binding(
+            get: { actionError != nil }, set: { if !$0 { actionError = nil } }
+        )) {
+            Button("OK", role: .cancel) { actionError = nil }
+        } message: { Text(actionError ?? "") }
+        .confirmationDialog("Delete this photo? This cannot be undone.", isPresented: Binding(
+            get: { localDeletionID != nil }, set: { if !$0 { localDeletionID = nil } }
+        ), titleVisibility: .visible) {
+            Button("Delete photo", role: .destructive) {
+                if let id = localDeletionID, id == currentPhotoID { deleteCurrentPhoto() }
+                localDeletionID = nil
+            }
         }
     }
 
@@ -351,6 +378,7 @@ struct PhotoDetailView: View {
                     .fontWeight(showingInfo ? .bold : .regular)
             }
             .tint(showingInfo ? .yellow : .white)
+            .disabled(currentPhoto == nil)
             .accessibilityLabel("Photo information")
             .popover(isPresented: $showingInfo) {
                 if let photo = currentPhoto {
@@ -377,7 +405,7 @@ struct PhotoDetailView: View {
                     Image(systemName: "square.and.arrow.up")
                 }
             }
-            .disabled(isPreparingShare || currentPhoto == nil)
+            .disabled(isPreparingShare || isDeleting || currentPhoto == nil)
             .accessibilityLabel("Share this photo")
 
             Spacer()
@@ -385,10 +413,16 @@ struct PhotoDetailView: View {
             // 照片已在系统相册（JustShoot 相簿），无需「保存到相册」。删除走 PhotoKit，系统弹原生
             // 确认 + 「最近删除」可恢复。
             Button(role: .destructive) {
-                deleteCurrentPhoto()
+                if let photo = currentPhoto, photo.assetLocalIdentifier == nil {
+                    localDeletionID = photo.id
+                } else {
+                    deleteCurrentPhoto()
+                }
             } label: {
-                Image(systemName: "trash")
+                if isDeleting { ProgressView() }
+                else { Image(systemName: "trash") }
             }
+            .disabled(isDeleting || isPreparingShare || currentPhoto == nil)
             .accessibilityLabel("Delete this photo")
         }
     }
@@ -396,64 +430,84 @@ struct PhotoDetailView: View {
     // MARK: - Actions
 
     /// 与底层数据对账：剔除快照里已被删除 / 失效的 Photo（跨视图删除、状态恢复会留下 stale 引用，
-    /// 渲染时访问其属性会崩）。剔除后若当前选中项已不存在，则改选首张，整册皆空则退出。
-    private func reconcilePhotos() {
-        let live = photos.filter { !$0.isDeleted }
-        if live.count != photos.count {
-            photos = live
-        }
-        if currentPhoto == nil {
-            if let first = photos.first {
-                currentPhotoID = first.id
-            } else {
-                close()
+    /// 渲染时访问其属性会崩）。保持相邻位置，整册皆空则退出。
+    private func reconcilePhotos(removing removedIDs: Set<UUID> = [], reloadIndex: Bool = false) {
+        var indexedModels: Set<PersistentIdentifier>?
+        if reloadIndex {
+            do {
+                let ids = orderedPhotoIDs
+                // isDeleted resets after a save. Fetch identities only on reconciliation,
+                // never image blobs or the catalog during ordinary paging/UI updates.
+                indexedModels = Set(try modelContext.fetchIdentifiers(
+                    FetchDescriptor<Photo>(predicate: #Predicate { ids.contains($0.id) })))
+            } catch {
+                actionError = String(localized: "Photos could not be loaded. Please try again.")
+                return
             }
         }
+        let live = zip(orderedPhotoIDs, photos).filter { id, photo in
+            !removedIDs.contains(id)
+                && (indexedModels.map { models in modelIDs[id].map { models.contains($0) } ?? false } ?? true)
+                && !photo.isDeleted && photo.modelContext != nil
+        }
+        let liveIDs = live.map { $0.0 }
+        let selection = PhotoDetailSelectionPolicy.selection(current: currentPhotoID,
+            previousIDs: orderedPhotoIDs, remainingIDs: liveIDs)
+        photos = live.map { $0.1 }
+        orderedPhotoIDs = liveIDs
+        currentPhotoID = selection
+        if selection == nil { close() }
+        else { schedulePreheat() }
     }
 
     /// 分享当前照片：异步导出全分辨率原图临时文件后，从最顶层 VC present 系统分享面板。
     private func shareCurrentPhoto() {
         guard !isPreparingShare, let photo = currentPhoto else { return }
+        let photoID = photo.id
         isPreparingShare = true
-        Task { @MainActor in
+        shareTask = Task { @MainActor in
             defer { isPreparingShare = false }
-            guard let url = await PhotoShareExporter.export(photo) else { return }
+            guard let url = await PhotoShareExporter.export(photo) else {
+                if !Task.isCancelled, isVisible {
+                    actionError = String(localized: "This photo could not be shared. Please try again.")
+                }
+                return
+            }
+            guard !Task.isCancelled, isVisible else {
+                ShareExportDirectory.application.remove(files: [url])
+                return
+            }
             SharePresenter.present([url])   // [URL]，包成图片 NSItemProvider 后呈现
-            Log.gallery.info("photo_shared id=\(photo.id.uuidString, privacy: .public)")
+            Log.gallery.info("photo_shared id=\(photoID.uuidString, privacy: .public)")
         }
     }
 
     private func deleteCurrentPhoto() {
-        guard let photoToDelete = currentPhoto else { return }
+        guard !isDeleting, let photoToDelete = currentPhoto else { return }
+        isDeleting = true
         let deletedId = photoToDelete.id
         let assetID = photoToDelete.assetLocalIdentifier
         let container = modelContext.container
         let pipeline = CapturePipeline.shared
-        let orderedIDs = photos.filter { !$0.isDeleted }.map(\.id)
 
         // 真相源在系统相册：先 PHAsset 删除（系统弹原生确认）。用户确认 → 更新 UI + 删索引行；
         // 取消 → 抛错，照片原样保留（不做乐观移除，避免删失败后照片"复活"闪烁）。
         Task { @MainActor in
+            defer { isDeleting = false }
             do {
-                guard let _ = try await PhotoDeletionService(container: container, pipeline: pipeline)
-                    .delete(rowIDs: [deletedId], assetIDs: assetID.map { [$0] } ?? []) else { return }
-                // "下一张"必须在删除事务完成、按当前数组重解——系统确认弹窗可挂起数秒，期间
-                // reconcile / 外部删除可能已改动 photos，await 前解出的邻位索引会指向错误照片。
-                // 优先右邻（移除后原 idx 位置即右邻），最末位回退左邻（即新末位）。
-                photos.removeAll { $0.isDeleted || $0.id == deletedId }
-                if currentPhotoID == deletedId, let index = orderedIDs.firstIndex(of: deletedId) {
-                    let remaining = Set(photos.map(\.id))
-                    let candidates = Array(orderedIDs.dropFirst(index + 1)) + Array(orderedIDs.prefix(index).reversed())
-                    currentPhotoID = candidates.first { remaining.contains($0) }
+                guard let removedIDs = try await PhotoDeletionService(container: container, pipeline: pipeline)
+                    .delete(rowIDs: [deletedId], assetIDs: assetID.map { [$0] } ?? []) else {
+                    actionError = pipeline.lastError ?? String(localized: "Please wait for these photos to finish saving before deleting them.")
+                    return
                 }
-                reconcilePhotos()
+                reconcilePhotos(removing: removedIDs.union([deletedId]))
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                 Log.save.info("photo_deleted id=\(deletedId.uuidString, privacy: .public)")
             } catch {
                 Log.save.info("photo_delete_cancelled_or_failed id=\(deletedId.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
                 let photosError = error as NSError
                 if photosError.domain != PHPhotosErrorDomain || photosError.code != PHPhotosError.Code.userCancelled.rawValue {
-                    pipeline.lastError = error.localizedDescription
+                    actionError = error.localizedDescription
                 }
             }
         }

@@ -24,10 +24,10 @@ final class RecentPhotoPresentationTests: XCTestCase {
         let id = UUID()
         try await save(id, at: 100, using: saver)
         // No dependency on the old @Query snapshot or its next UI notification.
-        let presentation = try XCTUnwrap(RecentPhotoPresentation.load(in: context, filterName: "film"))
+        let presentation = try XCTUnwrap(RecentPhotoPresentation.load(in: context))
         XCTAssertEqual(presentation.startPhoto.id, id)
         XCTAssertEqual(presentation.photos.map(\.id), [id])
-        XCTAssertEqual(try RecentPhotoPresentation.latest(in: context, filterName: "film")?.id, id)
+        XCTAssertEqual(try RecentPhotoPresentation.latest(in: context)?.id, id)
     }
 
     func testNewCaptureReplacesOldSelectionWithoutChangingAnOpenSnapshot() async throws {
@@ -35,29 +35,29 @@ final class RecentPhotoPresentationTests: XCTestCase {
         let saver = await Task.detached { PhotoSaver(modelContainer: container) }.value
         let old = UUID(), newest = UUID(), otherFilm = UUID()
         try await save(old, at: 100, using: saver)
-        let first = try XCTUnwrap(RecentPhotoPresentation.load(in: container.mainContext, filterName: "film"))
+        let first = try XCTUnwrap(RecentPhotoPresentation.load(in: container.mainContext))
         try await save(newest, at: 200, using: saver)
         try await save(otherFilm, at: 300, filter: "other", using: saver)
-        let second = try XCTUnwrap(RecentPhotoPresentation.load(in: container.mainContext, filterName: "film"))
+        let second = try XCTUnwrap(RecentPhotoPresentation.load(in: container.mainContext))
         XCTAssertEqual(first.startPhoto.id, old)
         XCTAssertEqual(first.photos.map(\.id), [old])
-        XCTAssertEqual(second.startPhoto.id, newest)
-        XCTAssertEqual(second.photos.map(\.id), [old, newest])
+        XCTAssertEqual(second.startPhoto.id, otherFilm)
+        XCTAssertEqual(second.photos.map(\.id), [old, newest, otherFilm])
     }
 
-    func testCameraObservationFetchesOnlyTheNewestPhotoForItsFilm() async throws {
+    func testCameraObservationFetchesOnlyTheNewestPhotoAcrossAllFilms() async throws {
         let container = try makeContainer()
         let saver = await Task.detached { PhotoSaver(modelContainer: container) }.value
         let newest = UUID()
         try await save(UUID(), at: 100, using: saver)
-        try await save(newest, at: 200, using: saver)
-        try await save(UUID(), at: 300, filter: "other", using: saver)
-        let descriptor = RecentPhotoPresentation.latestDescriptor(filterName: "film")
+        try await save(UUID(), at: 200, using: saver)
+        try await save(newest, at: 300, filter: "other", using: saver)
+        let descriptor = RecentPhotoPresentation.latestDescriptor()
         XCTAssertEqual(descriptor.fetchLimit, 1)
         let observed = try container.mainContext.fetch(descriptor)
         XCTAssertEqual(observed.map(\.id), [newest])
-        let presentation = try XCTUnwrap(RecentPhotoPresentation.load(in: container.mainContext, filterName: "film"))
-        XCTAssertEqual(presentation.photos.count, 2)
+        let presentation = try XCTUnwrap(RecentPhotoPresentation.load(in: container.mainContext))
+        XCTAssertEqual(presentation.photos.count, 3)
     }
 
     func testDeletedLastPhotoDoesNotProduceAnEmptySheet() async throws {
@@ -65,11 +65,11 @@ final class RecentPhotoPresentationTests: XCTestCase {
         let saver = await Task.detached { PhotoSaver(modelContainer: container) }.value
         try await save(UUID(), at: 100, using: saver)
         let context = container.mainContext
-        let latest = try XCTUnwrap(RecentPhotoPresentation.latest(in: context, filterName: "film"))
+        let latest = try XCTUnwrap(RecentPhotoPresentation.latest(in: context))
         context.delete(latest)
         try context.save()
-        XCTAssertNil(try RecentPhotoPresentation.load(in: context, filterName: "film"))
-        XCTAssertNil(try RecentPhotoPresentation.latest(in: context, filterName: "film"))
+        XCTAssertNil(try RecentPhotoPresentation.load(in: context))
+        XCTAssertNil(try RecentPhotoPresentation.latest(in: context))
     }
 
     func testPendingPreviewOpensItsCommittedPhotoEvenWhenANewerCaptureAlreadyExists() async throws {
@@ -77,12 +77,32 @@ final class RecentPhotoPresentationTests: XCTestCase {
         let saver = await PhotoSaver.background(container: container)
         let completed = UUID()
         try await save(completed, at: 100, using: saver)
-        try await save(UUID(), at: 200, using: saver)
+        try await save(UUID(), at: 200, filter: "other", using: saver)
         let presentation = try XCTUnwrap(RecentPhotoPresentation.load(in: container.mainContext,
-            filterName: "film", startingAt: completed))
+            startingAt: completed))
         XCTAssertEqual(presentation.startPhoto.id, completed)
         XCTAssertEqual(presentation.photos.count, 2)
-        XCTAssertNil(try RecentPhotoPresentation.load(in: container.mainContext, filterName: "film", startingAt: UUID()),
+        XCTAssertNil(try RecentPhotoPresentation.load(in: container.mainContext, startingAt: UUID()),
             "A missing capture must not silently open a different photo")
+    }
+
+    func testUnlabelledLegacyPhotoRemainsVisibleAlongsideEveryFilm() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let legacy = Photo(assetLocalIdentifier: nil, imageData: nil)
+        legacy.timestamp = Date(timeIntervalSince1970: 100)
+        let film = Photo(assetLocalIdentifier: "film", imageData: nil, filmPresetName: "portra")
+        film.timestamp = Date(timeIntervalSince1970: 200)
+        let custom = Photo(assetLocalIdentifier: "custom", imageData: nil, filmPresetName: "custom-lut")
+        custom.timestamp = Date(timeIntervalSince1970: 300)
+        for photo in [custom, legacy, film] { context.insert(photo) }
+        try context.save()
+        let presentation = try XCTUnwrap(RecentPhotoPresentation.load(in: context))
+        XCTAssertEqual(presentation.photos.map(\.id), [legacy.id, film.id, custom.id])
+        XCTAssertEqual(presentation.startPhoto.id, custom.id)
+        context.delete(custom)
+        try context.save()
+        XCTAssertEqual(try RecentPhotoPresentation.latest(in: context)?.id, film.id)
+        XCTAssertEqual(try RecentPhotoPresentation.load(in: context)?.startPhoto.id, film.id)
     }
 }

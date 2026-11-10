@@ -11,7 +11,7 @@ import os
 // CameraManager owns native hardware, and MetalPreview owns renderer/view integration.
 
 struct CameraView: View {
-    /// 当前胶片源；预览 LUT、胶片封面与最近照片 badge 随选择更新。
+    /// 当前胶片源；预览 LUT 与胶片封面随选择更新，最近照片独立于胶片选择。
     @State private var source: FilmSource
     /// Preserve the saved Live Photo preference; the still-photo format is automatic.
     @AppStorage("photoCaptureMode") private var captureModeValue = PhotoCaptureMode.quality.rawValue
@@ -37,8 +37,7 @@ struct CameraView: View {
     @State private var colorControls = CameraColorControlsState()
     @State private var shutterPressed = false
     /// 拍照 pipeline 完成时立即 push 进来的 88pt 缩略图 hint（避免等 @Query 通知链 ~300-500ms）。
-    /// RecentPhotosBadge 通过 @Binding 读写：source 切换时它会清空 hint 并从新 source 的 @Query
-    /// 重新 bootstrap。
+    /// RecentPhotosBadge 观察全部拍摄记录；切换胶片保留最新缩略图。
     @State private var lastPhotoThumbnail: RecentPhotoThumbnail?
     @State private var isReviewingPhotos = false
     @State private var focusPoint: CGPoint? = nil
@@ -205,10 +204,9 @@ struct CameraView: View {
             }
         }
         .onReceive(capturePipeline.$lastCompletion) { completion in
-            guard let completion, completion.filterName == source.photoFilterName else { return }
-            guard lastPhotoThumbnail?.filterName != completion.filterName
-                || (lastPhotoThumbnail?.captureDate ?? .distantPast) <= completion.captureDate else { return }
-            lastPhotoThumbnail = RecentPhotoThumbnail(id: completion.id, filterName: completion.filterName,
+            guard let completion,
+                  (lastPhotoThumbnail?.captureDate ?? .distantPast) <= completion.captureDate else { return }
+            lastPhotoThumbnail = RecentPhotoThumbnail(id: completion.id,
                 image: completion.thumbnail, captureDate: completion.captureDate)
         }
         .onDisappear {
@@ -588,7 +586,6 @@ struct CameraView: View {
 
     private var recentPhotosControl: some View {
         RecentPhotosBadge(
-            source: source,
             lastThumbnailHint: $lastPhotoThumbnail,
             pendingPreview: capturePipeline.lastPreview,
             isShutterBusy: coordinator.isShutterBusy,

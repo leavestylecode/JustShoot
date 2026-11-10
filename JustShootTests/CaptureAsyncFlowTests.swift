@@ -116,8 +116,9 @@ final class CaptureAsyncFlowTests: XCTestCase {
         let previous = scene.windows.first { $0.isKeyWindow }
         let window = UIWindow(windowScene: scene)
         window.frame = scene.screen.bounds
-        let host = UIHostingController(rootView: CapturePreviewReview(preview: preview, pipeline: pipeline)
-            .modelContainer(container).preferredColorScheme(.dark))
+        let host = UIHostingController(rootView: NavigationStack {
+            CapturePreviewReview(preview: preview, pipeline: pipeline, onClose: {})
+        }.modelContainer(container).preferredColorScheme(.dark))
         window.rootViewController = host
         window.makeKeyAndVisible()
         defer {
