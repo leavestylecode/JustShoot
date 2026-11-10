@@ -2,6 +2,32 @@ import XCTest
 @testable import JustShoot
 
 final class CameraCaptureAdmissionTests: XCTestCase {
+    func testEveryPreparationStageSharesTheOriginalDeadlineAndCannotIssueLate() throws {
+        var state = CameraCaptureAdmission()
+        let deadline = CameraCaptureDeadline(now: 100)
+        let token = try XCTUnwrap(state.begin(sessionGeneration: 1, focalSequence: 1,
+            focalLength: 35, exposureBias: 1, flashEnabled: false, rotationAngle: nil, deadline: deadline))
+        XCTAssertEqual(token.deadline.remaining(at: 103), 1)
+        XCTAssertTrue(state.beginPreparation(token, generation: 1))
+        XCTAssertEqual(token.deadline.remaining(at: 103.9), 0.1, accuracy: 0.0001)
+        XCTAssertFalse(state.markIssued(token, generation: 1, now: 104))
+        XCTAssertTrue(state.cancel(token))
+        XCTAssertFalse(state.markIssued(token, generation: 1, now: 103.9))
+    }
+
+    func testPreparationExpiryCannotCancelAnAlreadyIssuedPhoto() throws {
+        var state = CameraCaptureAdmission()
+        let token = try XCTUnwrap(state.begin(sessionGeneration: 1, focalSequence: 1,
+            focalLength: 35, exposureBias: 1, flashEnabled: false, rotationAngle: nil,
+            deadline: CameraCaptureDeadline(now: 100)))
+        XCTAssertTrue(state.beginPreparation(token, generation: 1))
+        XCTAssertTrue(state.markIssued(token, generation: 1, now: 103.9))
+        XCTAssertTrue(token.deadline.hasExpired(at: 105))
+        XCTAssertFalse(state.cancel(token))
+        XCTAssertNil(state.cancelUnissued())
+        XCTAssertTrue(state.release(token))
+    }
+
     private func begin(_ state: inout CameraCaptureAdmission, generation: UInt64 = 1,
                        focalLength: Int = 35) throws -> CameraCaptureAdmission.Token {
         try XCTUnwrap(state.begin(sessionGeneration: generation, focalSequence: 7,
@@ -70,7 +96,7 @@ final class CameraCaptureAdmissionTests: XCTestCase {
         var resultCallbacks = 0
         manager.capturePhoto(admission: token, onShutterReady: { shutterCallbacks += 1 }) { result in
             resultCallbacks += 1
-            XCTAssertNil(result)
+            guard case .failure(.interrupted) = result else { return XCTFail("Unexpected capture outcome") }
         }
         XCTAssertEqual(shutterCallbacks, 1)
         XCTAssertEqual(resultCallbacks, 1)

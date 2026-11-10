@@ -43,6 +43,11 @@ struct CaptureQueueState: Sendable {
             return count
         }
     }
+
+    func hasReservation(_ id: UUID) -> Bool {
+        if case .reserved? = entries[id] { return true }
+        return false
+    }
     var reservedBytes: Int64 {
         entries.values.reduce(0) { total, entry in
             if case let .reserved(bytes) = entry { return total + bytes }

@@ -9,10 +9,13 @@ private final class CaptureCameraStub: CameraCaptureControlling {
     struct Callbacks {
         let still: @MainActor (CaptureStill) async -> Void
         let ready: () -> Void
-        let result: (CaptureResult?) -> Void
+        let result: (Result<CaptureResult, CameraCaptureFailure>) -> Void
     }
     let diagnostics = DiagnosticTrace(id: "coordinator-test")
     var diagnosticGeneration: UInt64 = 1
+    var captureFeedbackGeneration: UInt64 = 0
+    var preparationTimeout: TimeInterval = 4
+    var automaticallyIssuesCapture = true
     var entryPreparation = CameraEntryPreparation()
     var readiness = CameraReadiness.ready
     var isCaptureAvailable = true
@@ -43,18 +46,24 @@ private final class CaptureCameraStub: CameraCaptureControlling {
     func captureLocation(at date: Date) -> CLLocation? { nil }
     func beginCaptureAdmission() -> CameraCaptureAdmission.Token? {
         admission.begin(sessionGeneration: diagnosticGeneration, focalSequence: 0, focalLength: 35,
-            exposureBias: 0, flashEnabled: false, rotationAngle: nil)
+            exposureBias: 0, flashEnabled: false, rotationAngle: nil,
+            deadline: CameraCaptureDeadline(timeout: preparationTimeout))
     }
     func isCaptureAdmissionValid(_ token: CameraCaptureAdmission.Token) -> Bool {
         admission.permits(token, generation: diagnosticGeneration)
     }
-    func cancelCaptureAdmission(_ token: CameraCaptureAdmission.Token) { admission.cancel(token) }
+    @discardableResult
+    func cancelCaptureAdmission(_ token: CameraCaptureAdmission.Token) -> Bool {
+        admission.active != token || admission.cancel(token)
+    }
     func waitForCapturePreview(lutKey: String, admission: CameraCaptureAdmission.Token) async -> CameraPreviewFrame? { frame }
     func capture(admission token: CameraCaptureAdmission.Token, live: Bool, previewFrame: CameraPreviewFrame,
                  trace: DiagnosticTrace, onWillCapture: @escaping () -> Void,
                  onExposureComplete: @escaping () -> Void, onShutterReady: @escaping () -> Void,
                  onStillCaptured: @escaping @MainActor (CaptureStill) async -> Void,
-                 completion: @escaping (CaptureResult?) -> Void) {
+                 completion: @escaping (Result<CaptureResult, CameraCaptureFailure>) -> Void) {
+        XCTAssertTrue(admission.beginPreparation(token, generation: diagnosticGeneration))
+        if automaticallyIssuesCapture { XCTAssertTrue(admission.markIssued(token, generation: diagnosticGeneration)) }
         callbacks.append(Callbacks(still: onStillCaptured, ready: {
             self.admission.release(token)
             onShutterReady()
@@ -74,9 +83,10 @@ private final class CapturePipelineStub: CaptureProcessing {
     var preview: CaptureRecipe?
 
     func reserve(lutBytes: Int, id: UUID) async -> UUID? {
+        guard hasRoom else { return nil }
+        reserved.insert(id)
         await onReserve?()
-        if hasRoom { reserved.insert(id); return id }
-        return nil
+        return reserved.contains(id) ? id : nil
     }
     func cancelReservation(_ id: UUID) { reserved.remove(id); cancelled.insert(id) }
     func preparePreview(_ frame: CameraPreviewFrame, recipe: CaptureRecipe, lut: CubeLUT) { preview = recipe }
@@ -88,6 +98,119 @@ private final class CapturePipelineStub: CaptureProcessing {
 
 @MainActor
 final class CameraCoordinatorTests: XCTestCase {
+    func testExposureFailuresKeepTheirActionableReason() async throws {
+        for failure in [CameraCaptureFailure.exposureFailed, .exposureTimedOut, .preparationTimedOut] {
+            let camera = try CaptureCameraStub()
+            let pipeline = CapturePipelineStub()
+            let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
+            await coordinator.capture(selection: try selection(), currentLookKey: { "film" },
+                isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
+            camera.callbacks[0].ready()
+            camera.callbacks[0].result(.failure(failure))
+            XCTAssertEqual(coordinator.error, failure.message)
+            XCTAssertFalse(coordinator.isShutterBusy)
+            XCTAssertTrue(pipeline.reserved.isEmpty)
+            camera.callbacks.removeAll()
+        }
+    }
+
+    func testRuntimeRestartReportsFailureButLeavingAndReturningSuppressesOldFailure() async throws {
+        for leavesCamera in [false, true] {
+            let camera = try CaptureCameraStub()
+            let pipeline = CapturePipelineStub()
+            let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
+            await coordinator.capture(selection: try selection(), currentLookKey: { "film" },
+                isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
+            camera.diagnosticGeneration += 1
+            if leavesCamera { camera.captureFeedbackGeneration += 1 }
+            camera.callbacks[0].ready()
+            camera.callbacks[0].result(.failure(.imageUnavailable))
+            XCTAssertEqual(coordinator.error, leavesCamera ? nil : CameraCaptureFailure.interrupted.message)
+            XCTAssertFalse(coordinator.isShutterBusy)
+            camera.callbacks.removeAll()
+        }
+    }
+
+    func testRuntimeRestartWhileReservingReportsInterruption() async throws {
+        let camera = try CaptureCameraStub()
+        let pipeline = CapturePipelineStub()
+        let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
+        pipeline.onReserve = { camera.diagnosticGeneration += 1 }
+        await coordinator.capture(selection: try selection(), currentLookKey: { "film" },
+            isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
+        XCTAssertEqual(coordinator.error, CameraCaptureFailure.interrupted.message)
+        XCTAssertTrue(camera.callbacks.isEmpty)
+        XCTAssertFalse(coordinator.isShutterBusy)
+    }
+
+    func testSlowStorageReleasesShutterBeforeProbeReturnsAndCannotCaptureLater() async throws {
+        let camera = try CaptureCameraStub()
+        camera.preparationTimeout = 0.05
+        let pipeline = CapturePipelineStub()
+        let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
+        var resumeStorage: CheckedContinuation<Void, Never>?
+        pipeline.onReserve = { await withCheckedContinuation { resumeStorage = $0 } }
+        let selected = try selection()
+        let task = Task { await coordinator.capture(selection: selected, currentLookKey: { "film" },
+            isSceneActive: { true }, onAccepted: {}, onWillCapture: {}) }
+        let limit = Date().addingTimeInterval(2)
+        while coordinator.error == nil, Date() < limit { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(coordinator.error, CameraCaptureFailure.preparationTimedOut.message)
+        XCTAssertFalse(coordinator.isShutterBusy)
+        XCTAssertFalse(camera.admission.isBusy)
+        XCTAssertTrue(pipeline.reserved.isEmpty)
+        let resume = try XCTUnwrap(resumeStorage)
+        resume.resume()
+        await task.value
+        XCTAssertTrue(camera.callbacks.isEmpty)
+        XCTAssertTrue(pipeline.reserved.isEmpty)
+    }
+
+    func testDeadlineCancelsWaitingNativeInvocationButPreservesIssuedCapture() async throws {
+        for issued in [false, true] {
+            let camera = try CaptureCameraStub()
+            camera.preparationTimeout = 0.3
+            camera.automaticallyIssuesCapture = issued
+            let pipeline = CapturePipelineStub()
+            let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
+            await coordinator.capture(selection: try selection(), currentLookKey: { "film" },
+                isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
+            let callbacks = try XCTUnwrap(camera.callbacks.first)
+            try await Task.sleep(for: .milliseconds(450))
+            XCTAssertEqual(coordinator.isShutterBusy, issued)
+            XCTAssertEqual(camera.admission.isBusy, issued)
+            if issued {
+                XCTAssertNil(coordinator.error)
+                await callbacks.still(CaptureStill(imageData: Data([1]), pendingLivePhotoMovieURL: nil))
+                callbacks.ready()
+                callbacks.result(.success(CaptureResult(imageData: Data([1]), livePhotoMovieURL: nil, photoDisplayTime: .invalid)))
+                XCTAssertEqual(pipeline.completed.count, 1)
+            } else {
+                XCTAssertEqual(coordinator.error, CameraCaptureFailure.preparationTimedOut.message)
+                camera.callbacks[0].ready()
+                camera.callbacks[0].result(.failure(.interrupted))
+                XCTAssertEqual(coordinator.error, CameraCaptureFailure.preparationTimedOut.message,
+                    "A late callback must not overwrite the timeout or resurrect the capture")
+                XCTAssertTrue(pipeline.completed.isEmpty)
+            }
+            camera.callbacks.removeAll()
+        }
+    }
+
+    func testSlowCaptureShowsProgressAndCheckpointReleaseClearsIt() async throws {
+        let camera = try CaptureCameraStub()
+        let pipeline = CapturePipelineStub()
+        let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
+        await coordinator.capture(selection: try selection(), currentLookKey: { "film" },
+            isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
+        XCTAssertFalse(coordinator.showsCaptureProgress)
+        try await Task.sleep(for: .milliseconds(450))
+        XCTAssertTrue(coordinator.showsCaptureProgress)
+        camera.callbacks[0].ready()
+        XCTAssertFalse(coordinator.showsCaptureProgress)
+        camera.callbacks.removeAll()
+    }
+
     private func selection(live: Bool = false, lutKey: String = "film") throws -> CameraCaptureSelection {
         let text = "LUT_3D_SIZE 2\n" + (0...1).flatMap { b in
             (0...1).flatMap { g in (0...1).map { r in "\(r) \(g) \(b)" } }
@@ -193,8 +316,8 @@ final class CameraCoordinatorTests: XCTestCase {
         callbacks.ready()
         XCTAssertFalse(coordinator.isShutterBusy)
         XCTAssertTrue(pipeline.completed.isEmpty)
-        callbacks.result(CaptureResult(imageData: Data([1]), livePhotoMovieURL: nil,
-            photoDisplayTime: CMTime(seconds: 1.25, preferredTimescale: 600)))
+        callbacks.result(.success(CaptureResult(imageData: Data([1]), livePhotoMovieURL: nil,
+            photoDisplayTime: CMTime(seconds: 1.25, preferredTimescale: 600))))
         let recipe = try XCTUnwrap(pipeline.completed.first)
         XCTAssertEqual(recipe.id, pipeline.checkpoints.first?.id)
         XCTAssertEqual(recipe.photoDisplayTime, 1.25)
@@ -215,7 +338,7 @@ final class CameraCoordinatorTests: XCTestCase {
         await coordinator.capture(selection: selected, currentLookKey: { "film" },
             isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
         XCTAssertEqual(camera.callbacks.count, 2)
-        camera.callbacks[0].result(nil)
+        camera.callbacks[0].result(.failure(.imageUnavailable))
         XCTAssertTrue(coordinator.isShutterBusy)
         camera.callbacks[1].ready()
         XCTAssertFalse(coordinator.isShutterBusy)

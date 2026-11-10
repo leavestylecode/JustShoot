@@ -16,7 +16,7 @@ final class LivePhotoCaptureStateTests: XCTestCase {
         var resultCallbacks = 0
         manager.capturePhoto(live: true, onShutterReady: { readyCallbacks += 1 }) { result in
             resultCallbacks += 1
-            XCTAssertNil(result)
+            guard case .failure(.livePhotoUnavailable) = result else { return XCTFail("Unexpected capture outcome") }
         }
         XCTAssertEqual(readyCallbacks, 1)
         XCTAssertEqual(resultCallbacks, 1)

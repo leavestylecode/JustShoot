@@ -137,12 +137,12 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                 XCTAssertEqual(try XCTUnwrap(admission.rotationAngle), expectedAngle, accuracy: 0.01)
             }
             print("live_window_rotation interface=\(camera.previewInterfaceOrientation.rawValue) device=\(captureDeviceOrientation.rawValue) controls=\(camera.controlsOrientation.rawValue) native_deg=\(admission.rotationAngle ?? -1) \(frame.framingDiagnosticFields)")
-            let result: CaptureResult? = await withCheckedContinuation { continuation in
+            let result: Result<CaptureResult, CameraCaptureFailure> = await withCheckedContinuation { continuation in
                 camera.capturePhoto(admission: admission, live: true, previewFrame: frame) {
                     continuation.resume(returning: $0)
                 }
             }
-            let captured = try XCTUnwrap(result)
+            let captured = try result.get()
             let movie = try XCTUnwrap(captured.livePhotoMovieURL)
             defer { try? FileManager.default.removeItem(at: movie) }
             if let expectedOrientation {
@@ -245,7 +245,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         }
         let firstValue = await first.value
         let secondValue = await second.value
-        let results = [try XCTUnwrap(firstValue), try XCTUnwrap(secondValue)]
+        let results = [try firstValue.get(), try secondValue.get()]
         let firstURL = try XCTUnwrap(results[0].livePhotoMovieURL)
         let secondURL = try XCTUnwrap(results[1].livePhotoMovieURL)
         defer { try? FileManager.default.removeItem(at: firstURL); try? FileManager.default.removeItem(at: secondURL) }
@@ -267,7 +267,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         for await _ in closing.stream { break }
         camera.stopSession()
         let closedValue = await closeResult.value
-        let closed = try XCTUnwrap(closedValue)
+        let closed = try closedValue.get()
         let closedURL = try XCTUnwrap(closed.livePhotoMovieURL)
         defer { try? FileManager.default.removeItem(at: closedURL) }
         XCTAssertNil(closed.warning)
@@ -469,13 +469,13 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             add(previewAttachment)
             pipeline.preparePreview(previewFrame, recipe: recipe, lut: cube)
             let start = ProcessInfo.processInfo.systemUptime
-            let result: CaptureResult? = await withCheckedContinuation { continuation in
+            let result: Result<CaptureResult, CameraCaptureFailure> = await withCheckedContinuation { continuation in
                 camera.capturePhoto(admission: admission, live: plan.capturesLivePhoto, raw: plan.capturesRAW,
                     expectedRAWFormat: plan.capturesRAW ? format : nil, previewFrame: previewFrame, onStillCaptured: { still in
                     await pipeline.checkpointStill(still, recipe: recipe, lut: cube, rawLUT: rawLUT)
                 }) { continuation.resume(returning: $0) }
             }
-            let captured = try XCTUnwrap(result)
+            let captured = try result.get()
             let deliveryMs = (ProcessInfo.processInfo.systemUptime - start) * 1_000
             let original = try XCTUnwrap(CGImageSourceCreateWithData(captured.imageData as CFData, nil))
             XCTAssertEqual(RawFilmRenderer.isDNG(original), plan.capturesRAW)

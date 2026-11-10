@@ -78,6 +78,17 @@ struct CameraExposureApplication: Sendable {
         failed = request.sequence
     }
 
+    /// A late acknowledgement must not silently turn a timed-out attempt into a new shot.
+    mutating func markTimedOut() {
+        if !isReady { failed = sequence }
+    }
+
+    /// One retry per new shutter admission, preserving the selected bias and epoch.
+    mutating func retryFailed(_ bias: Float) -> Bool {
+        guard hasFailed else { return false }
+        return request(bias)
+    }
+
     mutating func reset() {
         epoch &+= 1
         sequence = 0

@@ -4,6 +4,35 @@ import XCTest
 
 @MainActor
 final class CameraShutterButtonTests: XCTestCase {
+    func testRenderCaptureWaitFeedbackOnSimulator() async throws {
+        let scene = try await TestWindowScene.foreground()
+        let previous = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        let host = UIHostingController(rootView: HStack(spacing: 24) {
+            CameraShutterButton(isCapturing: false, isPreparingFilm: false,
+                canCapture: true, isPressed: false) {}
+            CameraShutterButton(isCapturing: true, isPreparingFilm: false,
+                canCapture: true, isPressed: false) {}.disabled(true)
+            CameraShutterButton(isCapturing: true, isPreparingFilm: false,
+                canCapture: true, isPressed: false, showsProgress: true) {}.disabled(true)
+        }.padding(24).background(.black).environment(\.colorScheme, .dark))
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil; previous?.makeKey() }
+        try await Task.sleep(for: .milliseconds(150))
+        host.view.layoutIfNeeded()
+        let image = UIGraphicsImageRenderer(bounds: host.view.bounds).image { _ in
+            host.view.drawHierarchy(in: host.view.bounds, afterScreenUpdates: true)
+        }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "Capture feedback: ready, short capture, extended wait"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("JustShoot-capture-wait.png")
+        try XCTUnwrap(image.pngData()).write(to: url)
+        print("capture_feedback_snapshot path=\(url.path)")
+    }
+
     private func render(preparing: Bool = false, capturing: Bool = false,
                         canCapture: Bool = true, enabled: Bool = true) throws -> UIImage {
         let renderer = ImageRenderer(content: CameraShutterButton(

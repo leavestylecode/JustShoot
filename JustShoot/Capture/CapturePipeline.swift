@@ -82,6 +82,7 @@ final class CapturePipeline: ObservableObject {
     }
 
     func reserve(lutBytes: Int, id: UUID = UUID()) async -> UUID? {
+        guard !Task.isCancelled else { return nil }
         let trace = DiagnosticTrace(id: id.uuidString)
         guard canCapture, let worker else {
             trace.event("capture_reservation_rejected", "reason=capacity pending=\(pendingCount) retained=\(retainedCount)")
@@ -92,7 +93,10 @@ final class CapturePipeline: ObservableObject {
         guard queueState.reserve(id, bytes: 128 * 1_024 * 1_024 + Int64(lutBytes), maximumJobs: CaptureJournal.maximumJobs) else { return nil }
         updateCounts()
         let hasSpace = await worker.hasRoom(for: queueState.reservedBytes, trace: trace)
-        spaceCheck.end(hasSpace ? "ok" : "insufficient_space")
+        spaceCheck.end(Task.isCancelled ? "cancelled" : hasSpace ? "ok" : "insufficient_space")
+        guard !Task.isCancelled else { cancelReservation(id); return nil }
+        // A preparation timeout can release this slot while the volume probe is suspended.
+        guard queueState.hasReservation(id) else { return nil }
         guard hasSpace else {
             cancelReservation(id)
             lastError = String(localized: "Please wait for your photos to finish saving, or free up storage.")
@@ -313,6 +317,7 @@ private actor CaptureWorker {
     }
 
     func hasRoom(for bytes: Int64, trace: DiagnosticTrace) async -> Bool {
+        guard !Task.isCancelled else { return false }
         do {
             guard try trace.measure("capture_storage_budget", { try journal.hasJournalRoom(for: bytes) }) else { return false }
         }

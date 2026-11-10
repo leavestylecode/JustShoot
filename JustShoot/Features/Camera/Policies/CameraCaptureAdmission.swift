@@ -12,6 +12,7 @@ struct CameraCaptureAdmission: Sendable {
         let exposureBias: Float
         let flashEnabled: Bool
         let rotationAngle: Double?
+        let deadline: CameraCaptureDeadline
     }
 
     private enum Phase: Equatable, Sendable { case reserved, preparing, issued }
@@ -21,11 +22,12 @@ struct CameraCaptureAdmission: Sendable {
     var isBusy: Bool { active != nil }
 
     mutating func begin(sessionGeneration: UInt64, focalSequence: UInt64, focalLength: Int,
-                        exposureBias: Float, flashEnabled: Bool, rotationAngle: Double?) -> Token? {
+                        exposureBias: Float, flashEnabled: Bool, rotationAngle: Double?,
+                        deadline: CameraCaptureDeadline = CameraCaptureDeadline()) -> Token? {
         guard active == nil else { return nil }
         let token = Token(id: UUID(), sessionGeneration: sessionGeneration, focalSequence: focalSequence,
             focalLength: focalLength, exposureBias: exposureBias, flashEnabled: flashEnabled,
-            rotationAngle: rotationAngle)
+            rotationAngle: rotationAngle, deadline: deadline)
         active = token
         phase = .reserved
         return token
@@ -41,8 +43,10 @@ struct CameraCaptureAdmission: Sendable {
         return true
     }
 
-    mutating func markIssued(_ token: Token, generation: UInt64) -> Bool {
-        guard permits(token, generation: generation), phase == .preparing else { return false }
+    mutating func markIssued(_ token: Token, generation: UInt64,
+                             now: TimeInterval = ProcessInfo.processInfo.systemUptime) -> Bool {
+        guard permits(token, generation: generation), phase == .preparing,
+              !token.deadline.hasExpired(at: now) else { return false }
         phase = .issued
         return true
     }

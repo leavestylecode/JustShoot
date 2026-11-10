@@ -18,6 +18,8 @@ final class CameraManager: NSObject, ObservableObject {
     nonisolated let diagnostics: DiagnosticTrace
     nonisolated let flowDiagnostics: CameraFlowDiagnostics
     nonisolated var diagnosticGeneration: UInt64 { sessionIntent.withLock { $0.generation } }
+    /// Explicit navigation/background changes suppress old alerts; runtime restarts do not.
+    private(set) var captureFeedbackGeneration: UInt64 = 0
 
     // MARK: 1. 存储属性
 
@@ -79,7 +81,7 @@ final class CameraManager: NSObject, ObservableObject {
     /// deliverCaptureIfReady 消费。每个 closure 只被对应 delegate 触发一次（AVF 保证每个 delegate
     /// 每次 capture 调一次）。
     ///   - onData          : 完整交付（非 live：静态图；live：静态图 + 配对视频）就绪后回调恰好一次
-    ///                       （nil = 失败/中断）。**这是后处理的启动信号，不是快门放开信号。**
+    ///                       **这是后处理的启动信号，不是快门放开信号。**
     ///   - onShutterReady  : 静态图已持久化时回调恰好一次——CameraView 据此放开
     ///                       快门让用户拍下一张。**与 onData 解耦**：live 时静态图 ~300ms 就到，而
     ///                       配对视频要等 ~1.5s 环形缓冲；快门只需等前者，视频交给后台后处理。
@@ -88,7 +90,7 @@ final class CameraManager: NSObject, ObservableObject {
     private struct CaptureRequest {
         let admission: CameraCaptureAdmission.Token
         let trace: DiagnosticTrace
-        let onData: (CaptureResult?) -> Void
+        let onData: (Result<CaptureResult, CameraCaptureFailure>) -> Void
         let onShutterReady: () -> Void
         let onStillCaptured: (@MainActor (CaptureStill) async -> Void)?
         let onWillCapture: (() -> Void)?
@@ -109,6 +111,7 @@ final class CameraManager: NSObject, ObservableObject {
         var shutterReleased = false
         var resultDelivered = false
         var terminalReceived = false
+        var failure: CameraCaptureFailure?
         var stillCheckpointed = false
         var isCheckpointingStill = false
         var pendingMovieURL: URL?
@@ -127,7 +130,6 @@ final class CameraManager: NSObject, ObservableObject {
         let rawFormat: CameraRAWFormat?
         let previewSourceRevision: UInt64?
         let enqueuedAt: TimeInterval
-        let deadline: TimeInterval
     }
     /// 在途拍照按 `settings.uniqueID` 分桶——取代旧的单槽 `inFlightCapture?`。分桶后多张拍照可重叠：
     /// 静态图就绪即放开快门，上一张还在等 ~1.5s 配对视频时用户已能按下一张，新旧 capture 各自独立、
@@ -368,9 +370,8 @@ final class CameraManager: NSObject, ObservableObject {
     /// Acknowledged shutter presses may wait for the requested lens and its first
     /// visible frame; they never freeze an old view and capture the new focal length.
     func waitForCapturePreview(lutKey: String, admission: CameraCaptureAdmission.Token) async -> CameraPreviewFrame? {
-        let deadline = ProcessInfo.processInfo.systemUptime + 4
         while !Task.isCancelled, isCaptureAdmissionValid(admission),
-              !lensCaptureGate.hasFailed, ProcessInfo.processInfo.systemUptime < deadline {
+              !lensCaptureGate.hasFailed, !admission.deadline.hasExpired() {
             if let frame = capturePreview(lutKey: lutKey) { return frame }
             do { try await Task.sleep(for: .milliseconds(15)) } catch { return nil }
         }
@@ -632,6 +633,11 @@ final class CameraManager: NSObject, ObservableObject {
                 focalLength: focalLength, exposureBias: userBias,
                 flashEnabled: flashEnabled, rotationAngle: rotationAngle)
         }
+        if token != nil, let device = videoCaptureDevice,
+           exposureApplication.withLock({ $0.retryFailed(userBias) }) {
+            diagnostics.event("exposure_bias_retry", "ev=\(userBias)")
+            scheduleExposureApplication(device: device)
+        }
         updateCaptureControls()
         return token
     }
@@ -642,9 +648,27 @@ final class CameraManager: NSObject, ObservableObject {
             captureAdmission.withLock { $0.permits(token, generation: generation) }
     }
 
-    func cancelCaptureAdmission(_ token: CameraCaptureAdmission.Token) {
-        captureAdmission.withLock { _ = $0.cancel(token) }
+    @discardableResult
+    func cancelCaptureAdmission(_ token: CameraCaptureAdmission.Token) -> Bool {
+        // An already cancelled/released token is safe to finish. An issued one is not.
+        let (cancelled, wasActive) = captureAdmission.withLock { state in
+            let wasActive = state.active == token
+            return (!wasActive || state.cancel(token), wasActive)
+        }
+        if cancelled, wasActive, token.deadline.hasExpired() {
+            exposureApplication.withLock { $0.markTimedOut() }
+        }
+        if cancelled, wasActive {
+            capturePreparationTask?.cancel()
+            capturePreparationTask = nil
+            captureGeneration &+= 1
+            for id in inFlightCaptures.keys.filter({ inFlightCaptures[$0]?.admission == token }) {
+                deliverCaptureIfReady(id: id, terminal: true,
+                    failure: token.deadline.hasExpired() ? .preparationTimedOut : .cancelled)
+            }
+        }
         updateCaptureControls()
+        return cancelled
     }
 
     /// Exposed bytes keep their checkpoint path. Pending reservations and native invocations
@@ -653,7 +677,8 @@ final class CameraManager: NSObject, ObservableObject {
         capturePreparationTask?.cancel()
         guard let cancelled = captureAdmission.withLock({ $0.cancelUnissued() }) else { return }
         for id in inFlightCaptures.keys.filter({ inFlightCaptures[$0]?.admission == cancelled }) {
-            deliverCaptureIfReady(id: id, terminal: true)
+            deliverCaptureIfReady(id: id, terminal: true,
+                failure: lensSwitchFailed ? .lensUnavailable : .interrupted)
         }
         updateCaptureControls()
     }
@@ -692,14 +717,18 @@ final class CameraManager: NSObject, ObservableObject {
         exposureBias = clamped
         let shouldSchedule = exposureApplication.withLock { $0.request(clamped) }
         guard shouldSchedule else { return }
+        scheduleExposureApplication(device: device)
+    }
+
+    private func scheduleExposureApplication(device: AVCaptureDevice) {
         let application = exposureApplication
         let intent = sessionIntent
         let generation = diagnosticGeneration
         let trace = diagnostics
         sessionQueue.async {
-            guard let request = application.withLock({ $0.takePending() }),
-                  application.withLock({ $0.permits(request) }),
-                  intent.withLock({ $0.permitsStart(generation) }) else { return }
+            guard intent.withLock({ $0.permitsStart(generation) }),
+                  let request = application.withLock({ $0.takePending() }),
+                  application.withLock({ $0.permits(request) }) else { return }
             let applying = trace.span("exposure_bias_apply", "ev=\(request.bias) sequence=\(request.sequence)")
             do {
                 try device.lockForConfiguration()
@@ -732,16 +761,27 @@ final class CameraManager: NSObject, ObservableObject {
         refreshFocusHold()
     }
 
-    private func waitForExposureApplication() async -> Bool {
-        let waiting = diagnostics.span("exposure_bias_wait", "ev=\(exposureBias)")
-        let deadline = ProcessInfo.processInfo.systemUptime + 1
-        while !Task.isCancelled, !exposureApplication.withLock({ $0.isReady || $0.hasFailed }),
+    private func waitForExposureApplication(admission: CameraCaptureAdmission.Token,
+                                            trace: DiagnosticTrace) async -> CameraCaptureFailure? {
+        let waiting = trace.span("exposure_bias_wait", "ev=\(admission.exposureBias)")
+        let deadline = min(admission.deadline.uptime, ProcessInfo.processInfo.systemUptime + 1)
+        while !Task.isCancelled, isCaptureAdmissionValid(admission),
+              !exposureApplication.withLock({ $0.isReady || $0.hasFailed }),
               ProcessInfo.processInfo.systemUptime < deadline {
             do { try await Task.sleep(for: .milliseconds(10)) } catch { break }
         }
-        let ready = !Task.isCancelled && exposureApplication.withLock { $0.isReady }
-        waiting.end(ready ? "ready" : "not_applied")
-        return ready
+        let failure: CameraCaptureFailure?
+        if lensSwitchFailed { failure = .lensUnavailable }
+        else if !isCaptureAdmissionValid(admission) { failure = .interrupted }
+        else if Task.isCancelled { failure = .cancelled }
+        else if exposureApplication.withLock({ $0.hasFailed }) { failure = .exposureFailed }
+        else if exposureApplication.withLock({ $0.isReady }) { failure = nil }
+        else {
+            exposureApplication.withLock { $0.markTimedOut() }
+            failure = .exposureTimedOut
+        }
+        waiting.end(failure?.rawValue ?? "ready")
+        return failure
     }
 
     /// 对焦完成回调（KVO isAdjustingFocus → false）
@@ -2167,25 +2207,22 @@ final class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// capturePhoto 在 issue 前 await 直到 isReadyToCapture 或超时。唯一闸门，取代旧的
-    /// waitForLensSettled + waitForConstituentMatch 两段分散判定。timeoutMs 仅异常兜底——
-    /// 正常路径下镜头到位 + grace 走完即放行。超时返回 false，由调用方释放快门并提示重试；
-    /// 不能在 zoom 尚未停止时拍出错误焦段。4000 ms 只作异常兜底。
-    func waitForReadyToCapture(timeoutMs: Int = 4000) async -> Bool {
+    /// Recheck readiness without restarting the budget already spent on storage/preview.
+    private func waitForReadyToCapture(admission: CameraCaptureAdmission.Token) async -> Bool {
         guard !lensCaptureGate.hasFailed else { return false }
-        if isReadyToCapture { return !Task.isCancelled }
-        let start = CFAbsoluteTimeGetCurrent()
-        let deadline = start + Double(timeoutMs) / 1000.0
-        while !Task.isCancelled, !lensCaptureGate.hasFailed, !isReadyToCapture, CFAbsoluteTimeGetCurrent() < deadline {
+        let start = ProcessInfo.processInfo.systemUptime
+        while !Task.isCancelled, isCaptureAdmissionValid(admission), !admission.deadline.hasExpired(),
+              !lensCaptureGate.hasFailed, !isReadyToCapture {
             try? await Task.sleep(for: .milliseconds(15))
         }
-        let waited = (CFAbsoluteTimeGetCurrent() - start) * 1000
+        let waited = (ProcessInfo.processInfo.systemUptime - start) * 1000
         if isReadyToCapture {
             Log.capture.info("capture_ready_wait waited=\(String(format: "%.0f", waited))ms")
         } else {
             Log.capture.error("capture_ready_timeout waited=\(String(format: "%.0f", waited))ms on_target=\(self.lensIsOnTarget()) avail=\(self.isCaptureAvailable)")
         }
-        return !Task.isCancelled && isReadyToCapture
+        return !Task.isCancelled && isCaptureAdmissionValid(admission)
+            && !admission.deadline.hasExpired() && isReadyToCapture
     }
 
     /// 安全快门：限制 AE 最长曝光时间，严格走经典 1/focal（35mm 等效）防手持模糊。
@@ -2424,7 +2461,7 @@ final class CameraManager: NSObject, ObservableObject {
         onExposureComplete: (() -> Void)? = nil,
         onShutterReady: @escaping () -> Void = {},
         onStillCaptured: (@MainActor (CaptureStill) async -> Void)? = nil,
-        completion: @escaping (CaptureResult?) -> Void
+        completion: @escaping (Result<CaptureResult, CameraCaptureFailure>) -> Void
     ) {
         let captureTrace = trace ?? DiagnosticTrace()
         let rawFormat = raw ? CameraRAWCapturePolicy.format(output: photoOutput, zoom: videoCaptureDevice?.videoZoomFactor ?? 0) : nil
@@ -2433,7 +2470,7 @@ final class CameraManager: NSObject, ObservableObject {
             updateRAWCaptureState()
             captureTrace.event("raw_capture_unavailable")
             onShutterReady()
-            completion(nil)
+            completion(.failure(.unavailable))
             return
         }
         // A requested Live Photo must not silently turn into a still when capability is lost.
@@ -2442,14 +2479,14 @@ final class CameraManager: NSObject, ObservableObject {
             updateLivePhotoCaptureState(reason: "capture_guard")
             captureTrace.event("live_photo_request_unavailable", "buffer_ready=\(livePhotoBuffer.isReady)")
             onShutterReady()
-            completion(nil)
+            completion(.failure(.livePhotoUnavailable))
             return
         }
         guard let admission = suppliedAdmission ?? beginCaptureAdmission(),
               isCaptureAdmissionValid(admission) else {
             if let suppliedAdmission { cancelCaptureAdmission(suppliedAdmission) }
             onShutterReady()
-            completion(nil)
+            completion(.failure(.interrupted))
             return
         }
         if let previewFrame {
@@ -2459,13 +2496,13 @@ final class CameraManager: NSObject, ObservableObject {
                 cancelCaptureAdmission(admission)
                 captureTrace.event("capture_skip", "reason=preview_source_changed")
                 onShutterReady()
-                completion(nil)
+                completion(.failure(.previewUnavailable))
                 return
             }
         }
         guard captureAdmission.withLock({ $0.beginPreparation(admission, generation: admission.sessionGeneration) }) else {
             onShutterReady()
-            completion(nil)
+            completion(.failure(.interrupted))
             return
         }
         let wantsLive = live
@@ -2486,11 +2523,11 @@ final class CameraManager: NSObject, ObservableObject {
         // 取代旧的 isLensTransitioning + waitForLensSettled + waitForConstituentMatch 三段分散判定——
         // 三者现在都收敛进 isReadyToCapture 这一处谓词。修的根因：ZSL ring 里上一颗 constituent /
         // 过冲 zoom 的旧帧被选作出片源 → 用户选 35mm / 100mm 拍出的照片元数据/视野是错的镜头/焦段。
-        // waitForReadyToCapture 内有 4s 兜底，不会让快门永久卡住。
+        // The admission carries one deadline through every pre-submission wait.
         captureGeneration &+= 1
         let generation = captureGeneration
         capturePreparationTask = Task { @MainActor [weak self] in
-            guard let self else { request.onShutterReady(); request.onData(nil); return }
+            guard let self else { request.onShutterReady(); request.onData(.failure(.cancelled)); return }
             defer {
                 if self.captureGeneration == generation {
                     self.capturePreparationTask = nil
@@ -2498,15 +2535,25 @@ final class CameraManager: NSObject, ObservableObject {
                 }
             }
             let waiting = request.trace.span("capture_ready_wait")
-            let ready = await self.waitForReadyToCapture()
+            let ready = await self.waitForReadyToCapture(admission: admission)
             waiting.end(ready ? "ok" : "not_ready")
-            let exposureReady = ready ? await self.waitForExposureApplication() : false
-            guard exposureReady, self.isCaptureAdmissionValid(admission) else {
+            let failure = ready
+                ? await self.waitForExposureApplication(admission: admission, trace: request.trace)
+                : self.preparationFailure(admission)
+            if let failure {
                 self.cancelCaptureAdmission(admission)
-                request.onShutterReady(); request.onData(nil); return
+                request.onShutterReady(); request.onData(.failure(failure)); return
             }
             await self.issueCapturePhoto(request)
         }
+    }
+
+    private func preparationFailure(_ admission: CameraCaptureAdmission.Token) -> CameraCaptureFailure {
+        if lensSwitchFailed { return .lensUnavailable }
+        if !isCaptureAdmissionValid(admission) { return .interrupted }
+        if Task.isCancelled { return .cancelled }
+        if admission.deadline.hasExpired() { return .preparationTimedOut }
+        return .unavailable
     }
 
     /// capturePhoto 主体——拆出来是为了让外层 capturePhoto 能 await waitForReadyToCapture。
@@ -2514,10 +2561,12 @@ final class CameraManager: NSObject, ObservableObject {
     /// Native flash metering remains owned by AVFoundation.
     private func issueCapturePhoto(_ request: CaptureRequest) async {
         var request = request
-        guard !Task.isCancelled, isCaptureAdmissionValid(request.admission) else {
+        guard !Task.isCancelled, isCaptureAdmissionValid(request.admission),
+              !request.admission.deadline.hasExpired() else {
+            let failure = preparationFailure(request.admission)
             cancelCaptureAdmission(request.admission)
             request.onShutterReady()
-            request.onData(nil)
+            request.onData(.failure(failure))
             return
         }
         guard !request.expectsLiveMovie || livePhotoBuffer.isReady else {
@@ -2525,18 +2574,18 @@ final class CameraManager: NSObject, ObservableObject {
             request.trace.event("live_photo_request_unavailable", "stage=issue buffer_ready=\(livePhotoBuffer.isReady)")
             cancelCaptureAdmission(request.admission)
             request.onShutterReady()
-            request.onData(nil)
+            request.onData(.failure(.livePhotoUnavailable))
             return
         }
         request.trace.event("capture_issue", "camera=\(diagnostics.id)")
         // 防御性兜底：waitForReadyToCapture 返回 ready 到这里之间仍隔着调度边界，其间 session 可能被
         // 切后台 / stopSession 拆掉 connection。无 active connection 时 photoOutput.capturePhoto 会抛
-        // NSException 崩溃——这里改为优雅终结：放开快门 + 以 nil 释放后处理槽位。
+        // NSException 崩溃——这里改为优雅终结：放开快门并报告不可用，释放后处理槽位。
         guard photoOutput.connection(with: .video)?.isActive == true else {
             Log.capture.error("capture_skip reason=no_active_connection")
             cancelCaptureAdmission(request.admission)
             request.onShutterReady()
-            request.onData(nil)
+            request.onData(.failure(.unavailable))
             return
         }
         // Prefer HEIF when supported, with JPEG as the system fallback.
@@ -2545,7 +2594,7 @@ final class CameraManager: NSObject, ObservableObject {
             guard rawFormat == CameraRAWCapturePolicy.format(output: photoOutput, zoom: videoCaptureDevice?.videoZoomFactor ?? 0) else {
                 updateRAWCaptureState()
                 cancelCaptureAdmission(request.admission)
-                request.onShutterReady(); request.onData(nil)
+                request.onShutterReady(); request.onData(.failure(.unavailable))
                 return
             }
             settings = AVCapturePhotoSettings(rawPixelFormatType: rawFormat.pixelFormat, processedFormat: nil)
@@ -2610,10 +2659,10 @@ final class CameraManager: NSObject, ObservableObject {
         captureWatchdogs[watchedID] = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: .seconds(request.rawFormat == nil ? 15 : 30)) } catch { return }
             Log.capture.error("capture_delivery_timeout id=\(watchedID)")
-            self?.deliverCaptureIfReady(id: watchedID, terminal: true)
+            self?.deliverCaptureIfReady(id: watchedID, terminal: true, failure: .deliveryTimedOut)
         }
         if Task.isCancelled || !isCaptureAdmissionValid(request.admission) {
-            deliverCaptureIfReady(id: watchedID, terminal: true)
+            deliverCaptureIfReady(id: watchedID, terminal: true, failure: preparationFailure(request.admission))
             return
         }
 
@@ -2646,7 +2695,7 @@ final class CameraManager: NSObject, ObservableObject {
         let invocation = NativeCaptureInvocation(output: output, settings: settings,
             admission: request.admission, trace: request.trace, rotationAngle: rotationAngle,
             expectsLiveMovie: wantsLive, rawFormat: request.rawFormat,
-            previewSourceRevision: request.previewSourceRevision, enqueuedAt: enqueuedAt, deadline: enqueuedAt + 4)
+            previewSourceRevision: request.previewSourceRevision, enqueuedAt: enqueuedAt)
         sessionQueue.async { delegate.invokeCapturePhoto(invocation) }
     }
 
@@ -2655,25 +2704,26 @@ final class CameraManager: NSObject, ObservableObject {
     nonisolated private func invokeCapturePhoto(_ invocation: NativeCaptureInvocation) {
         let admission = invocation.admission
         let id = invocation.settings.uniqueID
-        func finish() {
-            Task { @MainActor in self.deliverCaptureIfReady(id: id, terminal: true) }
+        func finish(_ failure: CameraCaptureFailure) {
+            Task { @MainActor in self.deliverCaptureIfReady(id: id, terminal: true, failure: failure) }
         }
+        guard !admission.deadline.hasExpired() else { finish(.preparationTimedOut); return }
         guard permitsFocalRequest(admission.focalSequence, generation: admission.sessionGeneration),
               captureAdmission.withLock({ $0.permits(admission, generation: admission.sessionGeneration) }) else {
             invocation.trace.event("capture_skip", "reason=admission_cancelled")
-            finish()
+            finish(.interrupted)
             return
         }
         guard invocation.output.connection(with: .video)?.isActive == true else {
             invocation.trace.event("capture_skip", "reason=connection_inactive_at_invoke")
-            finish()
+            finish(.unavailable)
             return
         }
         if let rawFormat = invocation.rawFormat {
             let device = invocation.output.connection(with: .video)?.inputPorts.first?.input as? AVCaptureDeviceInput
             guard rawFormat == CameraRAWCapturePolicy.format(output: invocation.output, zoom: device?.device.videoZoomFactor ?? 0) else {
                 invocation.trace.event("capture_skip", "reason=raw_capability_changed")
-                finish()
+                finish(.unavailable)
                 return
             }
         }
@@ -2681,7 +2731,7 @@ final class CameraManager: NSObject, ObservableObject {
             invocation.trace.event("live_photo_request_unavailable", "stage=invoke")
             Task { @MainActor in
                 self.updateLivePhotoCaptureState(reason: "capture_invoke_guard")
-                self.deliverCaptureIfReady(id: id, terminal: true)
+                self.deliverCaptureIfReady(id: id, terminal: true, failure: .livePhotoUnavailable)
             }
             return
         }
@@ -2691,17 +2741,16 @@ final class CameraManager: NSObject, ObservableObject {
         if let revision = invocation.previewSourceRevision,
            lensSourceStability.withLock({ $0.revision != revision }) {
             invocation.trace.event("capture_skip", "reason=preview_source_changed")
-            finish()
+            finish(.previewUnavailable)
             return
         }
         let sourceWait = lensSourceStability.withLock { $0.remainingGrace(stamp: stamp, at: now) }
         if sourceWait > 0 || invocation.output.captureReadiness != .ready || !exposureApplication.withLock({ $0.isReady }) {
-            guard now < invocation.deadline else {
-                invocation.trace.event("capture_skip", "reason=native_readiness_timeout")
-                finish()
+            guard !exposureApplication.withLock({ $0.hasFailed }) else {
+                finish(.exposureFailed)
                 return
             }
-            let delay = max(0.015, sourceWait)
+            let delay = min(max(0.015, sourceWait), admission.deadline.remaining(at: now))
             invocation.trace.event("capture_native_wait", "reason=source_or_output_readiness wait_ms=\(Int(delay * 1_000))")
             Self.hardwareQueue.asyncAfter(deadline: .now() + delay) { self.invokeCapturePhoto(invocation) }
             return
@@ -2721,11 +2770,11 @@ final class CameraManager: NSObject, ObservableObject {
             }
         }
         guard committed else {
-            if ProcessInfo.processInfo.systemUptime < invocation.deadline,
+            if !admission.deadline.hasExpired(),
                permitsFocalRequest(admission.focalSequence, generation: admission.sessionGeneration),
                captureAdmission.withLock({ $0.permits(admission, generation: admission.sessionGeneration) }) {
                 Self.hardwareQueue.asyncAfter(deadline: .now() + 0.015) { self.invokeCapturePhoto(invocation) }
-            } else { finish() }
+            } else { finish(admission.deadline.hasExpired() ? .preparationTimedOut : .interrupted) }
             return
         }
         invocation.trace.event("capture_invoke", "av_id=\(id) hardware_wait_ms=\(Diagnostics.milliseconds(since: invocation.enqueuedAt))")
@@ -2739,6 +2788,7 @@ final class CameraManager: NSObject, ObservableObject {
     /// 不需要重新走整套 configureAndStartSession（节省 ~150ms 启动延迟 + 避免触发权限/format 重选）。
     /// 同时清空 stale pixel buffer，避免回前台瞬间 MTKView 显示老画面。
     func pauseSessionForBackground() {
+        captureFeedbackGeneration &+= 1
         flowDiagnostics.flush(reason: "camera_pause", force: true)
         diagnostics.event("camera_pause_requested")
         finishLivePhotoRecording()
@@ -2811,6 +2861,7 @@ final class CameraManager: NSObject, ObservableObject {
 
     /// 停止 session 并释放相机资源（导航离开时调用，防止多 session 竞争）
     func stopSession() {
+        captureFeedbackGeneration &+= 1
         flowDiagnostics.flush(reason: "camera_close", force: true)
         diagnostics.event("camera_close_requested")
         // Invalidate callbacks before publishing entry changes, which also update controls.
@@ -3137,10 +3188,11 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
     /// 移出 inFlightCaptures；多个 delegate 回调重入直接被守卫挡掉。
     /// - terminal: didFinishCaptureFor 兜底调用时为 true，强制交付（即便交付物未齐）。
     @MainActor
-    private func deliverCaptureIfReady(id: Int64, terminal: Bool) {
+    private func deliverCaptureIfReady(id: Int64, terminal: Bool, failure: CameraCaptureFailure? = nil) {
         guard var req = inFlightCaptures[id] else { return }
 
         req.terminalReceived = req.terminalReceived || terminal
+        if req.failure == nil { req.failure = failure }
         if req.isCheckpointingStill { inFlightCaptures[id] = req; return }
         if !req.stillCheckpointed, let imageData = req.stillData, let checkpoint = req.onStillCaptured {
             req.isCheckpointingStill = true
@@ -3188,20 +3240,20 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         guard !req.resultDelivered else { return }
         req.resultDelivered = true
         if let data = req.stillData {
-            req.onData(CaptureResult(
+            req.onData(.success(CaptureResult(
                 imageData: data,
                 livePhotoMovieURL: req.movieURL,
                 photoDisplayTime: req.photoDisplayTime,
                 requestedLive: req.expectsLiveMovie,
                 deferredPhoto: req.deferredPhoto
-            ))
+            )))
         } else {
-            // 静态图缺失 = 整次拍摄作废，caller 拿到 nil 提前返回——已到达的 live 源视频
+            // 静态图缺失 = 整次拍摄作废，caller 收到失败后提前返回——已到达的 live 源视频
             // 不会随 result 传出去，必须在此就地删除，否则永久滞留 tmp。
             if let movie = req.movieURL {
                 try? FileManager.default.removeItem(at: movie)
             }
-            req.onData(nil)
+            req.onData(.failure(req.failure ?? .imageUnavailable))
         }
     }
 }

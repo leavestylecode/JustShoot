@@ -604,7 +604,8 @@ struct CameraView: View {
             isCapturing: coordinator.isShutterBusy,
             isPreparingFilm: preparedLUT?.key != previewLUTKey || !cameraManager.entryPreparation.isCurrentLookRendered,
             canCapture: capturePipeline.canCapture,
-            isPressed: shutterPressed
+            isPressed: shutterPressed,
+            showsProgress: coordinator.showsCaptureProgress
         ) {
             Task { await capturePhoto() }
         }

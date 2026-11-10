@@ -8,6 +8,7 @@ struct CameraShutterButton: View {
     let isPreparingFilm: Bool
     let canCapture: Bool
     let isPressed: Bool
+    var showsProgress: Bool = false
     let action: () -> Void
 
     private var isUnavailable: Bool { isCapturing || isPreparingFilm || !canCapture }
@@ -33,6 +34,11 @@ struct CameraShutterButton: View {
                     .frame(width: 60, height: 60)
                     .scaleEffect(isPressed ? 0.85 : 1)
                     .animation(.easeInOut(duration: 0.1), value: isPressed)
+                if showsProgress {
+                    ProgressView()
+                        .tint(.white)
+                        .accessibilityHidden(true)
+                }
             }
         }
         .buttonStyle(CaptureShutterButtonStyle())

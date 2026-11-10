@@ -1,6 +1,108 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Capture was interrupted. Please try again when the camera is ready." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capture was interrupted. Please try again when the camera is ready."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄已中断，请在相机就绪后重试。"
+          }
+        }
+      }
+    },
+    "The camera is unavailable. Reopen the camera and try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera is unavailable. Reopen the camera and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相机暂不可用，请重新打开相机后重试。"
+          }
+        }
+      }
+    },
+    "The camera took too long to prepare. Please try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera took too long to prepare. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相机准备超时，请重试。"
+          }
+        }
+      }
+    },
+    "Exposure could not be applied. Press the shutter to retry." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposure could not be applied. Press the shutter to retry."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曝光设置未能生效，请再次按下快门重试。"
+          }
+        }
+      }
+    },
+    "Exposure took too long to apply. Press the shutter to retry." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposure took too long to apply. Press the shutter to retry."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曝光设置生效超时，请再次按下快门重试。"
+          }
+        }
+      }
+    },
+    "The camera did not deliver a photo in time. Please try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera did not deliver a photo in time. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相机未能及时返回照片，请重试。"
+          }
+        }
+      }
+    },
     "" : {
 
     },
