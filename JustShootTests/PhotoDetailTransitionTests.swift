@@ -97,7 +97,7 @@ final class PhotoDetailTransitionTests: XCTestCase {
         XCTAssertTrue(PhotoDetailHostingController.canBeginDismissal(at: center, in: viewport))
     }
 
-    func testNativePresentationClearsSelectionOnExternalDismissAndCanReopen() async throws {
+    func testNativePresentationPreservesSelectionWhileCoveredAndCanReopenAfterDismissal() async throws {
         let photo = try await makePhoto()
         let photoID = photo.id
         defer { ImageLoader.shared.removeDiskCache(for: photoID) }
@@ -123,6 +123,21 @@ final class PhotoDetailTransitionTests: XCTestCase {
         XCTAssertEqual(first.modalPresentationStyle, .fullScreen)
         if #available(iOS 18.0, *) { XCTAssertNotNil(first.preferredTransition) }
         try await waitFor { first.presentingViewController != nil && !first.isBeingPresented && first.transitionCoordinator == nil }
+        // A full-screen sharing destination makes the viewer disappear without
+        // dismissing it. Returning must retain the photo and its presentation.
+        let selectedID = selection?.id
+        let cover = UIViewController()
+        cover.modalPresentationStyle = .fullScreen
+        first.present(cover, animated: false)
+        try await waitFor { first.viewIfLoaded?.window == nil && cover.presentingViewController != nil }
+        await Task.yield()
+        XCTAssertTrue(coordinator.host === first)
+        XCTAssertEqual(selection?.id, selectedID)
+        XCTAssertEqual(source.currentPhotoID, photoID)
+        cover.dismiss(animated: false)
+        try await waitFor { first.presentedViewController == nil && first.viewIfLoaded?.window != nil }
+        XCTAssertTrue(coordinator.host === first)
+        XCTAssertEqual(selection?.id, selectedID)
         // Simulate the same UIKit dismissal used by the interactive zoom gesture.
         let attachment = XCTAttachment(image: UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
@@ -144,6 +159,101 @@ final class PhotoDetailTransitionTests: XCTestCase {
         coordinator.update(in: anchor)
         try await waitFor { coordinator.host == nil }
         withExtendedLifetime(gridCoordinator) {}
+    }
+
+    func testCloseButtonDismissesWithoutAnotherRepresentableUpdate() async throws {
+        let photo = try await makePhoto()
+        let photoID = photo.id
+        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        container.mainContext.insert(photo)
+        try container.mainContext.save()
+        let anchor = PhotoPresentationAnchor()
+        let window = UIWindow(windowScene: try await TestWindowScene.foreground())
+        window.rootViewController = anchor
+        window.makeKeyAndVisible()
+        defer {
+            anchor.dismiss(animated: false)
+            window.isHidden = true
+            window.rootViewController = nil
+            ImageLoader.shared.removeDiskCache(for: photoID)
+        }
+        var selection: PhotoDetailSelection? = PhotoDetailSelection(startPhoto: photo, photos: [photo])
+        let presentation = PhotoDetailPresentation(selection: Binding(get: { selection }, set: { selection = $0 }),
+            source: PhotoGridTransitionSource(), container: container)
+        let coordinator = PhotoDetailPresentation.Coordinator(presentation)
+        coordinator.update(in: anchor)
+        try await waitFor {
+            guard let host = coordinator.host else { return false }
+            return !host.isBeingPresented && host.transitionCoordinator == nil
+        }
+        try tapClose(in: XCTUnwrap(coordinator.host))
+        XCTAssertNil(selection)
+        // UIKit must close even when the covered gallery produces no SwiftUI update.
+        try await waitFor { coordinator.host == nil && anchor.presentedViewController == nil }
+
+        // A close received during opening must run after the presentation finishes.
+        selection = PhotoDetailSelection(startPhoto: photo, photos: [photo])
+        coordinator.update(in: anchor)
+        try await waitFor { coordinator.host?.isBeingPresented == true }
+        selection = nil
+        coordinator.update(in: anchor)
+        try await waitFor { coordinator.host == nil && anchor.presentedViewController == nil }
+    }
+
+    func testStaleDismissedSelectionCannotReopenAndLateCallbackCannotClearNextSession() async throws {
+        let photo = try await makePhoto()
+        let photoID = photo.id
+        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        container.mainContext.insert(photo)
+        try container.mainContext.save()
+        let anchor = PhotoPresentationAnchor()
+        let window = UIWindow(windowScene: try await TestWindowScene.foreground())
+        window.rootViewController = anchor
+        window.makeKeyAndVisible()
+        defer {
+            anchor.dismiss(animated: false)
+            window.isHidden = true
+            window.rootViewController = nil
+            ImageLoader.shared.removeDiskCache(for: photoID)
+        }
+        let firstSelection = PhotoDetailSelection(startPhoto: photo, photos: [photo])
+        var selection: PhotoDetailSelection? = firstSelection
+        let source = PhotoGridTransitionSource()
+        // Model a binding value captured before the native interactive dismissal.
+        let presentation = PhotoDetailPresentation(selection: Binding(get: { firstSelection }, set: { selection = $0 }),
+            source: source, container: container)
+        let coordinator = PhotoDetailPresentation.Coordinator(presentation)
+        coordinator.update(in: anchor)
+        try await waitFor {
+            guard let host = coordinator.host else { return false }
+            return !host.isBeingPresented && host.transitionCoordinator == nil
+        }
+        let first = try XCTUnwrap(coordinator.host)
+        let lateCompletion = first.onDismiss
+        first.dismiss(animated: true)
+        try await waitFor { coordinator.host == nil && anchor.presentedViewController == nil }
+        XCTAssertNil(selection)
+        coordinator.update(in: anchor)
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertNil(coordinator.host, "A stale binding snapshot must not resurrect the dismissed presentation")
+        let nextSelection = PhotoDetailSelection(startPhoto: photo, photos: [photo])
+        XCTAssertNotEqual(firstSelection.id, nextSelection.id, "Opening the same photo is a new presentation")
+        selection = nextSelection
+        coordinator.parent = PhotoDetailPresentation(selection: Binding(get: { selection }, set: { selection = $0 }),
+            source: source, container: container)
+        coordinator.update(in: anchor)
+        try await waitFor {
+            guard let host = coordinator.host else { return false }
+            return host !== first && !host.isBeingPresented && host.transitionCoordinator == nil
+        }
+        let next = try XCTUnwrap(coordinator.host)
+        lateCompletion?()
+        XCTAssertTrue(coordinator.host === next)
+        XCTAssertEqual(selection?.id, nextSelection.id)
+        try tapClose(in: next)
+        try await waitFor { coordinator.host == nil && anchor.presentedViewController == nil }
     }
 
     func testQueuedPresentationHonorsCancellationAndDismantling() async throws {
@@ -223,6 +333,54 @@ final class PhotoDetailTransitionTests: XCTestCase {
             await Task.yield()
         }
         withExtendedLifetime(container) {}
+    }
+
+    func testGalleryCloseButtonAndNativeDismissalAllowImmediateSingleTapReopening() async throws {
+        let photo = try await makePhoto()
+        let photoID = photo.id
+        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        container.mainContext.insert(photo)
+        try container.mainContext.save()
+        let window = UIWindow(windowScene: try await TestWindowScene.foreground())
+        let root = UIHostingController(rootView: NavigationStack { GalleryView() }
+            .modelContainer(container).tint(.white).preferredColorScheme(.dark))
+        window.rootViewController = root
+        window.makeKeyAndVisible()
+        defer {
+            root.dismiss(animated: false)
+            window.isHidden = true
+            window.rootViewController = nil
+            ImageLoader.shared.removeDiskCache(for: photoID)
+        }
+        try await waitFor { self.photoGrid(in: root.view)?.numberOfItems(inSection: 0) == 1 }
+        let collection = try XCTUnwrap(photoGrid(in: root.view))
+        for cycle in 0..<4 {
+            // One user selection only. Do not manually refresh the representable/coordinator.
+            collection.delegate?.collectionView?(collection, didSelectItemAt: IndexPath(item: 0, section: 0))
+            try await waitFor {
+                guard let detail = root.presentedViewController as? PhotoDetailHostingController else { return false }
+                return !detail.isBeingPresented && detail.transitionCoordinator == nil
+            }
+            let detail = try XCTUnwrap(root.presentedViewController as? PhotoDetailHostingController)
+            if cycle.isMultiple(of: 2) {
+                try tapClose(in: detail)
+            } else {
+                detail.dismiss(animated: true)
+            }
+            // The next tap happens as soon as UIKit finishes closing, with no extra
+            // run-loop/animation delay to conceal stale gallery selection.
+            try await waitFor { root.presentedViewController == nil && root.transitionCoordinator == nil }
+        }
+    }
+
+    private func tapClose(in detail: UIViewController) throws {
+        let navigation = try XCTUnwrap(viewControllers(in: detail).compactMap { $0 as? UINavigationController }.first)
+        let item = try XCTUnwrap(navigation.navigationBar.topItem)
+        let close = try XCTUnwrap(item.leftBarButtonItems?.first
+            ?? item.leadingItemGroups.flatMap(\.barButtonItems).first)
+        let action = try XCTUnwrap(close.action)
+        XCTAssertTrue(UIApplication.shared.sendAction(action, to: close.target, from: close, for: nil))
     }
 
     private func viewControllers(in controller: UIViewController) -> [UIViewController] {
