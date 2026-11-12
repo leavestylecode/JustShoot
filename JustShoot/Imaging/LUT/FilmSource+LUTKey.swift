@@ -5,7 +5,7 @@ extension FilmSource {
     var lutCacheKey: String {
         switch self {
         case .preset(let p): return p.lutResourceName + FilmLookRefinement.cacheSuffix
-                + (p == .kodakPortra400 ? FilmMaterial.spectralRevision + FilmColorBalanceParameters.cacheSuffix : "")
+                + (p == .kodakPortra400 ? FilmMaterial.revision : "")
         case .custom(let id, _, _, _): return "custom_\(id.uuidString)"
         }
     }

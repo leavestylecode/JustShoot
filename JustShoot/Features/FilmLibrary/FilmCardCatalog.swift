@@ -156,8 +156,10 @@ final class FilmCardLibrary {
                     timer.end("invalid")
                     return nil
                 }
-                let index = FilmCardCatalogIndex(cards: bundle.cards)
-                timer.end("count=\(bundle.cards.count)")
+                let cards = FilmLUTCatalog.cards(packaging: bundle.cards,
+                    availablePresets: FilmLUTCatalog.availablePresets())
+                let index = FilmCardCatalogIndex(cards: cards, includesSmallGroups: true)
+                timer.end("count=\(cards.count)")
                 return index
             }
             loading = task

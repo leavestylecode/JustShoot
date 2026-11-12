@@ -54,6 +54,66 @@
       "skinHue": 0.46,
       "skinChroma": 0.55,
       "skinLightness": 0.08
+    },
+    "kodakGold200": {
+      "shadowRetention": 0,
+      "skinHue": 0,
+      "skinChroma": 0,
+      "skinLightness": 0
+    },
+    "kodakEktar100": {
+      "shadowRetention": 0,
+      "skinHue": 0,
+      "skinChroma": 0,
+      "skinLightness": 0
+    },
+    "kodakPortra800": {
+      "shadowRetention": 0,
+      "skinHue": 0,
+      "skinChroma": 0,
+      "skinLightness": 0
+    },
+    "fujiSuperiaXTRA400": {
+      "shadowRetention": 0,
+      "skinHue": 0,
+      "skinChroma": 0,
+      "skinLightness": 0
+    },
+    "fujiVelvia50": {
+      "shadowRetention": 0,
+      "skinHue": 0,
+      "skinChroma": 0,
+      "skinLightness": 0
+    },
+    "fujiSlideProvia100F": {
+      "shadowRetention": 0,
+      "skinHue": 0,
+      "skinChroma": 0,
+      "skinLightness": 0
+    },
+    "kodakKodachrome64": {
+      "shadowRetention": 0,
+      "skinHue": 0,
+      "skinChroma": 0,
+      "skinLightness": 0
+    },
+    "kodakTriX400": {
+      "shadowRetention": 0,
+      "skinHue": 0,
+      "skinChroma": 0,
+      "skinLightness": 0
+    },
+    "ilfordHP5Plus400": {
+      "shadowRetention": 0,
+      "skinHue": 0,
+      "skinChroma": 0,
+      "skinLightness": 0
+    },
+    "kodakTMax100": {
+      "shadowRetention": 0,
+      "skinHue": 0,
+      "skinChroma": 0,
+      "skinLightness": 0
     }
   }
 }

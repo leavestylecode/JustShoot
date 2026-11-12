@@ -9,24 +9,23 @@ enum CameraPickerStyle {
 
 // MARK: - 底部胶片选择条
 /// 右下角胶片封面点开后从底部弹出的横向胶片选择条。胶片顺序：
-///   1. 内置预设（FilmPreset.allCases）
-///   2. 用户导入的自定义 LUT（按 createdAt 倒序，与首页一致）
+///   用户已添加的胶片与导入的自定义 LUT，沿用首页的显示顺序。
 /// 当前选中胶片用黄色描边标识；点击后通过 onSelect 更新预览，面板保持展开以便连续比较。
 /// 展开瞬间 ScrollViewReader 自动滚到当前胶片，便于看到"我现在在哪一张"。
 struct FilmSourcePickerStrip: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     let current: FilmSource
-    let customLUTs: [CustomLUT]
+    let sources: [FilmSource]
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
     var preparedCovers: [FilmPreset: UIImage] = [:]
     var style: CameraPickerStyle = .standard
     let onSelect: (FilmSource) -> Void
 
-    /// Completion means the bounded worker finished preparing all eight images for display.
+    /// Completion means the bounded worker finished preparing the covers for display.
     /// A caller that needs eviction-proof first paint can retain the returned snapshot.
-    static func preloadCovers(displayScale: CGFloat) async throws -> [FilmPreset: UIImage] {
-        try await FilmPresetCoverPreparation.preparePicker(displayScale: displayScale)
+    static func preloadCovers(presets: [FilmPreset] = FilmPreset.allCases, displayScale: CGFloat) async throws -> [FilmPreset: UIImage] {
+        try await FilmPresetCoverPreparation.preparePicker(presets: presets, displayScale: displayScale)
     }
 
     var body: some View {
@@ -34,25 +33,13 @@ struct FilmSourcePickerStrip: View {
             GeometryReader { geometry in
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: style == .iPadOverlay ? 8 : 10) {
-                        ForEach(FilmPreset.allCases) { preset in
-                            let s = FilmSource.preset(preset)
+                        ForEach(sources) { s in
                             FilmSourcePickerCell(
                                 source: s,
                                 isSelected: s.id == current.id,
                                 contentRotation: contentRotation,
                                 orientation: orientation,
-                                preparedImage: preparedCovers[preset],
-                                style: style
-                            ) { onSelect(s) }
-                            .id(s.id)
-                        }
-                        ForEach(customLUTs) { lut in
-                            let s = FilmSource.from(lut)
-                            FilmSourcePickerCell(
-                                source: s,
-                                isSelected: s.id == current.id,
-                                contentRotation: contentRotation,
-                                orientation: orientation,
+                                preparedImage: { if case .preset(let preset) = s { return preparedCovers[preset] }; return nil }(),
                                 style: style
                             ) { onSelect(s) }
                             .id(s.id)

@@ -3,6 +3,23 @@ import UIKit
 @testable import JustShoot
 
 final class FilmPresetCoverPreparationTests: XCTestCase {
+    func testSelectedHomeAndPickerCoversExcludeUnaddedFilmsAndDeduplicateRequests() async throws {
+        let presets: [FilmPreset] = [.kodakPortra400, .kodakGold200, .kodakPortra400]
+        let home = try await FilmPresetCoverPreparation.prepareHome(presets: presets, displayScale: 2)
+        let picker = try await FilmPresetCoverPreparation.preparePicker(presets: presets, displayScale: 2)
+        XCTAssertEqual(Set(home.keys), Set(presets))
+        XCTAssertEqual(Set(picker.keys), Set(presets))
+        XCTAssertNil(home[.kodakPortra800])
+        XCTAssertNil(picker[.kodakPortra800])
+    }
+
+    func testEmptyLibraryNeedsNoHomeOrPickerCovers() async throws {
+        let home = try await FilmPresetCoverPreparation.prepareHome(presets: [], displayScale: 2)
+        let picker = try await FilmPresetCoverPreparation.preparePicker(presets: [], displayScale: 2)
+        XCTAssertTrue(home.isEmpty)
+        XCTAssertTrue(picker.isEmpty)
+    }
+
     func testAwaitedHomePreparationReturnsEveryBundledCoverAtDisplaySize() async throws {
         let covers = try await FilmPresetCoverPreparation.prepareHome(displayScale: 2)
         XCTAssertEqual(Set(covers.keys), Set(FilmPreset.allCases))

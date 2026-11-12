@@ -1,14 +1,11 @@
 import Foundation
 
-/// Optional, frozen display-color adjustment for new Portra recipes. The density
-/// model and exposure mapping stay unchanged; missing parameters mean legacy color.
+/// Frozen display-color parameters carried by historical capture journals.
 struct FilmColorBalanceParameters: Codable, Sendable, Equatable {
     enum SkinResponse: String, Codable, Sendable {
         case portraitV2 = "portrait_v2"
     }
 
-    static let legacyCacheSuffix = "#color-balance-v1"
-    static let cacheSuffix = "#color-balance-v2"
     static let portraV1 = Self(neutralRetention: 0.72, skinHueRetention: 0.30, skinChromaRetention: 0.35)
     static let portra = Self(neutralRetention: 0.72, skinHueRetention: 0.60,
         skinChromaRetention: 0.65, skinResponse: .portraitV2)

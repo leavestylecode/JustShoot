@@ -10,10 +10,101 @@ final class FilmMaterialTests: XCTestCase {
     private let space = FilmImagePipeline.colorSpace
 
     private func material(refine: Bool = true) throws -> FilmMaterial {
-        let m = try XCTUnwrap(FilmMaterial.loadLegacy(preset: .kodakPortra400))
+        let m = try XCTUnwrap(FilmMaterial.load(preset: .kodakPortra400))
         return FilmMaterial(version: m.version, identifier: m.identifier, input: m.input, density: m.density,
             print: m.print, finish: m.finish, densityMaximum: m.densityMaximum,
-            refinement: refine ? m.refinement : .zero, colorBalance: refine ? m.colorBalance : nil)
+            refinement: refine ? m.refinement : .zero)
+    }
+
+    /// Explicit historical field names exercise the on-disk contract independently
+    /// of the current encoder. Identity tables keep the fixture small and measurable.
+    private func historicalSpectralPayload() throws -> Data {
+        let table: [String: Any] = ["dimension": 2, "data": FilmMaterial.identity().data]
+        let payload: [String: Any] = [
+            "version": 2, "identifier": "spek-portra-endura-density-v1",
+            "input": table, "density": table, "print": table, "finish": table,
+            "densityMaximum": [Float(1.2), 1.4, 1.6], "densityMinimum": [Float(-0.1), -0.2, -0.3],
+            "refinement": [Float(0), 0, 0, 0],
+            "contract": ["input": "developed_srgb", "intermediate": "cmy_optical_density", "output": "encoded_srgb"],
+            "colorBalance": ["neutralRetention": Float(0.72), "skinHueRetention": Float(0.60),
+                "skinChromaRetention": Float(0.65), "skinResponse": "portrait_v2"] as [String: Any],
+            "calibration": ["shadowLift": Float(0.65), "toneCeiling": 0.60, "grainScale": 0.65]
+        ]
+        return try PropertyListSerialization.data(fromPropertyList: payload, format: .binary, options: 0)
+    }
+
+    func testCurrentPortraUsesSmallCarrierWithoutPreparingTheUnusedRGBCube() throws {
+        let processor = FilmProcessor()
+        let lut = try processor.loadLUT(source: .preset(.kodakPortra400))
+        XCTAssertEqual(lut.dimension, 2)
+        XCTAssertEqual(lut.data, FilmMaterial.identity().data)
+        XCTAssertNil(processor.cachedLUT(cacheKey: FilmPreset.kodakPortra400.lutResourceName))
+        let material = try XCTUnwrap(lut.material)
+        XCTAssertEqual(material.version, 1)
+        XCTAssertNil(material.colorBalance)
+        XCTAssertNil(material.calibration)
+    }
+
+    func testHistoricalSpectralJournalRecoversItsFrozenTablesAndParameters() throws {
+        let payload = try historicalSpectralPayload()
+        let material = try FilmMaterial.decode(payload)
+        XCTAssertEqual(material.version, 2)
+        XCTAssertEqual(material.contract, .spectralSDR)
+        XCTAssertEqual(material.densityFloor, SIMD3(-0.1, -0.2, -0.3))
+        XCTAssertEqual(material.colorBalance, .portra)
+        XCTAssertEqual(material.calibration, .portra)
+        var lut = FilmMaterial.identity().cube
+        lut.material = material
+        let journal = CaptureJournal(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        defer { try? FileManager.default.removeItem(at: journal.root) }
+        let recipe = CaptureRecipe(id: UUID(), captureDate: Date(), filterName: "historical-spectral-material",
+            displayLabel: nil, focalLength: 28, outputQuality: nil,
+            profile: FilmSource.preset(.kodakPortra400).captureRenderProfile, grainSeed: 123,
+            location: nil, lutDimension: lut.dimension, chromaticSceneCCT: nil, photoDisplayTime: nil)
+        var job = try journal.stage(recipe: recipe, imageData: Data([1]), movieURL: nil, lut: lut)
+        try payload.write(to: journal.file("material.bin", for: job.id))
+        job.recipe.materialSHA256 = FilmMaterial.digest(payload)
+        try journal.update(job)
+        let recovered = try journal.lut(for: job)
+        let frozen = try XCTUnwrap(recovered.material)
+        XCTAssertEqual(try frozen.encoded(), try material.encoded())
+        let input = image([0.04, 0.04, 0.04, 1, 0.2, 0.2, 0.2, 1, 0.6, 0.6, 0.6, 1], width: 3, height: 1)
+        let expected = render(try processed(input, material: material))
+        let actual = render(try processed(input, material: frozen))
+        XCTAssertEqual(actual, expected)
+        XCTAssertEqual(actual[4], 0.25777778, accuracy: 0.000002)
+        XCTAssertEqual(actual[8], 0.6, accuracy: 0.000002)
+        let filter = try XCTUnwrap(FilmImagePipeline.LUTFilter(lut: recovered))
+        let live = try XCTUnwrap(FilmImagePipeline.stages(for: input, lut: nil, lutFilter: filter,
+            chromaticGain: .one, optics: .disabled, grain: .disabled, grainSeed: 123))
+        XCTAssertEqual(render(live.final), actual)
+    }
+
+    func testHistoricalOptionalParametersAndContractsAreValidated() throws {
+        var payload = try XCTUnwrap(PropertyListSerialization.propertyList(
+            from: historicalSpectralPayload(), format: nil) as? [String: Any])
+        payload.removeValue(forKey: "calibration")
+        payload.removeValue(forKey: "colorBalance")
+        let uncalibrated = try FilmMaterial.decode(PropertyListSerialization.data(
+            fromPropertyList: payload, format: .binary, options: 0))
+        XCTAssertNil(uncalibrated.calibration)
+        XCTAssertNil(uncalibrated.colorBalance)
+        var malformed = uncalibrated
+        malformed.contract = nil
+        XCTAssertThrowsError(try malformed.encoded())
+        malformed = uncalibrated
+        malformed.densityMinimum = nil
+        XCTAssertThrowsError(try malformed.encoded())
+        malformed = uncalibrated
+        malformed.calibration = .init(shadowLift: 0.65, toneCeiling: 0, grainScale: 0.65)
+        XCTAssertThrowsError(try malformed.encoded())
+        var legacy = try material()
+        legacy.colorBalance = .portraV1
+        let restored = try FilmMaterial.decode(legacy.encoded())
+        XCTAssertEqual(restored.colorBalance, .portraV1)
+        XCTAssertNil(restored.colorBalance?.skinResponse)
+        legacy.calibration = .portra
+        XCTAssertThrowsError(try legacy.encoded())
     }
     private func image(_ values: [Float], width: Int, height: Int) -> CIImage {
         CIImage(bitmapData: values.withUnsafeBufferPointer { Data(buffer: $0) }, bytesPerRow: width * 16,
@@ -305,9 +396,11 @@ final class FilmMaterialTests: XCTestCase {
         let adjusted = try await ColorTemperatureLUT.shared.prepare(source: .preset(.kodakPortra400),
             curve: .builtIn(.matte), selection: .temperature(4700), tint: .value(8))
         let plain = try FilmProcessor.shared.loadLUT(source: .preset(.kodakPortra400))
-        var spectral = FilmMaterial.identity().cube
-        spectral.material = try FilmMaterial.loadSpectralPortra()
-        for (index, lut) in [plain, adjusted, spectral].enumerated() {
+        var historical = FilmMaterial.identity().cube
+        historical.material = try FilmMaterial.decode(historicalSpectralPayload())
+        var historicalV1 = plain
+        historicalV1.material?.colorBalance = .portraV1
+        for (index, lut) in [plain, adjusted, historical, historicalV1].enumerated() {
             let textures = try await PreviewLUTTextureCache.shared.prepare(key: "material-render-parity-\(index)", lut: lut)
             let material = try XCTUnwrap(textures.material)
             let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())

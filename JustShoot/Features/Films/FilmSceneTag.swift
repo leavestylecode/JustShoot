@@ -55,6 +55,16 @@ extension FilmPreset {
         case .fujiPro400H: return [.cloudy, .portrait, .indoor]
         case .fujiProvia100F: return [.sunny, .landscape, .travel]
         case .kodakPortra400: return [.portrait, .backlight, .sunset]
+        case .kodakGold200: return [.sunny, .travel, .street]
+        case .kodakEktar100: return [.landscape, .sunny, .flowers]
+        case .kodakPortra800: return [.portrait, .indoor, .night]
+        case .fujiSuperiaXTRA400: return [.street, .travel, .cloudy]
+        case .fujiVelvia50: return [.landscape, .sunset, .forest]
+        case .fujiSlideProvia100F: return [.sunny, .landscape, .travel]
+        case .kodakKodachrome64: return [.travel, .street, .sunny]
+        case .kodakTriX400: return [.street, .portrait, .night]
+        case .ilfordHP5Plus400: return [.street, .cloudy, .portrait]
+        case .kodakTMax100: return [.architecture, .sunny, .street]
         }
     }
 

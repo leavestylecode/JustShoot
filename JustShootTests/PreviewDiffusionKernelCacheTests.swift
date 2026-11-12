@@ -145,7 +145,8 @@ final class PreviewDiffusionKernelCacheTests: XCTestCase {
                 let longEdge = max(size.0, size.1)
                 let scale = Float(max(small.width, small.height)) / Float(longEdge)
                 let actual = try recipe(preset, width: size.0, height: size.1)
-                if preset.rawSimulation != nil {
+                // New physical stocks also retain source colors without diffusion.
+                if !optics.isEnabled {
                     XCTAssertNil(actual.halationSigma)
                     XCTAssertNil(actual.bloomSigma)
                     continue

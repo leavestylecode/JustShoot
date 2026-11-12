@@ -36,7 +36,8 @@ struct HomePreparationSnapshot: Sendable {
             let descriptor = FetchDescriptor<CustomLUT>(sortBy: [SortDescriptor(\CustomLUT.createdAt, order: .reverse)])
             return try context.fetch(descriptor).map(HomeCustomFilter.init)
         }.value
-        async let covers = FilmPresetCoverPreparation.prepareHome(displayScale: displayScale)
+        let presets = await MainActor.run { FilmPageSettings.shared.preferences.addedPresets }
+        async let covers = FilmPresetCoverPreparation.prepareHome(presets: presets, displayScale: displayScale)
         async let preview: Void = PreviewMetalResources.warmUp()
         let (customFilters, presetCovers, _) = try await (metadata, covers, preview)
         try Task.checkCancellation()

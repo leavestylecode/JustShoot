@@ -13,22 +13,22 @@ enum FilmPresetCoverPreparation {
         max(Int(72 * scale(displayScale) * 1.5), 100)
     }
 
-    static func prepareHome(displayScale: CGFloat) async throws -> [FilmPreset: UIImage] {
-        try await prepare(maxPixel: homePixel(displayScale: displayScale))
+    static func prepareHome(presets: [FilmPreset] = FilmPreset.allCases, displayScale: CGFloat) async throws -> [FilmPreset: UIImage] {
+        try await prepare(presets: presets, maxPixel: homePixel(displayScale: displayScale))
     }
 
-    static func preparePicker(displayScale: CGFloat) async throws -> [FilmPreset: UIImage] {
-        try await prepare(maxPixel: pickerPixel(displayScale: displayScale))
+    static func preparePicker(presets: [FilmPreset] = FilmPreset.allCases, displayScale: CGFloat) async throws -> [FilmPreset: UIImage] {
+        try await prepare(presets: presets, maxPixel: pickerPixel(displayScale: displayScale))
     }
 
     private static func scale(_ value: CGFloat) -> CGFloat {
         value.isFinite ? min(max(value, 1), 4) : 1
     }
 
-    private static func prepare(maxPixel: Int) async throws -> [FilmPreset: UIImage] {
+    private static func prepare(presets: [FilmPreset], maxPixel: Int) async throws -> [FilmPreset: UIImage] {
         try Task.checkCancellation()
         return try await withThrowingTaskGroup(of: (FilmPreset, UIImage).self) { group in
-            for preset in FilmPreset.allCases {
+            for preset in Set(presets) {
                 guard let imageName = preset.libraryCardImage else { continue }
                 group.addTask {
                     guard let image = await FilmCardImageCache.shared.loadImage(imageName: imageName,

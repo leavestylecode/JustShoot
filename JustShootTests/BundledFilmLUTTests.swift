@@ -19,6 +19,12 @@ final class BundledFilmLUTTests: XCTestCase {
         let referenceSamples: [ReferenceSample]?
     }
 
+    private struct HaldManifest: Decodable {
+        let license: String
+        let licenseFile: String
+        let stocks: [Stock]
+    }
+
     private struct ReferenceSample: Decodable {
         let input: [Float]
         let output: [Float]
@@ -32,6 +38,15 @@ final class BundledFilmLUTTests: XCTestCase {
         try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: resource("LUTProvenance", extension: "json")))
     }
 
+    private func haldManifest() throws -> HaldManifest {
+        try JSONDecoder().decode(HaldManifest.self,
+            from: Data(contentsOf: resource("RawTherapeeLUTProvenance", extension: "json")))
+    }
+
+    private func stocks() throws -> [Stock] {
+        try manifest().stocks + haldManifest().stocks
+    }
+
     private func original(_ name: String) throws -> CubeLUT {
         try CubeLUT.parse(FilmProcessor.readCubeText(from: resource(name, extension: "cube")))
     }
@@ -41,18 +56,23 @@ final class BundledFilmLUTTests: XCTestCase {
         XCTAssertEqual(provenance.schemaVersion, 2)
         XCTAssertEqual(provenance.modelSourceCommit, "bcbcfc6861f49cc706dc5d00ea048e4853060aab")
         let filmStocks = FilmPreset.allCases.filter { $0.rawSimulation == nil }
-        // Preserve the earlier community Provia source and its audit trail,
-        // while the existing preset ID now selects official RAW PROVIA.
-        let archivedSources: Set<String> = ["FujiProvia100F"]
-        XCTAssertEqual(Set(provenance.stocks.map(\.resourceName)),
-                       Set(filmStocks.map(\.lutResourceName)).union(archivedSources))
-        XCTAssertEqual(provenance.stocks.count, filmStocks.count + archivedSources.count)
+        let allStocks = try stocks()
+        XCTAssertEqual(Set(allStocks.map(\.resourceName)), Set(filmStocks.map(\.lutResourceName)))
+        XCTAssertEqual(allStocks.count, filmStocks.count)
         XCTAssertTrue(provenance.stocks.allSatisfy { $0.status == "communityModel" })
         let license = try String(contentsOf: resource("SpectralFilmLUT-LICENSE", extension: "txt"), encoding: .utf8)
         XCTAssertEqual(provenance.modelLicenseFile, "SpectralFilmLUT-LICENSE.txt")
         XCTAssertTrue(license.contains("Copyright (c) 2026 Jan Lohse"))
         XCTAssertTrue(license.contains("Permission is hereby granted"))
-        for stock in provenance.stocks {
+        let hald = try haldManifest()
+        XCTAssertEqual(hald.license, "CC-BY-SA-4.0")
+        XCTAssertEqual(hald.licenseFile, "RawTherapeeFilmLUT-LICENSE.txt")
+        XCTAssertTrue(hald.stocks.allSatisfy { $0.status == "communityHaldCLUT" })
+        let attribution = try String(contentsOf: resource("RawTherapeeFilmLUT-LICENSE", extension: "txt"), encoding: .utf8)
+        for credit in ["Pat David", "Pavlov Dmitry", "Michael Ezra", "https://creativecommons.org/licenses/by-sa/4.0/"] {
+            XCTAssertTrue(attribution.contains(credit))
+        }
+        for stock in allStocks {
             let data = try Data(contentsOf: resource(stock.resourceName, extension: "cube"))
             let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
             XCTAssertEqual(hash, stock.sha256, stock.resourceName)
@@ -61,7 +81,7 @@ final class BundledFilmLUTTests: XCTestCase {
 
     func testBundledSourcesLoadWithoutTheSupersededToeAndPortraitCurves() throws {
         let processor = FilmProcessor()
-        for stock in try manifest().stocks {
+        for stock in try stocks() {
             let raw = try original(stock.resourceName)
             let loaded = try processor.loadCubeLUT(resourceName: stock.resourceName)
             XCTAssertEqual(raw.dimension, stock.dimension)
@@ -80,7 +100,7 @@ final class BundledFilmLUTTests: XCTestCase {
     func testCoreImageMatchesSourceReferenceColorsInSRGB() throws {
         let space = FilmImagePipeline.colorSpace
         let context = CIContext(options: [.workingColorSpace: space, .outputColorSpace: space])
-        for stock in try manifest().stocks {
+        for stock in try stocks() {
             let samples = try XCTUnwrap(stock.referenceSamples)
             let inputs: [Float] = samples.flatMap { sample -> [Float] in sample.input + [1] }
             let image = CIImage(bitmapData: inputs.withUnsafeBufferPointer { Data(buffer: $0) },
@@ -98,6 +118,20 @@ final class BundledFilmLUTTests: XCTestCase {
                         "\(stock.resourceName) input=\(sample.input) channel=\(channel)")
                 }
                 XCTAssertEqual(output[index * 4 + 3], 1, accuracy: 0.0001)
+            }
+        }
+    }
+
+    func testEveryMonochromePresetRetainsEqualRGBChannels() throws {
+        let processor = FilmProcessor()
+        for preset in FilmPreset.allCases where preset.isMonochrome {
+            let cube = try processor.loadLUT(source: .preset(preset))
+            cube.data.withUnsafeBytes { storage in
+                let values = storage.bindMemory(to: Float.self)
+                for index in stride(from: 0, to: values.count, by: 4) {
+                    XCTAssertEqual(values[index], values[index + 1], accuracy: 0.000002, preset.rawValue)
+                    XCTAssertEqual(values[index], values[index + 2], accuracy: 0.000002, preset.rawValue)
+                }
             }
         }
     }

@@ -13,12 +13,30 @@ final class FilmPresetCatalogTests: XCTestCase {
         "harmanPhoenix200": "HarmanPhoenix200"
     ]
 
-    func testCatalogContainsOnlyTheNineRemainingLooks() {
+    func testCatalogPreservesExistingLooksAndAddsMainstreamFilmStocks() {
         XCTAssertEqual(Set(FilmPreset.allCases.map(\.rawValue)), [
             "fujiRawVelvia", "fujiRawASTIA", "fujiRawClassicChrome", "fujiRawClassicNeg",
-            "fujiRawACROS", "fujiC200", "fujiPro400H", "fujiProvia100F", "kodakPortra400"
+            "fujiRawACROS", "fujiC200", "fujiPro400H", "fujiProvia100F", "kodakPortra400",
+            "kodakGold200", "kodakEktar100", "kodakPortra800", "fujiSuperiaXTRA400",
+            "fujiVelvia50", "fujiSlideProvia100F", "kodakKodachrome64", "kodakTriX400",
+            "ilfordHP5Plus400", "kodakTMax100"
         ])
         XCTAssertEqual(Set(FilmPreset.allCases.compactMap(\.rawSimulation)), Set(FujifilmSimulation.allCases))
+    }
+
+    func testPhysicalSlidesKeepSeparateResourcesFromCameraSimulations() {
+        XCTAssertNil(FilmPreset.fujiVelvia50.rawSimulation)
+        XCTAssertNil(FilmPreset.fujiSlideProvia100F.rawSimulation)
+        XCTAssertNotEqual(FilmPreset.fujiVelvia50.lutResourceName, FilmPreset.fujiRawVelvia.lutResourceName)
+        XCTAssertNotEqual(FilmPreset.fujiSlideProvia100F.lutResourceName, FilmPreset.fujiProvia100F.lutResourceName)
+    }
+
+    func testBlackAndWhiteStocksNeverAddColoredGrainOrHalation() {
+        for preset in FilmPreset.allCases where preset.isMonochrome {
+            XCTAssertEqual(preset.renderProfile.grain.chroma, 0, preset.rawValue)
+            XCTAssertFalse(preset.renderProfile.optics.isEnabled, preset.rawValue)
+            XCTAssertTrue(preset.renderProfile.effectiveChromatic.isNeutral, preset.rawValue)
+        }
     }
 
     func testRetiredLooksHaveNoBundledTablesOrCapturePreset() {

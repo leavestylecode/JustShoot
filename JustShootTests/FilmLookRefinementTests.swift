@@ -2,6 +2,11 @@ import XCTest
 @testable import JustShoot
 
 final class FilmLookRefinementTests: XCTestCase {
+    private func refinedRGB(_ film: FilmPreset, processor: FilmProcessor) throws -> CubeLUT {
+        let original = try processor.loadCubeLUT(resourceName: film.lutResourceName)
+        return try FilmLookRefinement.applying(to: original, preset: film)
+    }
+
     private func sample(_ cube: CubeLUT, _ input: SIMD3<Float>) -> SIMD3<Float> {
         cube.data.withUnsafeBytes { storage in
             let table = storage.bindMemory(to: Float.self)
@@ -19,13 +24,6 @@ final class FilmLookRefinementTests: XCTestCase {
             } } }
             return result
         }
-    }
-
-    /// These fixtures describe the RGB refinement module. A material's carrier
-    /// cube is intentionally identity; its output is tested through the renderer.
-    private func refinedRGB(_ film: FilmPreset, processor: FilmProcessor) throws -> CubeLUT {
-        let original = try processor.loadCubeLUT(resourceName: film.lutResourceName)
-        return try FilmLookRefinement.applying(to: original, preset: film)
     }
 
     private func luma(_ rgb: SIMD3<Float>) -> Float {
@@ -71,7 +69,9 @@ final class FilmLookRefinementTests: XCTestCase {
     func testColoredLooksReduceBrightSkinHueDisplacementAndRetainMostOfTheirStyle() throws {
         let processor = FilmProcessor()
         let skin: [SIMD3<Float>] = [SIMD3(0.78, 0.59, 0.48), SIMD3(0.55, 0.39, 0.30)]
-        for film in FilmPreset.allCases where film != .fujiRawACROS {
+        for film in FilmPreset.allCases where !film.isMonochrome {
+            // Community additions intentionally retain their source colors for review.
+            guard try FilmLookRefinement.parameters(for: film).y > 0 else { continue }
             let original = try processor.loadCubeLUT(resourceName: film.lutResourceName)
             let refined = try refinedRGB(film, processor: processor)
             for input in skin {

@@ -1,0 +1,81 @@
+Mainstream film catalog integration — 2026-11-04
+
+Scope
+Added 10 selections to the existing 9: Kodak Gold 200, Ektar 100, Portra 800,
+Kodachrome 64, Tri-X 400, T-Max 100; Fuji Superia X-TRA 400, Velvia 50,
+Provia 100F; Ilford HP5 Plus 400. Together with existing Portra 400 and
+Pro 400H, this covers 12 of the previously discussed 15 physical stocks.
+Physical Provia/Velvia have separate IDs, covers and LUTs from the existing
+FUJIFILM camera simulations. Existing preset IDs and LUT bytes are preserved.
+Existing film-card library assets provide all ten matching packaging covers.
+
+Sources
+Six new color cubes use Jan Lohse's Spectral Film LUT, MIT license, pinned at
+bcbcfc6861f49cc706dc5d00ea048e4853060aab:
+https://github.com/JanLohse/spectral_film_lut
+Provia reuses the already bundled, audited physical slide cube.
+Negative stocks use the existing Endura/Fuji paper recipes. All inputs and
+outputs are encoded sRGB, with 33 samples per axis. Source commit, model-file
+hashes, packages, recipes, cube hashes and independent model anchor colors are
+recorded in LUTProvenance.json. LUTValidation.json compares the baked tables
+with the unbaked model; it does not measure fidelity to physical film.
+Regeneration preserved all four pre-existing community stock records exactly.
+
+Three monochrome cubes come from RawTherapee Film Simulation Collection
+2015-09-20, CC BY-SA 4.0, credited to Pat David, Pavlov Dmitry and Michael Ezra:
+https://rawtherapee.com/shared/HaldCLUT.zip
+Source images: Ilford HP5 Plus 400.png, Kodak T-Max 100.png,
+Kodak TRI-X 400 2.png. The converter verifies pinned source SHA-256 hashes and
+equal RGB channels, then resamples the 144-point Hald tables to 33-point cubes.
+Sampled maximum RGB conversion errors: 0.007186, 0.008321 and 0.011998.
+RawTherapeeLUTProvenance.json preserves hashes, source dimensions, errors and
+independent source anchor colors. RawTherapeeFilmLUT-LICENSE.txt contains the
+original credits, license, source link and conversion notice. Both .cube and
+.jslut adaptations retain CC BY-SA 4.0; this does not relicense the app code.
+
+Not included
+PictureFX CineStill 800T has a noncommercial license; it is not bundled.
+https://marcrphoto.wordpress.com/picturefx-pro-2024/
+No verified modern still-film Ektachrome E100 or ACROS II table was selected.
+E100VS/100D, original ACROS and the FUJIFILM ACROS camera simulation are not
+renamed as those stocks.
+
+Rendering and runtime
+New presets use identity portrait/shadow refinement to preserve source color
+for review. Their additional optics and native-CCT effects are disabled;
+grain uses existing ISO/stock-character logic. New monochrome presets set
+grain chroma to zero and have no colored halation or CCT effect.
+No new renderer, runtime model dependency, catalog scan or UI disk read.
+Each new compiled table occupies 575,008 bytes; existing cache budgets and
+two-worker cover decoding remain in effect. There are nine new cube/binary
+pairs, because physical Provia's table already existed.
+
+Reproduce
+python3.12 -m venv /path/to/lut-env
+/path/to/lut-env/bin/pip install -r scripts/lut-requirements.txt
+Check out Spectral Film LUT at the pinned commit above, then:
+/path/to/lut-env/bin/python scripts/bake_film_luts.py --source /path/to/spectral_film_lut
+Extract the three named Hald PNGs and README.txt from the source archive into
+one directory, then:
+/path/to/lut-env/bin/python scripts/bake_hald_film_luts.py --source /path/to/hald-files
+python3 scripts/compile_luts.py
+python3 scripts/compile_luts.py --check
+
+Validation
+XcodeBuildMCP, JustShoot.xcodeproj / JustShoot, Debug,
+iPhone 17 Pro / iOS 26.4 Simulator (41751D9F-D5EF-49B2-8223-5D2A3917457D).
+Build and launch passed. No Swift warnings; existing AppIntents metadata
+extraction warning remains. 53 tests passed, zero failures or skips:
+AppStartupPreparationTests, BundledFilmLUTTests, FilmGrainTests,
+FilmLookRefinementTests, FilmPresetCatalogTests, FilmPresetCoverPreparationTests,
+FilmProcessorCacheTests, FilmSceneParityTests, FilmTileLayoutTests.
+Coverage includes source hashes and compiled/source byte parity, independent
+sRGB anchor rendering, monochrome channel equality, all 19 looks across skin,
+daylight and night stress images in Metal/Core Image, cache rebuilding,
+cancelled preparation, all covers, and compact/regular English/Chinese labels.
+Simulator inspection confirmed the new catalog covers and Tri-X camera entry,
+which correctly reports camera unavailable on the simulator.
+compile_luts.py --check and git diff --check passed.
+
+No physical device was tested. These simulations are not manufacturer-endorsed
+or calibrated iPhone/film matches. No device performance gain is claimed.

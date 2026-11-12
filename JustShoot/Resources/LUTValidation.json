@@ -42,5 +42,71 @@
     "rgbRMSE": 0.0020772958555731885,
     "grayReversals": 18,
     "worstGrayStep": -2.7931944091674765e-05
+  },
+  {
+    "resourceName": "KodakGold200",
+    "dimension": 33,
+    "fidelityAgainst": "Unbaked model on 2048 seeded random RGBs and 1025 gray inputs; not real film",
+    "deltaE2000Median": 0.07285948097705841,
+    "deltaE2000P95": 0.43262654542922974,
+    "deltaE2000Max": 3.625014066696167,
+    "rgbRMSE": 0.0024190962680131984,
+    "grayReversals": 17,
+    "worstGrayStep": -3.163425703132938e-05
+  },
+  {
+    "resourceName": "KodakEktar100",
+    "dimension": 33,
+    "fidelityAgainst": "Unbaked model on 2048 seeded random RGBs and 1025 gray inputs; not real film",
+    "deltaE2000Median": 0.06820733100175858,
+    "deltaE2000P95": 0.42084425687789917,
+    "deltaE2000Max": 3.6153464317321777,
+    "rgbRMSE": 0.002664332036568954,
+    "grayReversals": 18,
+    "worstGrayStep": -2.687286853923776e-05
+  },
+  {
+    "resourceName": "KodakPortra800",
+    "dimension": 33,
+    "fidelityAgainst": "Unbaked model on 2048 seeded random RGBs and 1025 gray inputs; not real film",
+    "deltaE2000Median": 0.07088711857795715,
+    "deltaE2000P95": 0.4112080931663513,
+    "deltaE2000Max": 3.427151679992676,
+    "rgbRMSE": 0.0022953651755057095,
+    "grayReversals": 20,
+    "worstGrayStep": -3.483141829943581e-05
+  },
+  {
+    "resourceName": "FujiSuperiaXTRA400",
+    "dimension": 33,
+    "fidelityAgainst": "Unbaked model on 2048 seeded random RGBs and 1025 gray inputs; not real film",
+    "deltaE2000Median": 0.06939834356307983,
+    "deltaE2000P95": 0.5319507122039795,
+    "deltaE2000Max": 2.650851011276245,
+    "rgbRMSE": 0.002563043383775081,
+    "grayReversals": 16,
+    "worstGrayStep": -3.157446866813851e-05
+  },
+  {
+    "resourceName": "FujiVelvia50",
+    "dimension": 33,
+    "fidelityAgainst": "Unbaked model on 2048 seeded random RGBs and 1025 gray inputs; not real film",
+    "deltaE2000Median": 0.0799625888466835,
+    "deltaE2000P95": 0.46059826016426086,
+    "deltaE2000Max": 3.1254961490631104,
+    "rgbRMSE": 0.0027791068347631813,
+    "grayReversals": 0,
+    "worstGrayStep": -4.2558055798110755e-07
+  },
+  {
+    "resourceName": "KodakKodachrome64",
+    "dimension": 33,
+    "fidelityAgainst": "Unbaked model on 2048 seeded random RGBs and 1025 gray inputs; not real film",
+    "deltaE2000Median": 0.06802549213171005,
+    "deltaE2000P95": 0.33522534370422363,
+    "deltaE2000Max": 1.8545105457305908,
+    "rgbRMSE": 0.0016905224831486425,
+    "grayReversals": 0,
+    "worstGrayStep": -1.7830334111887391e-06
   }
 ]

@@ -1,9 +1,84 @@
 import XCTest
 import MetalKit
+import SwiftUI
 @testable import JustShoot
 
 @MainActor
 final class CameraPreviewLifecycleTests: XCTestCase {
+    @MainActor
+    private final class Preparation: ObservableObject {
+        @Published var resourcesReady = false
+    }
+
+    private struct PreviewHost: View {
+        @ObservedObject var preparation: Preparation
+        let manager: CameraManager
+        let lut: PreviewLUTTexture
+
+        var body: some View {
+            RealtimePreviewView(manager: manager, resourcesReady: preparation.resourcesReady,
+                lutCacheKey: lut.key, preparedLUT: lut, grain: .disabled,
+                optics: .disabled, chromatic: .neutral)
+                .frame(width: 160, height: 200)
+        }
+    }
+
+    private func preview(in view: UIView) -> CameraPreviewMetalView? {
+        if let view = view as? CameraPreviewMetalView { return view }
+        return view.subviews.lazy.compactMap { self.preview(in: $0) }.first
+    }
+
+    func testMountedPreviewInstallsRendererWhenResourcesFinishAfterLUT() async throws {
+        // The LUT is already published. Resource readiness must update the same mounted
+        // representable by itself, without a film change, navigation or another UI event.
+        try await checkRendererInstallation(initiallyReady: false)
+    }
+
+    func testPreparedRendererIsInstalledOnInitialMount() async throws {
+        try await checkRendererInstallation(initiallyReady: true)
+    }
+
+    private func checkRendererInstallation(initiallyReady: Bool) async throws {
+        try await PreviewMetalResources.warmUpForRenderer()
+        var values: [Float] = []
+        for index in 0..<8 {
+            values.append(Float(index % 2))
+            values.append(Float((index / 2) % 2))
+            values.append(Float(index / 4))
+            values.append(1)
+        }
+        let cube = CubeLUT(data: values.withUnsafeBufferPointer { Data(buffer: $0) }, dimension: 2)
+        let lut = try await PreviewLUTTextureCache.shared.prepare(key: "preview-mount-test", lut: cube)
+        let preparation = Preparation()
+        preparation.resourcesReady = initiallyReady
+        let manager = CameraManager()
+        let window = try await makeWindow()
+        let host = UIHostingController(rootView: PreviewHost(preparation: preparation, manager: manager, lut: lut))
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+        }
+        host.view.layoutIfNeeded()
+        let view = try XCTUnwrap(preview(in: host.view))
+        if !initiallyReady {
+            XCTAssertNil(view.delegate)
+            preparation.resourcesReady = true
+        }
+        let deadline = ProcessInfo.processInfo.systemUptime + 2
+        while view.delegate == nil, ProcessInfo.processInfo.systemUptime < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertTrue(preview(in: host.view) === view, "Resource readiness must not recreate the view")
+        let renderer = try XCTUnwrap(view.delegate as? RealtimePreviewView.Coordinator)
+        XCTAssertTrue(renderer.manager === manager)
+        XCTAssertTrue(renderer.preparedLUT?.texture === lut.texture)
+        XCTAssertEqual(renderer.lutCacheKey, lut.key)
+        XCTAssertFalse(view.isPaused)
+        XCTAssertGreaterThan(view.drawableSize.width, 0)
+    }
+
     private func makeWindow() async throws -> UIWindow {
         let scene = try await TestWindowScene.foreground()
         return UIWindow(windowScene: scene)

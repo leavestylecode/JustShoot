@@ -1,0 +1,110 @@
+{
+  "checked_at": "2026-11-04",
+  "sources": [
+    {
+      "name": "RawTherapee Film Simulation Collection",
+      "url": "https://rawtherapee.com/shared/HaldCLUT.zip",
+      "version": "2015-09-20",
+      "inventory": "sources/rawtherapee-inventory.json",
+      "png_files": 295,
+      "license": "CC-BY-SA-4.0",
+      "license_evidence": "research/luts-2026-10-24/community/rawtherapee/README.txt",
+      "notes": "ZIP central directory verified using HTTP Range. PNG count includes creative looks, negative variants, exposure/contrast variants; not 295 film models."
+    },
+    {
+      "name": "G-MIC Film-Luts mirror",
+      "url": "https://github.com/YahiaAngelo/Film-Luts",
+      "inventory": "sources/film-luts-inventory.json",
+      "cube_files": 296,
+      "license": "repository MIT plus explicit third-party ownership disclaimer",
+      "notes": "Used as cross-check for ready cube availability, not a replacement for upstream asset licences. No increased model count for contrast variants."
+    },
+    {
+      "name": "Spectral Film LUT",
+      "url": "https://github.com/JanLohse/spectral_film_lut",
+      "inventory": "sources/spectral-film-lut-inventory.json",
+      "license": "MIT",
+      "notes": "Stock-specific Python models, not ready downloads. Print films and nonmatching stocks are excluded."
+    },
+    {
+      "name": "spektrafilm",
+      "url": "https://github.com/andreavolpato/spektrafilm",
+      "inventory": "sources/spektrafilm-inventory.json",
+      "license_url": "https://github.com/andreavolpato/spektrafilm/blob/3bb2c2d2801ff68b92019cf1dbcbb133d60832bc/SPEKTRAFILM_LICENSE.txt",
+      "license": "profiles/LUTs CC-BY-SA-4.0; engine GPL-3.0",
+      "notes": "Pinned licence text distinguishes legal requirements from author wishes; README contains stale custom-licence wording. No engine code was added to this app. Ektachrome 100 info explicitly says still; motion 100D was excluded."
+    },
+    {
+      "name": "Fotufilm",
+      "url": "https://github.com/DhaliwalX/fotufilm-engine",
+      "inventory": "sources/fotufilm-inventory.json",
+      "license_url": "https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/LICENSING.md",
+      "license": "47 runtime stock profiles CC-BY-SA-4.0; project-authored engine Apache-2.0",
+      "notes": "Profile ID acros100 explicitly names Acros 100 II. All models still need a fixed, nonspatial bake. A prior isolated Phoenix bake recipe is in research/luts-2026-10-24/community/fotufilm/PhoenixLUTBaker.swift."
+    },
+    {
+      "name": "Bicyclelad Phoenix first generation",
+      "url": "https://bicyclelad.com/harman-phoenix-200-lightroom-preset-v2/",
+      "inventory": "../luts-2026-10-24/community/phoenix/manifest.json",
+      "license": "no app redistribution grant verified",
+      "notes": "Prior download confirmed flat/punchy 64-cube assets. Current page still advertises LUT ZIP; direct urllib fetch got HTTP 403 in this audit. Not Phoenix II."
+    },
+    {
+      "name": "ANDP FilmStyles",
+      "url": "https://www.andpfilmstyles.com/shop/",
+      "page2": "https://www.andpfilmstyles.com/shop/page/2/",
+      "license_url": "https://www.andpfilmstyles.com/terms-and-conditions/",
+      "license": "standard purchase excludes software/application embedding; separate written integration licence required",
+      "notes": "Product listings checked for CUBE availability. No purchases. Polaroid 600 vintage-versus-current, Kodachrome 1935-62 ISO mismatch uncertainty, and Konica Centuria APS-versus-35mm excluded from strict matches."
+    },
+    {
+      "name": "PictureFX",
+      "url": "https://picturefx.itch.io/picturefx-cinestill-800t-v10",
+      "license_url": "https://marcrphoto.wordpress.com/picturefx-pro-2024/",
+      "license": "general policy CC-BY-NC-4.0 unless file-specific exception; app redistribution unresolved",
+      "notes": "CineStill 800T ready LUT listing supplements the Fotufilm model. SX-70 Core is related only, not counted as matching current Color SX-70 chemistry."
+    },
+    {
+      "name": "Pixflow Colorama ColorPlus 200",
+      "url": "https://pixflow.net/templates/colorama-kodak-colorplus-200/",
+      "license_url": "https://pixflow.net/license/",
+      "license": "commercial photographic use advertised; app asset redistribution not cleared",
+      "notes": "CUBE product listing only; not purchased or file-validated."
+    },
+    {
+      "name": "Tone Fuentes Edit-Like V3",
+      "url": "https://payhip.com/b/YlA1W",
+      "license": "no app embedding grant verified",
+      "notes": "Publisher explicitly lists 46 CUBE creative LUTs and named SFX200, OrthoPlus, Fantome, Color92; lists these as own interpretations. Does not normalize LOG. No purchase."
+    },
+    {
+      "name": "SparkleStock Cine",
+      "url": "https://www.sparklestock.com/downloads/cine/",
+      "license": "standard licence listing; no app embedding grant verified",
+      "notes": "Publisher explicitly lists CineStill 50D and 800T CUBE assets. Only adds 50D to independent model count. No purchase."
+    },
+    {
+      "name": "Ross McConaghy Color92 / 1992",
+      "url": "https://www.rossandhisjpegs.com/lumix/color-92",
+      "license": "app redistribution not verified",
+      "notes": "Additional primary source for Color92 look. Lumix photo style/contrast/white balance are part of recipe; not assumed directly portable to iPhone."
+    }
+  ],
+  "excluded_from_ready_lut_count": [
+    "ordinary Lightroom XMP or darktable styles without verified LUT exports",
+    "filters accessible only within other apps without a verified downloadable asset",
+    "generic auto-created film names without checked stock-specific LUT/profile evidence",
+    "different ISO, explicit generation, process or format without a verified alias"
+  ],
+  "targeted_searches": [
+    "ColorPlus 200 LUT cube",
+    "LomoChrome LUT download",
+    "Harman Phoenix LUT cube",
+    "Fomapan LUT download",
+    "Kentmere LUT download",
+    "Phoenix II LUT",
+    "CineStill 50D LUT download",
+    "Shanghai GP3 LUT",
+    "Agfa APX 400 LUT cube"
+  ]
+}

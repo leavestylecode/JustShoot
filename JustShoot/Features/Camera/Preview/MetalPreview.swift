@@ -206,6 +206,8 @@ final class PreviewUnderlayUIView: UIView {
 // MARK: - 实时预览视图（全 Metal 管线：CVPixelBuffer → compute shader → drawable）
 struct RealtimePreviewView: UIViewRepresentable {
     let manager: CameraManager
+    /// An explicit SwiftUI input: the shared resource cache does not publish changes.
+    let resourcesReady: Bool
     let lutCacheKey: String
     let preparedLUT: PreviewLUTTexture?
     let grain: FilmGrainParameters
@@ -215,7 +217,8 @@ struct RealtimePreviewView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> MTKView {
         // A loading overlay can mount this view before async preparation finishes.
-        // The next update installs its device/PSOs; no cold compilation occurs on MainActor.
+        // resourcesReady changing installs its device/PSOs even if the LUT finished first.
+        // No cold compilation occurs on MainActor.
         let view = CameraPreviewMetalView(frame: .zero, device: PreviewMetalResources.shared.device)
         view.setContentVisible(isContentVisible)
         // CADisplayLink 驱动渲染：MTKView 内部以屏幕 vsync 节拍调 draw(in:)。
@@ -238,7 +241,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         view.autoResizeDrawable = false
         (view.layer as? CAMetalLayer)?.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
         context.coordinator.manager = manager
-        context.coordinator.setup(view: view)
+        if resourcesReady { context.coordinator.setup(view: view) }
         view.onRenderingAvailabilityChanged = { [weak coordinator = context.coordinator] active, reason in
             coordinator?.renderingAvailabilityChanged(active)
             coordinator?.manager?.diagnostics.event("preview_rendering_changed", "active=\(active) reason=\(reason)")
@@ -260,7 +263,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         context.coordinator.optics = optics
         context.coordinator.chromatic = chromatic
         context.coordinator.manager = manager
-        context.coordinator.setup(view: uiView)
+        if resourcesReady { context.coordinator.setup(view: uiView) }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -427,6 +430,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             energyDownsampler = resources.energyDownsampler
             view.delegate = self
             renderingAvailabilityChanged(!view.isPaused && view.window != nil)
+            manager?.diagnostics.event("preview_renderer_installed")
         }
 
         func flushFrameCache() {

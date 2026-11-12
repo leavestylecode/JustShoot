@@ -24,7 +24,7 @@ struct FilmCardCatalogIndex: Sendable {
     private let majorFormats: Set<String>
     private let searchText: [String]
 
-    init(cards: [FilmCard]) {
+    init(cards: [FilmCard], includesSmallGroups: Bool = false) {
         self.cards = cards
         searchText = cards.map { card in
             [card.brand, card.product, card.format, card.iso.map(String.init)]
@@ -41,8 +41,8 @@ struct FilmCardCatalogIndex: Sendable {
             if let color = card.color { colors[color, default: 0] += 1 }
             if let iso = card.iso { isos[iso, default: 0] += 1 }
         }
-        let brandChips = Self.chips(counts: brands, total: cards.count)
-        let formatChips = Self.chips(counts: formats, total: cards.count)
+        let brandChips = Self.chips(counts: brands, total: cards.count, minimumCount: includesSmallGroups ? 1 : 11)
+        let formatChips = Self.chips(counts: formats, total: cards.count, minimumCount: includesSmallGroups ? 1 : 11)
         self.brandChips = brandChips
         self.formatChips = formatChips
         majorBrands = Set(brandChips.map(\.key)).subtracting([Self.otherKey])
@@ -54,7 +54,7 @@ struct FilmCardCatalogIndex: Sendable {
         let otherISOs = cards.count - isoChips.reduce(0) { $0 + $1.count }
         if otherISOs > 0 { isoChips.append(Self.other(count: otherISOs)) }
         self.isoChips = isoChips
-        availableColors = CardColorPalette.order.filter { (colors[$0] ?? 0) >= 30 }
+        availableColors = CardColorPalette.order.filter { (colors[$0] ?? 0) >= (includesSmallGroups ? 1 : 30) }
     }
 
     func filtered(using selection: FilmCardSelection, query: String = "") -> [FilmCard] {
@@ -82,8 +82,8 @@ struct FilmCardCatalogIndex: Sendable {
         }.map(\.element)
     }
 
-    private static func chips(counts: [String: Int], total: Int) -> [BrandChipEntry] {
-        var chips = counts.filter { $0.value > 10 }.sorted {
+    private static func chips(counts: [String: Int], total: Int, minimumCount: Int) -> [BrandChipEntry] {
+        var chips = counts.filter { $0.value >= minimumCount }.sorted {
             if $0.value != $1.value { return $0.value > $1.value }
             return $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending
         }.map { BrandChipEntry(key: $0.key, displayName: $0.key, count: $0.value) }

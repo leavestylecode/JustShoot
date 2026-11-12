@@ -1,0 +1,733 @@
+{
+  "commit": "3bb2c2d2801ff68b92019cf1dbcbb133d60832bc",
+  "files": [
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_ultramax_400.json",
+      "info": {
+        "stock": "kodak_ultramax_400",
+        "name": "Kodak Ultramax 400",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "weak",
+        "target_print": "kodak_portra_endura",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_endura_premier.json",
+      "info": {
+        "stock": "kodak_endura_premier",
+        "name": "Kodak Professional Endura Premier",
+        "type": "negative",
+        "support": "paper",
+        "stage": "printing",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": null,
+        "channel_model": "color",
+        "densitometer": "status_A",
+        "log_sensitivity_density_over_min": 1.0,
+        "reference_illuminant": "TH-KG3",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_ultra_endura.json",
+      "info": {
+        "stock": "kodak_ultra_endura",
+        "name": "Kodak Professional Ultra Endura",
+        "type": "negative",
+        "support": "paper",
+        "stage": "printing",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": null,
+        "channel_model": "color",
+        "densitometer": "status_A",
+        "log_sensitivity_density_over_min": 1.0,
+        "reference_illuminant": "TH-KG3",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_kodachrome_64.json",
+      "info": {
+        "stock": "kodak_kodachrome_64",
+        "name": "Kodak Kodachrome 64",
+        "type": "positive",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "weak",
+        "target_print": null,
+        "channel_model": "color",
+        "densitometer": "status_A",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_vision3_50d.json",
+      "info": {
+        "stock": "kodak_vision3_50d",
+        "name": "Kodak Vision3 50D",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "cine",
+        "antihalation": "strong",
+        "target_print": "kodak_2383",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/fujifilm_c200.json",
+      "info": {
+        "stock": "fujifilm_c200",
+        "name": "Fujifilm C200",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "weak",
+        "target_print": "fujifilm_crystal_archive_typeii",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 1.0,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_portra_400.json",
+      "info": {
+        "stock": "kodak_portra_400",
+        "name": "Kodak Portra 400",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": "kodak_portra_endura",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/fujifilm_pro_400h.json",
+      "info": {
+        "stock": "fujifilm_pro_400h",
+        "name": "Fujifilm Pro 400H",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": "fujifilm_crystal_archive_typeii",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 1.0,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_vision3_200t.json",
+      "info": {
+        "stock": "kodak_vision3_200t",
+        "name": "Kodak Vision3 200T",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "cine",
+        "antihalation": "strong",
+        "target_print": "kodak_2383",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "T",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_2393.json",
+      "info": {
+        "stock": "kodak_2393",
+        "name": "Kodak Vision Premier 2393",
+        "type": "negative",
+        "support": "film",
+        "stage": "printing",
+        "use": "cine",
+        "antihalation": "strong",
+        "target_print": null,
+        "channel_model": "color",
+        "densitometer": "status_A",
+        "log_sensitivity_density_over_min": 1.0,
+        "reference_illuminant": "TH-KG3",
+        "viewing_illuminant": "K75P"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_portra_800.json",
+      "info": {
+        "stock": "kodak_portra_800",
+        "name": "Kodak Portra 800",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": "kodak_portra_endura",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_ektacolor_edge.json",
+      "info": {
+        "stock": "kodak_ektacolor_edge",
+        "name": "Kodak Ektacolor Edge",
+        "type": "negative",
+        "support": "paper",
+        "stage": "printing",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": null,
+        "channel_model": "color",
+        "densitometer": "status_A",
+        "log_sensitivity_density_over_min": 1.0,
+        "reference_illuminant": "TH-KG3",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/fujifilm_xtra_400.json",
+      "info": {
+        "stock": "fujifilm_xtra_400",
+        "name": "Fujifilm X-Tra 400",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "weak",
+        "target_print": "fujifilm_crystal_archive_typeii",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 1.0,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_verita_200d.json",
+      "info": {
+        "stock": "kodak_verita_200d",
+        "name": "Kodak Verita 200D",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "cine",
+        "antihalation": "strong",
+        "target_print": "kodak_2383",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/fujifilm_velvia_100.json",
+      "info": {
+        "stock": "fujifilm_velvia_100",
+        "name": "Fujifilm Velvia 100",
+        "type": "positive",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": null,
+        "channel_model": "color",
+        "densitometer": "status_A",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_portra_800_push1.json",
+      "info": {
+        "stock": "kodak_portra_800_push1",
+        "name": "Kodak Portra 800 (Push 1)",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": "kodak_portra_endura",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_gold_200.json",
+      "info": {
+        "stock": "kodak_gold_200",
+        "name": "Kodak Gold 200",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "weak",
+        "target_print": "kodak_portra_endura",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_portra_endura.json",
+      "info": {
+        "stock": "kodak_portra_endura",
+        "name": "Kodak Professional Portra Endura",
+        "type": "negative",
+        "support": "paper",
+        "stage": "printing",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": null,
+        "channel_model": "color",
+        "densitometer": "status_A",
+        "log_sensitivity_density_over_min": 1.0,
+        "reference_illuminant": "TH-KG3",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_vision3_250d.json",
+      "info": {
+        "stock": "kodak_vision3_250d",
+        "name": "Kodak Vision3 250D",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "cine",
+        "antihalation": "strong",
+        "target_print": "kodak_2383",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_ektar_100.json",
+      "info": {
+        "stock": "kodak_ektar_100",
+        "name": "Kodak Ektar 100",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": "kodak_portra_endura",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_2383.json",
+      "info": {
+        "stock": "kodak_2383",
+        "name": "Kodak Vision 2383",
+        "type": "negative",
+        "support": "film",
+        "stage": "printing",
+        "use": "cine",
+        "antihalation": "strong",
+        "target_print": null,
+        "channel_model": "color",
+        "densitometer": "status_A",
+        "log_sensitivity_density_over_min": 1.0,
+        "reference_illuminant": "TH-KG3",
+        "viewing_illuminant": "K75P"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/fujifilm_crystal_archive_typeii.json",
+      "info": {
+        "stock": "fujifilm_crystal_archive_typeii",
+        "name": "Fujifilm Crystal Archive Type II",
+        "type": "negative",
+        "support": "paper",
+        "stage": "printing",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": null,
+        "channel_model": "color",
+        "densitometer": "status_A",
+        "log_sensitivity_density_over_min": 1.0,
+        "reference_illuminant": "TH-KG3",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_vision3_500t.json",
+      "info": {
+        "stock": "kodak_vision3_500t",
+        "name": "Kodak Vision3 500T",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "cine",
+        "antihalation": "strong",
+        "target_print": "kodak_2383",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "T",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_portra_800_push2.json",
+      "info": {
+        "stock": "kodak_portra_800_push2",
+        "name": "Kodak Portra 800 (Push 2)",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": "kodak_portra_endura",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/fujifilm_provia_100f.json",
+      "info": {
+        "stock": "fujifilm_provia_100f",
+        "name": "Fujifilm Provia 100F",
+        "type": "positive",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": null,
+        "channel_model": "color",
+        "densitometer": "status_A",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_ektachrome_100.json",
+      "info": {
+        "stock": "kodak_ektachrome_100",
+        "name": "Kodak Ektachrome 100",
+        "type": "positive",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": null,
+        "channel_model": "color",
+        "densitometer": "status_A",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_supra_endura.json",
+      "info": {
+        "stock": "kodak_supra_endura",
+        "name": "Kodak Professional Supra Endura",
+        "type": "negative",
+        "support": "paper",
+        "stage": "printing",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": null,
+        "channel_model": "color",
+        "densitometer": "status_A",
+        "log_sensitivity_density_over_min": 1.0,
+        "reference_illuminant": "TH-KG3",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    },
+    {
+      "file": "src/spektrafilm/data/profiles/kodak_portra_160.json",
+      "info": {
+        "stock": "kodak_portra_160",
+        "name": "Kodak Portra 160",
+        "type": "negative",
+        "support": "film",
+        "stage": "filming",
+        "use": "still",
+        "antihalation": "strong",
+        "target_print": "kodak_portra_endura",
+        "channel_model": "color",
+        "densitometer": "status_M",
+        "log_sensitivity_density_over_min": 0.2,
+        "reference_illuminant": "D55",
+        "viewing_illuminant": "D50"
+      },
+      "metadata": {
+        "version": "0.3.2",
+        "copyright": "Copyright (c) 2026 Andrea Volpato. Licensed under CC BY-SA 4.0.",
+        "created": "2026-05-28",
+        "license": "spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0. Redistribution and derivatives must credit the author, link the project (https://github.com/andreavolpato/spektrafilm),preserve this license, and remain CC BY-SA 4.0.Modifications must be noted. Full text of the license and attribution requirements: https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt.",
+        "citation": "If you use this profile in your work, please cite the spektrafilm project: https://github.com/andreavolpato/spektrafilm, see CITATION.cff for details.",
+        "datasource": "This profile was created by processing raw measurement data from data-sheets and/or scientific papers. Original data are property of the respective holders.\n    Film/photo-paper: Kodak and Fujifilm data-sheets, scientific publications, and technical material.\n    Reflectance: Otsu (https://github.com/enneract/otsu2018), Munsell (https://zenodo.org/records/3269912), human skin (https://www.nist.gov/programs-projects/reflectance-measurements-human-skin), forest colors (https://zenodo.org/records/3269920), Japan colors (https://zenodo.org/records/5217752).\n    All data publicly available."
+      }
+    }
+  ]
+}

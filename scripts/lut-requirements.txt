@@ -4,3 +4,4 @@ scipy==1.16.3
 colour-science==0.4.6
 matplotlib==3.10.7
 numba==0.62.1
+pillow==13.0.0

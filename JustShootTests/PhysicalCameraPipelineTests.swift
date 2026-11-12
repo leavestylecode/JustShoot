@@ -602,7 +602,8 @@ private struct ValidationViewfinder: View {
     var body: some View {
         ZStack {
             CameraPreviewUnderlayView(manager: camera)
-            RealtimePreviewView(manager: camera, lutCacheKey: key, preparedLUT: texture,
+            RealtimePreviewView(manager: camera, resourcesReady: camera.entryPreparation.resourcesReady,
+                lutCacheKey: key, preparedLUT: texture,
                 grain: profile.grain, optics: profile.optics, chromatic: profile.effectiveChromatic)
         }
             .aspectRatio(camera.previewAspectRatio, contentMode: .fit)

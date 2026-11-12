@@ -395,30 +395,9 @@ final class FilmProcessor: Sendable {
         if let url = lock.withLock({ $0.fileSources.value(forKey: cacheKey) }) {
             return try? loadCubeLUTFromFile(url: url, cacheKey: cacheKey)
         }
-        if (cacheKey.hasSuffix(FilmLookRefinement.cacheSuffix) || cacheKey.hasSuffix(FilmColorBalanceParameters.cacheSuffix)),
+        if (cacheKey.hasSuffix(FilmLookRefinement.cacheSuffix) || cacheKey.hasSuffix(FilmMaterial.revision)),
            let preset = FilmPreset.allCases.first(where: { FilmSource.preset($0).lutCacheKey == cacheKey }) {
             return try? loadLUT(source: .preset(preset))
-        }
-        let spectralV1Key = FilmPreset.kodakPortra400.lutResourceName
-            + FilmLookRefinement.cacheSuffix + FilmMaterial.spectralV1Revision + FilmColorBalanceParameters.cacheSuffix
-        if cacheKey == spectralV1Key {
-            var frozen = FilmMaterial.identity().cube
-            frozen.material = try? FilmMaterial.loadSpectralPortraV1()
-            return frozen.material == nil ? nil : frozen
-        }
-        // An old material key must never resolve to today's color preference.
-        let legacyMaterialKey = FilmPreset.kodakPortra400.lutResourceName
-            + FilmLookRefinement.cacheSuffix + FilmMaterial.revision
-        let firstBalanceKey = legacyMaterialKey + FilmColorBalanceParameters.legacyCacheSuffix
-        let secondBalanceKey = legacyMaterialKey + FilmColorBalanceParameters.cacheSuffix
-        if cacheKey == legacyMaterialKey || cacheKey == firstBalanceKey || cacheKey == secondBalanceKey {
-            guard let original = try? loadCubeLUT(resourceName: FilmPreset.kodakPortra400.lutResourceName),
-                  var material = try? FilmMaterial.loadLegacy(preset: .kodakPortra400, balanced: false),
-                  var legacy = try? FilmLookRefinement.applying(to: original, preset: .kodakPortra400) else { return nil }
-            if cacheKey == firstBalanceKey { material.colorBalance = .portraV1 }
-            if cacheKey == secondBalanceKey { material.colorBalance = .portra }
-            legacy.material = material
-            return legacy
         }
         if Bundle.main.url(forResource: cacheKey, withExtension: "jslut") != nil
             || Bundle.main.url(forResource: cacheKey, withExtension: "cube") != nil {
@@ -448,12 +427,10 @@ final class FilmProcessor: Sendable {
                 base = cached
             } else {
                 let timer = Log.perf("lut_look_refine", logger: Log.lut)
-                if p == .kodakPortra400 {
-                    // The material owns the complete color response. An unused
-                    // legacy RGB cube need not be read, refined or journaled.
-                    var materialLUT = FilmMaterial.identity().cube
-                    materialLUT.material = try FilmMaterial.loadSpectralPortra()
-                    base = materialLUT
+                if let material = try FilmMaterial.load(preset: p) {
+                    var carrier = FilmMaterial.identity().cube
+                    carrier.material = material
+                    base = carrier
                 } else {
                     let original = try loadCubeLUT(resourceName: p.lutResourceName)
                     base = try FilmLookRefinement.applying(to: original, preset: p)

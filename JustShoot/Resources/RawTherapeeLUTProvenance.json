@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "source": "https://rawtherapee.com/shared/HaldCLUT.zip",
+  "collection": "2015-09-20",
+  "license": "CC-BY-SA-4.0",
+  "licenseFile": "RawTherapeeFilmLUT-LICENSE.txt",
+  "input": "Encoded sRGB [0,1]",
+  "output": "Encoded sRGB [0,1]",
+  "limitations": "Community appearance simulations, not measured iPhone/film matches or manufacturer endorsed.",
+  "stocks": [
+    {
+      "resourceName": "IlfordHP5Plus400",
+      "status": "communityHaldCLUT",
+      "dimension": 33,
+      "sourceFile": "Ilford HP5 Plus 400.png",
+      "sourceDimension": 144,
+      "sourceSHA256": "3f803b34a7db73583cf8fbbfc46f1711869d80e415ceaefa5b42e6ea29b0b4f6",
+      "sha256": "220f8a0af27c5d49808736659f5e3a745069ab40646e2730797265d2e3223b6e",
+      "conversionMaxRGBError": 0.007186226821099317,
+      "referenceSamples": [
+        {
+          "input": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "input": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "output": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "output": [
+            0.5117647058823529,
+            0.5117647058823529,
+            0.5117647058823529
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.25,
+            0.75
+          ],
+          "output": [
+            0.5318627450980392,
+            0.5318627450980392,
+            0.5318627450980392
+          ]
+        },
+        {
+          "input": [
+            0.75,
+            0.5,
+            0.25
+          ],
+          "output": [
+            0.5007352941176471,
+            0.5007352941176471,
+            0.5007352941176471
+          ]
+        }
+      ]
+    },
+    {
+      "resourceName": "KodakTMax100",
+      "status": "communityHaldCLUT",
+      "dimension": 33,
+      "sourceFile": "Kodak T-Max 100.png",
+      "sourceDimension": 144,
+      "sourceSHA256": "cf40a917dd5760f8645edee9d898d715e9549c5ddbeddbbeb1dd0660dde5ffbf",
+      "sha256": "4b57037444c10c29640ee61eaf497fadfa6e6725aa8435260f65f3f4a4d5e5e5",
+      "conversionMaxRGBError": 0.008321370703924996,
+      "referenceSamples": [
+        {
+          "input": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "input": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "output": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "output": [
+            0.47450980392156866,
+            0.47450980392156866,
+            0.47450980392156866
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.25,
+            0.75
+          ],
+          "output": [
+            0.40036764705882355,
+            0.40036764705882355,
+            0.40036764705882355
+          ]
+        },
+        {
+          "input": [
+            0.75,
+            0.5,
+            0.25
+          ],
+          "output": [
+            0.46666666666666673,
+            0.46666666666666673,
+            0.46666666666666673
+          ]
+        }
+      ]
+    },
+    {
+      "resourceName": "KodakTriX400",
+      "status": "communityHaldCLUT",
+      "dimension": 33,
+      "sourceFile": "Kodak TRI-X 400 2.png",
+      "sourceDimension": 144,
+      "sourceSHA256": "fbbb7498a9aafd7df8c8d0e347a5850e76fb30b3ab4a25fc4d340c0591e4d325",
+      "sha256": "bedc622054843054500ef58a4b856904fff7a63e1ad5ec7275f3875a9702123c",
+      "conversionMaxRGBError": 0.011997601077066267,
+      "referenceSamples": [
+        {
+          "input": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "output": [
+            0.043137254901960784,
+            0.043137254901960784,
+            0.043137254901960784
+          ]
+        },
+        {
+          "input": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "output": [
+            0.9921568627450981,
+            0.9921568627450981,
+            0.9921568627450981
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "output": [
+            0.5754901960784312,
+            0.5754901960784312,
+            0.5754901960784312
+          ]
+        },
+        {
+          "input": [
+            0.5,
+            0.25,
+            0.75
+          ],
+          "output": [
+            0.6502450980392158,
+            0.6502450980392158,
+            0.6502450980392158
+          ]
+        },
+        {
+          "input": [
+            0.75,
+            0.5,
+            0.25
+          ],
+          "output": [
+            0.6572303921568627,
+            0.6572303921568627,
+            0.6572303921568627
+          ]
+        }
+      ]
+    }
+  ]
+}

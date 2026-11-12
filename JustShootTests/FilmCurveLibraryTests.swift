@@ -70,6 +70,8 @@ final class FilmCurveLibraryTests: XCTestCase {
     func testFreshInstallAndNewSoftContrastNeverReceiveLegacyMigrationOnReload() throws {
         try withDefaults { defaults in
             let first = FilmCurveLibrary(defaults: defaults)
+            XCTAssertEqual(first.selectedCurveID, CurvePreset.none.rawValue)
+            XCTAssertTrue(first.selectedCurve.isNeutral)
             XCTAssertEqual(try load(defaults).selectedCurveID, "none")
             XCTAssertTrue(first.select(.builtIn(.filmSoft)))
             let second = FilmCurveLibrary(defaults: defaults)

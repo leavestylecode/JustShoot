@@ -37,7 +37,7 @@ struct FilmPresetTile: View {
             if textVisibility.showsText {
                 VStack(alignment: .leading, spacing: 3) {
                     if textVisibility.showsTitle {
-                        Text(preset.rawSimulation?.displayName ?? preset.displayName)
+                        Text(preset.tileTitle)
                             .font(.system(size: (sizeClass == .regular ? 15 : 13) * captionScale, weight: .semibold))
                             .foregroundColor(.white)
                             .lineLimit(1)

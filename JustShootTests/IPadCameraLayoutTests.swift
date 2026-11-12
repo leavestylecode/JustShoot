@@ -251,7 +251,7 @@ private struct LayoutFixture: View {
                     style: .iPadOverlay, onManage: {}, onSelect: { _ in })
                     .measure("curves")
             } films: {
-                FilmSourcePickerStrip(current: .preset(.fujiRawVelvia), customLUTs: [],
+                FilmSourcePickerStrip(current: .preset(.fujiRawVelvia), sources: FilmPreset.allCases.map(FilmSource.preset),
                     contentRotation: .zero, orientation: .portrait, preparedCovers: covers,
                     style: .iPadOverlay) { _ in }
                     .measure("films")

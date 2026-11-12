@@ -9,6 +9,7 @@ struct FilmHomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.locale) private var locale
+    @Environment(\.displayScale) private var displayScale
     @ScaledMetric(relativeTo: .body) private var gridScale = 1.0
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @State private var showFileImporter = false
@@ -25,6 +26,8 @@ struct FilmHomeView: View {
     @State private var initialCustomFilters: [HomeCustomFilter]
     @State private var usesLiveCustomFilters = false
     @State private var showsManagement = false
+    @State private var showsCatalog = false
+    @State private var presetCovers: [FilmPreset: UIImage]
     @State private var pendingDelete: FilmSource?
 
     private var textVisibility: FilmTileTextVisibility { settings.textVisibility }
@@ -38,7 +41,8 @@ struct FilmHomeView: View {
 
     init(preparedHome: HomePreparationSnapshot, settings: FilmPageSettings? = nil) {
         self.preparedHome = preparedHome
-        _settings = StateObject(wrappedValue: settings ?? FilmPageSettings())
+        _settings = StateObject(wrappedValue: settings ?? .shared)
+        _presetCovers = State(initialValue: preparedHome.presetCovers)
         _initialCustomFilters = State(initialValue: preparedHome.customFilters)
     }
 
@@ -61,7 +65,7 @@ struct FilmHomeView: View {
                             ContentUnavailableView {
                                 Label("No films shown", systemImage: "camera.filters")
                             } actions: {
-                                Button("Manage Films") { showsManagement = true }
+                                Button("Add Films") { showsCatalog = true }
                                     .buttonStyle(.bordered)
                             }
                             .frame(minHeight: 300)
@@ -72,15 +76,20 @@ struct FilmHomeView: View {
                                     NavigationLink(value: source) {
                                         switch source {
                                         case .preset(let preset):
-                                            FilmPresetTile(preset: preset, image: preparedHome.presetCovers[preset], textVisibility: textVisibility)
+                                            FilmPresetTile(preset: preset, image: presetCovers[preset], textVisibility: textVisibility)
                                         case .custom(let id, let name, let iso, let fileName):
                                             CustomLUTTile(lut: HomeCustomFilter(id: id, displayName: name, iso: iso, fileName: fileName),
                                                 image: preparedHome.customCover, textVisibility: textVisibility)
                                         }
                                     }
                                     .buttonStyle(.plain)
+                                    .accessibilityIdentifier("films.film.\(source.id)")
                                     .contextMenu {
-                                        if case .custom = source {
+                                        if case .preset(let preset) = source {
+                                            Button { settings.setVisible(preset, false) } label: {
+                                                Label("Remove from Films", systemImage: "minus.circle")
+                                            }
+                                        } else {
                                             Button(role: .destructive) { pendingDelete = source } label: {
                                                 Label("Delete", systemImage: "trash")
                                             }
@@ -108,18 +117,23 @@ struct FilmHomeView: View {
                         .accessibilityIdentifier("films.manage")
                     }
                     ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            showFileImporter = true
+                        Menu {
+                            Button { showsCatalog = true } label: {
+                                Label("Add Films", systemImage: "film")
+                            }
+                            Button { showFileImporter = true } label: {
+                                Label("Import LUT", systemImage: "square.and.arrow.down")
+                            }
                         } label: {
                             Image(systemName: "plus")
                                 .font(.system(size: 17, weight: .medium))
                         }
-                        .accessibilityLabel("Import LUT")
-                        .accessibilityHint("Pick a .cube file to use as a custom filter")
+                        .accessibilityLabel("Add Films")
+                        .accessibilityIdentifier("films.add")
                     }
                 }
                 .navigationDestination(for: FilmSource.self) { source in
-                    CameraView(source: source)
+                    CameraView(source: source, filmSettings: settings)
                 }
                 .fileImporter(
                     isPresented: $showFileImporter,
@@ -143,7 +157,17 @@ struct FilmHomeView: View {
                 }
                 .sheet(isPresented: $showsManagement) {
                     FilmManagementView(settings: settings, sources: sources,
-                        presetCovers: preparedHome.presetCovers, onDelete: deleteCustomLUT)
+                        presetCovers: presetCovers, onDelete: deleteCustomLUT)
+                }
+                .sheet(isPresented: $showsCatalog) {
+                    NavigationStack {
+                        FilmCardLibraryView(settings: settings)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") { showsCatalog = false }
+                                }
+                            }
+                    }
                 }
                 .modifier(FilmDeletionConfirmation(pending: $pendingDelete, onDelete: deleteCustomLUT))
                 .alert(operationErrorTitle, isPresented: $showImportError) {
@@ -154,6 +178,21 @@ struct FilmHomeView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .task(id: settings.preferences.addedPresetIDs) {
+            let presets = settings.preferences.addedPresets
+            presetCovers = presetCovers.filter { settings.preferences.addedPresetIDs.contains($0.key.rawValue) }
+            let missing = presets.filter { presetCovers[$0] == nil }
+            guard !missing.isEmpty else { return }
+            do {
+                let covers = try await FilmPresetCoverPreparation.prepareHome(presets: missing, displayScale: displayScale)
+                try Task.checkCancellation()
+                presetCovers.merge(covers) { _, new in new }
+            } catch is CancellationError {
+                return
+            } catch {
+                Diagnostics.emit("film_home_covers_failed", fields: Diagnostics.errorFields(error))
+            }
+        }
         .task {
             // Keep the prepared rows until the live query actually has a result. An initial
             // empty delivery must not flash away already prepared custom filters.

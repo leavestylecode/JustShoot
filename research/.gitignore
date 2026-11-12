@@ -44,6 +44,10 @@
 !ocr-pairs.json
 !ocr-results.json
 
+# Source inventories required to reproduce the curated LUT coverage audit.
+!lut-coverage-2026-11-04/sources.json
+!lut-coverage-2026-11-04/sources/*-inventory.json
+
 # Machine progress and generated response directories are not review evidence.
 CURRENT-PROGRESS.md
 __pycache__/

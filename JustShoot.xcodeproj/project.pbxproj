@@ -299,6 +299,10 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				EXCLUDED_SOURCE_FILE_NAMES = (
+					"$(inherited)",
+					"*.cube",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = JustShoot/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";

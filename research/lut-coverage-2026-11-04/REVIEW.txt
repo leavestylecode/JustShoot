@@ -1,0 +1,730 @@
+JustShoot 全胶片 LUT 覆盖核查
+日期：2026-11-04
+
+结论
+外部现成 LUT（含可转换的 Hald、免费或付费）：54 款，覆盖 58 组 / 110 张卡片。
+此外仅确认外部模型路径：16 款，覆盖 20 组 / 41 张卡片。其中 C200、Gold 200、Superia X-TRA 400 在本项目已经烘焙并内置。
+合计有资源对应：70 个独立命名型号，覆盖 78 组 / 151 张卡片。
+具备开放许可来源的路径：62 款（现成 Hald 或可烘焙模型），不表示已经完成 App 分发审核或观感验证。
+
+范围与口径
+550 张图鉴卡片；按品牌＋产品原名＋ISO 分成 401 组，涉及 96 个品牌。401 组不等于 401 种乳剂。
+相同型号的多个包装只算一款；推拉、浓淡、冷热等 LUT 变体不重复计数。
+这里的‘对应’指作者/文件明确点名该型号，不代表厂家认可、实测还原或历史年份完全一致。
+ISO/显式后缀不匹配、分装片原片推测、其他 App 的封闭滤镜和普通 Lightroom XMP 都不计作严格找到。
+本轮是已确认来源的下限，不证明尚未找到的型号在全网不存在。
+
+统计（A/B/C 互斥；现成文件不等于可立即用于本 App）
+A 开放许可现成 LUT/Hald：42 个匹配型号 / 45 组 / 90 张卡片
+B 开放模型，可烘焙 LUT：20 个匹配型号 / 24 组 / 50 张卡片
+C 现成 LUT，App 授权未解决：8 个匹配型号 / 9 组 / 11 张卡片
+D 仅近似型号/版本或分装片候选：0 个匹配型号 / 57 组 / 71 张卡片
+E 本轮未确认对应 LUT：0 个匹配型号 / 266 组 / 328 张卡片
+ready_lut_any_license：{"catalog_groups": 58, "cards": 110, "matched_models": 54}
+external_model_only：{"catalog_groups": 20, "cards": 41, "matched_models": 16}
+total_found_including_models：{"catalog_groups": 78, "cards": 151, "matched_models": 70}
+bundled_physical_films：{"matched_models": 13, "catalog_groups": 16, "cards": 51}
+当前拍摄预设：19/19 已有内置 .jslut；13 个实体胶片型号＋6 个 FUJIFILM 数码机身模拟。
+fujiProvia100F 是历史保存 ID，实际映射数码 PROVIA；实体 Provia 100F 的 case 是 fujiSlideProvia100F。
+
+iPhone 与许可
+A：RawTherapee Hald PNG 标注 sRGB，可转换为 cube/jslut。保留 CC BY-SA 4.0、署名和修改说明；App 发布还需检查具体分发方式。
+B：模型不等于现成 LUT。必须固定输入/曝光/白平衡/相纸/输出，停用场景自适应与空间效果，再离线烘焙、检查灰阶/肤色/色域和预览成片一致性。
+Spectral Film LUT 为 MIT；Fotufilm 与 spektrafilm 的 profiles 为 CC BY-SA 4.0，代码许可另计。
+spektrafilm README 有过时的自定义许可说法；本轮固定提交的 profile 元数据及 SPEKTRAFILM_LICENSE.txt 明确写 CC BY-SA 4.0。正式分发应以固定文件核对。
+C：ANDP 普通购买明确不含 App 内嵌；Pixflow/SparkleStock/Tone Fuentes 的摄影商用不视为 App 分发许可。没有购买或联系作者。
+Film-Luts GitHub 虽有 MIT，但作者声明不拥有各 LUT；不能以仓库 MIT 覆盖上游素材权利。本轮优先引用 RawTherapee 原包。
+LUT 仅承载全局颜色/明暗变换，不能单独复现颗粒、卤化银、晕光或红外光谱响应。
+除已内置资源外，本轮只确认来源/命名/许可路径，没有对所有下载和模型做 iPhone 观感、文件解析或真机验证。
+
+已确认的独立型号
+01. Agfa APX 100 | A 开放许可现成 LUT/Hald | 2 组 / 3 张
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Agfa/Agfa APX 100.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+02. Agfa CT Precisa 100 | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Agfa/Agfa Precisa 100.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    备注：Named product match; source does not establish the generation of the emulsion.
+03. Agfacolor Ultra 50 | C 现成 LUT，App 授权未解决 | 1 组 / 1 张
+    ANDP FilmStyles / .cube (publisher listing) / Agfacolor Ultra 50 / app redistribution not cleared
+    https://www.andpfilmstyles.com/product/agfa-color-ultra-50/
+04. Agfacolor Vista 200 | A 开放许可现成 LUT/Hald | 1 组 / 2 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Agfa/Agfa Vista 200.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    备注：Vista Plus 200 is excluded because generation/manufacturer is not established.
+05. Agfapan APX 25 | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Agfa/Agfa APX 25.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+06. CineStill 400Dynamic / 400D | B 开放模型，可烘焙 LUT | 1 组 / 2 张
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/cinestill400d.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/cinestill400d.json
+07. CineStill 50D | C 现成 LUT，App 授权未解决 | 1 组 / 1 张
+    SparkleStock / .cube (publisher listing) / Cine 50D (5 variants) / app redistribution not cleared
+    https://www.sparklestock.com/downloads/cine/
+08. CineStill 800T | B 开放模型，可烘焙 LUT | 1 组 / 4 张
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/cinestill800t.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/cinestill800t.json
+    PictureFX / .cube (publisher listing) / PictureFX CineStill 800T / app redistribution not cleared
+    https://picturefx.itch.io/picturefx-cinestill-800t-v10
+    ANDP FilmStyles / .cube (publisher listing) / CineStill 800T / app redistribution not cleared
+    https://www.andpfilmstyles.com/product/cinestill-800t/
+09. Fujifilm C200 | B 开放模型，可烘焙 LUT | 1 组 / 3 张 | 已内置
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/fuji_c200.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/fuji_c200.py
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/c200.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/c200.json
+10. Fujifilm FP-100C | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Fuji/Fuji FP-100c 3.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Spectral Film LUT / model/profile / src/spectral_film_lut/reversal_film/fuji_fp100c.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/reversal_film/fuji_fp100c.py
+11. Fujifilm Instax Mini Color | B 开放模型，可烘焙 LUT | 1 组 / 1 张
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/instaxmini.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/instaxmini.json
+    Spectral Film LUT / model/profile / src/spectral_film_lut/reversal_film/fuji_instax_color.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/reversal_film/fuji_instax_color.py
+12. Fujifilm Natura 1600 | B 开放模型，可烘焙 LUT | 1 组 / 3 张
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/fuji_natura_1600.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/fuji_natura_1600.py
+13. Fujifilm Neopan ACROS 100 II | B 开放模型，可烘焙 LUT | 1 组 / 2 张
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/acros100.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/acros100.json
+    备注：Profile ID is acros100 but the profile name is Acros 100 II; original ACROS LUT and camera ACROS mode are excluded.
+14. Fujifilm Pro 400H | A 开放许可现成 LUT/Hald | 1 组 / 5 张 | 已内置
+    RawTherapee / Hald PNG / HaldCLUT/Color/Fuji/Fuji 400H 2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/fuji_pro_400h.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/fuji_pro_400h.py
+15. Fujifilm Provia 100F | A 开放许可现成 LUT/Hald | 1 组 / 3 张 | 已内置
+    RawTherapee / Hald PNG / HaldCLUT/Color/Fuji/Fuji Provia 100F.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Spectral Film LUT / model/profile / src/spectral_film_lut/reversal_film/fuji_provia_100f.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/reversal_film/fuji_provia_100f.py
+16. Fujifilm Provia 400F | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Fuji/Fuji Provia 400F.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+17. Fujifilm Provia 400X | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Fuji/Fuji Provia 400X.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+18. Fujifilm Sensia 100 | A 开放许可现成 LUT/Hald | 1 组 / 2 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Fuji/Fuji Sensia 100.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+19. Fujifilm Superia 100 | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Fuji/Fuji Superia 100 2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+20. Fujifilm Superia 200 | A 开放许可现成 LUT/Hald | 2 组 / 4 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Fuji/Fuji Superia 200.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/superia200.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/superia200.json
+21. Fujifilm Superia 400 | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Fuji/Fuji Superia 400 2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/superia400.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/superia400.json
+22. Fujifilm Superia Reala 100 | A 开放许可现成 LUT/Hald | 1 组 / 2 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Fuji/Fuji Superia Reala 100.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/fuji_superia_reala.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/fuji_superia_reala.py
+23. Fujifilm Superia X-TRA 400 | B 开放模型，可烘焙 LUT | 2 组 / 6 张 | 已内置
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/fuji_superia_xtra_400.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/fuji_superia_xtra_400.py
+    spektrafilm / model/profile / src/spektrafilm/data/profiles/fujifilm_xtra_400.json / CC-BY-SA-4.0
+    https://github.com/andreavolpato/spektrafilm/blob/3bb2c2d2801ff68b92019cf1dbcbb133d60832bc/src/spektrafilm/data/profiles/fujifilm_xtra_400.json
+24. Fujifilm Velvia 100 | B 开放模型，可烘焙 LUT | 1 组 / 1 张
+    spektrafilm / model/profile / src/spektrafilm/data/profiles/fujifilm_velvia_100.json / CC-BY-SA-4.0
+    https://github.com/andreavolpato/spektrafilm/blob/3bb2c2d2801ff68b92019cf1dbcbb133d60832bc/src/spektrafilm/data/profiles/fujifilm_velvia_100.json
+    备注：Velvia 100F is explicitly excluded.
+25. Fujifilm Velvia 50 | A 开放许可现成 LUT/Hald | 1 组 / 1 张 | 已内置
+    RawTherapee / Hald PNG / HaldCLUT/Color/Fuji/Fuji Velvia 50.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Spectral Film LUT / model/profile / src/spectral_film_lut/reversal_film/fuji_velvia_50.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/reversal_film/fuji_velvia_50.py
+26. Harman Phoenix 200 (first generation) | B 开放模型，可烘焙 LUT | 1 组 / 2 张
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/phoenix200.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/phoenix200.json
+    Bicyclelad / .cube / lut/phoenix200-punchy.cube; lut/phoenix200-flat.cube / no app redistribution grant verified
+    https://bicyclelad.com/harman-phoenix-200-lightroom-preset-v2/
+    备注：Existing 2026-10-24 download manifest confirms 64-cube files; does not cover Phoenix II.
+27. Ilford Delta 100 Professional | A 开放许可现成 LUT/Hald | 1 组 / 3 张
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Ilford/Ilford Delta 100.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+28. Ilford Delta 3200 Professional | A 开放许可现成 LUT/Hald | 1 组 / 2 张
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Ilford/Ilford Delta 3200 2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/delta3200.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/delta3200.json
+29. Ilford Delta 400 Professional | A 开放许可现成 LUT/Hald | 1 组 / 2 张
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Ilford/Ilford Delta 400.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+30. Ilford FP4 Plus 125 | A 开放许可现成 LUT/Hald | 1 组 / 5 张
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Ilford/Ilford FP4 Plus 125.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/fp4plus125.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/fp4plus125.json
+31. Ilford HP5 Plus 400 | A 开放许可现成 LUT/Hald | 1 组 / 6 张 | 已内置
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Ilford/Ilford HP5 Plus 400.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/hp5plus400.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/hp5plus400.json
+32. Ilford Ortho Plus 80 | C 现成 LUT，App 授权未解决 | 1 组 / 1 张
+    Tone Fuentes / .cube (publisher listing) / Ilford OrthoPlus / app redistribution not cleared
+    https://payhip.com/b/YlA1W
+33. Ilford SFX 200 | C 现成 LUT，App 授权未解决 | 1 组 / 1 张
+    Tone Fuentes / .cube (publisher listing) / Ilford SFX200 / app redistribution not cleared
+    https://payhip.com/b/YlA1W
+    备注：Creative LUT; infrared filtration response is not recoverable from ordinary RGB.
+34. Ilford XP2 400 | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Ilford/Ilford XP2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    备注：XP2 Super is not counted under this older unsuffixed XP2 source.
+35. Kodak ColorPlus 200 | C 现成 LUT，App 授权未解决 | 1 组 / 2 张
+    Pixflow / .cube (publisher listing) / Colorama Kodak ColorPlus 200 / app redistribution not cleared
+    https://pixflow.net/templates/colorama-kodak-colorplus-200/
+36. Kodak Double-X / 5222 | B 开放模型，可烘焙 LUT | 1 组 / 1 张
+    Spectral Film LUT / model/profile / src/spectral_film_lut/bw_negative_film/kodak_5222.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/bw_negative_film/kodak_5222.py
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/doublex5222.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/doublex5222.json
+37. Kodak Ektachrome E100 (still) | B 开放模型，可烘焙 LUT | 1 组 / 2 张
+    spektrafilm / model/profile / src/spektrafilm/data/profiles/kodak_ektachrome_100.json / CC-BY-SA-4.0
+    https://github.com/andreavolpato/spektrafilm/blob/3bb2c2d2801ff68b92019cf1dbcbb133d60832bc/src/spektrafilm/data/profiles/kodak_ektachrome_100.json
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/ektachromee100.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/ektachromee100.json
+    ANDP FilmStyles / .cube (publisher listing) / Kodak Ektachrome E100 / app redistribution not cleared
+    https://www.andpfilmstyles.com/product/kodak-ektachrome-e100/
+    备注：The spektrafilm info explicitly says use=still. Spectral Film LUT's motion-picture 100D is excluded.
+38. Kodak Ektachrome E100VS | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Kodak/Kodak Ektachrome 100 VS.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+39. Kodak Ektar 100 | A 开放许可现成 LUT/Hald | 1 组 / 3 张 | 已内置
+    RawTherapee / Hald PNG / HaldCLUT/Color/Kodak/Kodak Ektar 100.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/kodak_ektar_100.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/kodak_ektar_100.py
+40. Kodak Elite Chrome 200 | A 开放许可现成 LUT/Hald | 1 组 / 2 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Kodak/Kodak Elite Chrome 200.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    备注：Elite naming alias; source does not establish individual vintage emulsion revisions.
+41. Kodak Elite Chrome 400 | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Kodak/Kodak Elite Chrome 400.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+42. Kodak Gold 200 | B 开放模型，可烘焙 LUT | 2 组 / 9 张 | 已内置
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/kodak_gold_200.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/kodak_gold_200.py
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/gold200.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/gold200.json
+    备注：Historical Kodacolor Gold 200 and Gold II are excluded from the strict count.
+43. Kodak High Speed Infrared (HIE) | A 开放许可现成 LUT/Hald | 1 组 / 2 张
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Kodak/Kodak HIE (HS Infra).png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    备注：Infrared spectral response and filter-specific effects cannot be reconstructed by a normal RGB LUT.
+44. Kodak Kodachrome 25 | A 开放许可现成 LUT/Hald | 1 组 / 2 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Kodak/Kodak Kodachrome 25.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/kodachrome25.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/kodachrome25.json
+45. Kodak Kodachrome 64 | A 开放许可现成 LUT/Hald | 1 组 / 2 张 | 已内置
+    RawTherapee / Hald PNG / HaldCLUT/Color/Kodak/Kodak Kodachrome 64.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Spectral Film LUT / model/profile / src/spectral_film_lut/reversal_film/kodachrome_64.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/reversal_film/kodachrome_64.py
+46. Kodak Kodacolor 100 | B 开放模型，可烘焙 LUT | 1 组 / 1 张
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/kodacolor100.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/kodacolor100.json
+47. Kodak Portra 160 | A 开放许可现成 LUT/Hald | 1 组 / 2 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Kodak/Kodak Portra 160 2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/kodak_portra_160.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/kodak_portra_160.py
+48. Kodak Portra 400 | A 开放许可现成 LUT/Hald | 1 组 / 4 张 | 已内置
+    RawTherapee / Hald PNG / HaldCLUT/Color/Kodak/Kodak Portra 400 2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/kodak_portra_400.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/kodak_portra_400.py
+49. Kodak Portra 400 NC | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Kodak/Kodak Portra 400 NC 2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+50. Kodak Portra 400 UC | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Kodak/Kodak Portra 400 UC 2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+51. Kodak Portra 400 VC | A 开放许可现成 LUT/Hald | 1 组 / 2 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Kodak/Kodak Portra 400 VC 2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+52. Kodak Portra 800 | A 开放许可现成 LUT/Hald | 1 组 / 3 张 | 已内置
+    RawTherapee / Hald PNG / HaldCLUT/Color/Kodak/Kodak Portra 800 2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/kodak_portra_800.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/kodak_portra_800.py
+53. Kodak T-Max 100 | A 开放许可现成 LUT/Hald | 1 组 / 1 张 | 已内置
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Kodak/Kodak T-Max 100.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/tmax100.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/tmax100.json
+54. Kodak T-Max 400 | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Kodak/Kodak T-Max 400.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+55. Kodak T-Max P3200 | A 开放许可现成 LUT/Hald | 1 组 / 3 张
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Kodak/Kodak TMAX 3200 2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+56. Kodak Tri-X 400 | A 开放许可现成 LUT/Hald | 2 组 / 5 张 | 已内置
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Kodak/Kodak TRI-X 400 2.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+    Spectral Film LUT / model/profile / src/spectral_film_lut/bw_negative_film/kodak_trix_400.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/bw_negative_film/kodak_trix_400.py
+    备注：Old Tri-X Pan and ISO 320 are tracked as related, not included here.
+57. Kodak UltraMax 400 | B 开放模型，可烘焙 LUT | 1 组 / 5 张
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/kodak_ultramax_400.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/kodak_ultramax_400.py
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/ultramax400.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/ultramax400.json
+58. Kodak Vericolor III 160 | B 开放模型，可烘焙 LUT | 1 组 / 1 张
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/kodak_vericolor_iii.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/kodak_vericolor_iii.py
+59. Kodak Vision3 250D / 5207 | B 开放模型，可烘焙 LUT | 2 组 / 2 张
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/kodak_5207.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/kodak_5207.py
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/vision250d.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/vision250d.json
+60. Kodak Vision3 500T / 5219 | B 开放模型，可烘焙 LUT | 1 组 / 1 张
+    Spectral Film LUT / model/profile / src/spectral_film_lut/negative_film/kodak_5219.py / MIT
+    https://github.com/JanLohse/spectral_film_lut/blob/bcbcfc6861f49cc706dc5d00ea048e4853060aab/src/spectral_film_lut/negative_film/kodak_5219.py
+    spektrafilm / model/profile / src/spektrafilm/data/profiles/kodak_vision3_500t.json / CC-BY-SA-4.0
+    https://github.com/andreavolpato/spektrafilm/blob/3bb2c2d2801ff68b92019cf1dbcbb133d60832bc/src/spektrafilm/data/profiles/kodak_vision3_500t.json
+61. KonicaColor VX 200 | C 现成 LUT，App 授权未解决 | 1 组 / 1 张
+    ANDP FilmStyles / .cube (publisher listing) / Konica VX 200 / app redistribution not cleared
+    https://www.andpfilmstyles.com/product/konica-vx-200/
+62. Lomography Fantome Kino 8 | C 现成 LUT，App 授权未解决 | 1 组 / 1 张
+    Tone Fuentes / .cube (publisher listing) / Lomography Fantome Kino / app redistribution not cleared
+    https://payhip.com/b/YlA1W
+63. Lomography LomoChrome Color '92 400 | C 现成 LUT，App 授权未解决 | 2 组 / 3 张
+    Tone Fuentes / .cube (publisher listing) / LomoChrome Color92' / app redistribution not cleared
+    https://payhip.com/b/YlA1W
+    备注：Ross McConaghy also publishes a 1992 LUT; its Lumix recipe uses camera-specific settings and needs separate adaptation.
+64. Lomography LomoChrome Metropolis | B 开放模型，可烘焙 LUT | 1 组 / 1 张
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/lomochromemetropolis.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/lomochromemetropolis.json
+    Tone Fuentes / .cube (publisher listing) / LomoChrome Metropolis / app redistribution not cleared
+    https://payhip.com/b/YlA1W
+65. Lomography LomoChrome Purple | B 开放模型，可烘焙 LUT | 2 组 / 2 张
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/lomochromepurple.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/lomochromepurple.json
+66. Lomography LomoChrome Turquoise | B 开放模型，可烘焙 LUT | 1 组 / 1 张
+    Fotufilm / model/profile / Sources/FotufilmCore/Stocks/lomochrometurquoise.json / CC-BY-SA-4.0
+    https://github.com/DhaliwalX/fotufilm-engine/blob/6b45c802567ce0dc7b9a68578f2a25ee504a6bf6/Sources/FotufilmCore/Stocks/lomochrometurquoise.json
+67. Polaroid 665 | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Polaroid/Polaroid 665 3.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+68. Polaroid 669 | A 开放许可现成 LUT/Hald | 1 组 / 1 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Polaroid/Polaroid 669 3.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+69. Polaroid PolaChrome 35mm | A 开放许可现成 LUT/Hald | 1 组 / 2 张
+    RawTherapee / Hald PNG / HaldCLUT/Color/Polaroid/Polaroid Polachrome.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+70. Rollei Retro 80S | A 开放许可现成 LUT/Hald | 1 组 / 2 张
+    RawTherapee / Hald PNG / HaldCLUT/Black-and-White/Rollei/Rollei Retro 80s.png / CC-BY-SA-4.0
+    https://rawtherapee.com/shared/HaldCLUT.zip
+
+全部 401 组的逐项核对（原始产品名保留）
+001. 1Shot | Color Print Film | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+002. ADOX | CHS 100 II | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+003. ADOX | CMS 20 II Pro | ISO 20 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+004. ADOX | HR 50 | ISO 50 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+005. ADOX | KB 17 | ISO 32 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+006. ADOX | KB17 | ISO 40 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+007. Agfa | AgfaChrome 100RS | ISO 100 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Agfachrome RSX II 100", "reason": "RS and RSX II are distinct generations."}
+008. Agfa | AgfaChrome 50 S | ISO 50 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Agfachrome RSX II 50", "reason": "Agfachrome 50 S is not the RSX II product."}
+009. Agfa | Agfacolor CNS2 | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+010. Agfa | AgfaColor CT 18 | ISO 50 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+011. Agfa | AgfaColor HDC Plus | ISO 200 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+012. Agfa | Agfacolor Negative Film Special CNS | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+013. Agfa | AgfaColor Optima 200 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+014. Agfa | Agfacolor Reversal Film CK | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+015. Agfa | Agfacolor Special Negative Film CN S | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+016. Agfa | AgfaColor ULTRA 50 | ISO 50 | 1 张 | C 现成 LUT，App 授权未解决 | Agfacolor Ultra 50
+017. Agfa | AgfaColor Vista | ISO 200 | 2 张 | A 开放许可现成 LUT/Hald | Agfacolor Vista 200
+018. Agfa | AgfaColor XRG 200 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+019. Agfa | Agfapan  APX 25 | ISO 25 | 1 张 | A 开放许可现成 LUT/Hald | Agfapan APX 25
+020. Agfa | Agfapan APX 100 | ISO 100 | 1 张 | A 开放许可现成 LUT/Hald | Agfa APX 100
+021. Agfa | Agfapan APX 400 | ISO 400 | 2 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Agfa APX 100 / 25", "reason": "ISO mismatch."}
+022. Agfa | Agfapan Rapid | ISO 40 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+023. Agfa | APX | ISO 100 | 2 张 | A 开放许可现成 LUT/Hald | Agfa APX 100
+024. Agfa | Autolith Repo | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+025. Agfa | CT Precisa 100 | ISO 100 | 1 张 | A 开放许可现成 LUT/Hald | Agfa CT Precisa 100
+026. Agfa | Extra Rapid Platten | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+027. Agfa | Fine-Grain Plenachrome | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+028. Agfa | Isochrom Portrait | ISO 50 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+029. Agfa | Isopan FF | ISO 8 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+030. Agfa | Isopan IF Rapid | ISO 40 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+031. Agfa | Isopan ISS | ISO 100 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+032. Agfa | Isopan ISS Rapid | ISO 100 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+033. Agfa | Isopan Portrait | ISO 80 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+034. Agfa | Optima II 400 | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+035. Agfa | Trockenplatten | ISO None | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+036. Agfa | Vista Plus 200 | ISO 200 | 2 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Agfacolor Vista 200", "reason": "Vista and Vista Plus generations / manufacturing origins are not established as equal."}
+037. Alfo | ALFOcolor PR-G | ISO 1600 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+038. Alien Film | 5207/250D | ISO 250 | 1 张 | B 开放模型，可烘焙 LUT | Kodak Vision3 250D / 5207
+039. Alien Film | 5222/XX | ISO 250 | 1 张 | B 开放模型，可烘焙 LUT | Kodak Double-X / 5222
+040. Alien Film | Aeronega | ISO 100 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Aerocolor 2460", "reason": "Original-stock candidate only; catalog has no manufacturer code."}
+041. Ansco | Plenachrome | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+042. Arista.EDU | Ultra | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+043. Arista.EDU | Ultra | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+044. Bergger | Pancro400 | ISO 400 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+045. Boots | Colour Print Film | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+046. Building 2 | 200T | ISO 200 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Vision3 5213", "reason": "Likely re-spool, but catalog has no original manufacturer code."}
+047. Building 2 | 250D | ISO 250 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Vision3 5207", "reason": "Likely re-spool, but catalog has no original manufacturer code."}
+048. Building 2 | 500T | ISO 500 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Vision3 5219", "reason": "Likely re-spool, but catalog has no original manufacturer code."}
+049. Building 2 | 50D | ISO 50 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Vision3 5203", "reason": "Likely re-spool, but catalog has no original manufacturer code."}
+050. Candido | Colour Negative Film | ISO 800 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+051. CatLABS | X Film 320 Pro | ISO 320 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+052. CatLABS | X Film 80 MKII | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+053. CineStill | 400Dynamic | ISO 400 | 2 张 | B 开放模型，可烘焙 LUT | CineStill 400Dynamic / 400D
+054. CineStill | 50D | ISO 50 | 1 张 | C 现成 LUT，App 授权未解决 | CineStill 50D
+055. CineStill | 800T | ISO 800 | 4 张 | B 开放模型，可烘焙 LUT | CineStill 800T
+056. CineStill | BWXX | ISO None | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Double-X 5222", "reason": "Original-stock candidate; processing and scan differ; no verified CineStill BWXX LUT."}
+057. Club Color | Natural Color System | ISO 800 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+058. Defender | Extra Fast Panchromatic | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+059. Defender | Extra Special Fast Panchromatic | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+060. Defender | Portrait HGS | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+061. Efiniti | UXi Super 200 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+062. Efke | IR 820 Aura | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+063. efke | KB-25 | ISO 25 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+064. efke | R100 | ISO 100 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+065. Escura | EDO ukiyo-e | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+066. Escura | Showa Camera Film | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+067. Famous Brand Labs | Color Negative Film | ISO 64 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+068. Famous Brand Labs | Color Negative Film | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+069. Ferrania | Solaris | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+070. Ferrania | Solaris FG Plus | ISO 800 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+071. Film Corporation of America | TriFCA 120 | ISO 80 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+072. Film Corporation of America | TriFCA 35 | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+073. Film Never Die | IRO | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+074. Film Never Die | Kiro | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+075. Film Photography Project | FPP 620 Black & White Panchromatic Negative Film | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+076. Filmfabrik Köpenick | Dekopan Feinkorn | ISO 40 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+077. Foma | Fomapan 200 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+078. Foma | Fomapan 400 Set | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+079. Foma | Fomapan Classic 100 | ISO 100 | 3 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+080. Foma | Fomapan classic 100 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+081. Foma | Fomapan Creative 200 | ISO 200 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+082. Foma | Fomapan F17 | ISO 40 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+083. Foma | Fomapan21 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+084. Foma | Ortho 400 | ISO 400 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+085. Foton | Fotopan | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+086. Foton | Fotopan F | ISO 50 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+087. Foton | Mikrofilm Negatywowy Super Orto | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+088. Fujifilm | 200 | ISO 200 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Fujifilm C200 / Kodak Gold 200", "reason": "No original manufacturer or generation evidence for this particular 200 package."}
+089. Fujifilm | 400 | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Pro 400H / Superia 400 / X-TRA 400", "reason": "Shared brand/ISO is insufficient to establish this product identity."}
+090. Fujifilm | FP-100C | ISO 100 | 1 张 | A 开放许可现成 LUT/Hald | Fujifilm FP-100C
+091. Fujifilm | Fujichrome 64T | ISO 64 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+092. Fujifilm | Fujichrome 64T Type II Professional | ISO 64 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+093. Fujifilm | Fujichrome Professional 100D | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+094. Fujifilm | Fujichrome Provia 100F | ISO 100 | 3 张 | A 开放许可现成 LUT/Hald | Fujifilm Provia 100F
+095. Fujifilm | Fujichrome Provia 400 Professional | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Fujifilm Provia 400F / 400X", "reason": "Original Provia 400 is not verified as the F or X revision."}
+096. Fujifilm | Fujichrome Provia 400F Professional | ISO 400 | 1 张 | A 开放许可现成 LUT/Hald | Fujifilm Provia 400F
+097. Fujifilm | Fujichrome Provia 400X | ISO 400 | 1 张 | A 开放许可现成 LUT/Hald | Fujifilm Provia 400X
+098. Fujifilm | Fujichrome Sensia 100 | ISO 100 | 2 张 | A 开放许可现成 LUT/Hald | Fujifilm Sensia 100
+099. Fujifilm | Fujichrome Sensia 200 | ISO 200 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Fujifilm Sensia 100", "reason": "ISO mismatch."}
+100. Fujifilm | Fujichrome Velvia | ISO 100 | 1 张 | B 开放模型，可烘焙 LUT | Fujifilm Velvia 100
+101. Fujifilm | Fujichrome Velvia | ISO 50 | 1 张 | A 开放许可现成 LUT/Hald | Fujifilm Velvia 50
+102. Fujifilm | Fujichrome Velvia 100F | ISO 100 | 2 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Fujifilm Velvia 100 / 50", "reason": "100F is a distinct product, not Velvia 100."}
+103. Fujifilm | Fujicolor 100 | ISO 100 | 3 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+104. Fujifilm | Fujicolor C200 | ISO 200 | 3 张 | B 开放模型，可烘焙 LUT | Fujifilm C200
+105. Fujifilm | Fujicolor HR 1600 | ISO 1600 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+106. Fujifilm | Fujicolor HR100 | ISO 100 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+107. Fujifilm | Fujicolor Natura 1600 | ISO 1600 | 3 张 | B 开放模型，可烘焙 LUT | Fujifilm Natura 1600
+108. Fujifilm | Fujicolor NPL 160 | ISO 160 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+109. Fujifilm | Fujicolor NPS 160 | ISO 160 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Fujifilm PRO 160NS / 160S", "reason": "NPS predecessor cannot automatically be equated to later PRO 160NS or PRO 160S."}
+110. Fujifilm | Fujicolor Pro 400H | ISO 400 | 5 张 | A 开放许可现成 LUT/Hald | Fujifilm Pro 400H
+111. Fujifilm | Fujicolor Pro400 | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Pro 400H / Superia 400 / X-TRA 400", "reason": "Shared brand/ISO is insufficient to establish this product identity."}
+112. Fujifilm | Fujicolor Professional | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+113. Fujifilm | Fujicolor Professional | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Pro 400H / Superia 400 / X-TRA 400", "reason": "Shared brand/ISO is insufficient to establish this product identity."}
+114. Fujifilm | Fujicolor Super G | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+115. Fujifilm | Fujicolor Super HG | ISO 100 | 3 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+116. Fujifilm | Fujicolor Super HG | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+117. Fujifilm | Fujicolor Super HR | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+118. Fujifilm | Fujicolor Super HR | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+119. Fujifilm | Fujicolor Superia | ISO 200 | 3 张 | A 开放许可现成 LUT/Hald | Fujifilm Superia 200
+120. Fujifilm | Fujicolor Superia | ISO 400 | 1 张 | A 开放许可现成 LUT/Hald | Fujifilm Superia 400
+121. Fujifilm | Fujicolor Superia 100 | ISO 100 | 1 张 | A 开放许可现成 LUT/Hald | Fujifilm Superia 100
+122. Fujifilm | Fujicolor Superia Multi400 | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Pro 400H / Superia 400 / X-TRA 400", "reason": "Shared brand/ISO is insufficient to establish this product identity."}
+123. Fujifilm | Fujicolor Superia Reala | ISO 100 | 2 张 | A 开放许可现成 LUT/Hald | Fujifilm Superia Reala 100
+124. Fujifilm | Fujicolor Superia X-TRA | ISO 400 | 5 张 | B 开放模型，可烘焙 LUT | Fujifilm Superia X-TRA 400
+125. Fujifilm | Fujicolor Superia X-TRA 400 | ISO 400 | 1 张 | B 开放模型，可烘焙 LUT | Fujifilm Superia X-TRA 400
+126. Fujifilm | Hi-Speed 1600 Disposable Camera | ISO 1600 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+127. Fujifilm | Instax Mini | ISO 800 | 1 张 | B 开放模型，可烘焙 LUT | Fujifilm Instax Mini Color
+128. Fujifilm | Neopan 400 | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+129. Fujifilm | Neopan 400 Presto | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+130. Fujifilm | Neopan Acros 100 II | ISO 100 | 2 张 | B 开放模型，可烘焙 LUT | Fujifilm Neopan ACROS 100 II
+131. Fujifilm | Neopan SS | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+132. Fujifilm | Neopan SS Rapid | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+133. Fujifilm | Superia 200 | ISO 200 | 1 张 | A 开放许可现成 LUT/Hald | Fujifilm Superia 200
+134. Fujifilm | Superia Premium 400 | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Pro 400H / Superia 400 / X-TRA 400", "reason": "Shared brand/ISO is insufficient to establish this product identity."}
+135. Fukkatsu | Color Print Film | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+136. GAF | Color Slide Film | ISO 64 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+137. Gevaert | Gevachrome 30 | ISO 40 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+138. Gevaert | Infra-R | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+139. Gevaert | Studio Film | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+140. Gevaert | Superchrom | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+141. Gevaert | Superchrome | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+142. Gevaert | Ultra Panchro Normal | ISO 800 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+143. Great Films Processing | Kodachrome | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+144. GT Photo | GT24 | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+145. Hands On Film | Midnight 1600 | ISO 1600 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+146. Harman | Phoenix | ISO 200 | 2 张 | B 开放模型，可烘焙 LUT | Harman Phoenix 200 (first generation)
+147. Harman | Phoenix II | ISO 200 | 4 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Harman Phoenix 200", "reason": "Second generation; first-generation model/LUT cannot be counted as matching."}
+148. Harman | Red | ISO 125 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+149. Harman | Switch Azure | ISO 125 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+150. Hasselblad | Hassel-plåtar E.R.Orto | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+151. Hazenfilm | Sorolla Chrome | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+152. Herzog | Duxopan | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+153. Hope Film | Bubble | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+154. Ificolor | SHR 100 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+155. Ilford | Delta 100 Professional | ISO 100 | 3 张 | A 开放许可现成 LUT/Hald | Ilford Delta 100 Professional
+156. Ilford | Delta 3200 Professional | ISO 3200 | 2 张 | A 开放许可现成 LUT/Hald | Ilford Delta 3200 Professional
+157. Ilford | Delta 400 Professional | ISO 400 | 2 张 | A 开放许可现成 LUT/Hald | Ilford Delta 400 Professional
+158. Ilford | FP4 | ISO 125 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Ilford FP4 Plus 125", "reason": "Original FP4 is not FP4 Plus."}
+159. Ilford | FP4 Plus | ISO 125 | 5 张 | A 开放许可现成 LUT/Hald | Ilford FP4 Plus 125
+160. Ilford | HP3 | ISO 125 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+161. Ilford | HP3 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+162. Ilford | HP3 | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+163. Ilford | HP5 Plus | ISO 400 | 6 张 | A 开放许可现成 LUT/Hald | Ilford HP5 Plus 400
+164. Ilford | Ilfochrome | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+165. Ilford | Ilfocolor 400 Plus | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+166. Ilford | Ortho Plus | ISO 80 | 1 张 | C 现成 LUT，App 授权未解决 | Ilford Ortho Plus 80
+167. Ilford | R.25 F.P Special | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+168. Ilford | Selochrome | ISO 160 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+169. Ilford | SFX 200 | ISO 200 | 1 张 | C 现成 LUT，App 授权未解决 | Ilford SFX 200
+170. Ilford | XP2 | ISO 400 | 1 张 | A 开放许可现成 LUT/Hald | Ilford XP2 400
+171. Ilford | XP2 Super | ISO 400 | 2 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Ilford XP2", "reason": "The verified LUT is unsuffixed XP2; Super revision not established."}
+172. Illingworth's | Fleet H&D | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+173. Impossible Project | Color Instant Film for Polaroid SX-70 Type Cameras | ISO 160 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Polaroid PX-70 / SX-70 LUT", "reason": "Catalog lacks PX-70 identifier; modern/Impossible revision not established."}
+174. Impossible Project | PX 600 Silver Shade UV+ | ISO 600 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+175. JCH | Streetpan | ISO 400 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+176. Jessops | CS100 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+177. Jessops | Diamond Everyday | ISO 200 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+178. Kentmere | PAN | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+179. Kentmere | PAN 100 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+180. Kentmere | PAN 200 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+181. Kentmere | PAN 400 | ISO 400 | 3 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+182. Kirkland Signature | Color Print Film | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+183. Klick | 400ASA | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+184. Klick | APS Film | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+185. Klick | Max Extra Definition Multi Purpose Film | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+186. Klick | XD200 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+187. Kodak | 110 Film | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+188. Kodak | Advantix Ultra | ISO 200 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+189. Kodak | Advantix Ultra Max | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak UltraMax 400", "reason": "Historical/rebranded/APS variants are not silently merged with modern UltraMax."}
+190. Kodak | Black & White + | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+191. Kodak | ColorPlus | ISO 200 | 2 张 | C 现成 LUT，App 授权未解决 | Kodak ColorPlus 200
+192. Kodak | Eastman High Contrast Panchromatic 7369 | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+193. Kodak | Eastman Tri-X Reversal Film 7278 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+194. Kodak | Ektachrome 100 Plus | ISO 100 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+195. Kodak | Ektachrome 100HC | ISO 100 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+196. Kodak | Ektachrome 160 Movie Film Type A | ISO 160 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+197. Kodak | Ektachrome 160T | ISO 160 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+198. Kodak | Ektachrome 200 | ISO 200 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+199. Kodak | Ektachrome 400 | ISO 400 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+200. Kodak | Ektachrome 400X | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+201. Kodak | Ektachrome 64 | ISO 64 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+202. Kodak | Ektachrome 64T | ISO 64 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+203. Kodak | Ektachrome E100 | ISO 100 | 2 张 | B 开放模型，可烘焙 LUT | Kodak Ektachrome E100 (still)
+204. Kodak | Ektachrome E100VS | ISO 100 | 1 张 | A 开放许可现成 LUT/Hald | Kodak Ektachrome E100VS
+205. Kodak | Ektachrome Elite 100 | ISO 100 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Elite ExtraColor 100 / Elite 100 XPRO", "reason": "ExtraColor and cross-processing are not the ordinary EB100 product."}
+206. Kodak | Ektachrome Elite 200 | ISO 200 | 2 张 | A 开放许可现成 LUT/Hald | Kodak Elite Chrome 200
+207. Kodak | Ektachrome Professional | ISO 50 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+208. Kodak | Ektachrome Professional Type B | ISO 32 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+209. Kodak | Ektachrome Slide Duplicating Film | ISO None | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+210. Kodak | Ektachrome-X | ISO 64 | 3 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+211. Kodak | Ektacolor Pro Gold | ISO 160 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+212. Kodak | Ektar 100 | ISO 100 | 3 张 | A 开放许可现成 LUT/Hald | Kodak Ektar 100
+213. Kodak | Elite Chrome | ISO 100 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Elite ExtraColor 100 / Elite 100 XPRO", "reason": "ExtraColor and cross-processing are not the ordinary EB100 product."}
+214. Kodak | Elite Chrome | ISO 400 | 1 张 | A 开放许可现成 LUT/Hald | Kodak Elite Chrome 400
+215. Kodak | FarbWelt 400 | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak UltraMax 400", "reason": "Historical/rebranded/APS variants are not silently merged with modern UltraMax."}
+216. Kodak | Gold | ISO 100 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+217. Kodak | Gold | ISO 200 | 5 张 | B 开放模型，可烘焙 LUT | Kodak Gold 200
+218. Kodak | Gold | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak UltraMax 400", "reason": "Historical/rebranded/APS variants are not silently merged with modern UltraMax."}
+219. Kodak | Gold 200 | ISO 200 | 4 张 | B 开放模型，可烘焙 LUT | Kodak Gold 200
+220. Kodak | Gold II | ISO 200 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Gold 200", "reason": "Historical named revision; strict vintage equivalence not established."}
+221. Kodak | Gold Ultra 400 | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak UltraMax 400", "reason": "Historical/rebranded/APS variants are not silently merged with modern UltraMax."}
+222. Kodak | High Contrast Copy Film | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+223. Kodak | High Speed Ektachrome | ISO 125 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+224. Kodak | High Speed Ektachrome | ISO 160 | 4 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+225. Kodak | High Speed Infrared | ISO 80 | 2 张 | A 开放许可现成 LUT/Hald | Kodak High Speed Infrared (HIE)
+226. Kodak | High Speed Infrared Film 2481 | ISO None | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak HIE (HS Infra)", "reason": "Plausible HIE/2481 identity, but missing catalog ISO and exact source revision warrant manual review."}
+227. Kodak | Kodachrome | ISO 10 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "ANDP Kodachrome 35mm 1935-1962", "reason": "Broad historical look exists; matching ISO and specific generation not established."}
+228. Kodak | Kodachrome 25 | ISO 25 | 2 张 | A 开放许可现成 LUT/Hald | Kodak Kodachrome 25
+229. Kodak | Kodachrome 40 Movie Film (Type A) for Post-process Sound Striping | ISO 40 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+230. Kodak | Kodachrome 64 | ISO 64 | 2 张 | A 开放许可现成 LUT/Hald | Kodak Kodachrome 64
+231. Kodak | Kodachrome II | ISO 25 | 2 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodachrome 25 (K-14)", "reason": "Kodachrome II uses an earlier generation/process; equal ISO does not imply equal product."}
+232. Kodak | Kodacolor | ISO 32 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+233. Kodak | Kodacolor 100 | ISO 100 | 1 张 | B 开放模型，可烘焙 LUT | Kodak Kodacolor 100
+234. Kodak | Kodacolor 200 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+235. Kodak | Kodacolor 400 | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+236. Kodak | Kodacolor Gold 200 | ISO 200 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Gold 200", "reason": "Historical named revision; strict vintage equivalence not established."}
+237. Kodak | Kodacolor Gold 400 | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak UltraMax 400", "reason": "Historical/rebranded/APS variants are not silently merged with modern UltraMax."}
+238. Kodak | Kodacolor II | ISO 100 | 3 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+239. Kodak | Kodacolor II | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+240. Kodak | Kodacolor VR | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+241. Kodak | Kodacolor VR Plus | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak UltraMax 400", "reason": "Historical/rebranded/APS variants are not silently merged with modern UltraMax."}
+242. Kodak | Kodacolor-X | ISO 80 | 3 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+243. Kodak | MAX | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak UltraMax 400", "reason": "Historical/rebranded/APS variants are not silently merged with modern UltraMax."}
+244. Kodak | Panatomic-X | ISO 32 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+245. Kodak | Plus-X | ISO 125 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+246. Kodak | Plus-X | ISO 50 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+247. Kodak | Plus-X Pan | ISO 125 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+248. Kodak | Portra 160 | ISO 160 | 2 张 | A 开放许可现成 LUT/Hald | Kodak Portra 160
+249. Kodak | Portra 400 | ISO 400 | 4 张 | A 开放许可现成 LUT/Hald | Kodak Portra 400
+250. Kodak | Portra 400NC | ISO 400 | 1 张 | A 开放许可现成 LUT/Hald | Kodak Portra 400 NC
+251. Kodak | Portra 400UC | ISO 400 | 1 张 | A 开放许可现成 LUT/Hald | Kodak Portra 400 UC
+252. Kodak | Portra 400VC | ISO 400 | 2 张 | A 开放许可现成 LUT/Hald | Kodak Portra 400 VC
+253. Kodak | Portra 800 | ISO 800 | 3 张 | A 开放许可现成 LUT/Hald | Kodak Portra 800
+254. Kodak | Professional Microfilm Type I | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+255. Kodak | ProImage 100 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+256. Kodak | Rapid Process Copy Film | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+257. Kodak | Sport Single Use Camera | ISO 800 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+258. Kodak | Super Speed Ortho Portrait | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+259. Kodak | Super-sensitive Panchromatic Films | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+260. Kodak | Super-XX | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+261. Kodak | Super-XX | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+262. Kodak | Technical Pan | ISO 25 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+263. Kodak | Technical Pan 6415 | ISO 25 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+264. Kodak | TMAX 100 | ISO 100 | 1 张 | A 开放许可现成 LUT/Hald | Kodak T-Max 100
+265. Kodak | TMAX 400 | ISO 400 | 1 张 | A 开放许可现成 LUT/Hald | Kodak T-Max 400
+266. Kodak | TMAX P3200 | ISO 3200 | 3 张 | A 开放许可现成 LUT/Hald | Kodak T-Max P3200
+267. Kodak | Tri-X 400 | ISO 400 | 4 张 | A 开放许可现成 LUT/Hald | Kodak Tri-X 400
+268. Kodak | Tri-X 400 Pro | ISO 400 | 1 张 | A 开放许可现成 LUT/Hald | Kodak Tri-X 400
+269. Kodak | Tri-X Pan | ISO 320 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Tri-X 400", "reason": "ISO 320 TXP is a different stock."}
+270. Kodak | Tri-X Pan | ISO 400 | 3 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Tri-X 400", "reason": "Older Tri-X Pan packaging; source does not establish matching historical generation."}
+271. Kodak | Ultra | ISO 400 | 2 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak UltraMax 400", "reason": "Historical/rebranded/APS variants are not silently merged with modern UltraMax."}
+272. Kodak | UltraMax | ISO 400 | 5 张 | B 开放模型，可烘焙 LUT | Kodak UltraMax 400
+273. Kodak | Verichrome | ISO None | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+274. Kodak | Verichrome Pan | ISO 125 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+275. Kodak | Verichrome Pan | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+276. Kodak | Vericolor 400 Plus | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+277. Kodak | Vericolor III | ISO 160 | 1 张 | B 开放模型，可烘焙 LUT | Kodak Vericolor III 160
+278. Kodak | Värikuvafilmi | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+279. Konica | Centuria 200 | ISO 200 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "ANDP Konica Centuria APS 200", "reason": "Project has 35mm; the available ANDP product is specifically APS."}
+280. Konica | Infrared 750nm | ISO 32 | 3 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+281. Konica | Konica Color II | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+282. Konica | KonicaColor VX 100 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+283. Konica | KonicaColor VX 200 | ISO 200 | 1 张 | C 现成 LUT，App 授权未解决 | KonicaColor VX 200
+284. Konica | Sepia Professional | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+285. Konica Minolta | Commercial Color Film | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+286. Kosmo Foto | Mono | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+287. Lloyds Pharmacy | APS Film | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+288. Lloyds Pharmacy | Colour Film | ISO 200 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+289. Lomography | Babylon | ISO 13 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+290. Lomography | Berlin | ISO 400 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+291. Lomography | Color Negative 800 | ISO 800 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+292. Lomography | Color Negative Film | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+293. Lomography | Color Negative Film | ISO 800 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+294. Lomography | Fantome | ISO 8 | 1 张 | C 现成 LUT，App 授权未解决 | Lomography Fantome Kino 8
+295. Lomography | Lobster Redscale Negative | ISO 200 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Lomography Redscale 100", "reason": "Different product and ISO/format."}
+296. Lomography | Lomochrome Color'92 | ISO 400 | 2 张 | C 现成 LUT，App 授权未解决 | Lomography LomoChrome Color '92 400
+297. Lomography | Lomochrome Color’92 | ISO 400 | 1 张 | C 现成 LUT，App 授权未解决 | Lomography LomoChrome Color '92 400
+298. Lomography | Lomochrome Metropolis | ISO 100 | 1 张 | B 开放模型，可烘焙 LUT | Lomography LomoChrome Metropolis
+299. Lomography | Lomochrome Purple | ISO 100 | 1 张 | B 开放模型，可烘焙 LUT | Lomography LomoChrome Purple
+300. Lomography | Lomochrome Purple | ISO None | 1 张 | B 开放模型，可烘焙 LUT | Lomography LomoChrome Purple
+301. Lomography | Lomochrome Turquoise | ISO None | 1 张 | B 开放模型，可烘焙 LUT | Lomography LomoChrome Turquoise
+302. Lomography | Orca | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+303. Lomography | Postdam | ISO 100 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+304. Lomography | Tiger | ISO 200 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+305. Lucky | C200 | ISO 200 | 4 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+306. Lucky | SHD400 | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+307. Marix | Professional Negative Movie Color Film | ISO 320 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+308. Max Spielmann | Maxi Color | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+309. Max Spielmann | Pro-Zoom MX 400 | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+310. Minolta | Minolta 16 Color Film For Prints | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+311. Minox | MinoColor 100 Pro | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+312. Minox | Minocolor 2 | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+313. Minox | MinoColor 3 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+314. Mr. Negative | 250D | ISO 250 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Vision3 5207", "reason": "No original manufacturer code in catalog."}
+315. Mr. Negative | Eterna 250D | ISO 250 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Fujifilm Eterna 500", "reason": "Different ISO/type; no 250D LUT in verified source inventory."}
+316. Mr. Negative | Silver Screen Negative | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+317. Mutascan | Kodak Vision3 500T/5219 | ISO 500 | 1 张 | B 开放模型，可烘焙 LUT | Kodak Vision3 500T / 5219
+318. Nishika | Color Print Film | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+319. Northwest Custom Film Processing | Ultra Minituature Film | ISO 64 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+320. Optik Oldschool | OptiColour 200 | ISO 200 | 3 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+321. Optik Oldschool | SantaColor | ISO 800 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+322. ORWO | Chrom UT18 | ISO 50 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+323. ORWO | Chrom UT21 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+324. ORWO | DK5 | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+325. ORWO | NC 19 | ISO 64 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+326. ORWO | NP 20 SL | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+327. ORWO | NP 22 | ISO 125 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+328. ORWO | NP15 | ISO 25 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+329. ORWO | NP22 | ISO 125 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+330. ORWO | OrwoChrome RC100 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+331. ORWO | OrwoChrome UT18 | ISO 50 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+332. ORWO | UK18 | ISO 50 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+333. Perfect Photo Inc. | Perfect-Pan Film | ISO 125 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+334. Perutz | Peromnia 21 | ISO 100 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+335. Perutz | Perpantic Film | ISO 40 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+336. Perutz | Primera | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+337. Perutz | Superomnia | ISO 125 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+338. Photocité | 400 ISO | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+339. Phöbus-Platten | Sheet Film | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+340. Polaroid | 665 | ISO 80 | 1 张 | A 开放许可现成 LUT/Hald | Polaroid 665
+341. Polaroid | 669 | ISO 80 | 1 张 | A 开放许可现成 LUT/Hald | Polaroid 669
+342. Polaroid | 87 | ISO 3000 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+343. Polaroid | 990 | ISO 640 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Polaroid PX-680 / 600", "reason": "Different named product; no exact source verified."}
+344. Polaroid | B&W i-Type Film | ISO 640 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+345. Polaroid | Color 600 Film | ISO 640 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "ANDP Polaroid 600", "reason": "ANDP describes 1980s-early-2000s film; modern 600/i-Type chemistry is not established as the same."}
+346. Polaroid | Color 600 Film Round Frame | ISO 640 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "ANDP Polaroid 600", "reason": "ANDP describes 1980s-early-2000s film; modern 600/i-Type chemistry is not established as the same."}
+347. Polaroid | Color i-Type Film | ISO 640 | 2 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "ANDP Polaroid 600", "reason": "ANDP describes 1980s-early-2000s film; modern 600/i-Type chemistry is not established as the same."}
+348. Polaroid | Color SX-70 Film | ISO 160 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "PictureFX Polaroid SX-70 Core LUT", "reason": "Vintage SX-70 look exists; current Polaroid Color chemistry/generation not established."}
+349. Polaroid | Green 600 Film Reclaimed Series | ISO 640 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+350. Polaroid | GridFilm | ISO 640 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+351. Polaroid | High Definition | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+352. Polaroid | Image Instant Film | ISO 640 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Polaroid PX-680 / 600", "reason": "Different named product; no exact source verified."}
+353. Polaroid | PolaBlue 35mm | ISO 8 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+354. Polaroid | PolaChrome 35mm | ISO 40 | 2 张 | A 开放许可现成 LUT/Hald | Polaroid PolaChrome 35mm
+355. Polaroid | Polacolor 679 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+356. Polaroid | PolaPan 35mm | ISO 125 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+357. Polaroid | Polavision Phototape Land Cassette Type 608 | ISO 40 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+358. Polaroid | Spectra Film | ISO 600 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+359. Polaroid | Type 42 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+360. Porst | Color N21 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+361. Premium | Super XG | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+362. PrinzColor | Colour Negative Film | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+363. Reflx Lab | 250D | ISO 250 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Vision3 5207", "reason": "No original manufacturer code in catalog; re-spool equivalence not counted."}
+364. Reflx Lab | 400D | ISO 400 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "CineStill 400D", "reason": "Equal label/ISO across brands does not establish equal emulsion/processing."}
+365. Reflx Lab | 800T | ISO 800 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "CineStill 800T / Vision3 5219", "reason": "Different manufacturer's processing and exposure rating."}
+366. Reflx Lab | Pro 100 | ISO 100 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+367. Reto | Amber D400 | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+368. Ricoh | Golden "16" | ISO 160 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+369. Robot | NR-Cassette | ISO None | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+370. Rollei | Infrared | ISO 200 | 2 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Rollei IR 400", "reason": "Catalog ISO 200 differs from LUT ISO 400; catalog identity needs verification."}
+371. Rollei | Retro 400S | ISO 400 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+372. Rollei | Retro 80S | ISO 80 | 2 张 | A 开放许可现成 LUT/Hald | Rollei Retro 80S
+373. Rollei | RPX 100 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+374. Rollei | RPX 25 | ISO 25 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+375. Rollei | RPX 400 | ISO 400 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+376. Rollei | SUPERPAN 200 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+377. Rossmann | Jahreszeiten Pack | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+378. Sakura | Sakuracolor II | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+379. SantaColor | SantaColor | ISO 100 | 2 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Aerocolor 2460", "reason": "Original-stock/rebrand assumption not counted as an exact named LUT."}
+380. Seagull | Seagull Color IR100 | ISO 100 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+381. Shanghai | GP3 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+382. Sharan | Black-and-white Negative Film | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+383. Sharan | Color Negative Film | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+384. Space Cat Film | Mars 250D | ISO 250 | 1 张 | D 仅近似型号/版本或分装片候选 | {"candidate": "Kodak Vision3 5207", "reason": "Catalog says C-41; source model's native process is ECN-2."}
+385. Street Candy Film | ATM400 | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+386. SupaSnaps | Snappit Film | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+387. Svema | FN 64 | ISO 64 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+388. Svema | Foto 200 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+389. Svema | Foto 32 | ISO 32 | 2 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+390. Svema | Foto 400 | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+391. Svema | Foto 64 | ISO 64 | 3 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+392. Tasma | OCh 50 | ISO 50 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+393. Three Film Rolls | 5207 | ISO 250 | 1 张 | B 开放模型，可烘焙 LUT | Kodak Vision3 250D / 5207
+394. Triple-Print Film Labs | Color Negative Film | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+395. VEB Fotochemische Werke Berlin | Dekopan Feinkorn | ISO 32 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+396. VEB Fotochemische Werke Berlin | Dekopan Super S | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+397. Walgreen | All Purpose Film | ISO 80 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+398. Walkens | Speed 400 | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+399. Wolfen | NC500 | ISO 400 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+400. Wolfen | NP100 | ISO 100 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在
+401. York Photo Labs | DXG 200 | ISO 200 | 1 张 | E 本轮未确认对应 LUT | 尚未确认；不能据此断言不存在

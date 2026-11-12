@@ -202,12 +202,15 @@ extension FilmPreset {
 
     private var grainCharacter: FilmGrainCharacter {
         switch self {
-        case .fujiProvia100F:
+        case .fujiProvia100F, .fujiSlideProvia100F, .fujiVelvia50, .kodakKodachrome64,
+             .kodakEktar100, .kodakTMax100:
             return .ultraFine
-        case .fujiPro400H, .kodakPortra400:
+        case .fujiPro400H, .kodakPortra400, .kodakPortra800:
             return .fine
-        case .fujiC200:
+        case .fujiC200, .kodakGold200, .fujiSuperiaXTRA400:
             return .balanced
+        case .kodakTriX400, .ilfordHP5Plus400:
+            return .expressive
         default:
             return .ultraFine
         }
@@ -229,8 +232,11 @@ extension FilmPreset {
         if rawSimulation != nil {
             return FilmRenderProfile(grain: .disabled, optics: .disabled, chromatic: .neutral)
         }
+        let grain = AutomaticFilmProfile.grain(iso: iso, character: grainCharacter, response: grainResponse)
         return FilmRenderProfile(
-            grain: AutomaticFilmProfile.grain(iso: iso, character: grainCharacter, response: grainResponse),
+            grain: isMonochrome
+                ? FilmGrainParameters(amount: grain.amount, size: grain.size, chroma: 0, response: grain.response)
+                : grain,
             optics: filmOptics,
             chromatic: chromaticResponse
         )

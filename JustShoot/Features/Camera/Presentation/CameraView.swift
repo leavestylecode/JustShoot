@@ -13,6 +13,7 @@ import os
 struct CameraView: View {
     /// 当前胶片源；预览 LUT 与胶片封面随选择更新，最近照片独立于胶片选择。
     @State private var source: FilmSource
+    @ObservedObject private var filmSettings: FilmPageSettings
     /// Preserve the saved Live Photo preference; the still-photo format is automatic.
     @AppStorage("photoCaptureMode") private var captureModeValue = PhotoCaptureMode.quality.rawValue
     /// Live Photo 是否录音（设置页可配置，默认开）。开启时麦克风挂上 session、Live 视频带声音；
@@ -64,8 +65,9 @@ struct CameraView: View {
     @State private var gestureOrientation: UIDeviceOrientation = .portrait
     @GestureState private var previewGestureActive = false
 
-    init(source: FilmSource) {
+    init(source: FilmSource, filmSettings: FilmPageSettings? = nil) {
         _source = State(initialValue: source)
+        _filmSettings = ObservedObject(wrappedValue: filmSettings ?? .shared)
         let manager = CameraManager()
         _cameraManager = StateObject(wrappedValue: manager)
         _coordinator = StateObject(wrappedValue: CameraCoordinator(camera: manager, pipeline: CapturePipeline.shared))
@@ -129,13 +131,20 @@ struct CameraView: View {
         .onChange(of: capturePipeline.isPrepared) { _, ready in
             cameraManager.updateEntryPipelineReady(ready)
         }
-        .task(id: cameraManager.entryPreparation.isRevealed) {
+        .task(id: cameraManager.entryPreparation.isRevealed ? allFilmSources.map(\.id) : []) {
             // The hidden picker must not delay first preview or compete with entry preparation.
-            guard cameraManager.entryPreparation.isRevealed, preparedPickerCovers.isEmpty else { return }
+            guard cameraManager.entryPreparation.isRevealed else { return }
+            let presets = allFilmSources.compactMap { source -> FilmPreset? in
+                if case .preset(let preset) = source { return preset }
+                return nil
+            }
+            preparedPickerCovers = preparedPickerCovers.filter { presets.contains($0.key) }
+            let missing = presets.filter { preparedPickerCovers[$0] == nil }
+            guard !missing.isEmpty else { return }
             do {
-                let covers = try await FilmSourcePickerStrip.preloadCovers(displayScale: displayScale)
+                let covers = try await FilmSourcePickerStrip.preloadCovers(presets: missing, displayScale: displayScale)
                 try Task.checkCancellation()
-                preparedPickerCovers = covers
+                preparedPickerCovers.merge(covers) { _, new in new }
             } catch is CancellationError {
                 return
             } catch {
@@ -482,6 +491,7 @@ struct CameraView: View {
                     // 手势挂在预览视图上：tap 落点设对焦点，随后 |dy|>8pt 切到曝光补偿。
                     RealtimePreviewView(
                         manager: cameraManager,
+                        resourcesReady: cameraManager.entryPreparation.resourcesReady,
                         lutCacheKey: preparedLUT?.key ?? previewLUTKey,
                         preparedLUT: preparedLUT?.texture,
                         grain: preparedLUT?.profile.grain ?? source.captureRenderProfile.grain,
@@ -568,7 +578,7 @@ struct CameraView: View {
     private var filmSourcePicker: some View {
         FilmSourcePickerStrip(
             current: source,
-            customLUTs: customLUTs,
+            sources: allFilmSources,
             contentRotation: controlRotationAngle,
             orientation: cameraManager.controlsOrientation,
             preparedCovers: preparedPickerCovers,
@@ -1048,11 +1058,11 @@ struct CameraView: View {
     /// **阈值**：50pt——比单 cell 宽度（52pt）略小，让"瞄准一格距离的快滑"稳定触发。
     private static let filmSwipeThreshold: CGFloat = 50
 
-    /// Picker 候选列表，顺序与 FilmSourcePickerStrip 一致（preset 在前，自定义在后）。
-    /// FilmPreset.allCases 是常量，customLUTs 已经在 @Query 缓存里，每次重新拼开销可忽略。
-    /// 放 computed property 避免 SwiftUI body 闭包捕获 stale 数组。
+    /// The strip and swipe gesture share the user's library membership and order.
     private var allFilmSources: [FilmSource] {
-        FilmPreset.allCases.map(FilmSource.preset) + customLUTs.map(FilmSource.from)
+        filmSettings.preferences.cameraSources(
+            FilmPreset.allCases.map(FilmSource.preset) + customLUTs.filter { !$0.isDeleted }.map(FilmSource.from),
+            current: source)
     }
 
     private func handleFilmSwipeChanged(_ value: DragGesture.Value) {

@@ -10,7 +10,7 @@ struct FilmManagementView: View {
     @State private var pendingDelete: FilmSource?
 
     var body: some View {
-        let orderedSources = settings.preferences.ordered(sources)
+        let orderedSources = settings.preferences.ordered(sources).filter(settings.preferences.isVisible)
 
         NavigationStack {
             List {
@@ -27,7 +27,7 @@ struct FilmManagementView: View {
                         filmRow(source)
                     }
                     .onMove { offsets, destination in
-                        settings.move(from: offsets, to: destination, in: sources)
+                        settings.move(from: offsets, to: destination, in: orderedSources)
                     }
                 } header: {
                     HStack {
@@ -38,7 +38,7 @@ struct FilmManagementView: View {
                             .textCase(nil)
                             .frame(minWidth: 44, minHeight: 44)
                             .buttonStyle(.borderless)
-                            .disabled(orderedSources == sources)
+                            .disabled(settings.preferences.orderedFilmIDs.isEmpty)
                             .accessibilityLabel("Reset Film Order")
                             .accessibilityIdentifier("films.resetOrder")
                     }
@@ -75,17 +75,15 @@ struct FilmManagementView: View {
 
             switch source {
             case .preset(let preset):
-                let visible = !settings.preferences.hiddenPresetIDs.contains(preset.rawValue)
                 Button {
-                    settings.setVisible(preset, !visible)
+                    settings.setVisible(preset, false)
                 } label: {
-                    Image(systemName: visible ? "eye" : "eye.slash")
+                    Image(systemName: "minus.circle")
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.borderless)
-                .accessibilityLabel(Text(verbatim: source.filmPageTitle))
-                .accessibilityValue(settings.preferences.isVisible(source) ? Text("Shown") : Text("Hidden"))
-                .accessibilityHint("Show or hide this film")
+                .accessibilityLabel("Remove \(source.filmPageTitle) from Films")
+                .accessibilityHint("You can add this film again from the library")
                 .accessibilityIdentifier("films.visibility.\(source.id)")
             case .custom:
                 Button(role: .destructive) { pendingDelete = source } label: {

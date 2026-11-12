@@ -14,19 +14,27 @@ final class FilmPageSettingsTests: XCTestCase {
         .custom(id: id, displayName: name, iso: 200, fileName: "\(id).jslut")
     }
 
-    func testFreshSettingsShowAllFilmsAndBothTextLines() throws {
+    private func settingsShowingAllPresets(_ defaults: UserDefaults) -> FilmPageSettings {
+        let settings = FilmPageSettings(defaults: defaults)
+        settings.preferences.addedPresetIDs = Set(FilmPreset.allCases.map(\.rawValue))
+        return settings
+    }
+
+    func testFreshSettingsShowNineRecommendedFilmsAndBothTextLines() throws {
         try withDefaults { defaults in
             let settings = FilmPageSettings(defaults: defaults)
             let sources = FilmPreset.allCases.map(FilmSource.preset) + [custom()]
             XCTAssertEqual(settings.textVisibility, FilmTileTextVisibility())
-            XCTAssertEqual(settings.preferences.ordered(sources), sources)
-            XCTAssertTrue(sources.allSatisfy(settings.preferences.isVisible))
+            let visible = settings.preferences.ordered(sources).filter(settings.preferences.isVisible)
+            XCTAssertEqual(visible, FilmPagePreferences.defaultPresets.map(FilmSource.preset) + [sources.last!])
+            XCTAssertEqual(FilmPagePreferences.defaultPresets.count, 9)
+            XCTAssertEqual(Set(FilmPagePreferences.defaultPresets).count, 9)
         }
     }
 
     func testPreferencesAndMixedFilmOrderSurviveRelaunch() throws {
         try withDefaults { defaults in
-            let settings = FilmPageSettings(defaults: defaults)
+            let settings = settingsShowingAllPresets(defaults)
             let sources: [FilmSource] = [.preset(.fujiRawVelvia), .preset(.fujiRawASTIA), custom()]
             settings.preferences.showsTitle = false
             settings.preferences.showsSubtitle = false
@@ -43,7 +51,7 @@ final class FilmPageSettingsTests: XCTestCase {
 
     func testHidingAndRestoringOfficialFilmsPreservesOrderAndIndividualChoices() throws {
         try withDefaults { defaults in
-            let settings = FilmPageSettings(defaults: defaults)
+            let settings = settingsShowingAllPresets(defaults)
             let sources: [FilmSource] = [.preset(.fujiRawVelvia), custom(), .preset(.fujiRawASTIA)]
             settings.move(from: [2], to: 0, in: sources)
             settings.setVisible(.fujiRawVelvia, false)
@@ -69,7 +77,7 @@ final class FilmPageSettingsTests: XCTestCase {
 
     func testMovingMultipleFilmsDownAndDeletingCustomFilmPreservesRemainingOrder() throws {
         try withDefaults { defaults in
-            let settings = FilmPageSettings(defaults: defaults)
+            let settings = settingsShowingAllPresets(defaults)
             let id = UUID()
             let sources: [FilmSource] = [.preset(.fujiRawVelvia), custom(id), .preset(.fujiRawASTIA), custom()]
             settings.move(from: [0, 1], to: 4, in: sources)
@@ -87,7 +95,8 @@ final class FilmPageSettingsTests: XCTestCase {
         let preferences = try JSONDecoder().decode(FilmPagePreferences.self, from: oldData)
         XCTAssertFalse(preferences.showsTitle)
         XCTAssertTrue(preferences.showsSubtitle)
-        XCTAssertEqual(preferences.orderedFilmIDs, ["fujiRawASTIA"])
+        XCTAssertEqual(preferences.orderedFilmIDs.first, "fujiRawASTIA")
+        XCTAssertEqual(preferences.addedPresetIDs.count, 9)
         try withDefaults { defaults in
             defaults.set(Data("invalid".utf8), forKey: FilmPageSettings.storageKey)
             XCTAssertEqual(FilmPageSettings(defaults: defaults).preferences, FilmPagePreferences())
@@ -96,7 +105,7 @@ final class FilmPageSettingsTests: XCTestCase {
 
     func testResetOrderPersistsDefaultOrderAndKeepsAppearanceAndHiddenFilms() throws {
         try withDefaults { defaults in
-            let settings = FilmPageSettings(defaults: defaults)
+            let settings = settingsShowingAllPresets(defaults)
             let sources: [FilmSource] = [.preset(.fujiRawVelvia), .preset(.fujiRawASTIA), custom(), custom()]
             settings.preferences.showsTitle = false
             settings.preferences.showsSubtitle = false
@@ -123,5 +132,84 @@ final class FilmPageSettingsTests: XCTestCase {
             XCTAssertEqual(settings.preferences.ordered(sources), [sources[1], sources[0]])
             XCTAssertEqual(settings.preferences.ordered(sources).filter(settings.preferences.isVisible), [sources[0]])
         }
+    }
+
+    func testAddingAFilmIsImmediateIdempotentAndSurvivesRelaunch() throws {
+        try withDefaults { defaults in
+            let settings = FilmPageSettings(defaults: defaults)
+            let source = FilmSource.preset(.kodakPortra800)
+            XCTAssertFalse(settings.preferences.isVisible(source))
+            settings.setVisible(.kodakPortra800, true)
+            settings.setVisible(.kodakPortra800, true)
+            XCTAssertTrue(settings.preferences.isVisible(source))
+            XCTAssertEqual(settings.preferences.addedPresetIDs.count, 10)
+            XCTAssertEqual(FilmPageSettings(defaults: defaults).preferences, settings.preferences)
+            settings.setVisible(.kodakPortra800, false)
+            XCTAssertFalse(FilmPageSettings(defaults: defaults).preferences.isVisible(source))
+        }
+    }
+
+    func testEmptySelectionStaysEmptyAfterRelaunch() throws {
+        try withDefaults { defaults in
+            let settings = FilmPageSettings(defaults: defaults)
+            settings.preferences.addedPresetIDs = []
+            XCTAssertTrue(FilmPageSettings(defaults: defaults).preferences.addedPresetIDs.isEmpty)
+        }
+    }
+
+    func testLegacySelectionAndOrderAreMigratedWithoutReseedingNineFilms() throws {
+        try withDefaults { defaults in
+            let payload = Data(#"{"hiddenPresetIDs":["fujiC200"],"orderedFilmIDs":["kodakPortra400","fujiRawASTIA"]}"#.utf8)
+            defaults.set(payload, forKey: FilmPageSettings.storageKey)
+            let settings = FilmPageSettings(defaults: defaults)
+            XCTAssertEqual(settings.preferences.addedPresetIDs.count, 8)
+            XCTAssertFalse(settings.preferences.isVisible(.preset(.fujiC200)))
+            XCTAssertFalse(settings.preferences.isVisible(.preset(.kodakPortra800)))
+            let ordered = settings.preferences.ordered(FilmPreset.allCases.map(FilmSource.preset))
+            XCTAssertEqual(Array(ordered.prefix(2)), [.preset(.kodakPortra400), .preset(.fujiRawASTIA)])
+            let data = try XCTUnwrap(defaults.data(forKey: FilmPageSettings.storageKey))
+            let stored = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            XCTAssertNotNil(stored["addedPresetIDs"])
+            XCTAssertNil(stored["hiddenPresetIDs"])
+        }
+    }
+
+    func testLegacyEmptySelectionStaysEmptyAndPreservesImportedFilmOrder() throws {
+        try withDefaults { defaults in
+            let imported = custom()
+            let legacyIDs = ["fujiRawVelvia", "fujiRawASTIA", "fujiRawClassicChrome", "fujiRawClassicNeg",
+                "fujiRawACROS", "fujiC200", "fujiPro400H", "fujiProvia100F", "kodakPortra400"]
+            let payload = try JSONSerialization.data(withJSONObject: [
+                "hiddenPresetIDs": legacyIDs, "orderedFilmIDs": [imported.id, "fujiRawASTIA"]
+            ])
+            defaults.set(payload, forKey: FilmPageSettings.storageKey)
+            let settings = FilmPageSettings(defaults: defaults)
+            let sources = FilmPreset.allCases.map(FilmSource.preset) + [imported]
+            XCTAssertTrue(settings.preferences.addedPresets.isEmpty)
+            XCTAssertEqual(settings.preferences.ordered(sources).filter(settings.preferences.isVisible), [imported])
+            XCTAssertEqual(FilmPageSettings(defaults: defaults).preferences, settings.preferences)
+        }
+    }
+
+    func testLegacyDefaultOrderAndMembershipSurviveCatalogExpansion() throws {
+        let payload = Data(#"{"hiddenPresetIDs":[],"orderedFilmIDs":[]}"#.utf8)
+        let preferences = try JSONDecoder().decode(FilmPagePreferences.self, from: payload)
+        let expected: [FilmPreset] = [.fujiRawVelvia, .fujiRawASTIA, .fujiRawClassicChrome, .fujiRawClassicNeg,
+            .fujiRawACROS, .fujiC200, .fujiPro400H, .fujiProvia100F, .kodakPortra400]
+        let visible = preferences.ordered(FilmPreset.allCases.map(FilmSource.preset)).filter(preferences.isVisible)
+        XCTAssertEqual(visible, expected.map(FilmSource.preset))
+        XCTAssertEqual(Set(preferences.addedPresets), Set(expected))
+    }
+
+    func testCameraUsesLibraryOrderAndIncludesAnUnaddedCurrentFilmOnce() {
+        var preferences = FilmPagePreferences()
+        let customFilm = custom()
+        let current = FilmSource.preset(.kodakPortra800)
+        let sources = FilmPreset.allCases.map(FilmSource.preset) + [customFilm]
+        preferences.orderedFilmIDs = [customFilm.id, FilmPreset.fujiC200.rawValue]
+        let visible = preferences.ordered(sources).filter(preferences.isVisible)
+        XCTAssertEqual(preferences.cameraSources(sources, current: current), visible + [current])
+        XCTAssertEqual(preferences.cameraSources(sources, current: customFilm), visible)
+        XCTAssertFalse(preferences.addedPresetIDs.contains(FilmPreset.kodakPortra800.rawValue))
     }
 }

@@ -23,7 +23,7 @@ final class CurveLUTComposerTests: XCTestCase {
         }
     }
 
-    func testTwoAndThreePointIdentityCubesActuallyRenderSoftAndSCurveTones() throws {
+    func testTwoAndThreePointIdentityCubesRenderSoftVividAndFadedTones() throws {
         for dimension in [2, 3] {
             let original = try cube(dimension: dimension) { [$0, $1, $2, 1] }
             for preset in [CurvePreset.filmSoft, .punch, .matte] {
@@ -45,11 +45,11 @@ final class CurveLUTComposerTests: XCTestCase {
                     let black = node(composed, red: 0, green: 0, blue: 0)
                     let white = node(composed, red: 32, green: 32, blue: 32)
                     for channel in 0..<3 {
-                        XCTAssertEqual(black[channel], 0.075, accuracy: 0.000001)
-                        XCTAssertEqual(white[channel], 1)
+                        XCTAssertEqual(black[channel], 0.055, accuracy: 0.000001)
+                        XCTAssertEqual(white[channel], 0.95, accuracy: 0.000001)
                     }
                 }
-                if preset == .filmSoft {
+                if preset == .filmSoft || preset == .matte {
                     XCTAssertGreaterThan(shadow[0], 0.25)
                     XCTAssertLessThan(highlight[0], 0.75)
                 } else {

@@ -1,25 +1,52 @@
 import Foundation
 import Combine
 
-/// Film-page preferences use stable source IDs; importing or hiding a film never resets its position.
+/// Membership and ordering use stable IDs, independently of packaging-card variants.
 struct FilmPagePreferences: Codable, Equatable, Sendable {
+    static let defaultPresets: [FilmPreset] = [
+        .kodakPortra400, .kodakGold200, .fujiPro400H, .fujiC200, .kodakEktar100,
+        .fujiVelvia50, .ilfordHP5Plus400, .kodakTriX400, .fujiRawClassicChrome
+    ]
+    static let catalogPresets = defaultPresets + FilmPreset.allCases.filter { !defaultPresets.contains($0) }
+    private static let legacyPresets: [FilmPreset] = [
+        .fujiRawVelvia, .fujiRawASTIA, .fujiRawClassicChrome, .fujiRawClassicNeg,
+        .fujiRawACROS, .fujiC200, .fujiPro400H, .fujiProvia100F, .kodakPortra400
+    ]
+
     var showsTitle = true
     var showsSubtitle = true
-    var hiddenPresetIDs: Set<String> = []
+    var addedPresetIDs = Set(defaultPresets.map(\.rawValue))
     var orderedFilmIDs: [String] = []
 
     init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case showsTitle, showsSubtitle, hiddenPresetIDs, orderedFilmIDs
+        case showsTitle, showsSubtitle, addedPresetIDs, hiddenPresetIDs, orderedFilmIDs
     }
 
     init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         showsTitle = try values.decodeIfPresent(Bool.self, forKey: .showsTitle) ?? true
         showsSubtitle = try values.decodeIfPresent(Bool.self, forKey: .showsSubtitle) ?? true
-        hiddenPresetIDs = try values.decodeIfPresent(Set<String>.self, forKey: .hiddenPresetIDs) ?? []
         orderedFilmIDs = try values.decodeIfPresent([String].self, forKey: .orderedFilmIDs) ?? []
+        if let added = try values.decodeIfPresent(Set<String>.self, forKey: .addedPresetIDs) {
+            addedPresetIDs = added
+        } else {
+            // Existing installations keep their individually visible films, including an
+            // intentionally empty library. The nine-film default only seeds a new library.
+            let hidden = try values.decodeIfPresent(Set<String>.self, forKey: .hiddenPresetIDs) ?? []
+            addedPresetIDs = Set(Self.legacyPresets.map(\.rawValue)).subtracting(hidden)
+            let savedOrder = Set(orderedFilmIDs)
+            orderedFilmIDs += Self.legacyPresets.map(\.rawValue).filter { !savedOrder.contains($0) }
+        }
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(showsTitle, forKey: .showsTitle)
+        try values.encode(showsSubtitle, forKey: .showsSubtitle)
+        try values.encode(addedPresetIDs, forKey: .addedPresetIDs)
+        try values.encode(orderedFilmIDs, forKey: .orderedFilmIDs)
     }
 
     func ordered(_ sources: [FilmSource]) -> [FilmSource] {
@@ -27,7 +54,7 @@ struct FilmPagePreferences: Codable, Equatable, Sendable {
         for source in sources { byID[source.id] = source }
         var seen = Set<String>()
         // Saved items keep their relative order; newly available films append in catalog order.
-        return (orderedFilmIDs + sources.map(\.id)).compactMap { id in
+        return (orderedFilmIDs + Self.defaultPresets.map(\.rawValue) + sources.map(\.id)).compactMap { id in
             guard seen.insert(id).inserted else { return nil }
             return byID[id]
         }
@@ -35,14 +62,25 @@ struct FilmPagePreferences: Codable, Equatable, Sendable {
 
     func isVisible(_ source: FilmSource) -> Bool {
         if case .preset(let preset) = source {
-            return !hiddenPresetIDs.contains(preset.rawValue)
+            return addedPresetIDs.contains(preset.rawValue)
         }
         return true
+    }
+
+    var addedPresets: [FilmPreset] {
+        Self.catalogPresets.filter { addedPresetIDs.contains($0.rawValue) }
+    }
+
+    func cameraSources(_ sources: [FilmSource], current: FilmSource) -> [FilmSource] {
+        let visible = ordered(sources).filter(isVisible)
+        // A film opened directly from the catalog remains selectable for this camera visit.
+        return visible.contains(where: { $0.id == current.id }) ? visible : visible + [current]
     }
 }
 
 @MainActor
 final class FilmPageSettings: ObservableObject {
+    static let shared = FilmPageSettings()
     @Published var preferences: FilmPagePreferences {
         didSet {
             guard preferences != oldValue,
@@ -58,6 +96,8 @@ final class FilmPageSettings: ObservableObject {
         self.defaults = defaults
         preferences = defaults.data(forKey: Self.storageKey)
             .flatMap { try? JSONDecoder().decode(FilmPagePreferences.self, from: $0) } ?? FilmPagePreferences()
+        // Freeze the initial selection and upgrade the old visibility payload once.
+        if let data = try? JSONEncoder().encode(preferences) { defaults.set(data, forKey: Self.storageKey) }
     }
 
     var textVisibility: FilmTileTextVisibility {
@@ -65,8 +105,8 @@ final class FilmPageSettings: ObservableObject {
     }
 
     func setVisible(_ preset: FilmPreset, _ visible: Bool) {
-        if visible { preferences.hiddenPresetIDs.remove(preset.rawValue) }
-        else { preferences.hiddenPresetIDs.insert(preset.rawValue) }
+        if visible { preferences.addedPresetIDs.insert(preset.rawValue) }
+        else { preferences.addedPresetIDs.remove(preset.rawValue) }
     }
 
     func move(from offsets: IndexSet, to destination: Int, in sources: [FilmSource]) {

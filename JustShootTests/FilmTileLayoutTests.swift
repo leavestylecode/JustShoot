@@ -96,7 +96,7 @@ final class FilmTileLayoutTests: XCTestCase {
         visibility: FilmTileTextVisibility = .init(),
         file: StaticString = #filePath, line: UInt = #line) {
         for preset in FilmPreset.allCases {
-            let title = preset.rawSimulation?.displayName ?? preset.displayName
+            let title = preset.tileTitle
             let titleWidth = (title as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: titleSize, weight: .semibold)]).width
             let subtitleWidth = (preset.sceneSubtitle(locale: locale) as NSString)
                 .size(withAttributes: [.font: UIFont.systemFont(ofSize: subtitleSize)]).width

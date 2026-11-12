@@ -139,6 +139,7 @@ enum FilmCoverShape: String, CaseIterable, Identifiable {
 // MARK: - Library main view
 
 struct FilmCardLibraryView: View {
+    @StateObject private var settings: FilmPageSettings
     @Environment(\.horizontalSizeClass) private var sizeClass
     @ScaledMetric(relativeTo: .body) private var gridScale = 1.0
     @State private var library = FilmCardLibrary.shared
@@ -158,6 +159,10 @@ struct FilmCardLibraryView: View {
     /// thumbnail tagged with `card.id` morphs into the detail view tagged with
     /// the same id when the user pushes.
     @Namespace private var zoomNamespace
+
+    init(settings: FilmPageSettings? = nil) {
+        _settings = StateObject(wrappedValue: settings ?? .shared)
+    }
 
     private func columns(availableWidth: CGFloat) -> [GridItem] {
         let isRegular = sizeClass == .regular
@@ -189,14 +194,20 @@ struct FilmCardLibraryView: View {
                     if hasActiveFilter { activeFilters }
                     LazyVGrid(columns: columns(availableWidth: geometry.size.width), alignment: .leading, spacing: density.rowSpacing) {
                         ForEach(filteredCards) { card in
-                            NavigationLink(value: card) {
-                                FilmCardThumbnail(card: card,
-                                                  density: density,
-                                                  coverShape: coverShape,
-                                                  showsCaption: showsCaption)
+                            VStack(spacing: 8) {
+                                NavigationLink(value: card) {
+                                    FilmCardThumbnail(card: card,
+                                                      density: density,
+                                                      coverShape: coverShape,
+                                                      showsCaption: showsCaption)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("filmLibrary.film.\(card.id)")
+                                .filmTransitionSource(id: card.id, in: zoomNamespace)
+                                if let preset = FilmLUTCatalog.preset(for: card) {
+                                    FilmLibraryAddButton(preset: preset, settings: settings)
+                                }
                             }
-                            .buttonStyle(.plain)
-                            .filmTransitionSource(id: card.id, in: zoomNamespace)
                         }
                     }
                 }
@@ -245,8 +256,11 @@ struct FilmCardLibraryView: View {
                 }
             }
             .navigationDestination(for: FilmCard.self) { card in
-                FilmCardDetailView(card: card)
+                FilmCardDetailView(card: card, settings: settings)
                     .filmZoomTransition(id: card.id, in: zoomNamespace)
+            }
+            .navigationDestination(for: FilmSource.self) { source in
+                CameraView(source: source, filmSettings: settings)
             }
             .task {
                 await library.loadIfNeeded()
@@ -443,6 +457,12 @@ struct FilmCardThumbnail: View {
             .lineLimit(2)
 
             HStack(spacing: 4) {
+                if FilmLUTCatalog.preset(for: card)?.rawSimulation != nil {
+                    Text("Film simulation")
+                        .font(.system(size: max(density.metaFontSize, sizeClass == .regular ? 12 : 0) * captionScale))
+                        .foregroundColor(.white.opacity(0.45))
+                        .lineLimit(1)
+                }
                 if let iso = card.iso {
                     Text(verbatim: "ISO \(iso)")
                         .font(.system(size: max(density.metaFontSize, sizeClass == .regular ? 12 : 0) * captionScale))
@@ -464,9 +484,15 @@ struct FilmCardThumbnail: View {
 
 struct FilmCardDetailView: View {
     let card: FilmCard
+    @StateObject private var settings: FilmPageSettings
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var image: UIImage?
     @State private var colorManager = FilmCardCoverColorManager()
+
+    init(card: FilmCard, settings: FilmPageSettings? = nil) {
+        self.card = card
+        _settings = StateObject(wrappedValue: settings ?? .shared)
+    }
 
     /// Foreground ink + chip tints derived from the cover's dominant luminance.
     /// Recomputed on every body pass; cheap (a single comparison + Color inits).
@@ -488,6 +514,22 @@ struct FilmCardDetailView: View {
 
                     VStack(alignment: .leading, spacing: 22) {
                         headerSection
+                        if let preset = FilmLUTCatalog.preset(for: card) {
+                            HStack(spacing: 12) {
+                                FilmLibraryAddButton(preset: preset, settings: settings,
+                                    tint: palette.prefersDarkInk ? .black : .white)
+                                NavigationLink(value: FilmSource.preset(preset)) {
+                                    Label("Start Shooting", systemImage: "camera")
+                                        .frame(minHeight: 44)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(palette.prefersDarkInk ? .black : .white)
+                                .accessibilityIdentifier("filmLibrary.use.\(preset.rawValue)")
+                            }
+                            if preset.rawSimulation != nil {
+                                Text("Film simulation").font(.subheadline).foregroundStyle(palette.secondary)
+                            }
+                        }
                         if hasSpecChips { specChips }
                         if let notes = card.notes, !notes.isEmpty { notesSection(notes) }
                     }
@@ -646,6 +688,29 @@ struct FilmCardDetailView: View {
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+private struct FilmLibraryAddButton: View {
+    let preset: FilmPreset
+    @ObservedObject var settings: FilmPageSettings
+    var tint: Color = .white
+
+    private var isAdded: Bool { settings.preferences.isVisible(.preset(preset)) }
+
+    var body: some View {
+        Button { settings.setVisible(preset, true) } label: {
+            Label(isAdded ? LocalizedStringKey("Added") : LocalizedStringKey("Add"),
+                systemImage: isAdded ? "checkmark" : "plus")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(tint)
+                .frame(maxWidth: .infinity, minHeight: 32)
+        }
+        .buttonStyle(.bordered)
+        .tint(tint)
+        .disabled(isAdded)
+        .accessibilityLabel(isAdded ? Text("Added \(preset.displayName)") : Text("Add \(preset.displayName) to Films"))
+        .accessibilityIdentifier("filmLibrary.add.\(preset.rawValue)")
     }
 }
 

@@ -1,0 +1,293 @@
+{
+  "commit": "6b45c802567ce0dc7b9a68578f2a25ee504a6bf6",
+  "files": [
+    "Sources/FotufilmCore/Stocks/acros100.json",
+    "Sources/FotufilmCore/Stocks/aerochrome1443.json",
+    "Sources/FotufilmCore/Stocks/aerocolor2460.json",
+    "Sources/FotufilmCore/Stocks/agfachrome100.json",
+    "Sources/FotufilmCore/Stocks/agfachrome200.json",
+    "Sources/FotufilmCore/Stocks/agfachrome50.json",
+    "Sources/FotufilmCore/Stocks/astia100f.json",
+    "Sources/FotufilmCore/Stocks/c200.json",
+    "Sources/FotufilmCore/Stocks/cinestill400d.json",
+    "Sources/FotufilmCore/Stocks/cinestill800t.json",
+    "Sources/FotufilmCore/Stocks/delta3200.json",
+    "Sources/FotufilmCore/Stocks/doublex5222.json",
+    "Sources/FotufilmCore/Stocks/ektachromee100.json",
+    "Sources/FotufilmCore/Stocks/ektar100.json",
+    "Sources/FotufilmCore/Stocks/eterna500.json",
+    "Sources/FotufilmCore/Stocks/eternavivid500.json",
+    "Sources/FotufilmCore/Stocks/example-monochrome-100.json",
+    "Sources/FotufilmCore/Stocks/example-negative-400.json",
+    "Sources/FotufilmCore/Stocks/example-reversal-64.json",
+    "Sources/FotufilmCore/Stocks/f64d.json",
+    "Sources/FotufilmCore/Stocks/fp4plus125.json",
+    "Sources/FotufilmCore/Stocks/gold200.json",
+    "Sources/FotufilmCore/Stocks/hp5plus400.json",
+    "Sources/FotufilmCore/Stocks/infraredcolor.json",
+    "Sources/FotufilmCore/Stocks/instaxmini.json",
+    "Sources/FotufilmCore/Stocks/instaxwide.json",
+    "Sources/FotufilmCore/Stocks/kodachrome200.json",
+    "Sources/FotufilmCore/Stocks/kodachrome25.json",
+    "Sources/FotufilmCore/Stocks/kodachrome64.json",
+    "Sources/FotufilmCore/Stocks/kodacolor100.json",
+    "Sources/FotufilmCore/Stocks/lomochromemetropolis.json",
+    "Sources/FotufilmCore/Stocks/lomochromepurple.json",
+    "Sources/FotufilmCore/Stocks/lomochrometurquoise.json",
+    "Sources/FotufilmCore/Stocks/lomocolor100.json",
+    "Sources/FotufilmCore/Stocks/phoenix200.json",
+    "Sources/FotufilmCore/Stocks/portra400.json",
+    "Sources/FotufilmCore/Stocks/pro160ns.json",
+    "Sources/FotufilmCore/Stocks/pro400h.json",
+    "Sources/FotufilmCore/Stocks/provia100f.json",
+    "Sources/FotufilmCore/Stocks/reala100.json",
+    "Sources/FotufilmCore/Stocks/reala500d.json",
+    "Sources/FotufilmCore/Stocks/superia200.json",
+    "Sources/FotufilmCore/Stocks/superia400.json",
+    "Sources/FotufilmCore/Stocks/tmax100.json",
+    "Sources/FotufilmCore/Stocks/trix400.json",
+    "Sources/FotufilmCore/Stocks/ultramax400.json",
+    "Sources/FotufilmCore/Stocks/velvia50.json",
+    "Sources/FotufilmCore/Stocks/verita200d.json",
+    "Sources/FotufilmCore/Stocks/vision250d.json",
+    "Sources/FotufilmCore/Stocks/vision500t.json",
+    "docs/film-grain.md"
+  ],
+  "profiles": [
+    {
+      "file": "Sources/FotufilmCore/Stocks/acros100.json",
+      "id": "acros100",
+      "name": "Acros 100 II"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/aerochrome1443.json",
+      "id": "aerochrome1443",
+      "name": "Kodak Aerochrome 1443"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/aerocolor2460.json",
+      "id": "aerocolor2460",
+      "name": "Aerocolor IV 2460"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/agfachrome100.json",
+      "id": "agfachrome100",
+      "name": "Agfachrome RSX II 100"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/agfachrome200.json",
+      "id": "agfachrome200",
+      "name": "Agfachrome RSX II 200"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/agfachrome50.json",
+      "id": "agfachrome50",
+      "name": "Agfachrome RSX II 50"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/astia100f.json",
+      "id": "astia100f",
+      "name": "Astia 100F"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/c200.json",
+      "id": "c200",
+      "name": "C200"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/cinestill400d.json",
+      "id": "cinestill400d",
+      "name": "CineStill 400D"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/cinestill800t.json",
+      "id": "cinestill800t",
+      "name": "CineStill 800T"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/delta3200.json",
+      "id": "delta3200",
+      "name": "Delta 3200 Professional"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/doublex5222.json",
+      "id": "doublex5222",
+      "name": "Double-X 5222"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/ektachromee100.json",
+      "id": "ektachromee100",
+      "name": "Ektachrome E100"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/ektar100.json",
+      "id": "ektar100",
+      "name": "Ektar 100"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/eterna500.json",
+      "id": "eterna500",
+      "name": "Eterna 500"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/eternavivid500.json",
+      "id": "eternavivid500",
+      "name": "Eterna Vivid 500"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/f64d.json",
+      "id": "f64d",
+      "name": "F-64D"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/fp4plus125.json",
+      "id": "fp4plus125",
+      "name": "FP4 Plus"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/gold200.json",
+      "id": "gold200",
+      "name": "Gold 200"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/hp5plus400.json",
+      "id": "hp5plus400",
+      "name": "HP5 Plus"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/infraredcolor.json",
+      "id": "infraredcolor",
+      "name": "Infrared Color"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/instaxmini.json",
+      "id": "instaxmini",
+      "name": "instax mini"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/instaxwide.json",
+      "id": "instaxwide",
+      "name": "instax wide"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/kodachrome200.json",
+      "id": "kodachrome200",
+      "name": "Kodachrome 200"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/kodachrome25.json",
+      "id": "kodachrome25",
+      "name": "Kodachrome 25"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/kodachrome64.json",
+      "id": "kodachrome64",
+      "name": "Kodachrome 64"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/kodacolor100.json",
+      "id": "kodacolor100",
+      "name": "Kodacolor 100"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/lomochromemetropolis.json",
+      "id": "lomochromemetropolis",
+      "name": "LomoChrome Metropolis"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/lomochromepurple.json",
+      "id": "lomochromepurple",
+      "name": "LomoChrome Purple"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/lomochrometurquoise.json",
+      "id": "lomochrometurquoise",
+      "name": "LomoChrome Turquoise"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/lomocolor100.json",
+      "id": "lomocolor100",
+      "name": "Color Negative 100"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/phoenix200.json",
+      "id": "phoenix200",
+      "name": "Harman Phoenix 200"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/portra400.json",
+      "id": "portra400",
+      "name": "Portra 400"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/pro160ns.json",
+      "id": "pro160ns",
+      "name": "PRO 160NS"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/pro400h.json",
+      "id": "pro400h",
+      "name": "PRO 400H"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/provia100f.json",
+      "id": "provia100f",
+      "name": "Provia 100F"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/reala100.json",
+      "id": "reala100",
+      "name": "Reala 100"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/reala500d.json",
+      "id": "reala500d",
+      "name": "Reala 500D"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/superia200.json",
+      "id": "superia200",
+      "name": "Superia 200"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/superia400.json",
+      "id": "superia400",
+      "name": "Superia X-TRA 400"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/tmax100.json",
+      "id": "tmax100",
+      "name": "T-MAX 100"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/trix400.json",
+      "id": "trix400",
+      "name": "Tri-X 400"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/ultramax400.json",
+      "id": "ultramax400",
+      "name": "UltraMax 400"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/velvia50.json",
+      "id": "velvia50",
+      "name": "Velvia 50"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/verita200d.json",
+      "id": "verita200d",
+      "name": "VERITA 200D"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/vision250d.json",
+      "id": "vision250d",
+      "name": "Vision3 250D"
+    },
+    {
+      "file": "Sources/FotufilmCore/Stocks/vision500t.json",
+      "id": "vision500t",
+      "name": "Vision3 500T"
+    }
+  ]
+}

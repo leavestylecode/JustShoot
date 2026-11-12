@@ -83,15 +83,9 @@ final class FilmSceneParityTests: XCTestCase {
         for preset in FilmPreset.allCases {
             let source = FilmSource.preset(preset)
             let prepared = try await FilmCapturePreparation.shared.displayLUT(source: source, curve: .builtIn(.none))
-            // Exercise the RGB refinement, rather than a material's identity
-            // carrier. Full material parity is covered separately in FilmMaterialTests.
-            let lut: CubeLUT
-            if prepared.material != nil {
-                let original = try FilmProcessor.shared.loadCubeLUT(resourceName: preset.lutResourceName)
-                lut = try FilmLookRefinement.applying(to: original, preset: preset)
-            } else {
-                lut = CubeLUT(data: prepared.data, dimension: prepared.dimension)
-            }
+            // This test isolates the original RGB cube. Material stages have independent
+            // full-pipeline Metal/CI and unbaked-model coverage in FilmMaterialTests.
+            let lut = CubeLUT(data: prepared.data, dimension: prepared.dimension)
             let descriptor = MTLTextureDescriptor()
             descriptor.textureType = .type3D
             descriptor.pixelFormat = .rgba32Float

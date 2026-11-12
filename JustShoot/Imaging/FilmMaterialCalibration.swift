@@ -1,7 +1,6 @@
 import Foundation
 
-/// Product rendering calibration, independent of the spectral table's density
-/// transport bounds. Absent in historical recipes; never a physical film fit.
+/// Frozen tone and grain calibration carried by historical spectral captures.
 struct FilmMaterialCalibration: Codable, Sendable, Equatable {
     static let portra = Self(shadowLift: 0.65, toneCeiling: 0.60, grainScale: 0.65)
 

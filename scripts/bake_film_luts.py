@@ -29,6 +29,12 @@ STOCKS = [
     ("FujiPro400H", "negative_film.fuji_pro_400h", "FUJI_PRO_400H", "print_film.fuji_ca_pdII", "FUJI_CA_PRO_PDII"),
     ("FujiProvia100F", "reversal_film.fuji_provia_100f", "FUJI_PROVIA_100F", None, None),
     ("KodakPortra400", "negative_film.kodak_portra_400", "KODAK_PORTRA_400", "print_film.kodak_portra_endura", "KODAK_PORTRA_ENDURA"),
+    ("KodakGold200", "negative_film.kodak_gold_200", "KODAK_GOLD_200", "print_film.kodak_portra_endura", "KODAK_PORTRA_ENDURA"),
+    ("KodakEktar100", "negative_film.kodak_ektar_100", "KODAK_EKTAR_100", "print_film.kodak_portra_endura", "KODAK_PORTRA_ENDURA"),
+    ("KodakPortra800", "negative_film.kodak_portra_800", "KODAK_PORTRA_800", "print_film.kodak_portra_endura", "KODAK_PORTRA_ENDURA"),
+    ("FujiSuperiaXTRA400", "negative_film.fuji_superia_xtra_400", "FUJI_SUPERIA_XTRA_400", "print_film.fuji_ca_pdII", "FUJI_CA_PRO_PDII"),
+    ("FujiVelvia50", "reversal_film.fuji_velvia_50", "FUJI_VELVIA_50", None, None),
+    ("KodakKodachrome64", "reversal_film.kodachrome_64", "KODACHROME_64", None, None),
 ]
 
 
