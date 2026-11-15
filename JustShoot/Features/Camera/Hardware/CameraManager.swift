@@ -87,12 +87,15 @@ final class CameraManager: NSObject, ObservableObject {
     ///                       配对视频要等 ~1.5s 环形缓冲；快门只需等前者，视频交给后台后处理。
     ///   - onWillCapture   : 主曝光起始帧——屏幕白屏挂载点（与氙气主脉冲同帧）。
     ///   - onExposureComplete: 曝光物理完成（仅诊断）。
+    ///   - onFinalStill    : deferred 交付的晚到 24MP 成片——request 已在代理图时交付移除，
+    ///                       成片经期望表转发给持久层竞速，替代 PhotoKit 全尺寸回读。
     private struct CaptureRequest {
         let admission: CameraCaptureAdmission.Token
         let trace: DiagnosticTrace
         let onData: (Result<CaptureResult, CameraCaptureFailure>) -> Void
         let onShutterReady: () -> Void
         let onStillCaptured: (@MainActor (CaptureStill) async -> Void)?
+        let onFinalStill: ((Data) -> Void)?
         let onWillCapture: (() -> Void)?
         let onExposureComplete: (() -> Void)?
         /// 本次拍照是否要求 Live Photo。true 时 onData 要等
@@ -135,6 +138,8 @@ final class CameraManager: NSObject, ObservableObject {
     /// 静态图就绪即放开快门，上一张还在等 ~1.5s 配对视频时用户已能按下一张，新旧 capture 各自独立、
     /// 互不覆盖。delegate 回调用 `resolvedSettings.uniqueID` 精确定位到对应 request。
     private var inFlightCaptures: [Int64: CaptureRequest] = [:]
+    /// Deferred 成片的转发期望表：request 交付移除时登记，晚到的 didFinishProcessingPhoto 据此转发。
+    private let deferredFinalExpectations = DeferredFinalExpectations()
     private let captureTraces = OSAllocatedUnfairLock<[Int64: DiagnosticTrace]>(initialState: [:])
     @Published var flashMode: FlashMode = .off
     @Published private(set) var automaticWhiteBalanceReading: CameraWhiteBalanceReading?
@@ -2461,6 +2466,7 @@ final class CameraManager: NSObject, ObservableObject {
         onExposureComplete: (() -> Void)? = nil,
         onShutterReady: @escaping () -> Void = {},
         onStillCaptured: (@MainActor (CaptureStill) async -> Void)? = nil,
+        onFinalStill: ((Data) -> Void)? = nil,
         completion: @escaping (Result<CaptureResult, CameraCaptureFailure>) -> Void
     ) {
         let captureTrace = trace ?? DiagnosticTrace()
@@ -2512,6 +2518,7 @@ final class CameraManager: NSObject, ObservableObject {
             onData: completion,
             onShutterReady: onShutterReady,
             onStillCaptured: onStillCaptured,
+            onFinalStill: onFinalStill,
             onWillCapture: onWillCapture,
             onExposureComplete: onExposureComplete,
             expectsLiveMovie: wantsLive,
@@ -3084,7 +3091,11 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
             // 静态图失败 = 无可保存内容，立即以终结方式释放（即便还等着 live 视频也不必再等）。
             DispatchQueue.main.async {
                 guard let request = self.inFlightCaptures[id],
-                      CameraRAWCapturePolicy.acceptsDelivery(expectsRAW: request.rawFormat != nil, isRAW: isRAW) else { return }
+                      CameraRAWCapturePolicy.acceptsDelivery(expectsRAW: request.rawFormat != nil, isRAW: isRAW) else {
+                    // A deferred capture's terminal error: no final will ever be forwarded.
+                    self.deferredFinalExpectations.clear(id)
+                    return
+                }
                 self.mutateCapture(id) { $0.stillArrived = true }
                 self.deliverCaptureIfReady(id: id, terminal: true)
             }
@@ -3096,7 +3107,11 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
             Log.capture.error("delegate_process_no_data")
             DispatchQueue.main.async {
                 guard let request = self.inFlightCaptures[id],
-                      CameraRAWCapturePolicy.acceptsDelivery(expectsRAW: request.rawFormat != nil, isRAW: isRAW) else { return }
+                      CameraRAWCapturePolicy.acceptsDelivery(expectsRAW: request.rawFormat != nil, isRAW: isRAW) else {
+                    // A deferred capture's terminal error: no final will ever be forwarded.
+                    self.deferredFinalExpectations.clear(id)
+                    return
+                }
                 self.mutateCapture(id) { $0.stillArrived = true }
                 self.deliverCaptureIfReady(id: id, terminal: true)
             }
@@ -3114,7 +3129,15 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         // live：onShutterReady 在此触发放开快门，onData 等视频再触发**——deliverCaptureIfReady 内分流。
         DispatchQueue.main.async {
             guard let request = self.inFlightCaptures[id],
-                  CameraRAWCapturePolicy.acceptsDelivery(expectsRAW: request.rawFormat != nil, isRAW: isRAW) else { return }
+                  CameraRAWCapturePolicy.acceptsDelivery(expectsRAW: request.rawFormat != nil, isRAW: isRAW) else {
+                // Deferred 成片晚到：request 已在代理图时交付移除。转发给持久层与 PhotoKit 回读竞速，
+                // 而不是让 worker 全尺寸回读同一份字节。
+                if let expectation = self.deferredFinalExpectations.consume(id) {
+                    Log.capture.info("deferred_final_forwarded bytes=\(imageData.count) capture=\(expectation.captureID.uuidString, privacy: .public)")
+                    expectation.handler(imageData)
+                }
+                return
+            }
             self.mutateCapture(id) { $0.stillData = imageData; $0.stillArrived = true }
             self.collectLivePhotoMovie(id: id, photoTime: photoTime)
             self.deliverCaptureIfReady(id: id, terminal: false)
@@ -3132,6 +3155,9 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         let id = resolvedSettings.uniqueID
         let failed = error != nil
         DispatchQueue.main.async {
+            // The native capture sequence is complete; a forwarded final either already happened
+            // or never will. Bounded lifetime also clears strays when delegates never arrive.
+            self.deferredFinalExpectations.clear(id)
             guard let request = self.inFlightCaptures[id] else { return }
             if failed || !request.expectsLiveMovie || request.movieArrived {
                 self.deliverCaptureIfReady(id: id, terminal: true)
@@ -3232,6 +3258,11 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         req.trace.event("capture_delivered", "av_id=\(id) bytes=\(req.stillData?.count ?? 0) live=\(req.movieURL != nil) terminal=\(req.terminalReceived)")
         captureTraces.withLock { $0[id] = nil }
         inFlightCaptures[id] = nil
+        // Deferred 交付：本 request 生命周期到此为止，但晚到的 24MP 成片仍要转发。注册期望，
+        // didFinishProcessingPhoto 按同一 uniqueID 找回转发通道（有界生命周期，防 delegate 失联泄漏）。
+        if let onFinalStill = req.onFinalStill, req.deferredPhoto != nil, !req.expectsLiveMovie {
+            deferredFinalExpectations.register(id, entry: .init(captureID: req.admission.id, handler: onFinalStill))
+        }
         req.movieTask?.cancel()
         updateLivePhotoBuffer()
         captureWatchdogs.removeValue(forKey: id)?.cancel()

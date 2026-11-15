@@ -8,6 +8,7 @@ import XCTest
 private final class CaptureCameraStub: CameraCaptureControlling {
     struct Callbacks {
         let still: @MainActor (CaptureStill) async -> Void
+        let finalStill: (Data) -> Void
         let ready: () -> Void
         let result: (Result<CaptureResult, CameraCaptureFailure>) -> Void
     }
@@ -61,10 +62,11 @@ private final class CaptureCameraStub: CameraCaptureControlling {
                  trace: DiagnosticTrace, onWillCapture: @escaping () -> Void,
                  onExposureComplete: @escaping () -> Void, onShutterReady: @escaping () -> Void,
                  onStillCaptured: @escaping @MainActor (CaptureStill) async -> Void,
+                 onFinalStill: @escaping (Data) -> Void,
                  completion: @escaping (Result<CaptureResult, CameraCaptureFailure>) -> Void) {
         XCTAssertTrue(admission.beginPreparation(token, generation: diagnosticGeneration))
         if automaticallyIssuesCapture { XCTAssertTrue(admission.markIssued(token, generation: diagnosticGeneration)) }
-        callbacks.append(Callbacks(still: onStillCaptured, ready: {
+        callbacks.append(Callbacks(still: onStillCaptured, finalStill: onFinalStill, ready: {
             self.admission.release(token)
             onShutterReady()
         }, result: completion))
@@ -81,6 +83,7 @@ private final class CapturePipelineStub: CaptureProcessing {
     var checkpoints: [CaptureRecipe] = []
     var completed: [CaptureRecipe] = []
     var preview: CaptureRecipe?
+    var finalStills: [(data: Data, id: UUID)] = []
 
     func reserve(lutBytes: Int, id: UUID) async -> UUID? {
         guard hasRoom else { return nil }
@@ -94,6 +97,7 @@ private final class CapturePipelineStub: CaptureProcessing {
         checkpoints.append(recipe)
     }
     func enqueue(_ result: CaptureResult, recipe: CaptureRecipe, lut: CubeLUT, rawLUT: RawFilmLUT?) { completed.append(recipe) }
+    func deliverFinalStill(_ data: Data, id: UUID) { finalStills.append((data, id)) }
 }
 
 @MainActor
@@ -324,6 +328,24 @@ final class CameraCoordinatorTests: XCTestCase {
         XCTAssertEqual(recipe.grainSeed, 42)
         XCTAssertEqual(recipe.frozenChromaticGain, SIMD3(0.9, 1, 1.1))
         XCTAssertEqual(recipe.filterName, FilmPreset.fujiC200.rawValue)
+    }
+
+    func testNativeFinalStillForwardsToPipelineWithCaptureID() async throws {
+        let camera = try CaptureCameraStub()
+        defer { camera.callbacks.removeAll() }
+        let pipeline = CapturePipelineStub()
+        let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
+        await coordinator.capture(selection: try selection(), currentLookKey: { "film" },
+            isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
+        let callbacks = try XCTUnwrap(camera.callbacks.first)
+        await callbacks.still(CaptureStill(imageData: Data([1]), pendingLivePhotoMovieURL: nil))
+        let captureID = try XCTUnwrap(pipeline.checkpoints.first?.id)
+        let nativeFinal = Data([7, 7, 7])
+        callbacks.finalStill(nativeFinal)
+        XCTAssertEqual(pipeline.finalStills.count, 1)
+        XCTAssertEqual(pipeline.finalStills.first?.data, nativeFinal)
+        XCTAssertEqual(pipeline.finalStills.first?.id, captureID,
+            "The late 24 MP final must reach the worker under its durable capture identity")
     }
 
     func testLateFailureFromPreviousLiveCaptureCannotUnlockNewShutter() async throws {

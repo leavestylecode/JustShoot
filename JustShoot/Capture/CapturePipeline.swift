@@ -43,6 +43,9 @@ final class CapturePipeline: ObservableObject {
     private let journal: CaptureJournal
     private let storeDeferredProxy: @Sendable (Data, CaptureRecipe) async throws -> String
     private let finalizeDeferredPhoto: @Sendable (String, DeferredPhotoState) async throws -> Data
+    private let prepareDeferredEditingInput: @Sendable (String) async throws -> DeferredEditingInput?
+    private let saveDeferredAdjustment: @Sendable (Data, String, CaptureRecipe, DeferredEditingInput?) async throws -> Void
+    private let finalStillTimeout: TimeInterval
 
     init(journal: CaptureJournal = .application,
          storeDeferredProxy: @escaping @Sendable (Data, CaptureRecipe) async throws -> String = {
@@ -50,10 +53,20 @@ final class CapturePipeline: ObservableObject {
          },
          finalizeDeferredPhoto: @escaping @Sendable (String, DeferredPhotoState) async throws -> Data = {
              try await PhotoLibrary.finalizedDeferredPhoto(id: $0, expected: $1)
-         }) {
+         },
+         prepareDeferredEditingInput: @escaping @Sendable (String) async throws -> DeferredEditingInput? = {
+             try await PhotoLibrary.prepareDeferredAdjustment(id: $0)
+         },
+         saveDeferredAdjustment: @escaping @Sendable (Data, String, CaptureRecipe, DeferredEditingInput?) async throws -> Void = {
+             try await PhotoLibrary.saveDeferredAdjustment(imageData: $0, id: $1, recipe: $2, preparedInput: $3)
+         },
+         finalStillTimeout: TimeInterval = 120) {
         self.journal = journal
         self.storeDeferredProxy = storeDeferredProxy
         self.finalizeDeferredPhoto = finalizeDeferredPhoto
+        self.prepareDeferredEditingInput = prepareDeferredEditingInput
+        self.saveDeferredAdjustment = saveDeferredAdjustment
+        self.finalStillTimeout = finalStillTimeout
     }
 
     fileprivate func recordFailure(_ message: String) { lastError = message }
@@ -75,7 +88,10 @@ final class CapturePipeline: ObservableObject {
     func configure(container: ModelContainer) async {
         guard worker == nil else { return }
         let worker = CaptureWorker(container: container, deletionGate: deletionGate, journal: journal,
-            storeDeferredProxy: storeDeferredProxy, finalizeDeferredPhoto: finalizeDeferredPhoto, owner: self)
+            storeDeferredProxy: storeDeferredProxy, finalizeDeferredPhoto: finalizeDeferredPhoto,
+            prepareDeferredEditingInput: prepareDeferredEditingInput,
+            saveDeferredAdjustment: saveDeferredAdjustment,
+            finalStillTimeout: finalStillTimeout, owner: self)
         self.worker = worker
         await worker.resume(allowProcessing: UIApplication.shared.applicationState != .background)
         isReady = true
@@ -125,6 +141,15 @@ final class CapturePipeline: ObservableObject {
                 await worker.refreshRecoveryState(reconcileStorage: true)
             }
             activity.end()
+        }
+    }
+
+    /// Hand the native-delivered 24 MP final to the worker's race against the PhotoKit re-read.
+    /// Fire-and-forget: the preparation lane already bounds completion.
+    func deliverFinalStill(_ data: Data, id: UUID) {
+        guard let worker else { return }
+        Task(priority: .utility) {
+            await worker.deliverFinalStill(data, id: id)
         }
     }
 
@@ -292,6 +317,10 @@ private actor CaptureWorker {
         label: "com.justshoot.capture-storage")
     private let storeDeferredProxy: @Sendable (Data, CaptureRecipe) async throws -> String
     private let finalizeDeferredPhoto: @Sendable (String, DeferredPhotoState) async throws -> Data
+    private let prepareDeferredEditingInput: @Sendable (String) async throws -> DeferredEditingInput?
+    private let saveDeferredAdjustment: @Sendable (Data, String, CaptureRecipe, DeferredEditingInput?) async throws -> Void
+    private let finalStillTimeout: TimeInterval
+    private let finalStills = FinalStillWaiterRegistry()
     private weak var owner: CapturePipeline?
     private var queue: [CaptureJob] = []
     private var preparationQueue: [CaptureJob] = []
@@ -307,12 +336,19 @@ private actor CaptureWorker {
 
     init(container: ModelContainer, deletionGate: CaptureDeletionGate, journal: CaptureJournal,
          storeDeferredProxy: @escaping @Sendable (Data, CaptureRecipe) async throws -> String,
-         finalizeDeferredPhoto: @escaping @Sendable (String, DeferredPhotoState) async throws -> Data, owner: CapturePipeline) {
+         finalizeDeferredPhoto: @escaping @Sendable (String, DeferredPhotoState) async throws -> Data,
+         prepareDeferredEditingInput: @escaping @Sendable (String) async throws -> DeferredEditingInput?,
+         saveDeferredAdjustment: @escaping @Sendable (Data, String, CaptureRecipe, DeferredEditingInput?) async throws -> Void,
+         finalStillTimeout: TimeInterval,
+         owner: CapturePipeline) {
         self.container = container
         self.deletionGate = deletionGate
         self.journal = journal
         self.storeDeferredProxy = storeDeferredProxy
         self.finalizeDeferredPhoto = finalizeDeferredPhoto
+        self.prepareDeferredEditingInput = prepareDeferredEditingInput
+        self.saveDeferredAdjustment = saveDeferredAdjustment
+        self.finalStillTimeout = finalStillTimeout
         self.owner = owner
     }
 
@@ -341,6 +377,37 @@ private actor CaptureWorker {
                 return false
             }
         } ?? false
+    }
+
+    /// Native-delivered final for a deferred capture. Validated against the journaled expectation
+    /// and handed to the race; anything not in flight, already finalized, or pending deletion drops.
+    func deliverFinalStill(_ data: Data, id: UUID) async {
+        let trace = DiagnosticTrace(id: id.uuidString)
+        guard acceptsFinalDelivery(data, id: id) else {
+            trace.event("deferred_final_dropped", "bytes=\(data.count)")
+            return
+        }
+        if finalStills.deliver(id: id, data) {
+            trace.event("deferred_final_delivered", "bytes=\(data.count)")
+        } else {
+            trace.event("deferred_final_buffered", "bytes=\(data.count)")
+        }
+    }
+
+    private func acceptsFinalDelivery(_ data: Data, id: UUID) -> Bool {
+        guard !deletionGate.contains(id),
+              !FileManager.default.fileExists(atPath: journal.file("discarded", for: id).path) else { return false }
+        let known = scheduledIDs.contains(id) || preparedInputs[id] != nil
+            || queue.contains(where: { $0.id == id }) || preparationQueue.contains(where: { $0.id == id })
+            || FileManager.default.fileExists(atPath: journal.file("manifest.json", for: id).path)
+        guard known else { return false }
+        // Manifest reads race a finishing job; the in-flight queues are the fallback source of truth.
+        let deferred = (try? journal.job(for: id))?.deferredPhoto
+            ?? queue.first(where: { $0.id == id })?.deferredPhoto
+            ?? preparationQueue.first(where: { $0.id == id })?.deferredPhoto
+        guard let deferred, deferred.assetIdentifier != nil, !deferred.finalized,
+              deferred.acceptsFinalImage(data) else { return false }
+        return true
     }
 
     func enqueue(_ result: CaptureResult, recipe: CaptureRecipe, lut: CubeLUT, rawLUT: RawFilmLUT? = nil) async throws {
@@ -418,6 +485,8 @@ private actor CaptureWorker {
     }
 
     private func publishFinished(_ id: UUID, completion: CaptureCompletion?, error: String?, retained: Bool = true) async {
+        // A finishing capture no longer needs delegate finals; drop any buffered bytes.
+        finalStills.discard(id: id)
         recoveryRevision += 1
         let revision = recoveryRevision
         await owner?.finished(id, completion: completion, error: error, retained: retained, revision: revision)
@@ -432,7 +501,11 @@ private actor CaptureWorker {
     func completeDeletion(_ ids: Set<UUID>) async {
         queue.removeAll { ids.contains($0.id) }
         preparationQueue.removeAll { ids.contains($0.id) }
-        for id in ids { preparationTasks.removeValue(forKey: id)?.cancel(); preparedInputs[id] = nil }
+        for id in ids {
+            preparationTasks.removeValue(forKey: id)?.cancel()
+            preparedInputs[id] = nil
+            finalStills.discard(id: id)
+        }
         scheduledIDs.subtract(ids)
         for id in ids { enqueuedAt[id] = nil }
         // Gallery deletion can use another journal instance; reconcile its filesystem writes.
@@ -495,6 +568,50 @@ private actor CaptureWorker {
         drainTask = Task(priority: .utility) { await drain() }
     }
 
+    /// Race the native-delivered final against the PhotoKit re-read: first valid bytes win and
+    /// cancel the loser, so the film render starts the moment either source completes. The re-read
+    /// stays authoritative for recovery, where no delegate can deliver anymore.
+    private func finalPhoto(id: UUID, assetID: String, expected: DeferredPhotoState,
+                            trace: DiagnosticTrace) async throws -> Data {
+        enum Source: String, Sendable { case delegate, photos }
+        enum Outcome: Sendable {
+            case delivered(Source, Data)
+            case failed(Source, String)
+        }
+        let registry = finalStills
+        let reRead = finalizeDeferredPhoto
+        let delegateTimeout = finalStillTimeout
+        return try await withThrowingTaskGroup(of: Outcome.self) { group in
+            group.addTask {
+                do { return .delivered(.delegate, try await registry.wait(id: id, timeout: delegateTimeout)) }
+                catch { return .failed(.delegate, error is CancellationError ? "cancelled" : "timeout") }
+            }
+            group.addTask {
+                do { return .delivered(.photos, try await reRead(assetID, expected)) }
+                catch { return .failed(.photos, String(describing: error)) }
+            }
+            var winner: (source: Source, data: Data)?
+            var photosFailure: String?
+            var delegateFailure: String?
+            for try await outcome in group {
+                switch outcome {
+                case .delivered(let source, let data):
+                    if winner == nil { winner = (source, data); group.cancelAll() }
+                case .failed(let source, let reason):
+                    if source == .photos { photosFailure = reason } else { delegateFailure = reason }
+                }
+            }
+            if let winner {
+                trace.event("capture_final_source", "source=\(winner.source.rawValue) bytes=\(winner.data.count)")
+                return winner.data
+            }
+            trace.event("capture_final_source", "result=failed photos=\(photosFailure ?? "unavailable") delegate=\(delegateFailure ?? "unavailable")")
+            // A suspended worker cancels both children; keep that distinguishable from real failures.
+            if Task.isCancelled { throw CancellationError() }
+            throw PhotoLibraryError.saveFailed
+        }
+    }
+
     private func prepareDeferred(_ initial: CaptureJob) async {
         let activity = await CaptureBackgroundActivity { [weak self] in Task { await self?.pause() } }
         let trace = DiagnosticTrace(id: initial.id.uuidString)
@@ -511,16 +628,16 @@ private actor CaptureWorker {
                     try journal.update(job)
                 }
                 guard let sourceID = deferred.assetIdentifier else { throw PhotoLibraryError.saveFailed }
-                let original = try await finalizeDeferredPhoto(sourceID, deferred)
+                let original = try await finalPhoto(id: job.id, assetID: sourceID, expected: deferred, trace: trace)
                 try checkPending(job.id)
                 trace.event("native_photo_metadata", CameraPhotoDiagnostics.fields(imageData: original,
                     resolvedDimensions: CMVideoDimensions(width: Int32(clamping: deferred.width), height: Int32(clamping: deferred.height))))
                 job = try journal.finalizeDeferredPhoto(original, for: job.id)
             }
             guard let sourceID = job.deferredPhoto?.assetIdentifier else { throw PhotoLibraryError.saveFailed }
-            let input = try await PhotoLibrary.prepareDeferredAdjustment(id: sourceID)
+            let input = try await prepareDeferredEditingInput(sourceID)
             try checkPending(job.id)
-            preparedInputs[job.id] = input
+            if let input { preparedInputs[job.id] = input }
             queue.append(job)
             queue.sort { $0.recipe.captureDate < $1.recipe.captureDate }
             preparing.end("ready")
@@ -648,7 +765,7 @@ private actor CaptureWorker {
 
         if job.assetIdentifier == nil, let deferredID = job.deferredPhoto?.assetIdentifier {
             // Update the same asset: no unfiltered duplicate and no deletion prompt.
-            try await PhotoLibrary.saveDeferredAdjustment(imageData: image, id: deferredID, recipe: recipe, preparedInput: preparedInput)
+            try await saveDeferredAdjustment(image, deferredID, recipe, preparedInput)
             job.assetIdentifier = deferredID
             try journal.update(job)
         }

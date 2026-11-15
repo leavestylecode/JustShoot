@@ -25,6 +25,7 @@ protocol CameraCaptureControlling: AnyObject {
                  trace: DiagnosticTrace, onWillCapture: @escaping () -> Void,
                  onExposureComplete: @escaping () -> Void, onShutterReady: @escaping () -> Void,
                  onStillCaptured: @escaping @MainActor (CaptureStill) async -> Void,
+                 onFinalStill: @escaping (Data) -> Void,
                  completion: @escaping (Result<CaptureResult, CameraCaptureFailure>) -> Void)
 }
 
@@ -36,6 +37,8 @@ protocol CaptureProcessing: AnyObject {
     func preparePreview(_ frame: CameraPreviewFrame, recipe: CaptureRecipe, lut: CubeLUT)
     func checkpointStill(_ still: CaptureStill, recipe: CaptureRecipe, lut: CubeLUT, rawLUT: RawFilmLUT?) async
     func enqueue(_ result: CaptureResult, recipe: CaptureRecipe, lut: CubeLUT, rawLUT: RawFilmLUT?)
+    /// Native-delivered 24 MP final for a deferred capture; races the PhotoKit re-read.
+    func deliverFinalStill(_ data: Data, id: UUID)
 }
 
 struct CameraCaptureSelection {
@@ -191,6 +194,7 @@ final class CameraCoordinator: ObservableObject {
             preservesSourceFocalLength: camera.focalInfo.constituent(for: FocalLengthOption(admission.focalLength))?.calibrationSource == .fieldOfView)
         pipeline.preparePreview(frame, recipe: recipe, lut: selection.lut)
         handedToCamera = true
+        let pipeline = self.pipeline
         camera.capture(admission: admission, live: wantsLive, previewFrame: frame, trace: trace,
             onWillCapture: {
                 trace.event("shutter_feedback")
@@ -205,6 +209,9 @@ final class CameraCoordinator: ObservableObject {
                 self.releaseShutter(captureID)
             }, onStillCaptured: { still in
                 await self.pipeline.checkpointStill(still, recipe: recipe, lut: selection.lut, rawLUT: nil)
+            }, onFinalStill: { data in
+                // The native final bypasses the PhotoKit re-read when it wins the race.
+                pipeline.deliverFinalStill(data, id: captureID)
             }, completion: { outcome in
                 attempt.timeout?.cancel()
                 guard !attempt.expired else { return }
@@ -262,10 +269,12 @@ extension CameraManager: CameraCaptureControlling {
                  trace: DiagnosticTrace, onWillCapture: @escaping () -> Void,
                  onExposureComplete: @escaping () -> Void, onShutterReady: @escaping () -> Void,
                  onStillCaptured: @escaping @MainActor (CaptureStill) async -> Void,
+                 onFinalStill: @escaping (Data) -> Void,
                  completion: @escaping (Result<CaptureResult, CameraCaptureFailure>) -> Void) {
         capturePhoto(admission: admission, live: live, previewFrame: previewFrame, trace: trace,
             onWillCapture: onWillCapture, onExposureComplete: onExposureComplete,
-            onShutterReady: onShutterReady, onStillCaptured: onStillCaptured, completion: completion)
+            onShutterReady: onShutterReady, onStillCaptured: onStillCaptured,
+            onFinalStill: onFinalStill, completion: completion)
     }
 }
 
