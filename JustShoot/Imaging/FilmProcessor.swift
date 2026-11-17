@@ -482,11 +482,13 @@ final class FilmProcessor: Sendable {
         focalLengthIn35mm: Int? = nil,
         contentIdentifier: String? = nil,
         diagnosticCaptureID: UUID? = nil,
+        trace: DiagnosticTrace? = nil,
         cancellation: CaptureRenderCancellation? = nil
     ) -> Data? {
         guard cancellation?.isCancelled != true else { return nil }
         // 读取原始 metadata（AVCapture 写入的完整 EXIF / TIFF / Maker / 色彩空间字典）。
         // 一次读取，后面 orientation 判断 + metadata 注入都复用，避免重复打开 CGImageSource。
+        let metadataReadSpan = trace?.span("film_metadata_read")
         let sourceProps: [String: Any] = {
             guard let src = CGImageSourceCreateWithData(imageData as CFData, nil) else { return [:] }
             return CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [String: Any] ?? [:]
@@ -497,19 +499,24 @@ final class FilmProcessor: Sendable {
             if let v = sourceProps[kCGImagePropertyOrientation as String] as? UInt32 { return Int32(v) }
             return 1
         }()
+        metadataReadSpan?.end()
 
+        let decodeSpan = trace?.span("film_decode")
         let decoded: CIImage?
-        if let rawRecipe {
-            if rawRecipe.requiresRawLUT {
-                guard let rawLUT else { return nil }
-                decoded = RawFilmRenderer.develop(imageData, lut: rawLUT, recipe: rawRecipe, cancellation: cancellation)
+        do {
+            defer { decodeSpan?.end() }
+            if let rawRecipe {
+                if rawRecipe.requiresRawLUT {
+                    guard let rawLUT else { return nil }
+                    decoded = RawFilmRenderer.develop(imageData, lut: rawLUT, recipe: rawRecipe, cancellation: cancellation)
+                } else {
+                    guard let capturedLUT, (try? rawRecipe.validate(displayLUT: capturedLUT)) != nil,
+                          rawLUT == nil else { return nil }
+                    decoded = RawFilmRenderer.develop(imageData, recipe: rawRecipe, cancellation: cancellation)
+                }
             } else {
-                guard let capturedLUT, (try? rawRecipe.validate(displayLUT: capturedLUT)) != nil,
-                      rawLUT == nil else { return nil }
-                decoded = RawFilmRenderer.develop(imageData, recipe: rawRecipe, cancellation: cancellation)
+                decoded = FilmImagePipeline.decodePhoto(imageData)
             }
-        } else {
-            decoded = FilmImagePipeline.decodePhoto(imageData)
         }
         guard let rawCI = decoded else {
             Log.lut.error("lut_apply_failed reason=ciimage_init_nil bytes=\(imageData.count)")
@@ -518,6 +525,7 @@ final class FilmProcessor: Sendable {
         guard cancellation?.isCancelled != true else { return nil }
         let timer = Log.perf("lut_apply", logger: Log.lut)
         // 物理旋转像素到视觉正向朝向，这样 extent 反映真实宽高、输出 orientation=1 才正确
+        let orientCropSpan = trace?.span("film_orient_crop")
         var ciInput = rawCI.oriented(forExifOrientation: exifOrientation)
 
         let inputExtent = ciInput.extent
@@ -527,9 +535,16 @@ final class FilmProcessor: Sendable {
         // Native device zoom is already present in the photo. Share only the
         // viewfinder's aspect crop, never its video-proxy zoom compensation.
         ciInput = ciInput.cropped(to: CameraFraming.photoCrop(in: inputExtent))
+        orientCropSpan?.end()
 
         guard cancellation?.isCancelled != true else { return nil }
-        guard let lut = capturedLUT ?? resolveLUT(cacheKey: lutCacheKey) else {
+        let lutResolveSpan = trace?.span("film_lut_resolve")
+        let resolvedLUT: CubeLUT?
+        do {
+            defer { lutResolveSpan?.end() }
+            resolvedLUT = capturedLUT ?? resolveLUT(cacheKey: lutCacheKey)
+        }
+        guard let lut = resolvedLUT else {
             Log.lut.error("lut_apply_failed reason=lut_missing key=\(lutCacheKey, privacy: .public)")
             return nil
         }
@@ -630,10 +645,20 @@ final class FilmProcessor: Sendable {
         let outMP = (outExtent.isInfinite || outExtent.isEmpty) ? 0 : (outExtent.width * outExtent.height) / 1_000_000
 
         guard cancellation?.isCancelled != true else { return nil }
+        let contextSpan = trace?.span("film_context")
         let ciContext = renderingContext(raw: rawRecipe != nil)
+        contextSpan?.end()
         guard cancellation?.isCancelled != true else { return nil }
-        guard let encoded = PhotoImageEncoder.encode(outputWithMetadata, context: ciContext,
-            colorSpace: srgbColorSpace, legacyQuality: outputQuality, mode: encodingMode, cancellation: cancellation) else {
+        // The encode span includes ALL lazy GPU effect evaluation (chromatic/LUT/optics/grain)
+        // plus HEIF compression — CIImage graphs materialize only inside the encoder.
+        let encodeSpan = trace?.span("film_encode")
+        let encodedOutput: PhotoImageEncoder.Output?
+        do {
+            defer { encodeSpan?.end() }
+            encodedOutput = PhotoImageEncoder.encode(outputWithMetadata, context: ciContext,
+                colorSpace: srgbColorSpace, legacyQuality: outputQuality, mode: encodingMode, cancellation: cancellation)
+        }
+        guard let encoded = encodedOutput else {
             if cancellation?.isCancelled != true { Log.lut.error("lut_apply_failed reason=render_failed") }
             return nil
         }

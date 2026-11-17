@@ -1,7 +1,23 @@
 import XCTest
 import SwiftData
 import SwiftUI
+import CoreImage
 @testable import JustShoot
+
+/// Parks the injected PhotoKit re-read so a real pipeline stays visibly in flight.
+private actor ReviewFlowGate {
+    private var pending: [String: CheckedContinuation<Data, any Error>] = [:]
+
+    func wait(_ id: String) async throws -> Data {
+        try await withCheckedThrowingContinuation { continuation in
+            pending[id] = continuation
+        }
+    }
+
+    func resolve(_ id: String, with data: Data) {
+        pending.removeValue(forKey: id)?.resume(returning: data)
+    }
+}
 
 @MainActor
 final class RecentPhotoReviewFlowTests: XCTestCase {
@@ -69,13 +85,66 @@ final class RecentPhotoReviewFlowTests: XCTestCase {
         }.modelContainer(container).tint(.white).preferredColorScheme(.dark))
         defer { cleanUp(window: window, ids: ids) }
         try await Task.sleep(for: .milliseconds(300))
-        XCTAssertTrue(viewports(in: window).isEmpty, "An unrelated saved photo must not replace the pending preview")
+        // The pending preview owns the page: exactly its own zoomable page is mounted.
+        // (The "must not open a different photo" rule itself is covered by the
+        // RecentPhotoPresentation probe unit tests.)
+        XCTAssertEqual(viewports(in: window).count, 1,
+            "An unrelated saved photo must not replace the pending preview")
         try await snapshot(window, name: "recent-preview-all-photos")
     }
 
     private func container() throws -> ModelContainer {
         try ModelContainer(for: Photo.self, CustomLUT.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+    }
+
+    func testPendingPreviewStaysZoomableAndReportsSlowSave() async throws {
+        let container = try container()
+        let lut = try CubeLUT.parse("LUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1")
+        let ciImage = CIImage(color: CIColor(red: 0.4, green: 0.5, blue: 0.6))
+            .cropped(to: CGRect(x: 0, y: 0, width: 48, height: 64))
+        let data = try XCTUnwrap(CIContext().jpegRepresentation(of: ciImage, colorSpace: FilmImagePipeline.colorSpace))
+        let recipe = CaptureRecipe(id: UUID(), captureDate: Date(), filterName: "flow", displayLabel: nil,
+            focalLength: 24, outputQuality: nil, profile: FilmPreset.fujiC200.renderProfile,
+            grainSeed: 1, location: nil, lutDimension: lut.dimension, chromaticSceneCCT: nil,
+            photoDisplayTime: nil, plan: .resolve(mode: .quality))
+        let journalRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: journalRoot) }
+        let journal = CaptureJournal(root: journalRoot)
+        _ = try journal.stage(recipe: recipe, imageData: data, movieURL: nil, lut: lut,
+            deferredPhoto: DeferredPhotoState(width: 48, height: 64, assetIdentifier: recipe.id.uuidString))
+        let gate = ReviewFlowGate()
+        let pipeline = CapturePipeline(journal: journal,
+            finalizeDeferredPhoto: { id, _ in try await gate.wait(id) },
+            prepareDeferredEditingInput: { _ in nil },
+            saveDeferredAdjustment: { _, _, _, _ in })
+        await pipeline.configure(container: container)
+        try await waitFor { pipeline.phases[recipe.id] == .preparing }
+
+        let preview = CapturePreview(id: recipe.id, filterName: "flow",
+            image: try XCTUnwrap(UIImage(data: data)))
+        let window = try await host(NavigationStack {
+            CapturePreviewReview(preview: preview, slowThreshold: 0.3, pipeline: pipeline, onClose: {})
+        }.modelContainer(container).tint(.white).preferredColorScheme(.dark))
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+        }
+
+        // The provisional preview must be interactive (zoom mounts) while the save is parked.
+        try await waitFor { self.viewports(in: window).count > 0 }
+        // A save parked past the threshold must surface the slow notice instead of silence.
+        // SwiftUI Text does not reliably materialize as UILabel, so assert the side effect
+        // the notice always emits alongside its text, keyed by this run's unique capture id.
+        try await waitFor {
+            let snapshot = try? await DiagnosticLogStore.shared.snapshot()
+            let text = snapshot.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            return text.contains("recent_photos_pending_slow") && text.contains(recipe.id.uuidString)
+        }
+        try await snapshot(window, name: "recent-preview-slow-save")
+
+        await gate.resolve(recipe.id.uuidString, with: data)
+        try await waitFor { pipeline.phases[recipe.id] == nil }
     }
 
     private func makePhotos(in container: ModelContainer) throws -> [Photo] {
@@ -115,12 +184,13 @@ final class RecentPhotoReviewFlowTests: XCTestCase {
         (view as? ZoomingScrollView).map { [$0] } ?? view.subviews.flatMap { viewports(in: $0) }
     }
 
-    private func waitFor(_ predicate: () -> Bool) async throws {
+    private func waitFor(_ predicate: () async -> Bool) async throws {
         let deadline = ProcessInfo.processInfo.systemUptime + 4
-        while !predicate(), ProcessInfo.processInfo.systemUptime < deadline {
+        while !(await predicate()), ProcessInfo.processInfo.systemUptime < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }
-        XCTAssertTrue(predicate(), "Photo review did not settle")
+        let settled = await predicate()
+        XCTAssertTrue(settled, "Photo review did not settle")
     }
 
     private func snapshot(_ window: UIWindow, name: String) async throws {

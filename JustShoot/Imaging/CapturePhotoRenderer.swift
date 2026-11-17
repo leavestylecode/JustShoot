@@ -7,6 +7,7 @@ import ImageIO
 enum CapturePhotoRenderer {
     static func render(source: Data, recipe: CaptureRecipe, lut: CubeLUT, rawLUT: RawFilmLUT?,
                        contentIdentifier: String? = nil, grainSeed: UInt32,
+                       trace: DiagnosticTrace? = nil,
                        cancellation: CaptureRenderCancellation? = nil) -> Data? {
         guard cancellation?.isCancelled != true else { return nil }
         if let plan = recipe.plan {
@@ -23,6 +24,7 @@ enum CapturePhotoRenderer {
             outputQuality: recipe.outputQuality.map { CGFloat($0) },
             encodingMode: recipe.plan == nil ? .automatic : .quality, location: recipe.location?.location,
             captureDate: recipe.captureDate, focalLengthIn35mm: recipe.metadataFocalLength,
-            contentIdentifier: contentIdentifier, diagnosticCaptureID: recipe.id, cancellation: cancellation)
+            contentIdentifier: contentIdentifier, diagnosticCaptureID: recipe.id, trace: trace,
+            cancellation: cancellation)
     }
 }

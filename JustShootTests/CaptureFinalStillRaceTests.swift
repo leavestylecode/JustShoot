@@ -168,6 +168,20 @@ final class CaptureFinalStillRaceTests: XCTestCase {
         XCTAssertEqual(pipeline.lastCompletion?.captureID, fixture.recipe.id)
     }
 
+    func testPhasePublishesPreparingAndClearsOnCompletion() async throws {
+        let fixture = try fixture()
+        let gate = FinalPhotoGate()
+        let recorder = AdjustmentRecorder()
+        let pipeline = makePipeline(fixture: fixture, gate: gate, recorder: recorder)
+        await pipeline.configure(container: fixture.container)
+        try await waitForReRead(gate: gate)
+        XCTAssertEqual(pipeline.phases[fixture.recipe.id], .preparing,
+            "A parked final race must publish the preparing phase for the saving UI")
+        await gate.resolve(fixture.recipe.id.uuidString, with: fixture.final)
+        try await waitForCompletion(pipeline, captureID: fixture.recipe.id)
+        XCTAssertNil(pipeline.phases[fixture.recipe.id], "Completion must clear the published phase")
+    }
+
     func testFailedDeferredCaptureUnderDeletionIgnoresNativeFinal() async throws {
         let fixture = try fixture()
         let gate = FinalPhotoGate()

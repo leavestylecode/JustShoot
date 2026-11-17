@@ -29,6 +29,14 @@ struct CaptureCompletion: Identifiable, Sendable {
     let captureDate: Date
 }
 
+/// Coarse per-capture progress for the saving UI. The provisional review shows it while
+/// the durable pipeline works, so the wait communicates motion instead of a stuck spinner.
+enum CapturePhase: String, Sendable, Equatable {
+    case preparing
+    case rendering
+    case saving
+}
+
 @MainActor
 final class CapturePipeline: ObservableObject {
     static let shared = CapturePipeline()
@@ -37,6 +45,8 @@ final class CapturePipeline: ObservableObject {
     @Published private(set) var recoveryIssues: [CaptureRecoveryIssue] = []
     @Published private(set) var lastCompletion: CaptureCompletion?
     @Published private(set) var lastPreview: CapturePreview?
+    /// In-flight captures' current stage, keyed by capture id. Cleared on finish.
+    @Published private(set) var phases: [UUID: CapturePhase] = [:]
     @Published var lastError: String?
 
     private var worker: CaptureWorker?
@@ -258,6 +268,12 @@ final class CapturePipeline: ObservableObject {
             issueIDs: Set(inventory.issues.map(\.captureID)), revision: revision) else { return }
         recoveryIssues = inventory.issues
         updateCounts()
+    }
+
+    /// Publish one capture's coarse stage for the saving UI. Nil removes the entry.
+    fileprivate func capturePhase(_ id: UUID, _ phase: CapturePhase?) {
+        guard phases[id] != phase else { return }
+        phases[id] = phase
     }
 
     @discardableResult
@@ -487,6 +503,7 @@ private actor CaptureWorker {
     private func publishFinished(_ id: UUID, completion: CaptureCompletion?, error: String?, retained: Bool = true) async {
         // A finishing capture no longer needs delegate finals; drop any buffered bytes.
         finalStills.discard(id: id)
+        await owner?.capturePhase(id, nil)
         recoveryRevision += 1
         let revision = recoveryRevision
         await owner?.finished(id, completion: completion, error: error, retained: retained, revision: revision)
@@ -616,6 +633,7 @@ private actor CaptureWorker {
         let activity = await CaptureBackgroundActivity { [weak self] in Task { await self?.pause() } }
         let trace = DiagnosticTrace(id: initial.id.uuidString)
         let preparing = trace.span("capture_system_prepare", "waiting=\(preparationTasks.count)")
+        await owner?.capturePhase(initial.id, .preparing)
         do {
             var job = initial
             try checkPending(job.id)
@@ -701,6 +719,7 @@ private actor CaptureWorker {
         let timer = Log.perf("capture_job", logger: Log.capture)
         let saver = PhotoSaver(modelContainer: container)
         try checkPending(job.id)
+        await owner?.capturePhase(job.id, .rendering)
 
         guard job.deferredPhoto?.finalized != false else { throw CaptureJournal.JournalError.invalidJob }
 
@@ -764,6 +783,7 @@ private actor CaptureWorker {
         }
 
         if job.assetIdentifier == nil, let deferredID = job.deferredPhoto?.assetIdentifier {
+            await owner?.capturePhase(job.id, .saving)
             // Update the same asset: no unfiltered duplicate and no deletion prompt.
             try await saveDeferredAdjustment(image, deferredID, recipe, preparedInput)
             job.assetIdentifier = deferredID
@@ -773,6 +793,7 @@ private actor CaptureWorker {
             job.assetIdentifier = trace.measure("photos_retry_lookup") { PhotoLibrary.findCapture(id: job.id, creationDate: recipe.captureDate) }
         }
         if job.assetIdentifier == nil {
+            await owner?.capturePhase(job.id, .saving)
             let saving = trace.span("photos_save")
             do {
                 try checkPending(job.id)
@@ -835,7 +856,7 @@ private actor CaptureWorker {
             await Task.detached(priority: .utility) {
                 trace.measure("still_render_worker") { autoreleasepool {
                     CapturePhotoRenderer.render(source: raw, recipe: recipe, lut: lut, rawLUT: rawLUT,
-                        contentIdentifier: contentID, grainSeed: seed, cancellation: cancellation)
+                        contentIdentifier: contentID, grainSeed: seed, trace: trace, cancellation: cancellation)
                 } }
             }.value
         } onCancel: {

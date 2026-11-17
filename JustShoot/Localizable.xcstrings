@@ -5712,7 +5712,61 @@
           }
         }
       }
+    },
+    "Preparing…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "准备中…"
+          }
+        }
+      }
     }
+,
+    "Rendering…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rendering…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "渲染中…"
+          }
+        }
+      }
+    }
+,
+    "This photo is taking longer than usual to save. It stays on this device and finishes on its own." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This photo is taking longer than usual to save. It stays on this device and finishes on its own."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这张照片保存得比平常久。它会保留在本设备并自行完成保存。"
+          }
+        }
+      }
+    }
+
   },
   "version" : "1.0"
 }

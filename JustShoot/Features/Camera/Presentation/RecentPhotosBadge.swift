@@ -177,6 +177,9 @@ struct RecentPhotosBadge: View {
     private func openRecentPhotos() {
         guard selectedReview == nil else { return }
         if let preview = pendingPreview {
+            // The pending path opens instantly; without this event the cover is invisible in logs.
+            DiagnosticTrace(id: preview.id.uuidString).event("recent_photos_open_requested",
+                "pending=true has_indexed_photo=\(!photos.isEmpty)")
             onPresentationChanged(true)
             selectedReview = .pending(preview)
             return
@@ -234,8 +237,12 @@ enum RecentPhotoReview: Identifiable {
 
 /// The provisional image stays out of Photos/SwiftData. Only its own completion
 /// can replace it, and browsing saved photos must not be interrupted by later saves.
+/// While the durable pipeline works the preview stays fully interactive (pinch zoom,
+/// pull-down dismiss); a bottom capsule reports the live stage so the wait reads as
+/// motion instead of a stuck spinner.
 struct CapturePreviewReview: View {
     let preview: CapturePreview
+    var slowThreshold: TimeInterval = 45
     let onClose: () -> Void
     @ObservedObject private var pipeline: CapturePipeline
     @Environment(\.modelContext) private var modelContext
@@ -244,9 +251,13 @@ struct CapturePreviewReview: View {
     @State private var initialImage: UIImage?
     @State private var openError: String?
     @State private var isRetrying = false
+    @State private var showsSlowNotice = false
+    @State private var dismisser = DragDismissController()
 
-    init(preview: CapturePreview, pipeline: CapturePipeline = .shared, onClose: @escaping () -> Void) {
+    init(preview: CapturePreview, slowThreshold: TimeInterval = 45,
+         pipeline: CapturePipeline = .shared, onClose: @escaping () -> Void) {
         self.preview = preview
+        self.slowThreshold = slowThreshold
         self.pipeline = pipeline
         self.onClose = onClose
     }
@@ -257,32 +268,14 @@ struct CapturePreviewReview: View {
                 PhotoDetailView(photo: saved.startPhoto, allPhotos: saved.photos,
                     initialImage: initialImage, onClose: onClose)
             } else {
-                VStack(spacing: 16) {
-                    Image(uiImage: preview.image)
-                        .resizable()
-                        .scaledToFit()
+                ZStack {
+                    Color.black.ignoresSafeArea()
+                    ZoomablePhotoView(image: preview.image, isCurrent: true, dismisser: dismisser)
                         .accessibilityLabel("Photo preview")
-                    if pipeline.isProcessing(preview.id) || isRetrying {
-                        ProgressView("Saving…")
-                    } else {
-                        Text("Saving paused")
-                            .foregroundStyle(.secondary)
-                        Button("Retry") {
-                            isRetrying = true
-                            Task { @MainActor in
-                                defer { isRetrying = false }
-                                loadCommittedPhoto(pipeline.lastCompletion)
-                                if saved == nil { await pipeline.retryPending() }
-                                loadCommittedPhoto(pipeline.lastCompletion)
-                            }
-                        }
-                    }
-                    if !latestPhotos.isEmpty {
-                        Button("All Photos", systemImage: "photo.stack") { openSavedPhotos() }
-                            .buttonStyle(.bordered)
-                    }
+                    savingOverlay
                 }
-                .padding()
+                .onAppear { dismisser.onDismiss = onClose }
+                .task(id: preview.id) { await watchSlowSave() }
             }
         }
         .onReceive(pipeline.$lastCompletion, perform: loadCommittedPhoto)
@@ -291,6 +284,68 @@ struct CapturePreviewReview: View {
         )) {
             Button("OK", role: .cancel) { openError = nil }
         } message: { Text(openError ?? "") }
+    }
+
+    @ViewBuilder
+    private var savingOverlay: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            if pipeline.isProcessing(preview.id) || isRetrying {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(.white)
+                    phaseText
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.white)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.black.opacity(0.55), in: Capsule())
+                if showsSlowNotice {
+                    Text("This photo is taking longer than usual to save. It stays on this device and finishes on its own.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+            } else {
+                Text("Saving paused")
+                    .foregroundStyle(.secondary)
+                Button("Retry") {
+                    isRetrying = true
+                    Task { @MainActor in
+                        defer { isRetrying = false }
+                        loadCommittedPhoto(pipeline.lastCompletion)
+                        if saved == nil { await pipeline.retryPending() }
+                        loadCommittedPhoto(pipeline.lastCompletion)
+                    }
+                }
+            }
+            if !latestPhotos.isEmpty {
+                Button("All Photos", systemImage: "photo.stack") { openSavedPhotos() }
+                    .buttonStyle(.bordered)
+            }
+        }
+        .padding(.bottom, 24)
+    }
+
+    private var phaseText: Text {
+        switch pipeline.phases[preview.id] {
+        case .preparing: Text("Preparing…")
+        case .rendering: Text("Rendering…")
+        case .saving, nil: Text("Saving…")
+        }
+    }
+
+    /// A save wedged behind a slow Photos transaction should not read as a frozen app.
+    private func watchSlowSave() async {
+        guard slowThreshold > 0 else { return }
+        do { try await Task.sleep(for: .seconds(slowThreshold)) } catch { return }
+        guard saved == nil, pipeline.isProcessing(preview.id) else { return }
+        showsSlowNotice = true
+        Diagnostics.emit("recent_photos_pending_slow", id: preview.id.uuidString,
+            fields: "threshold_s=\(Int(slowThreshold))")
     }
 
     private func openSavedPhotos() {
