@@ -16,9 +16,6 @@ struct CameraView: View {
     @ObservedObject private var filmSettings: FilmPageSettings
     /// Preserve the saved Live Photo preference; the still-photo format is automatic.
     @AppStorage("photoCaptureMode") private var captureModeValue = PhotoCaptureMode.quality.rawValue
-    /// Live Photo 是否录音（设置页可配置，默认开）。开启时麦克风挂上 session、Live 视频带声音；
-    /// 关闭则静音。与顶栏 livePhotoEnabled 一起决定是否挂麦克风——见 CameraManager.setLivePhotoAudio。
-    @AppStorage("livePhotoSoundEnabled") private var livePhotoSoundEnabled = true
     /// 曲线目录同时提供当前选择、默认曲线显隐及用户自定义曲线。
     @EnvironmentObject private var curveLibrary: FilmCurveLibrary
     /// Picker 候选列表里需要展示用户导入的自定义 LUT；CameraView 自己持有 @Query 直接喂给 strip。
@@ -101,16 +98,11 @@ struct CameraView: View {
             cameraManager.updateEntryPipelineReady(capturePipeline.isPrepared)
             cameraManager.updateEntryLUT(expectedKey: previewLUTKey, preparedKey: preparedLUT?.key)
             cameraManager.requestCameraPermission()
-            // 告知期望录音状态（live && sound）；session 配置完成后据此决定是否挂麦克风。
-            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
+            cameraManager.setLivePhotoAudio(live: wantsLiveCapture)
         }
-        // 顶栏 Live 开关 / 设置页声音开关变化时，实时增删麦克风输入（在相机页内切换即时生效）。
         .onChange(of: captureModeValue) { _, _ in
             cameraManager.diagnostics.event("live_photo_preference_changed", "requested=\(wantsLiveCapture) supported=\(cameraManager.livePhotoCaptureState.supported) enabled=\(cameraManager.livePhotoCaptureState.enabled)")
-            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
-        }
-        .onChange(of: livePhotoSoundEnabled) { _, _ in
-            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
+            cameraManager.setLivePhotoAudio(live: wantsLiveCapture)
         }
         .onChange(of: cameraManager.flashMode) { _, mode in
             cameraManager.diagnostics.event("flash_changed", "mode=\(mode.rawValue)")
@@ -126,7 +118,6 @@ struct CameraView: View {
         }
         .onChange(of: previewLUTKey) { _, key in
             cameraManager.updateEntryLUT(expectedKey: key, preparedKey: preparedLUT?.key)
-            cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
         }
         .onChange(of: capturePipeline.isPrepared) { _, ready in
             cameraManager.updateEntryPipelineReady(ready)
@@ -319,21 +310,9 @@ struct CameraView: View {
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
             if !isIPad && !cameraManager.entryPreparation.coversContent {
-                // 中间：仅可选的位置状态（胶片名标题已去掉——当前胶片由底部右下封面 + picker 表达，
-                // 取景器中央保持干净）。位置被拒时才显示一个警示按钮。
-                ToolbarItem(placement: .principal) {
-                    VStack(spacing: 1) {
-                        if cameraManager.locationPermissionDenied {
-                            Button(action: openAppSettings) {
-                                Label("Location off", systemImage: "location.slash.fill")
-                                    .font(.caption2.weight(.medium))
-                                    .labelStyle(.titleAndIcon)
-                                    .foregroundStyle(.orange.opacity(0.85))
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Location off")
-                            .accessibilityHint("Open Settings and allow Location Services to geo-tag photos")
-                        }
+                if showsPermissionControls {
+                    ToolbarItem(placement: .principal) {
+                        permissionControls
                     }
                 }
 
@@ -444,18 +423,11 @@ struct CameraView: View {
                 exposureControl.position(layout.exposurePosition(
                     showsColorControls: colorControls.isVisible, showsPicker: showFilmPicker))
             }
-            if cameraManager.locationPermissionDenied {
-                Button(action: openAppSettings) {
-                    Image(systemName: "location.slash.fill")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(.orange)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .cameraControlSurface()
-                .accessibilityLabel("Location off")
-                .accessibilityHint("Open Settings and allow Location Services to geo-tag photos")
-                .position(x: 108, y: 38)
+            if showsPermissionControls {
+                permissionControls
+                    .padding(.leading, 86)
+                    .padding(.top, 16)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
     }
@@ -745,7 +717,7 @@ struct CameraView: View {
             let live = !wantsLiveCapture
             // Close capture admission synchronously before publishing the preference.
             // A shutter tap must not resolve a new mode against the previous output.
-            cameraManager.setLivePhotoAudio(live: live, sound: livePhotoSoundEnabled)
+            cameraManager.setLivePhotoAudio(live: live)
             captureModeValue = live ? PhotoCaptureMode.livePhoto.rawValue : PhotoCaptureMode.quality.rawValue
         } label: {
             Image(systemName: wantsLiveCapture ? "livephoto" : "livephoto.slash")
@@ -761,6 +733,46 @@ struct CameraView: View {
         .accessibilityHint("Toggle Live Photo")
     }
 
+    private var livePhotoSoundUnavailable: Bool {
+        wantsLiveCapture && cameraManager.microphonePermissionDenied
+    }
+
+    private var showsPermissionControls: Bool {
+        cameraManager.locationPermissionDenied || livePhotoSoundUnavailable
+    }
+
+    private var permissionControls: some View {
+        HStack(spacing: 4) {
+            if cameraManager.locationPermissionDenied {
+                permissionButton(icon: "location.slash.fill", label: "Location off",
+                    hint: "Open Settings and allow Location Services to geo-tag photos")
+            }
+            if livePhotoSoundUnavailable {
+                permissionButton(icon: "mic.slash.fill", label: "Live Photo sound off",
+                    hint: "Microphone access is off. Turn it on in Settings to record sound.")
+                    .accessibilityIdentifier("camera.microphone_settings")
+            }
+        }
+    }
+
+    private func permissionButton(icon: String, label: LocalizedStringKey, hint: LocalizedStringKey) -> some View {
+        let button = Button(action: openAppSettings) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(.orange)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(label))
+        .accessibilityHint(Text(hint))
+
+        return Group {
+            if isIPad { button.cameraControlSurface() }
+            else { button }
+        }
+    }
+
     private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }
     private var captureMode: PhotoCaptureMode {
         LivePhotoEncoderConfiguration.isSupported
@@ -774,11 +786,10 @@ struct CameraView: View {
     @ViewBuilder
     private var cameraPreparationScreen: some View {
         if let failure = cameraManager.entryPreparation.failure {
-            PreparationScreen(
+            PreparationErrorScreen(
                 title: cameraPreparationTitle,
                 message: failure == .permissionDenied
-                    ? String(localized: "Allow camera access for JustShoot in Settings") : nil,
-                isLoading: false,
+                    ? String(localized: "Allow camera access in Settings.") : nil,
                 actionTitle: failure == .permissionDenied ? "Open Settings" : "Try Again",
                 onAction: {
                     if failure == .permissionDenied { openAppSettings() }
@@ -811,7 +822,7 @@ struct CameraView: View {
         entryRetryRevision &+= 1
         cameraManager.updateEntryLUT(expectedKey: previewLUTKey, preparedKey: nil)
         cameraManager.retryEntryPreparation()
-        cameraManager.setLivePhotoAudio(live: wantsLiveCapture, sound: livePhotoSoundEnabled)
+        cameraManager.setLivePhotoAudio(live: wantsLiveCapture)
     }
     private var previewLUTKey: String {
         let baseKey = FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: selectedCurve)

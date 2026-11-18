@@ -1,6 +1,24 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOO Cam"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOO 相机"
+          }
+        }
+      }
+    },
     "CFBundleName" : {
       "comment" : "Bundle name",
       "extractionState" : "extracted_with_value",
@@ -19,13 +37,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "JustShoot needs camera access to capture photos."
+            "value" : "OOO Cam needs camera access to capture photos."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "JustShoot 需要使用相机来拍摄照片。"
+            "value" : "OOO 相机需要使用相机来拍摄照片。"
           }
         }
       }
@@ -36,42 +54,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "JustShoot uses your location to tag photos with where they were taken."
+            "value" : "OOO Cam uses your location to tag photos with where they were taken."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "JustShoot 使用你的位置信息为照片添加地理位置标签。"
-          }
-        }
-      }
-    },
-    "NSPhotoLibraryAddUsageDescription" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JustShoot saves your captured photos to the photo library."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JustShoot 需要将拍摄的照片保存到相册。"
-          }
-        }
-      }
-    },
-    "NSPhotoLibraryUsageDescription" : {
-      "comment" : "Privacy - Photo Library Usage Description",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "JustShoot stores your shots in the Photos library and shows them in its in-app gallery."
+            "value" : "OOO 相机使用你的位置信息为照片添加地理位置标签。"
           }
         }
       }
@@ -82,13 +71,48 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "JustShoot records sound with your Live Photos."
+            "value" : "OOO Cam records sound with your Live Photos."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "JustShoot 在拍摄 Live Photo 时录入声音。"
+            "value" : "OOO 相机在拍摄 Live Photo 时录入声音。"
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryAddUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOO Cam saves your captured photos to the photo library."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOO 相机需要将拍摄的照片保存到相册。"
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryUsageDescription" : {
+      "comment" : "Privacy - Photo Library Usage Description",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOO Cam stores your shots in the Photos library and shows them in its in-app gallery."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOO 相机将拍摄的照片保存到系统照片图库，并读取这些照片以在应用内显示。"
           }
         }
       }

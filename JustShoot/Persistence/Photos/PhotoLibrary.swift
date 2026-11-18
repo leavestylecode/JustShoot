@@ -8,7 +8,7 @@ import os
 
 // MARK: - 系统相册为真相源（Photos library is the source of truth）
 //
-// 架构：拍摄的成品照片直接写入系统相册的 "JustShoot" 自定义相簿，SwiftData 只保留轻量索引
+// 架构：拍摄的成品照片直接写入系统相册的自定义相簿，SwiftData 只保留轻量索引
 // （PHAsset.localIdentifier + 胶片元数据）。好处：照片真正进用户图库、白拿 iCloud 同步/备份、
 // 卸载不丢、滚动缩略图走系统级 PHCachingImageManager。app 内画廊 = 基于这些 identifier 的策展层。
 //
@@ -51,7 +51,10 @@ enum PhotoDeletionPolicy {
 }
 
 enum PhotoLibrary {
-    static let albumTitle = "JustShoot"
+    private static let albumTitle = "OOO"
+    private static let legacyAlbumTitle = "JustShoot"
+    private static let captureFilenamePrefix = "OOO_"
+    private static let legacyCaptureFilenamePrefix = "JustShoot_"
 
     // MARK: - 授权（读写）
     //
@@ -77,17 +80,26 @@ enum PhotoLibrary {
     private static func captureFilename(_ id: UUID, imageData: Data) -> String {
         let source = CGImageSourceCreateWithData(imageData as CFData, nil)
         let type = source.flatMap { CGImageSourceGetType($0) } as String?
-        return "JustShoot_\(id.uuidString)." + (type == "public.jpeg" ? "jpg" : "heic")
+        return "\(captureFilenamePrefix)\(id.uuidString)." + (type == "public.jpeg" ? "jpg" : "heic")
     }
 
     private static func captureIdentifier(of asset: PHAsset) -> UUID? {
-        for resource in PHAssetResource.assetResources(for: asset) where resource.type == .photo || resource.type == .photoProxy {
-            let filename: String
-            if #available(iOS 27, *) { filename = resource.filename ?? "" }
-            else { filename = resource.originalFilename }
-            guard filename.hasPrefix("JustShoot_") else { continue }
+        let filenames = PHAssetResource.assetResources(for: asset).lazy
+            .filter { $0.type == .photo || $0.type == .photoProxy }
+            .compactMap { resource -> String? in
+                if #available(iOS 27, *) { return resource.filename }
+                return resource.originalFilename
+            }
+        return captureIdentifier(in: filenames)
+    }
+
+    static func captureIdentifier(in filenames: some Sequence<String>) -> UUID? {
+        for filename in filenames {
+            guard let prefix = [captureFilenamePrefix, legacyCaptureFilenamePrefix].first(where: { filename.hasPrefix($0) }) else {
+                continue
+            }
             let stem = (filename as NSString).deletingPathExtension
-            return UUID(uuidString: String(stem.dropFirst("JustShoot_".count)))
+            if let id = UUID(uuidString: String(stem.dropFirst(prefix.count))) { return id }
         }
         return nil
     }
@@ -119,9 +131,7 @@ enum PhotoLibrary {
 
     // MARK: - 保存
     //
-    // 在单个 performChanges 事务里完成「创建资产 + 找到或新建 JustShoot 相簿 + 把资产加入相簿」，
-    // 避免 PHAssetCollection / PHAsset 这类非 Sendable 对象跨 await 传递。返回新资产的
-    // localIdentifier 供 SwiftData 索引。
+    // 同一个 performChanges 事务创建资产并加入相簿。跨 await 只传递 localIdentifier。
     static func save(
         imageData: Data,
         creationDate: Date,
@@ -135,7 +145,7 @@ enum PhotoLibrary {
         try await ensureAuthorized(trace: trace)
         if let captureID, let existing = findCapture(id: captureID, creationDate: creationDate) { return existing }
         // 相簿创建已串行化（见 ensureAlbumIdentifier）。创建失败不阻塞照片保存——资产仍正常
-        // 入库（app 内画廊走 SwiftData 索引，不依赖相簿成员关系），只是不进 JustShoot 相簿。
+        // 入库（app 内画廊走 SwiftData 索引）。
         let albumLookup = trace.span("photos_album_lookup")
         let albumID = try? await ensureAlbumIdentifier()
         albumLookup.end(albumID == nil ? "no_album" : "ok")
@@ -174,7 +184,7 @@ enum PhotoLibrary {
 
             addToAlbum(placeholder: placeholder, albumID: albumID, albumMissing: albumMissingBox)
         }
-        if albumMissingBox.value { await invalidateAlbumCache() }
+        if albumMissingBox.value { await invalidateAlbumCache(matching: albumID) }
 
         guard let id = idBox.value else { throw PhotoLibraryError.saveFailed }
         transactionStatus = "ok"
@@ -209,7 +219,7 @@ enum PhotoLibrary {
     }
 
     /// Commit the film as an adjustment to the original asset, retaining Apple's
-    /// finalized original and publishing a single photo in the JustShoot album.
+    /// finalized original and publishing a single photo in the app's album.
     static func prepareDeferredAdjustment(id: String) async throws -> DeferredEditingInput {
         try await ensureAuthorized()
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else {
@@ -242,14 +252,12 @@ enum PhotoLibrary {
             change.contentEditingOutput = editingOutput.value
             change.creationDate = recipe.captureDate
             change.location = recipe.location?.location
-            if let albumID,
-               let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [albumID], options: nil).firstObject,
-               let albumChange = PHAssetCollectionChangeRequest(for: album) {
+            if let albumChange = albumChangeRequest(for: albumID, albumMissing: albumMissing) {
                 albumChange.addAssets([asset] as NSArray)
-            } else { albumMissing.value = true }
+            }
             saved.value = true
         }
-        if albumMissing.value { await invalidateAlbumCache() }
+        if albumMissing.value { await invalidateAlbumCache(matching: albumID) }
         guard saved.value else { throw PhotoLibraryError.saveFailed }
     }
 
@@ -313,51 +321,51 @@ enum PhotoLibrary {
 
             addToAlbum(placeholder: placeholder, albumID: albumID, albumMissing: albumMissingBox)
         }
-        if albumMissingBox.value { await invalidateAlbumCache() }
+        if albumMissingBox.value { await invalidateAlbumCache(matching: albumID) }
 
         guard let id = idBox.value else { throw PhotoLibraryError.saveFailed }
         transactionStatus = "ok"
         return id
     }
 
-    /// 在 performChanges 事务内把新资产加入 JustShoot 相簿。相簿按串行化缓存的 identifier 取，
-    /// 取不到（用户删了相簿）回退 findAlbum 再试；仍不在则置 albumMissing 让 caller 失效缓存——
-    /// 本张照片不进相簿（资产本身已保存，不因相簿缺失丢照片）。
+    /// 在 performChanges 事务内把新资产加入相簿。相簿不可用时只保存照片。
     private static func addToAlbum(placeholder: PHObjectPlaceholder, albumID: String?, albumMissing: Box<Bool>) {
-        let album: PHAssetCollection? = {
-            if let albumID,
-               let fetched = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [albumID], options: nil).firstObject {
-                return fetched
-            }
-            return findAlbum()
-        }()
-        if let album, let albumChange = PHAssetCollectionChangeRequest(for: album) {
-            albumChange.addAssets([placeholder] as NSArray)
-        } else {
-            albumMissing.value = true
-        }
+        albumChangeRequest(for: albumID, albumMissing: albumMissing)?.addAssets([placeholder] as NSArray)
     }
 
-    /// 同步查找已存在的 JustShoot 相簿（PHAssetCollection fetch 线程安全，结果不跨 await）。
-    private static func findAlbum() -> PHAssetCollection? {
+    private static func albumChangeRequest(for albumID: String?, albumMissing: Box<Bool>) -> PHAssetCollectionChangeRequest? {
+        if let albumID {
+            if let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [albumID], options: nil).firstObject,
+               let change = PHAssetCollectionChangeRequest(for: album) {
+                return change
+            }
+            albumMissing.value = true
+        }
+        guard let album = findAlbum(titled: albumTitle) ?? findAlbum(titled: legacyAlbumTitle) else { return nil }
+        return PHAssetCollectionChangeRequest(for: album)
+    }
+
+    private static func findAlbum(titled title: String) -> PHAssetCollection? {
         let opts = PHFetchOptions()
-        opts.predicate = NSPredicate(format: "title = %@", albumTitle)
+        opts.predicate = NSPredicate(format: "title = %@", title)
+        opts.fetchLimit = 1
         return PHAssetCollection.fetchAssetCollections(with: .album, subtype: .albumRegular, options: opts).firstObject
     }
 
-    // MARK: - 相簿创建串行化
-    //
-    // save/saveLivePhoto 原本各自在事务内 find-or-create：并发拍摄（在途上限 live 2 / normal 3）
-    // 首启连拍时两个事务都看到相簿不存在 → 各建一个同名 "JustShoot"，之后 findAlbum().firstObject
-    // 取哪个不确定，相册被永久分叉。收敛成 MainActor 上共享的一个 Task：创建只发生一次，后续调用
-    // 复用缓存的 localIdentifier；失败清空缓存允许重试。
+    // MARK: - 相簿准备
+
+    // 并发拍摄共享一次相簿查找、更名或创建，并缓存结果的 localIdentifier。
     @MainActor private static var albumIdentifierTask: Task<String, any Error>?
 
     private static func ensureAlbumIdentifier() async throws -> String {
         let task: Task<String, any Error> = await MainActor.run {
             if let existing = albumIdentifierTask { return existing }
             let t = Task<String, any Error>.detached(priority: .utility) {
-                if let album = findAlbum() { return album.localIdentifier }
+                if let album = findAlbum(titled: albumTitle) { return album.localIdentifier }
+                if let legacyID = findAlbum(titled: legacyAlbumTitle)?.localIdentifier {
+                    await renameLegacyAlbum(id: legacyID)
+                    return legacyID
+                }
                 let idBox = Box<String?>(nil)
                 try await PHPhotoLibrary.shared().performChanges {
                     let creation = PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: albumTitle)
@@ -374,13 +382,32 @@ enum PhotoLibrary {
             return try await task.value
         } catch {
             // 失败不缓存——下次保存重试创建。
-            _ = await MainActor.run { albumIdentifierTask = nil }
+            await MainActor.run {
+                if albumIdentifierTask == task { albumIdentifierTask = nil }
+            }
             throw error
         }
     }
 
+    private static func renameLegacyAlbum(id: String) async {
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                guard let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [id], options: nil).firstObject,
+                      album.localizedTitle == legacyAlbumTitle,
+                      album.canPerform(.rename),
+                      let change = PHAssetCollectionChangeRequest(for: album) else { return }
+                change.title = albumTitle
+            }
+        } catch {
+            // 保存仍复用同一相簿，避免因更名失败而分叉。
+            Log.save.error("album_rename_failed id=\(id, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     /// 缓存的相簿 identifier 失效（用户在「照片」app 删掉了相簿）——清掉让下次保存重建。
-    @MainActor private static func invalidateAlbumCache() {
+    @MainActor private static func invalidateAlbumCache(matching albumID: String?) async {
+        guard let albumID, let task = albumIdentifierTask,
+              (try? await task.value) == albumID, albumIdentifierTask == task else { return }
         albumIdentifierTask = nil
     }
 
@@ -432,16 +459,21 @@ enum PhotoLibrary {
 
     // MARK: - 正向同步辅助（孤儿资产回填用）
     //
-    // JustShoot 相簿内全部资产的轻量信息（identifier / 创建时间 / 是否 Live）。与剪枝同一安全
+    // 新旧相簿内资产的轻量信息（identifier / 创建时间 / 是否 Live）。与剪枝同一安全
     // 前提：仅在完整 .authorized 时返回，.limited 下相簿 fetch 可能不完整、不可作为对账输入；
     // 相簿不存在返回空数组。同步 fetch，可在后台 @ModelActor 上直接调。
     static func albumAssetInfo() -> [(id: String, creationDate: Date?, isLivePhoto: Bool, captureID: UUID?)]? {
         guard PHPhotoLibrary.authorizationStatus(for: .readWrite) == .authorized else { return nil }
-        guard let album = findAlbum() else { return [] }
-        let fetch = PHAsset.fetchAssets(in: album, options: nil)
+        var seen = Set<String>()
         var result: [(id: String, creationDate: Date?, isLivePhoto: Bool, captureID: UUID?)] = []
-        fetch.enumerateObjects { asset, _, _ in
-            result.append((asset.localIdentifier, asset.creationDate, asset.mediaSubtypes.contains(.photoLive), captureIdentifier(of: asset)))
+        // 先查旧相簿。若并发更名发生在两次查询之间，同一个相簿仍至少可见一次。
+        for title in [legacyAlbumTitle, albumTitle] {
+            guard let album = findAlbum(titled: title) else { continue }
+            PHAsset.fetchAssets(in: album, options: nil).enumerateObjects { asset, _, _ in
+                let id = asset.localIdentifier
+                guard seen.insert(id).inserted else { return }
+                result.append((id, asset.creationDate, asset.mediaSubtypes.contains(.photoLive), captureIdentifier(of: asset)))
+            }
         }
         return result
     }

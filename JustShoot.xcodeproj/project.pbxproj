@@ -243,7 +243,7 @@
 		EA953D472E43195200B6FA72 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Appicon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = JustShoot/JustShoot.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -255,13 +255,14 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = JustShoot/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "OOO Cam";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "JustShoot needs camera access to capture photos.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "JustShoot uses your location to tag photos with where they were taken.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "JustShoot records sound with your Live Photos.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "JustShoot saves your captured photos to the photo library.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "JustShoot stores your shots in the Photos library and shows them in its in-app gallery.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "OOO Cam needs camera access to capture photos.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "OOO Cam uses your location to tag photos with where they were taken.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "OOO Cam records sound with your Live Photos.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "OOO Cam saves your captured photos to the photo library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "OOO Cam stores your shots in the Photos library and shows them in its in-app gallery.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -290,7 +291,7 @@
 		EA953D482E43195200B6FA72 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = Appicon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = JustShoot/JustShoot.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -305,13 +306,14 @@
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = JustShoot/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "OOO Cam";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "JustShoot needs camera access to capture photos.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "JustShoot uses your location to tag photos with where they were taken.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "JustShoot records sound with your Live Photos.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "JustShoot saves your captured photos to the photo library.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "JustShoot stores your shots in the Photos library and shows them in its in-app gallery.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "OOO Cam needs camera access to capture photos.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "OOO Cam uses your location to tag photos with where they were taken.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "OOO Cam records sound with your Live Photos.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "OOO Cam saves your captured photos to the photo library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "OOO Cam stores your shots in the Photos library and shows them in its in-app gallery.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;

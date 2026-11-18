@@ -92,7 +92,7 @@ final class DiagnosticLogStore: Sendable {
             queue.async {
                 do {
                     try self.drain()
-                    var result = Data("JustShoot diagnostics schema=\(Diagnostics.schemaVersion) retained_files=3 max_file_bytes=\(self.maximumFileBytes) file_write_failures=\(self.writeFailures.withLock { $0 })\n".utf8)
+                    var result = Data("OOO diagnostics schema=\(Diagnostics.schemaVersion) retained_files=3 max_file_bytes=\(self.maximumFileBytes) file_write_failures=\(self.writeFailures.withLock { $0 })\n".utf8)
                     for index in stride(from: self.fileCount - 1, through: 0, by: -1) {
                         if FileManager.default.fileExists(atPath: self.file(index).path) {
                             result.append(try Data(contentsOf: self.file(index)))
@@ -115,7 +115,7 @@ final class DiagnosticLogStore: Sendable {
                     (try? $1.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast }
             for url in old.dropFirst(2) { try? manager.removeItem(at: url) }
             let date = Date().ISO8601Format().replacingOccurrences(of: ":", with: "-")
-            let url = directory.appendingPathComponent("JustShoot-\(date)-\(UUID().uuidString.prefix(8)).txt")
+            let url = directory.appendingPathComponent("OOO-\(date)-\(UUID().uuidString.prefix(8)).txt")
             try data.write(to: url, options: .atomic)
             return url
         }.value

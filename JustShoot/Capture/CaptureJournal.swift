@@ -308,7 +308,7 @@ struct CaptureJournal: Sendable {
         let suffix = imageSource.map { RawFilmRenderer.isDNG($0) } == true ? "dng"
             : (type.flatMap { UTType($0 as String)?.preferredFilenameExtension } ?? "image")
         let exportDirectory = try ShareExportDirectory.application.create()
-        let destination = exportDirectory.appendingPathComponent("JustShoot-Recovered-\(current.captureID.uuidString.prefix(8)).\(suffix)")
+        let destination = exportDirectory.appendingPathComponent("OOO-Recovered-\(current.captureID.uuidString.prefix(8)).\(suffix)")
         do { try FileManager.default.copyItem(at: source, to: destination) }
         catch {
             try? FileManager.default.removeItem(at: exportDirectory)

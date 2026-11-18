@@ -94,10 +94,8 @@ actor PhotoLibraryReconciler {
         Log.save.info("internal_photos_migrated count=\(migratedIDs.count)")
     }
 
-    /// 正向同步（library → app）：JustShoot 相簿里存在、但索引没有对应行的资产，补建索引行。
-    /// 这是「资产已写入相册、PhotoSaver.save 写索引却失败」唯一的恢复路径——没有它照片会永远
-    /// 存在于相册却不出现在 app 画廊。也顺带覆盖 iCloud 把另一台设备 JustShoot 相簿同步过来的
-    /// 资产。胶片元数据已不可知，回填行 filmPresetName 为 nil（显示 "Default"）。
+    /// 补录新旧相簿中缺少索引的资产，包括由 iCloud 从其他设备同步的照片。
+    /// 胶片元数据已不可知，回填行 filmPresetName 为 nil（显示 "Default"）。
     ///
     /// 30s 宽限：拍摄管线是「先写相册、后写索引」，本方法又会被保存自身触发的相册变更回调唤起
     /// ——不留宽限会在索引写入前抢先回填出重复行。creationDate 是拍摄时刻，30s 远大于整条

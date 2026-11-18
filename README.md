@@ -67,10 +67,10 @@ queue concurrently. Cached covers appear before asynchronous display updates, in
 entry to card details. Catalog filter counts and buckets are built off MainActor once; only
 selection changes filter the cards again.
 
-Curve management displays larger response graphs and output strips. Loading screens use the
-brand and a progress indicator, with status available to VoiceOver. Settings keeps shutter
-guidance behind its info button and diagnostics collapsed until opened. These changes do not
-establish a measured improvement in device frame rate, shutter latency or thermal behavior.
+Curve management displays larger response graphs and output strips. Startup shows a progress
+indicator with status available to VoiceOver. Settings keeps diagnostics collapsed until opened.
+Safe shutter applies automatically. Live Photo records sound when microphone access is granted
+and offers a link to system settings if access is denied.
 
 Camera LUT texture allocation and CPU upload run on a dedicated serial queue before a new
 selection becomes available to preview or capture. The draw callback consumes an immutable

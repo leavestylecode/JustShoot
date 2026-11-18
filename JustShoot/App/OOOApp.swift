@@ -22,7 +22,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 }
 
 @main
-struct JustShootApp: App {
+struct OOOApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var curveLibrary = FilmCurveLibrary()
     @StateObject private var startup = AppStartupPreparation()
@@ -61,10 +61,10 @@ private struct AppStartupContent: View {
                     .environmentObject(curveLibrary)
                     .modelContainer(ready.container)
             } else if !startup.hasFailed {
-                PreparationScreen(title: "Preparing your library…")
+                AppStartupLoadingScreen()
             } else {
-                PreparationScreen(title: "Your library could not be prepared", message: startup.failureMessage,
-                    isLoading: false, onAction: { Task { await startup.retry(displayScale: displayScale) } })
+                PreparationErrorScreen(title: "Your library could not be prepared", message: startup.failureMessage,
+                    onAction: { Task { await startup.retry(displayScale: displayScale) } })
             }
         }
         .task { if !isRunningUnitTests { await startup.prepare(displayScale: displayScale) } }

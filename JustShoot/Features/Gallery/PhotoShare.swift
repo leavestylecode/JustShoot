@@ -105,7 +105,7 @@ enum PhotoShareExporter {
         }
         // 文件名带日期前缀，分享出去的图在对方设备上更可读（不是一串 UUID）。
         let stamp = captureDate.formatted(.iso8601.year().month().day().dateSeparator(.dash))
-        let url = dir.appendingPathComponent("JustShoot-\(stamp)-\(photoID.uuidString.prefix(8)).jpg")
+        let url = dir.appendingPathComponent("OOO-\(stamp)-\(photoID.uuidString.prefix(8)).jpg")
         do {
             try await Task.detached(priority: .userInitiated) { try jpeg.write(to: url, options: .atomic) }.value
             return url

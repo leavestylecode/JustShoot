@@ -3,24 +3,11 @@ import XCTest
 @testable import JustShoot
 
 final class CameraCapturePolicyTests: XCTestCase {
-    func testLegacyQualityPreferenceCannotRestoreMaximumCapture() throws {
-        let name = "capture-policy-\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
-        defer { defaults.removePersistentDomain(forName: name) }
-        XCTAssertTrue(CameraCapturePolicy(defaults: defaults).safeShutterEnabled)
-        for oldQuality in ["maximum", "high", "standard", "compact"] {
-            defaults.set(oldQuality, forKey: "photoOutputQuality")
-            XCTAssertEqual(CameraCapturePolicy(defaults: defaults).qualityPrioritization, .quality)
-        }
-        defaults.set(false, forKey: "safeShutterLimitEnabled")
-        XCTAssertFalse(CameraCapturePolicy(defaults: defaults).safeShutterEnabled)
-    }
-
     func testAutomaticCaptureRespectsOutputCapability() {
-        let policy = CameraCapturePolicy(safeShutterEnabled: true)
-        XCTAssertEqual(policy.qualityPrioritization(supportedMax: .quality), .quality)
-        XCTAssertEqual(policy.qualityPrioritization(supportedMax: .balanced), .balanced)
-        XCTAssertEqual(policy.qualityPrioritization(supportedMax: .speed), .speed)
+        XCTAssertEqual(CameraCapturePolicy.qualityPrioritization, .quality)
+        XCTAssertEqual(CameraCapturePolicy.qualityPrioritization(supportedMax: .quality), .quality)
+        XCTAssertEqual(CameraCapturePolicy.qualityPrioritization(supportedMax: .balanced), .balanced)
+        XCTAssertEqual(CameraCapturePolicy.qualityPrioritization(supportedMax: .speed), .speed)
     }
 
     func testOrdinaryPhotoModePrefersSupported24MPOver48MP() {
@@ -80,14 +67,20 @@ final class CameraCapturePolicyTests: XCTestCase {
         XCTAssertGreaterThan(CameraCapturePolicy.automaticPhotoFormatScore(from: [CMVideoDimensions(width: 8000, height: 6000)]), maxOnly)
     }
 
-    func testDisabledSafeShutterUsesFullExposureRangeAndEnabledPolicyClamps() {
+    func testSafeShutterUsesFocalLengthWithA24mmFloor() {
         let minimum = CMTime(value: 1, timescale: 1_000)
         let maximum = CMTime(value: 1, timescale: 10)
-        let disabled = CameraCapturePolicy(safeShutterEnabled: false)
-        XCTAssertEqual(disabled.exposureDurationCap(focalMm: 200, minimum: minimum, maximum: maximum), maximum)
-        let enabled = CameraCapturePolicy(safeShutterEnabled: true)
-        XCTAssertEqual(enabled.exposureDurationCap(focalMm: 200, minimum: minimum, maximum: maximum).seconds, 1.0 / 200, accuracy: 0.000001)
-        XCTAssertEqual(enabled.exposureDurationCap(focalMm: 10_000, minimum: minimum, maximum: maximum), minimum)
-        XCTAssertEqual(enabled.exposureDurationCap(focalMm: 24, minimum: minimum, maximum: CMTime(value: 1, timescale: 100)), CMTime(value: 1, timescale: 100))
+        XCTAssertEqual(CameraCapturePolicy.exposureDurationCap(focalMm: 200, minimum: minimum, maximum: maximum),
+            CMTime(value: 1, timescale: 200))
+        XCTAssertEqual(CameraCapturePolicy.exposureDurationCap(focalMm: 13, minimum: minimum, maximum: maximum),
+            CMTime(value: 1, timescale: 24))
+    }
+
+    func testSafeShutterDoesNotExceedTheFormatsExposureRange() {
+        let minimum = CMTime(value: 1, timescale: 1_000)
+        let maximum = CMTime(value: 1, timescale: 10)
+        XCTAssertEqual(CameraCapturePolicy.exposureDurationCap(focalMm: 10_000, minimum: minimum, maximum: maximum), minimum)
+        let shortMaximum = CMTime(value: 1, timescale: 100)
+        XCTAssertEqual(CameraCapturePolicy.exposureDurationCap(focalMm: 24, minimum: minimum, maximum: shortMaximum), shortMaximum)
     }
 }

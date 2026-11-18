@@ -1,24 +1,9 @@
 import AVFoundation
-import Foundation
 
 /// One policy is used by session setup, prepared settings and actual captures.
-struct CameraCapturePolicy: Sendable, Equatable {
+enum CameraCapturePolicy {
     private static let ordinaryPhotoPixelLimit: Int64 = 26_000_000
-    let safeShutterEnabled: Bool
-
-    static var current: Self { Self(defaults: .standard) }
-
-    init(safeShutterEnabled: Bool) {
-        self.safeShutterEnabled = safeShutterEnabled
-    }
-
-    init(defaults: UserDefaults) {
-        safeShutterEnabled = defaults.object(forKey: "safeShutterLimitEnabled") as? Bool ?? true
-    }
-
-    var qualityPrioritization: AVCapturePhotoOutput.QualityPrioritization {
-        .quality
-    }
+    static let qualityPrioritization: AVCapturePhotoOutput.QualityPrioritization = .quality
 
     /// Prefer the ordinary 24 MP class where the device exposes it, rather than HEIF Max.
     /// Nominal 24 MP dimensions can contain about 24.5 million pixels. Never invent a size
@@ -51,7 +36,7 @@ struct CameraCapturePolicy: Sendable, Equatable {
         return pixels <= ordinaryPhotoPixelLimit ? pixels : -pixels
     }
 
-    func qualityPrioritization(supportedMax: AVCapturePhotoOutput.QualityPrioritization) -> AVCapturePhotoOutput.QualityPrioritization {
+    static func qualityPrioritization(supportedMax: AVCapturePhotoOutput.QualityPrioritization) -> AVCapturePhotoOutput.QualityPrioritization {
         switch supportedMax {
         case .speed: return .speed
         case .balanced: return .balanced
@@ -60,8 +45,7 @@ struct CameraCapturePolicy: Sendable, Equatable {
         }
     }
 
-    func exposureDurationCap(focalMm: Int, minimum: CMTime, maximum: CMTime) -> CMTime {
-        guard safeShutterEnabled else { return maximum }
+    static func exposureDurationCap(focalMm: Int, minimum: CMTime, maximum: CMTime) -> CMTime {
         let target = CMTime(value: 1, timescale: Int32(max(focalMm, 24)))
         if CMTimeCompare(target, minimum) < 0 { return minimum }
         if CMTimeCompare(target, maximum) > 0 { return maximum }

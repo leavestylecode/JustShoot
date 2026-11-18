@@ -549,23 +549,6 @@
         }
       }
     },
-    "About Safe Shutter Limit" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "About Safe Shutter Limit"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "关于安全快门"
-          }
-        }
-      }
-    },
     "Gently increase midtone contrast." : {
       "localizations" : {
         "en" : {
@@ -652,19 +635,19 @@
         }
       }
     },
-    "Allow camera access for JustShoot in Settings" : {
+    "Allow camera access in Settings." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow camera access for JustShoot in Settings"
+            "value" : "Allow camera access in Settings."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请在系统设置中允许 JustShoot 访问相机"
+            "value" : "请在系统设置中允许访问相机。"
           }
         }
       }
@@ -1074,23 +1057,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "取消"
-          }
-        }
-      }
-    },
-    "Caps shutter speed at 1/focal length to keep handheld shots sharp. Turn it off to allow slower shutters in low light — better shadow detail, but more motion blur." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Caps shutter speed at 1/focal length to keep handheld shots sharp. Turn it off to allow slower shutters in low light — better shadow detail, but more motion blur."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "按 1/等效焦距 限制快门速度，手持拍摄优先保清晰。关闭后暗光可用更慢快门——暗部细节更好，但运动模糊风险更高。"
           }
         }
       }
@@ -2502,43 +2468,6 @@
         }
       }
     },
-    "JustShoot" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JustShoot"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JustShoot"
-          }
-        }
-      }
-    },
-    "JustShoot %@" : {
-
-    },
-    "Keep handheld shots sharp." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keep handheld shots sharp."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "减少手持模糊。"
-          }
-        }
-      }
-    },
     "Keep Processing Stages" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2732,6 +2661,23 @@
         }
       }
     },
+    "Live Photo sound off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Photo sound off"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实况照片声音已关闭"
+          }
+        }
+      }
+    },
     "Location off" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2815,16 +2761,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "管理"
-          }
-        }
-      }
-    },
-    "Manage Curves" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "管理曲线"
           }
         }
       }
@@ -3741,16 +3677,6 @@
         }
       }
     },
-    "Record sound with your Live Photos." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拍摄 Live Photo 时录入声音。"
-          }
-        }
-      }
-    },
     "Red" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3922,23 +3848,6 @@
         }
       }
     },
-    "Safe Shutter Limit" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Safe Shutter Limit"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "安全快门限制"
-          }
-        }
-      }
-    },
     "Save" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3983,19 +3892,19 @@
         }
       }
     },
-    "Save the original plus each processing stage (LUT, optics, grain) for every shot. Find them in Files → On My iPhone → JustShoot → ProcessingDiagnostics. Only the last 6 shots are kept." : {
+    "Save the original plus each processing stage (LUT, optics, grain) for every shot. Find them in Files → On My iPhone → %@ → ProcessingDiagnostics. Only the last 6 shots are kept." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save the original plus each processing stage (LUT, optics, grain) for every shot. Find them in Files → On My iPhone → JustShoot → ProcessingDiagnostics. Only the last 6 shots are kept."
+            "value" : "Save the original plus each processing stage (LUT, optics, grain) for every shot. Find them in Files → On My iPhone → %@ → ProcessingDiagnostics. Only the last 6 shots are kept."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "每次拍摄额外保留原片与各处理阶段（LUT、光学、颗粒）的对照图。位置：文件 App → 我的 iPhone → JustShoot → ProcessingDiagnostics。仅保留最近 6 次拍摄。"
+            "value" : "每次拍摄额外保留原片与各处理阶段（LUT、光学、颗粒）的对照图。可在文件 App → 我的 iPhone → %@ → ProcessingDiagnostics 找到。仅保留最近 6 次拍摄。"
           }
         }
       }
@@ -4314,16 +4223,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "部分照片不可访问。请在设置中允许访问这些照片后再删除。"
-          }
-        }
-      }
-    },
-    "Sound" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "声音"
           }
         }
       }
@@ -4955,7 +4854,21 @@
       }
     },
     "Version %@" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "版本 %@"
+          }
+        }
+      }
     },
     "View photo" : {
       "extractionState" : "manual",

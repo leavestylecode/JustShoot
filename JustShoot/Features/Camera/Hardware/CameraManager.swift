@@ -156,19 +156,17 @@ final class CameraManager: NSObject, ObservableObject {
 
     // MARK: Live Photo 录音（麦克风）
     //
-    // 麦克风输入**只在「Live 开 ＆ 声音开 ＆ 已授权」时**挂到 session 上：普通拍照 / 关掉 Live /
-    // 关掉声音时都不挂，避免无谓亮起系统麦克风指示灯（橙点）。开关变化由 CameraView 经
-    // setLivePhotoAudio(live:sound:) 告知，内部在 sessionQueue 增删 audio input。
+    // 只有 Live Photo 模式需要麦克风。授权后在 sessionQueue 上挂载音频输入。
     //
     // 音频会话用 .playAndRecord + .mixWithOthers（用户选定「保持背景音乐播放」），所以把
     // session.automaticallyConfiguresApplicationAudioSession 关掉、自管 AVAudioSession——
     // 否则 AVCapture 会按独占式 .record 抢占、把用户音乐掐断。
-    /// CameraView 告知的期望录音状态（live && sound）。session 配置完成后据此 reconcile。
+    /// 期望录音状态。Session 配置完成后据此挂载音频输入。
     private var livePhotoAudioDesired: Bool = false
     private var audioReconciliationPending = false
     private var audioPermissionRequestPending = false
-    /// 麦克风权限被拒——设置页据此提示用户去开。声音开关仍可开，只是降级为静音。
-    @Published var microphonePermissionDenied: Bool = false
+    /// 相机据此提供权限恢复入口，仍可拍摄静音 Live Photo。
+    @Published private(set) var microphonePermissionDenied = false
 
     // 震动反馈（预创建复用，减少首次延迟）
     let hapticLight = UIImpactFeedbackGenerator(style: .light)
@@ -890,10 +888,8 @@ final class CameraManager: NSObject, ObservableObject {
 
     // MARK: - 6b. Live Photo 录音（麦克风输入 + 混音音频会话）
 
-    /// CameraView 在入页 / 切换 Live 或声音开关时调用，告知期望的录音状态。
-    /// `live` = 顶栏 Live Photo 开关；`sound` = 设置页「Live Photo 声音」开关。
-    /// 两者皆开且麦克风已授权时才把麦克风挂上 session；据此 reconcile（幂等，状态未变即 no-op）。
-    func setLivePhotoAudio(live: Bool, sound: Bool) {
+    /// Live Photo requests sound by default. Device tests can exercise silent capture explicitly.
+    func setLivePhotoAudio(live: Bool, sound: Bool = true) {
         diagnostics.event("audio_requested", "live=\(live) sound=\(sound) permission=\(AVCaptureDevice.authorizationStatus(for: .audio).rawValue)")
         livePhotoCaptureDesired = live && LivePhotoEncoderConfiguration.isSupported
         livePhotoAudioDesired = livePhotoCaptureDesired && sound
@@ -1002,7 +998,7 @@ final class CameraManager: NSObject, ObservableObject {
                 self.reconcileAudioInput()
             }
         case .denied, .restricted:
-            // 权限被拒：降级为静音 Live Photo（不挂麦克风），设置页据 flag 提示去开。绝不阻断拍摄。
+            // 权限被拒时仍可拍摄静音 Live Photo。
             microphonePermissionDenied = true
             applyAudioInput(enabled: false)
             Log.session.info("permission_mic_denied → silent_live_photo")
@@ -1217,7 +1213,7 @@ final class CameraManager: NSObject, ObservableObject {
                         // Quality is preferred at both output and request.
                         // 预热与每次拍摄使用同一策略；具体计算摄影算法仍由系统按场景选择。
                         output.isLivePhotoCaptureEnabled = false
-                        output.maxPhotoQualityPrioritization = CameraCapturePolicy.current.qualityPrioritization
+                        output.maxPhotoQualityPrioritization = CameraCapturePolicy.qualityPrioritization
                         if output.isResponsiveCaptureSupported {
                             output.isResponsiveCaptureEnabled = true
                         }
@@ -1533,7 +1529,7 @@ final class CameraManager: NSObject, ObservableObject {
                 s = AVCapturePhotoSettings()
             }
             s.maxPhotoDimensions = photoOutput.maxPhotoDimensions
-            s.photoQualityPrioritization = CameraCapturePolicy.current.qualityPrioritization(supportedMax: photoOutput.maxPhotoQualityPrioritization)
+            s.photoQualityPrioritization = CameraCapturePolicy.qualityPrioritization(supportedMax: photoOutput.maxPhotoQualityPrioritization)
             if let device = videoCaptureDevice, device.hasFlash {
                 s.flashMode = flash
             }
@@ -1631,11 +1627,10 @@ final class CameraManager: NSObject, ObservableObject {
             }
             device.isSubjectAreaChangeMonitoringEnabled = true
 
-            // Cover the early format-ready window; focal configuration then applies
-            // the existing 1/max(focalMm, 24) limit (when Safe Shutter Limit is enabled).
+            // Apply an exposure cap before focal configuration sets the exact focal-length cap.
             let formatMin = device.activeFormat.minExposureDuration
             let formatMax = device.activeFormat.maxExposureDuration
-            device.activeMaxExposureDuration = CameraCapturePolicy.current.exposureDurationCap(
+            device.activeMaxExposureDuration = CameraCapturePolicy.exposureDurationCap(
                 focalMm: 30, minimum: formatMin, maximum: formatMax)
 
             let ranges = device.activeFormat.videoSupportedFrameRateRanges.map { $0.minFrameRate...$0.maxFrameRate }
@@ -2239,7 +2234,7 @@ final class CameraManager: NSObject, ObservableObject {
     /// 触顶时自动改抬 ISO，符合"保锐优先"。
     /// 上下界用 format.min/maxExposureDuration 兜底，避免越界。
     nonisolated private func exposureDurationCap(focalMm: Int, format: AVCaptureDevice.Format) -> CMTime {
-        CameraCapturePolicy.current.exposureDurationCap(focalMm: focalMm,
+        CameraCapturePolicy.exposureDurationCap(focalMm: focalMm,
             minimum: format.minExposureDuration, maximum: format.maxExposureDuration)
     }
 
@@ -2614,7 +2609,7 @@ final class CameraManager: NSObject, ObservableObject {
         // output; AVFoundation may still deliver a different final size for the current scene.
         settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
         // Prioritize image quality, bounded by the output capability.
-        settings.photoQualityPrioritization = CameraCapturePolicy.current.qualityPrioritization(supportedMax: photoOutput.maxPhotoQualityPrioritization)
+        settings.photoQualityPrioritization = CameraCapturePolicy.qualityPrioritization(supportedMax: photoOutput.maxPhotoQualityPrioritization)
         if request.rawFormat?.kind == .bayerRAW { settings.photoQualityPrioritization = .speed }
 
         if let device = videoCaptureDevice, device.hasFlash {

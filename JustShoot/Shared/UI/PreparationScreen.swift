@@ -1,69 +1,68 @@
 import SwiftUI
 
-/// A shared entry screen for launch and camera preparation. Work continues underneath;
-/// callers decide readiness from completed work instead of a presentation delay.
-struct PreparationScreen: View {
+struct AppStartupLoadingScreen: View {
+    var body: some View {
+        // Match the launch storyboard's lockup. Progress sits below it without shifting it.
+        VStack(spacing: 16) {
+            AppBrandMark()
+                .frame(width: 64, height: 64)
+            Text(verbatim: AppBrand.displayName)
+                .font(.system(size: 24, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(height: 30)
+        }
+        .overlay(alignment: .bottom) {
+            ProgressView()
+                .tint(.white)
+                .offset(y: 40)
+                .accessibilityLabel("Preparing your library…")
+        }
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.ignoresSafeArea())
+        .foregroundStyle(.white)
+        .preferredColorScheme(.dark)
+        .accessibilityIdentifier("preparation_screen")
+    }
+}
+
+struct PreparationErrorScreen: View {
     let title: LocalizedStringKey
     var message: String? = nil
-    var isLoading = true
     var actionTitle: LocalizedStringKey = "Try Again"
-    var onAction: (() -> Void)? = nil
-    var onClose: (() -> Void)? = nil
+    let onAction: () -> Void
 
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
-                VStack(spacing: 0) {
-                    Image(systemName: isLoading ? "camera.aperture" : "exclamationmark.circle")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 72, height: 72)
-                        .foregroundStyle(.white)
+                VStack(spacing: 14) {
+                    Image(systemName: "exclamationmark.circle")
+                        .font(.system(size: 48, weight: .light))
                         .accessibilityHidden(true)
 
-                    Text("JustShoot")
-                        .font(.system(size: 24, weight: .semibold))
-                        .padding(.top, 20)
+                    Text(title)
+                        .font(.title2.weight(.semibold))
+                        .accessibilityAddTraits(.isHeader)
 
-                    VStack(spacing: 14) {
-                        if isLoading {
-                            ProgressView()
-                                .tint(.white)
-                                .accessibilityLabel(title)
-                        }
-                        if !isLoading {
-                            Text(title)
-                                .font(.subheadline.weight(.medium))
-                                .multilineTextAlignment(.center)
-                                .accessibilityAddTraits(.isHeader)
-                        }
-
-                        if let message {
-                            Text(message)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-
-                        if let onAction {
-                            Button(actionTitle, action: onAction)
-                                .buttonStyle(.borderedProminent)
-                                .tint(.white)
-                                .foregroundStyle(.black)
-                        }
-                        if let onClose {
-                            Button("Back", action: onClose)
-                                .buttonStyle(.bordered)
-                                .tint(.white)
-                        }
+                    if let message {
+                        Text(message)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
-                    .padding(.top, 30)
-                    .frame(maxWidth: 320)
+
+                    Button(actionTitle, action: onAction)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .tint(.white)
+                        .foregroundStyle(.black)
+                        .padding(.top, 6)
                 }
-                .padding(.horizontal, 28)
-                .padding(.vertical, 40)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: geometry.size.height)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 320)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 32)
+                .frame(maxWidth: .infinity, minHeight: geometry.size.height)
             }
             .scrollIndicators(.hidden)
         }
