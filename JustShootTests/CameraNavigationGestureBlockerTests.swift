@@ -74,7 +74,12 @@ final class CameraNavigationGestureBlockerTests: XCTestCase {
         for entry in 1...2 {
             state.customBackButton = entry == 2
             state.path = [entry]
-            try await waitUntil { navigation.viewControllers.count == 2 && state.dismiss != nil }
+            // SwiftUI publishes its destination before UIKit finishes applying the
+            // destination controller's gesture policy on a loaded test host.
+            try await waitUntil {
+                navigation.viewControllers.count == 2 && state.dismiss != nil
+                    && navigation.transitionCoordinator == nil && !edge.isEnabled && content?.isEnabled != true
+            }
             XCTAssertEqual(navigation.isNavigationBarHidden, state.customBackButton)
             if #available(iOS 18.0, *) {
                 XCTAssertNil(navigation.topViewController?.preferredTransition,

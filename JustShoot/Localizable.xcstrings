@@ -1,6 +1,74 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Grain for FUJIFILM simulations": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grain for FUJIFILM simulations"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为富士胶片模拟添加颗粒"
+          }
+        }
+      }
+    },
+    "Photo delivery" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo delivery"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片如何保存"
+          }
+        }
+      }
+    },
+    "Prefer 24 MP stills" : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prefer 24 MP stills"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "优先拍摄 2400 万像素照片"
+          }
+        }
+      }
+    },
+    "Standard saves the finished film photo. On supported cameras, 24 MP keeps a restorable original in Photos and applies the film after system processing." : {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard saves the finished film photo. On supported cameras, 24 MP keeps a restorable original in Photos and applies the film after system processing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标准模式直接保存胶片成片。在支持的相机上，2400 万像素模式会在系统相册保留可复原的原片，并在系统处理后应用胶片效果。"
+          }
+        }
+      }
+    },
     "This photo could not be shared. Please try again.": {
       "extractionState": "manual",
       "localizations": {

@@ -9,7 +9,7 @@ import AVFoundation
 
 /// Explicitly opt in on a connected, unlocked device. Configuration checks take no
 /// photos; framing checks retain temporary attachments without a Photos import.
-/// Only testRealCaptureThroughDurablePipelineAndPhotos imports assets into Photos.
+/// Delivery and process-recovery checks explicitly opt in to importing assets into Photos.
 /// Ordinary test runs never capture. Use a stationary, textured subject for framing.
 final class PhysicalCameraPipelineTests: XCTestCase {
     /// Opt-in same-scene framing evidence. Keeps test attachments, never Photos assets.
@@ -359,17 +359,35 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         #if targetEnvironment(simulator)
         throw XCTSkip("A physical camera is required")
         #else
-        let journal = CaptureJournal(root: FileManager.default.temporaryDirectory
-            .appendingPathComponent("camera-validation-\(UUID().uuidString)"))
-        defer { try? FileManager.default.removeItem(at: journal.root) }
+        let producesRestart = ProcessInfo.processInfo.environment["JUSTSHOOT_RESTART_STAGE"] == "write"
+        let verifyBurst = ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_BURST"] == "1"
+        let verifyDelivery = ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_FILM_DELIVERY"] == "1"
+        let verifyDeferred = ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_DEFERRED"] == "1"
+        let switchToPhotos = ProcessInfo.processInfo.environment["JUSTSHOOT_SWITCH_TO_PHOTOS"] == "1"
+        let defaults = UserDefaults.standard
+        let arguments = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
+        // Exercise shipping behavior without changing the device's persisted diagnostic preferences.
+        let diagnosticExports = ProcessInfo.processInfo.environment["JUSTSHOOT_STAGE_EXPORTS"] == "1"
+        defaults.setVolatileDomain(arguments.merging(["processingStageDiagnostics": diagnosticExports]) { _, new in new },
+            forName: UserDefaults.argumentDomain)
+        defer { defaults.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain) }
+        let journal = CaptureJournal(root: producesRestart ? Self.restartDirectory.appendingPathComponent("jobs")
+            : FileManager.default.temporaryDirectory.appendingPathComponent("camera-validation-\(UUID().uuidString)"))
+        if producesRestart, FileManager.default.fileExists(atPath: Self.restartDirectory.path) {
+            // Only this opt-in test owns this directory. A fresh producer starts a new validation pair.
+            try FileManager.default.removeItem(at: Self.restartDirectory)
+        }
+        defer { if !producesRestart { try? FileManager.default.removeItem(at: journal.root) } }
         let schema = Schema([Photo.self, CustomLUT.self])
         let container = try ModelContainer(for: schema,
             configurations: ModelConfiguration(schema: schema, isStoredInMemoryOnly: true))
         let pipeline = CapturePipeline(journal: journal)
         await pipeline.configure(container: container)
         let camera = CameraManager()
+        camera.setHighDetailRequested(verifyDeferred)
         defer { camera.stopSession() }
-        let preview = try await FilmCapturePreparation.shared.displayLUT(source: .preset(.fujiProvia100F), curve: .builtIn(.none))
+        let entrySource = FilmSource.preset(verifyBurst ? .kodakPortra400 : .fujiProvia100F)
+        let preview = try await FilmCapturePreparation.shared.displayLUT(source: entrySource, curve: .builtIn(.none))
         let renderContext = CIContext(options: [.workingColorSpace: FilmImagePipeline.colorSpace, .cacheIntermediates: false])
         try await PreviewMetalResources.warmUpForRenderer()
         let previewKey = "physical-validation-entry"
@@ -378,7 +396,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         let previousWindow = scene.windows.first { $0.isKeyWindow }
         let window = UIWindow(windowScene: scene)
         let host = UIHostingController(rootView: ValidationViewfinder(camera: camera, key: previewKey,
-            texture: initialTexture, profile: FilmSource.preset(.fujiProvia100F).captureRenderProfile))
+            texture: initialTexture, profile: entrySource.captureRenderProfile, pipeline: pipeline, container: container))
         window.rootViewController = host
         window.makeKeyAndVisible()
         defer {
@@ -396,6 +414,11 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         }
         XCTAssertTrue(camera.entryPreparation.isRevealed,
             "entry=\(camera.entryPreparation.phase) pending=\(camera.entryPreparation.pendingRequirements)")
+        if verifyBurst {
+            try await verifyBurstDelivery(camera: camera, pipeline: pipeline, journal: journal, container: container,
+                source: entrySource, key: previewKey, lut: preview)
+            return
+        }
         let format = camera.rawCaptureFormat
 
         // Exercise the real import normalizer and persisted index, then shoot with it.
@@ -410,26 +433,40 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         try container.mainContext.save()
         let customSource = FilmSource.from(custom)
         let initialFocal = camera.currentFocalLength
-        let captures: [(FocalLengthOption, FilmSource, PhotoCaptureMode)] = camera.focalInfo.options.map {
-            ($0, .preset(.fujiProvia100F), .quality)
-        } + [(initialFocal, .preset(.kodakPortra400), .quality),
-            (initialFocal, customSource, .quality), (initialFocal, customSource, .livePhoto)]
-        for (focal, source, mode) in captures {
+        let captures: [(FocalLengthOption, FilmSource, PhotoCaptureMode)]
+        if verifyDeferred {
+            let wide = camera.focalInfo.options.first { $0.rawValue == 24 } ?? initialFocal
+            captures = [(wide, .preset(.kodakPortra400), .quality)]
+        } else if switchToPhotos || producesRestart {
+            let live = switchToPhotos && ProcessInfo.processInfo.environment["JUSTSHOOT_BACKGROUND_LIVE"] == "1"
+            captures = [(initialFocal, .preset(.kodakPortra400), live ? .livePhoto : .quality)]
+        } else if verifyDelivery {
+            captures = [FilmPreset.kodakPortra400, .kodakPortra400, .kodakGold200, .kodakTriX400, .kodakPortra400]
+                .map { (initialFocal, .preset($0), .quality) }
+        } else {
+            captures = camera.focalInfo.options.map { ($0, .preset(.fujiProvia100F), .quality) }
+                + [(initialFocal, .preset(.kodakPortra400), .quality),
+                   (initialFocal, customSource, .quality), (initialFocal, customSource, .livePhoto)]
+        }
+        for (index, capture) in captures.enumerated() {
+            let (focal, source, mode) = capture
             camera.setFocalLength(focal, animated: false)
             let reading = camera.automaticWhiteBalanceReading ?? .neutral
-            let cube = try await ColorTemperatureLUT.shared.prepare(source: source, curve: .builtIn(.none),
+            let adjusted = try await ColorTemperatureLUT.shared.prepare(source: source, curve: .builtIn(.none),
                 selection: .temperature(5_100), tint: .value(8), reference: reading)
+            let cube = try await FilmCapturePreparation.shared.prepareRendering(for: adjusted)
             let key = "physical-validation-\(UUID().uuidString)"
             let texture = try await PreviewLUTTextureCache.shared.prepare(key: key, lut: cube)
             camera.updateEntryLUT(expectedKey: key, preparedKey: key)
             host.rootView = ValidationViewfinder(camera: camera, key: key, texture: texture,
-                profile: source.captureRenderProfile)
+                profile: source.captureRenderProfile, pipeline: pipeline, container: container)
             camera.setLivePhotoAudio(live: mode == .livePhoto, sound: false)
             let modeDeadline = Date().addingTimeInterval(10)
             while !camera.isReadyToCapture && Date() < modeDeadline {
                 try await Task.sleep(for: .milliseconds(100))
             }
             let native24MP = camera.usesDeferredPhotoDelivery
+            if verifyDeferred { XCTAssertTrue(native24MP, "The 24 MP path must negotiate deferred output") }
             let plan = PhotoCapturePlan.resolve(mode: mode)
             if plan.capturesLivePhoto {
                 try await Task.sleep(for: .milliseconds(500))
@@ -461,19 +498,61 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                 photoDisplayTime: nil, raw: rawRecipe, plan: plan,
                 colorAdjustment: ResolvedCameraColorAdjustment.resolve(temperature: .temperature(5_100),
                     tint: .value(8), reading: reading), frozenChromaticGain: previewFrame.chromaticGain)
-            let previewImage = await CapturePreviewRenderer.image(frame: previewFrame, lut: cube, recipe: recipe)
-            let renderedPreview = try XCTUnwrap(previewImage)
-            let previewAttachment = XCTAttachment(image: renderedPreview)
-            previewAttachment.name = "viewfinder-\(focal.rawValue)mm-\(source.photoFilterName)-\(plan.format.rawValue)"
-            previewAttachment.lifetime = .keepAlways
-            add(previewAttachment)
-            pipeline.preparePreview(previewFrame, recipe: recipe, lut: cube)
+            let trace = DiagnosticTrace(id: id.uuidString)
+            var proxyPlaceholder: String?
+            var checkpointFile: FileHandle?
+            var didEnterBackground = false
+            var delayedExit: Task<Void, Never>?
+            let requestBackground = verifyDelivery && switchToPhotos && index == captures.count - 1
+            let exitDelayMs = Int(ProcessInfo.processInfo.environment["JUSTSHOOT_SWITCH_DELAY_MS"] ?? "") ?? 0
+            let background = NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
+                .sink { _ in
+                    didEnterBackground = true
+                    camera.pauseSessionForBackground()
+                    Task { await pipeline.enterBackground() }
+                }
+            let foreground = NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+                .sink { _ in
+                    guard requestBackground && didEnterBackground else { return }
+                    trace.event("test_returned_to_camera")
+                    Task { await pipeline.retryPending() }
+                }
+            let phase = pipeline.$phases.sink { phases in
+                if verifyDeferred, phases[id] == .saving { proxyPlaceholder = try? journal.proxyPlaceholder(for: id) }
+                if verifyDelivery, phases[id] == .saving, checkpointFile == nil {
+                    checkpointFile = try? FileHandle(forReadingFrom: journal.file("rendered.image", for: id))
+                }
+            }
+            defer {
+                delayedExit?.cancel()
+                phase.cancel()
+                background.cancel()
+                foreground.cancel()
+                try? checkpointFile?.close()
+            }
             let start = ProcessInfo.processInfo.systemUptime
             let result: Result<CaptureResult, CameraCaptureFailure> = await withCheckedContinuation { continuation in
                 camera.capturePhoto(admission: admission, live: plan.capturesLivePhoto, raw: plan.capturesRAW,
-                    expectedRAWFormat: plan.capturesRAW ? format : nil, previewFrame: previewFrame, onStillCaptured: { still in
+                    expectedRAWFormat: plan.capturesRAW ? format : nil, previewFrame: previewFrame, trace: trace,
+                    onExposureComplete: {
+                        trace.event("exposure_complete_main")
+                        pipeline.preparePreview(previewFrame, recipe: recipe, lut: cube)
+                        if requestBackground {
+                            let openPhotos = {
+                                trace.event("test_open_photos", "delay_ms=\(exitDelayMs)")
+                                UIApplication.shared.open(URL(string: "photos-redirect://")!) { XCTAssertTrue($0) }
+                            }
+                            if exitDelayMs == 0 { openPhotos() }
+                            else {
+                                delayedExit = Task {
+                                    try? await Task.sleep(for: .milliseconds(exitDelayMs))
+                                    if !Task.isCancelled { openPhotos() }
+                                }
+                            }
+                        }
+                    }, onStillCaptured: { still in
                     await pipeline.checkpointStill(still, recipe: recipe, lut: cube, rawLUT: rawLUT)
-                }) { continuation.resume(returning: $0) }
+                }, onFinalStill: { pipeline.deliverFinalStill($0, id: id) }) { continuation.resume(returning: $0) }
             }
             let captured = try result.get()
             let deliveryMs = (ProcessInfo.processInfo.systemUptime - start) * 1_000
@@ -492,6 +571,27 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             let model = (props?[kCGImagePropertyTIFFDictionary as String] as? [String: Any])?[kCGImagePropertyTIFFModel as String]
             let completedRecipe = recipe.withPhotoDisplayTime(captured.photoDisplayTime.isValid && captured.photoDisplayTime.isNumeric
                 ? captured.photoDisplayTime.seconds : nil)
+            if producesRestart {
+                XCTAssertEqual(try journal.job(for: id).awaitingCaptureCompletion, true)
+                let second = CaptureRecipe(id: UUID(), captureDate: recipe.captureDate.addingTimeInterval(0.1),
+                    filterName: recipe.filterName, displayLabel: nil, focalLength: recipe.focalLength, outputQuality: nil,
+                    profile: recipe.profile, grainSeed: recipe.grainSeed, location: nil, lutDimension: cube.dimension,
+                    chromaticSceneCCT: nil, photoDisplayTime: nil, plan: recipe.plan, frozenChromaticGain: recipe.frozenChromaticGain)
+                let rendered = await Task.detached {
+                    CapturePhotoRenderer.render(source: captured.imageData, recipe: second, lut: cube, rawLUT: nil, grainSeed: second.grainSeed)
+                }.value
+                let bytes = try XCTUnwrap(rendered)
+                var job = try journal.stage(recipe: second, imageData: captured.imageData, movieURL: nil, lut: cube)
+                try journal.writeRenderedImage(bytes, for: job.id)
+                job.rendered = true
+                try journal.update(job)
+                let asset = try await PhotoLibrary.save(imageData: bytes, creationDate: second.captureDate,
+                    latitude: nil, longitude: nil, altitude: nil, locationTimestamp: nil, captureID: second.id)
+                let state = RestartState(pid: ProcessInfo.processInfo.processIdentifier, original: id, saved: second.id, asset: asset)
+                try JSONEncoder().encode(state).write(to: Self.restartDirectory.appendingPathComponent("state.json"), options: .atomic)
+                print("physical_restart_staged jobs=2 original_checkpoint=true photos_committed=true")
+                return
+            }
             pipeline.enqueue(captured, recipe: completedRecipe, lut: cube, rawLUT: rawLUT)
             let saveDeadline = Date().addingTimeInterval(60)
             while pipeline.lastCompletion?.id != id && Date() < saveDeadline {
@@ -522,6 +622,53 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             XCTAssertEqual(outputProps[kCGImagePropertyOrientation as String] as? Int, 1)
             XCTAssertNil(outputProps[kCGImagePropertyDNGDictionary as String])
             XCTAssertTrue(try journal.jobs().isEmpty)
+            if plan.capturesLivePhoto {
+                let playable = await AssetImageLoader.shared.livePhoto(id: assetID,
+                    targetSize: CGSize(width: 320, height: 320), trace: trace) != nil
+                XCTAssertTrue(playable, "The saved Photos asset must load for Live Photo playback")
+                print("physical_live_library playable=\(playable)")
+            }
+            if verifyDeferred {
+                if requestBackground { XCTAssertTrue(didEnterBackground) }
+                let deferred = try XCTUnwrap(captured.deferredPhoto)
+                XCTAssertGreaterThan(deferred.width * deferred.height, 20_000_000)
+                let resources = PHAssetResource.assetResources(for: asset)
+                XCTAssertTrue(resources.contains { $0.type == .adjustmentData })
+                let preserved = await AssetImageLoader.shared.imageData(id: assetID, original: true)
+                let original = try XCTUnwrap(preserved)
+                XCTAssertNotEqual(original, output)
+                XCTAssertEqual(proxyPlaceholder, assetID)
+                // Simulate a restart after PhotoKit developed/renamed the proxy and before its manifest update.
+                let retried = try await PhotoLibrary.saveDeferredProxy(Data(), recipe: recipe, reservedAsset: XCTUnwrap(proxyPlaceholder))
+                XCTAssertEqual(retried, assetID)
+                print("physical_deferred_delivery id=\(id) size=\(asset.pixelWidth)x\(asset.pixelHeight) original_bytes=\(original.count) edited_bytes=\(output.count)")
+                continue
+            }
+            if verifyDelivery && !verifyDeferred {
+                XCTAssertNil(captured.deferredPhoto)
+                let resources = PHAssetResource.assetResources(for: asset)
+                XCTAssertFalse(resources.contains { $0.type == .adjustmentData || $0.type == .photoProxy })
+                let photo = try XCTUnwrap(resources.first { $0.type == .photo })
+                let originalURL = journal.root.appendingPathComponent("\(id).heic")
+                try await PHAssetResourceManager.default().writeData(for: photo, toFile: originalURL, options: nil)
+                let originalInPhotos = try Data(contentsOf: originalURL)
+                let renderedCheckpoint = try XCTUnwrap(checkpointFile).readToEnd()
+                XCTAssertEqual(originalInPhotos, renderedCheckpoint, "The first Photos original must contain the rendered film bytes")
+                XCTAssertNotEqual(originalInPhotos, captured.imageData)
+                if requestBackground {
+                    let deadline = Date().addingTimeInterval(8)
+                    while !didEnterBackground, Date() < deadline { try await Task.sleep(for: .milliseconds(50)) }
+                    XCTAssertTrue(didEnterBackground)
+                }
+                print("physical_film_delivery id=\(id) film=\(source.photoFilterName) original_matches=\(originalInPhotos == renderedCheckpoint) background=\(didEnterBackground) size=\(asset.pixelWidth)x\(asset.pixelHeight)")
+                continue
+            }
+            let previewImage = await CapturePreviewRenderer.image(frame: previewFrame, lut: cube, recipe: recipe)
+            let renderedPreview = try XCTUnwrap(previewImage)
+            let previewAttachment = XCTAttachment(image: renderedPreview)
+            previewAttachment.name = "viewfinder-\(focal.rawValue)mm-\(source.photoFilterName)-\(plan.format.rawValue)"
+            previewAttachment.lifetime = .keepAlways
+            add(previewAttachment)
             let attachment = XCTAttachment(data: output, uniformTypeIdentifier: CGImageSourceGetType(outputSource)! as String)
             attachment.name = "\(focal.rawValue)mm-\(source.photoFilterName)-\(plan.format.rawValue)-sRGB"
             attachment.lifetime = .keepAlways
@@ -537,6 +684,139 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             print("physical_capture_validated model=\(model ?? "unknown") os=\(UIDevice.current.systemVersion) focal_mm=\(focal.rawValue) preview_crop=\(previewFrame.crop) frame_id=\(previewFrame.frameID) source_revision=\(previewFrame.sourceRevision) film=\(source.photoFilterName) format=\(plan.format.rawValue) input=\(plan.inputSpace.rawValue) raw_bytes=\(captured.imageData.count) output_bytes=\(output.count) size=\(asset.pixelWidth)x\(asset.pixelHeight) delivery_ms=\(Int(deliveryMs)) total_ms=\(Int((ProcessInfo.processInfo.systemUptime - start) * 1_000))")
         }
         #endif
+    }
+
+    private struct RestartState: Codable {
+        let pid: Int32
+        let original: UUID
+        let saved: UUID
+        let asset: String
+    }
+
+    private static var restartDirectory: URL {
+        URL.applicationSupportDirectory.appendingPathComponent("PhysicalCaptureRestartValidation", isDirectory: true)
+    }
+
+    @MainActor
+    func testRecoverRealShutterInNewProcess() async throws {
+        guard ProcessInfo.processInfo.environment["JUSTSHOOT_RESTART_STAGE"] == "read" else {
+            throw XCTSkip("Run the opted-in physical producer and consumer in separate test processes")
+        }
+        let directory = Self.restartDirectory
+        let state = try JSONDecoder().decode(RestartState.self, from: Data(contentsOf: directory.appendingPathComponent("state.json")))
+        XCTAssertNotEqual(state.pid, ProcessInfo.processInfo.processIdentifier)
+        let journal = CaptureJournal(root: directory.appendingPathComponent("jobs"))
+        let original = try Data(contentsOf: journal.file("original.image", for: state.original))
+        let existing = try Data(contentsOf: journal.file("rendered.image", for: state.saved))
+        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let pipeline = CapturePipeline(journal: journal)
+        var renderedFile: FileHandle?
+        let phases = pipeline.$phases.sink {
+            if $0[state.original] == .saving, renderedFile == nil {
+                renderedFile = try? FileHandle(forReadingFrom: journal.file("rendered.image", for: state.original))
+            }
+        }
+        defer { phases.cancel(); try? renderedFile?.close() }
+        await pipeline.configure(container: container)
+        await pipeline.retryPending()
+        let deadline = Date().addingTimeInterval(60)
+        while try !journal.jobs().isEmpty || pipeline.pendingCount != 0 {
+            guard Date() < deadline else { return XCTFail(pipeline.lastError ?? "Recovery did not drain") }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        await pipeline.retryPending()
+        let rows = try ModelContext(container).fetch(FetchDescriptor<Photo>())
+        XCTAssertEqual(Set(rows.map(\.id)), [state.original, state.saved])
+        XCTAssertEqual(rows.count, 2)
+        var matches: [UUID: Int] = [:]
+        let date = try XCTUnwrap(rows.first?.timestamp)
+        let options = PHFetchOptions()
+        options.predicate = NSPredicate(format: "creationDate >= %@ AND creationDate <= %@",
+            date.addingTimeInterval(-2) as NSDate, date.addingTimeInterval(2) as NSDate)
+        PHAsset.fetchAssets(with: .image, options: options).enumerateObjects { asset, _, _ in
+            let filenames = PHAssetResource.assetResources(for: asset).map(\.originalFilename)
+            if let id = PhotoLibrary.captureIdentifier(in: filenames) { matches[id, default: 0] += 1 }
+        }
+        let rendered = try XCTUnwrap(renderedFile).readToEnd()
+        for row in rows {
+            XCTAssertEqual(matches[row.id], 1)
+            let assetID = try XCTUnwrap(row.assetLocalIdentifier)
+            if row.id == state.saved { XCTAssertEqual(assetID, state.asset) }
+            let asset = try XCTUnwrap(PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject)
+            let photo = try XCTUnwrap(PHAssetResource.assetResources(for: asset).first { $0.type == .photo })
+            let output = directory.appendingPathComponent("\(row.id).heic")
+            try await PHAssetResourceManager.default().writeData(for: photo, toFile: output, options: nil)
+            let bytes = try Data(contentsOf: output)
+            XCTAssertEqual(bytes, row.id == state.saved ? existing : rendered)
+            XCTAssertNotEqual(bytes, original)
+        }
+        try FileManager.default.removeItem(at: directory)
+        print("physical_restart_recovered distinct_process=true assets=2 exactly_once=true")
+    }
+
+    @MainActor
+    private func verifyBurstDelivery(camera: CameraManager, pipeline: CapturePipeline, journal: CaptureJournal,
+                                    container: ModelContainer, source: FilmSource, key: String, lut: CubeLUT) async throws {
+        let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
+        let selection = CameraCaptureSelection(source: source, lutKey: key, lut: lut, profile: source.captureRenderProfile,
+            adjustment: nil, plan: .resolve(mode: .quality), curveFields: "", colorFields: "")
+        var accepted: [UUID] = []
+        var previews: [UUID] = []
+        let switchToPhotos = ProcessInfo.processInfo.environment["JUSTSHOOT_SWITCH_TO_PHOTOS"] == "1"
+        var pendingAtExit: Int?
+        let observation = pipeline.$lastPreview.compactMap { $0?.id }.sink { id in
+            previews.append(id)
+            if switchToPhotos, accepted.count == 10, accepted.last == id {
+                DiagnosticTrace(id: id.uuidString).event("test_open_photos", "burst=10")
+                UIApplication.shared.open(URL(string: "photos-redirect://")!) { XCTAssertTrue($0) }
+            }
+        }
+        let background = NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
+            .sink { _ in
+                pendingAtExit = pipeline.pendingCount
+                camera.pauseSessionForBackground()
+                Task { await pipeline.enterBackground() }
+            }
+        let foreground = NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+            .sink { _ in
+                if pendingAtExit != nil { Task { await pipeline.retryPending() } }
+            }
+        defer { observation.cancel(); background.cancel(); foreground.cancel() }
+        var peakPending = 0
+        let start = ProcessInfo.processInfo.systemUptime
+        for index in 0..<10 {
+            let deadline = Date().addingTimeInterval(15)
+            while (coordinator.isShutterBusy || !camera.isReadyToCapture || !pipeline.canCapture), Date() < deadline {
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            await coordinator.capture(selection: selection, currentLookKey: { key }, isSceneActive: { true },
+                onAccepted: { if let id = coordinator.activeShutterID { accepted.append(id) } }, onWillCapture: {})
+            XCTAssertNil(coordinator.error)
+            guard accepted.count == index + 1 else { return XCTFail("Shutter was not admitted at index \(index)") }
+            peakPending = max(peakPending, pipeline.pendingCount)
+        }
+        let issueSeconds = ProcessInfo.processInfo.systemUptime - start
+        let deadline = Date().addingTimeInterval(90)
+        while pipeline.lastCompletion?.captureID != accepted.last || pipeline.pendingCount != 0 {
+            guard Date() < deadline else { return XCTFail(pipeline.lastError ?? coordinator.error ?? "Burst did not drain") }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        let rows = try ModelContext(container).fetch(FetchDescriptor<Photo>())
+        XCTAssertEqual(rows.count, 10)
+        XCTAssertEqual(Set(rows.map(\.id)), Set(accepted))
+        XCTAssertEqual(previews.last, accepted.last)
+        if switchToPhotos { XCTAssertGreaterThan(try XCTUnwrap(pendingAtExit), 0) }
+        let positions = previews.compactMap { accepted.firstIndex(of: $0) }
+        XCTAssertEqual(positions, positions.sorted(), "An older thumbnail replaced a newer shot")
+        let assets = Set(rows.compactMap(\.assetLocalIdentifier))
+        XCTAssertEqual(assets.count, 10)
+        XCTAssertEqual(PHAsset.fetchAssets(withLocalIdentifiers: Array(assets), options: nil).count, 10)
+        for row in rows {
+            XCTAssertEqual(PhotoLibrary.findCapture(id: row.id, creationDate: row.timestamp), row.assetLocalIdentifier)
+        }
+        XCTAssertTrue(try journal.jobs().isEmpty)
+        print("physical_burst shots=\(rows.count) previews=\(previews.count) peak_pending=\(peakPending) pending_at_exit=\(pendingAtExit ?? 0) issue_seconds=\(issueSeconds) drain_seconds=\(ProcessInfo.processInfo.systemUptime - start)")
     }
 
     /// Replay one native exposure through every built-in look at full resolution.
@@ -598,6 +878,8 @@ private struct ValidationViewfinder: View {
     let key: String
     let texture: PreviewLUTTexture
     let profile: FilmRenderProfile
+    var pipeline: CapturePipeline?
+    var container: ModelContainer?
 
     var body: some View {
         ZStack {
@@ -608,5 +890,21 @@ private struct ValidationViewfinder: View {
         }
             .aspectRatio(camera.previewAspectRatio, contentMode: .fit)
             .background(.black)
+            .overlay(alignment: .bottomLeading) {
+                if let pipeline, let container {
+                    ValidationBadge(pipeline: pipeline).modelContainer(container)
+                }
+            }
+    }
+}
+
+private struct ValidationBadge: View {
+    @ObservedObject var pipeline: CapturePipeline
+    @State private var hint: RecentPhotoThumbnail?
+
+    var body: some View {
+        RecentPhotosBadge(lastThumbnailHint: $hint, pendingPreview: pipeline.lastPreview,
+            isShutterBusy: false, isProcessing: pipeline.lastPreview.map { pipeline.isProcessing($0.id) } ?? false,
+            controlRotationAngle: .zero, orientation: .portrait)
     }
 }

@@ -193,19 +193,36 @@ enum PhotoLibrary {
 
     /// Persist the proxy immediately; PhotoKit owns the intermediate capture resources
     /// needed to produce the real 24 MP photo. Do not decode or filter proxy pixels.
-    static func saveDeferredProxy(_ data: Data, recipe: CaptureRecipe) async throws -> String {
+    static func saveDeferredProxy(_ data: Data, recipe: CaptureRecipe, reservedAsset: String? = nil,
+                                  recordPlaceholder: @escaping @Sendable (String?) throws -> Void = { _ in }) async throws -> String {
         try await ensureAuthorized()
+        if let reservedAsset {
+            if PHAsset.fetchAssets(withLocalIdentifiers: [reservedAsset], options: nil).firstObject != nil { return reservedAsset }
+            if PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited { throw PhotoLibraryError.inaccessibleAssets }
+        }
         if let existing = findCapture(id: recipe.id, creationDate: recipe.captureDate) { return existing }
         let result = Box<String?>(nil)
-        try await PHPhotoLibrary.shared().performChanges {
-            let creation = PHAssetCreationRequest.forAsset()
-            creation.creationDate = recipe.captureDate
-            creation.location = recipe.location?.location
-            let options = PHAssetResourceCreationOptions()
-            options.originalFilename = captureFilename(recipe.id, imageData: data)
-            creation.addResource(with: .photoProxy, data: data, options: options)
-            result.value = creation.placeholderForCreatedAsset?.localIdentifier
+        let recordingFailure = Box<(any Error)?>(nil)
+        do {
+            try await PHPhotoLibrary.shared().performChanges {
+                let creation = PHAssetCreationRequest.forAsset()
+                guard let id = creation.placeholderForCreatedAsset?.localIdentifier else { return }
+                do { try recordPlaceholder(id) }
+                catch { recordingFailure.value = error; return }
+                creation.creationDate = recipe.captureDate
+                creation.location = recipe.location?.location
+                let options = PHAssetResourceCreationOptions()
+                options.originalFilename = captureFilename(recipe.id, imageData: data)
+                creation.addResource(with: .photoProxy, data: data, options: options)
+                result.value = id
+            }
+        } catch {
+            // PhotoKit rolled back this transaction. Its provisional ID is no longer
+            // an inaccessible asset that a future limited-library retry must preserve.
+            if result.value != nil { try recordPlaceholder(nil) }
+            throw recordingFailure.value ?? error
         }
+        if let error = recordingFailure.value { throw error }
         guard let id = result.value else { throw PhotoLibraryError.saveFailed }
         return id
     }

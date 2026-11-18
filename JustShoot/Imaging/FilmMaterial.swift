@@ -65,6 +65,16 @@ struct FilmMaterial: Sendable, Codable {
 
     var byteCount: Int { input.data.count + density.data.count + print.data.count + finish.data.count }
     static func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
+    struct Checkpoint: Sendable {
+        let data: Data
+        let sha256: String
+
+        init(_ material: FilmMaterial) throws {
+            data = try material.encoded()
+            sha256 = FilmMaterial.digest(data)
+        }
+    }
+
     func encoded() throws -> Data {
         try validate()
         let encoder = PropertyListEncoder()

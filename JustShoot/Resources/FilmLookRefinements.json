@@ -1,5 +1,5 @@
 {
-  "revision": "skin-shadow-v1",
+  "revision": "skin-shadow-v2",
   "profiles": {
     "fujiProvia100F": {
       "shadowRetention": 0.22,
@@ -59,19 +59,22 @@
       "shadowRetention": 0,
       "skinHue": 0,
       "skinChroma": 0,
-      "skinLightness": 0
+      "skinLightness": 0,
+      "toeSeparation": 0.095
     },
     "kodakEktar100": {
       "shadowRetention": 0,
       "skinHue": 0,
       "skinChroma": 0,
-      "skinLightness": 0
+      "skinLightness": 0,
+      "toeSeparation": 0.075
     },
     "kodakPortra800": {
       "shadowRetention": 0,
       "skinHue": 0,
       "skinChroma": 0,
-      "skinLightness": 0
+      "skinLightness": 0,
+      "toeSeparation": 0.085
     },
     "fujiSuperiaXTRA400": {
       "shadowRetention": 0,

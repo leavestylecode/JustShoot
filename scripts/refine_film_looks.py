@@ -32,6 +32,8 @@ def chroma(rgb):
 def refine(rgb, graded, profile):
     """Encoded-sRGB Y'/Cb/Cr, input-gated; no semantic face detection or AWB."""
     y, uv = chroma(rgb)
+    separation = profile.get("toeSeparation", 0) * y * (1 - smooth(.05, .28, y))
+    graded = graded + np.minimum(separation, 1 - graded.max(axis=-1))[..., None]
     out_y, out_uv = chroma(graded)
     source_c = np.linalg.norm(uv, axis=-1)
     out_c = np.linalg.norm(out_uv, axis=-1)

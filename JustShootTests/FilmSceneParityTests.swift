@@ -61,8 +61,9 @@ final class FilmSceneParityTests: XCTestCase {
             .workingFormat: CIFormat.RGBAf, .cacheIntermediates: false])
         var scenes = stressScenes()
         if let directory = ProcessInfo.processInfo.environment["JUSTSHOOT_SCENE_FIXTURES"] {
+            let root = URL(fileURLWithPath: directory, isDirectory: true, relativeTo: URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true))
             for name in ["skin", "daylight", "night"] {
-                let url = URL(fileURLWithPath: directory).appendingPathComponent(name + ".png")
+                let url = root.appendingPathComponent(name + ".png")
                 let image = try XCTUnwrap(CIImage(contentsOf: url,
                     options: [.applyOrientationProperty: true]), "Missing SDR fixture: \(url.path)")
                 scenes.append(Scene(name: name, image: image))

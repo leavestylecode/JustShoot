@@ -3,7 +3,7 @@ import Foundation
 /// Bounded display-space refinement of bundled looks. Baked off the UI thread
 /// into the shared cube; no face detector, per-frame pass, or custom-LUT rewrite.
 enum FilmLookRefinement {
-    static let revision = "skin-shadow-v1"
+    static let revision = "skin-shadow-v2"
     static let cacheSuffix = "#" + revision
 
     private struct Profile: Decodable, Sendable {
@@ -12,8 +12,14 @@ enum FilmLookRefinement {
         let skinChroma: Float
         let skinLightness: Float
 
+        let toeSeparation: Float?
+
+        var hasPortraitAdjustment: Bool {
+            shadowRetention > 0 || skinHue > 0 || skinChroma > 0 || skinLightness > 0
+        }
+
         var isValid: Bool {
-            [shadowRetention, skinHue, skinChroma, skinLightness].allSatisfy {
+            [shadowRetention, skinHue, skinChroma, skinLightness, toeSeparation ?? 0].allSatisfy {
                 $0.isFinite && (0...0.6).contains($0)
             }
         }
@@ -43,6 +49,7 @@ enum FilmLookRefinement {
     static func applying(to original: CubeLUT, preset: FilmPreset) throws -> CubeLUT {
         let config = try configuration.get()
         guard let profile = config.profiles[preset.rawValue] else { throw CubeLUT.ParseError.malformed }
+        guard profile.hasPortraitAdjustment || (profile.toeSeparation ?? 0) > 0 else { return original }
         let dimension = original.dimension
         let divisor = Float(dimension - 1)
         var data = original.data
@@ -78,7 +85,12 @@ enum FilmLookRefinement {
     }
 
     private static func refine(input: SIMD3<Float>, graded: SIMD3<Float>, profile: Profile) -> SIMD3<Float> {
-        let y = luma(input), outY = luma(graded)
+        let y = luma(input)
+        let separation = (profile.toeSeparation ?? 0) * y * (1 - smooth(0.05, 0.28, y))
+        // Equal channel increments preserve chroma and the pure-black endpoint.
+        let graded = graded + min(separation, 1 - max(graded.x, graded.y, graded.z))
+        guard profile.hasPortraitAdjustment else { return graded }
+        let outY = luma(graded)
         let uv = SIMD2((input.z - y) / 1.8556, (input.x - y) / 1.5748)
         let outUV = SIMD2((graded.z - outY) / 1.8556, (graded.x - outY) / 1.5748)
         let sourceChroma = length(uv), outputChroma = length(outUV)

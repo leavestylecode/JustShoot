@@ -59,7 +59,7 @@ final class CameraCoordinator: ObservableObject {
     @Published private(set) var isShutterBusy = false
     @Published private(set) var showsCaptureProgress = false
     @Published var error: String?
-    private var activeShutterID: UUID?
+    private(set) var activeShutterID: UUID?
     private var progressTask: Task<Void, Never>?
     private let camera: any CameraCaptureControlling
     private let pipeline: any CaptureProcessing
@@ -192,7 +192,6 @@ final class CameraCoordinator: ObservableObject {
             lutDimension: selection.lut.dimension, chromaticSceneCCT: sceneCCT, photoDisplayTime: nil,
             plan: selection.plan, colorAdjustment: selection.adjustment, frozenChromaticGain: frame.chromaticGain,
             preservesSourceFocalLength: camera.focalInfo.constituent(for: FocalLengthOption(admission.focalLength))?.calibrationSource == .fieldOfView)
-        pipeline.preparePreview(frame, recipe: recipe, lut: selection.lut)
         handedToCamera = true
         let pipeline = self.pipeline
         camera.capture(admission: admission, live: wantsLive, previewFrame: frame, trace: trace,
@@ -201,6 +200,7 @@ final class CameraCoordinator: ObservableObject {
                 Log.capture.info("will_capture dt_from_tap=\(Log.ms(since: tapTime))ms")
                 onWillCapture()
             }, onExposureComplete: {
+                pipeline.preparePreview(frame, recipe: recipe, lut: selection.lut)
                 trace.event("exposure_complete_main")
                 Log.capture.info("exposure_complete dt_from_tap=\(Log.ms(since: tapTime))ms")
             }, onShutterReady: {

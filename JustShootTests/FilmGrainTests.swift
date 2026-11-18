@@ -218,6 +218,30 @@ final class FilmGrainTests: XCTestCase {
         }
     }
 
+    func testNewCaptureGrainScaleAndSimulationChoiceAreFrozenInTheProfile() throws {
+        let old = FilmPreset.kodakPortra400.renderProfile.grain.forUnifiedCapture
+        let captured = FilmSource.preset(.kodakPortra400).captureRenderProfile.grain
+        XCTAssertGreaterThan(captured.size, old.size)
+        XCTAssertEqual(captured.amount, old.amount)
+        XCTAssertEqual(captured.chroma, old.chroma)
+        for preset in FilmPreset.allCases {
+            let source = FilmSource.preset(preset)
+            let normal = source.captureRenderProfile.grain
+            let enabled = source.captureRenderProfile(simulationGrain: true).grain
+            if preset.rawSimulation != nil {
+                XCTAssertFalse(normal.isEnabled)
+                XCTAssertTrue(enabled.isEnabled)
+                XCTAssertEqual(enabled.response, .balancedAreaMatched)
+                if preset.isMonochrome { XCTAssertEqual(enabled.chroma, 0) }
+            } else {
+                XCTAssertEqual(enabled, normal)
+            }
+            let recovered = try JSONDecoder().decode(FilmGrainParameters.self,
+                from: JSONEncoder().encode(enabled))
+            XCTAssertEqual(recovered, enabled)
+        }
+    }
+
     func testUnifiedCaptureTexturePreservesShadowAndSkinMeansForEveryLook() {
         let colors: [SIMD3<Float>] = [SIMD3(repeating: 0.02), SIMD3(repeating: 0.08),
             SIMD3(0.55, 0.39, 0.30), SIMD3(0.30, 0.19, 0.12), SIMD3(repeating: 0.98)]

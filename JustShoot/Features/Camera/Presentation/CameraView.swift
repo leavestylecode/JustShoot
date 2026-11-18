@@ -16,6 +16,8 @@ struct CameraView: View {
     @ObservedObject private var filmSettings: FilmPageSettings
     /// Preserve the saved Live Photo preference; the still-photo format is automatic.
     @AppStorage("photoCaptureMode") private var captureModeValue = PhotoCaptureMode.quality.rawValue
+    @AppStorage(CameraCapturePolicy.highDetailPreferenceKey) private var highDetail = false
+    @AppStorage(FilmSource.simulationGrainPreferenceKey) private var simulationGrain = false
     /// 曲线目录同时提供当前选择、默认曲线显隐及用户自定义曲线。
     @EnvironmentObject private var curveLibrary: FilmCurveLibrary
     /// Picker 候选列表里需要展示用户导入的自定义 LUT；CameraView 自己持有 @Query 直接喂给 strip。
@@ -34,7 +36,7 @@ struct CameraView: View {
     @State private var preparedPickerCovers: [FilmPreset: UIImage] = [:]
     @State private var colorControls = CameraColorControlsState()
     @State private var shutterPressed = false
-    /// 拍照 pipeline 完成时立即 push 进来的 88pt 缩略图 hint（避免等 @Query 通知链 ~300-500ms）。
+    /// 拍照 pipeline 完成时立即 push 进来的 成片缩略图 hint（避免等 @Query 通知链 ~300-500ms）。
     /// RecentPhotosBadge 观察全部拍摄记录；切换胶片保留最新缩略图。
     @State private var lastPhotoThumbnail: RecentPhotoThumbnail?
     @State private var isReviewingPhotos = false
@@ -97,9 +99,11 @@ struct CameraView: View {
             cameraManager.setEntrySceneActive(scenePhase == .active)
             cameraManager.updateEntryPipelineReady(capturePipeline.isPrepared)
             cameraManager.updateEntryLUT(expectedKey: previewLUTKey, preparedKey: preparedLUT?.key)
+            cameraManager.setHighDetailRequested(highDetail)
             cameraManager.requestCameraPermission()
             cameraManager.setLivePhotoAudio(live: wantsLiveCapture)
         }
+        .onChange(of: highDetail) { _, value in cameraManager.setHighDetailRequested(value) }
         .onChange(of: captureModeValue) { _, _ in
             cameraManager.diagnostics.event("live_photo_preference_changed", "requested=\(wantsLiveCapture) supported=\(cameraManager.livePhotoCaptureState.supported) enabled=\(cameraManager.livePhotoCaptureState.enabled)")
             cameraManager.setLivePhotoAudio(live: wantsLiveCapture)
@@ -148,6 +152,8 @@ struct CameraView: View {
             cameraManager.updateEntryLUT(expectedKey: key, preparedKey: preparedLUT?.key)
             guard preparedLUT?.key != key else { return }
             let requestedSource = source
+            let requestedProfile = source.captureRenderProfile(simulationGrain: simulationGrain)
+            let textureKey = colorLUTKey
             let curve = selectedCurve
             let curveFields = curveDiagnosticFields(curve)
             let selection = colorControls.temperature
@@ -168,15 +174,15 @@ struct CameraView: View {
             let lutWait = cameraManager.diagnostics.span("camera_lut_prepare",
                 "\(curveFields) \(colorAdjustmentDiagnosticFields) cadence_wait_ms=\(Diagnostics.milliseconds(since: requestedAt))")
             do {
-                let lut = try await ColorTemperatureLUT.shared.prepare(source: requestedSource, curve: curve, selection: selection, tint: tint, reference: reference)
-                try await FilmCapturePreparation.shared.prepareRendering()
+                let adjustedLUT = try await ColorTemperatureLUT.shared.prepare(source: requestedSource, curve: curve, selection: selection, tint: tint, reference: reference)
+                let lut = try await FilmCapturePreparation.shared.prepareRendering(for: adjustedLUT)
                 try Task.checkCancellation()
-                let texture = try await PreviewLUTTextureCache.shared.prepare(key: key, lut: lut)
+                let texture = try await PreviewLUTTextureCache.shared.prepare(key: textureKey, lut: lut)
                 lutWait.end("ok", "cancelled=\(Task.isCancelled)")
                 guard !Task.isCancelled, key == previewLUTKey else { return }
                 let adjustment = selection.isAutomatic && tint.isAutomatic ? nil
                     : ResolvedCameraColorAdjustment.resolve(temperature: selection, tint: tint, reading: reference)
-                preparedLUT = (key, lut, texture, requestedSource.captureRenderProfile, adjustment)
+                preparedLUT = (key, lut, texture, requestedProfile, adjustment)
                 cameraManager.updateEntryLUT(expectedKey: key, preparedKey: key)
                 cameraManager.diagnostics.event("camera_lut_ready", "dimension=\(lut.dimension) \(curveFields) \(colorAdjustmentDiagnosticFields)")
                 await waitForCurrentLookPresentation(key: key)
@@ -464,9 +470,10 @@ struct CameraView: View {
                     RealtimePreviewView(
                         manager: cameraManager,
                         resourcesReady: cameraManager.entryPreparation.resourcesReady,
-                        lutCacheKey: preparedLUT?.key ?? previewLUTKey,
+                        lutCacheKey: preparedLUT?.texture.key ?? colorLUTKey,
+                        presentedLookKey: preparedLUT?.key ?? previewLUTKey,
                         preparedLUT: preparedLUT?.texture,
-                        grain: preparedLUT?.profile.grain ?? source.captureRenderProfile.grain,
+                        grain: preparedLUT?.profile.grain ?? source.captureRenderProfile(simulationGrain: simulationGrain).grain,
                         optics: preparedLUT?.profile.optics ?? source.captureRenderProfile.optics,
                         chromatic: preparedLUT?.profile.effectiveChromatic ?? source.captureRenderProfile.effectiveChromatic,
                         isContentVisible: !isReviewingPhotos
@@ -570,8 +577,8 @@ struct CameraView: View {
         RecentPhotosBadge(
             lastThumbnailHint: $lastPhotoThumbnail,
             pendingPreview: capturePipeline.lastPreview,
-            isShutterBusy: coordinator.isShutterBusy,
-            isProcessing: capturePipeline.pendingCount > 0,
+            isShutterBusy: coordinator.isShutterBusy && coordinator.activeShutterID != capturePipeline.lastPreview?.id,
+            isProcessing: capturePipeline.lastPreview.map { capturePipeline.isProcessing($0.id) } ?? false,
             controlRotationAngle: controlRotationAngle,
             orientation: cameraManager.controlsOrientation,
             onPresentationChanged: { isReviewingPhotos = $0 }
@@ -825,6 +832,10 @@ struct CameraView: View {
         cameraManager.setLivePhotoAudio(live: wantsLiveCapture)
     }
     private var previewLUTKey: String {
+        colorLUTKey + (simulationGrain && source.supportsSimulationGrain ? "#simulation-grain-v1" : "")
+    }
+
+    private var colorLUTKey: String {
         let baseKey = FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: selectedCurve)
         return ColorTemperatureLUT.cacheKey(baseKey: baseKey, selection: colorControls.temperature,
             tint: colorControls.tint, reference: cameraManager.automaticWhiteBalanceReading)
@@ -842,9 +853,6 @@ struct CameraView: View {
             "kelvin=\(resolved.map { String($0.temperature) } ?? "unavailable") tint=\(resolved.map { String($0.tint) } ?? "unavailable") " +
             "reference_kelvin=\(reading.map { String($0.temperature) } ?? "unavailable") reference_tint=\(reading.map { String($0.tint) } ?? "unavailable")"
     }
-
-    /// 与拍照后立即写入的 thumbnail size 对齐——同 key 命中 NSCache，零额外解码。
-    fileprivate static let thumbnailMaxPixel = 88
 
     private func capturePhoto() async {
         let selection = preparedLUT.map {

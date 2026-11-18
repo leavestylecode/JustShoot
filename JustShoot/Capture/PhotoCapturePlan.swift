@@ -49,10 +49,30 @@ struct PhotoCapturePlan: Codable, Equatable, Sendable {
 extension FilmSource {
     var inputSpace: FilmInputSpace { .displaySRGB }
 
+    static let simulationGrainPreferenceKey = "simulationGrainEnabled"
+
+    var supportsSimulationGrain: Bool {
+        if case .preset(let preset) = self { return preset.rawSimulation != nil }
+        return false
+    }
+
+    var captureRenderProfile: FilmRenderProfile { captureRenderProfile(simulationGrain: false) }
+
     /// LUTs already define their color response. Retain film texture while removing
     /// the old, uncalibrated second illuminant-dependent color cast from new photos.
-    var captureRenderProfile: FilmRenderProfile {
+    func captureRenderProfile(simulationGrain: Bool) -> FilmRenderProfile {
         let profile = renderProfile
-        return FilmRenderProfile(grain: profile.grain.forUnifiedCapture, optics: profile.optics, chromatic: .neutral)
+        var grain = profile.grain.forUnifiedCapture
+        if case .preset(let preset) = self {
+            if preset == .kodakPortra400 {
+                // A broader density grain survives album downsampling at the same native amplitude.
+                grain = FilmGrainParameters(amount: grain.amount, size: grain.size * 1.4,
+                    chroma: grain.chroma, response: grain.response)
+            } else if simulationGrain && supportsSimulationGrain {
+                grain = FilmGrainParameters(amount: 0.032, size: 1.5,
+                    chroma: preset.isMonochrome ? 0 : 0.04, response: .balancedAreaMatched)
+            }
+        }
+        return FilmRenderProfile(grain: grain, optics: profile.optics, chromatic: .neutral)
     }
 }

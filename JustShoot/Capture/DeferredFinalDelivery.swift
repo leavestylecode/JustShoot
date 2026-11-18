@@ -11,7 +11,7 @@ final class FinalStillWaiterRegistry: Sendable {
     }
 
     private enum Slot {
-        case waiting(CheckedContinuation<Data, any Error>, Task<Void, Never>)
+        case waiting(UUID, CheckedContinuation<Data, any Error>, Task<Void, Never>)
         case buffered(Data)
     }
     private let slots = OSAllocatedUnfairLock(initialState: [UUID: Slot]())
@@ -19,9 +19,15 @@ final class FinalStillWaiterRegistry: Sendable {
     /// Await delegate-delivered final bytes. Data delivered before this call returns immediately.
     /// A slot holds at most one waiter; a duplicate concurrent wait for the same capture fails fast.
     func wait(id: UUID, timeout: TimeInterval = 120) async throws -> Data {
-        try await withTaskCancellationHandler {
+        let waiterID = UUID()
+        return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 slots.withLock { slots in
+                    // PhotoKit can win before this child registers its continuation.
+                    guard !Task.isCancelled else {
+                        continuation.resume(throwing: CancellationError())
+                        return
+                    }
                     switch slots[id] {
                     case .buffered(let data):
                         slots[id] = nil
@@ -32,14 +38,14 @@ final class FinalStillWaiterRegistry: Sendable {
                     case nil:
                         let timeoutTask = Task { [weak self] in
                             do { try await Task.sleep(for: .seconds(timeout)) } catch { return }
-                            self?.settle(id, .failure(WaitError.timedOut))
+                            self?.settle(id, .failure(WaitError.timedOut), waiterID: waiterID)
                         }
-                        slots[id] = .waiting(continuation, timeoutTask)
+                        slots[id] = .waiting(waiterID, continuation, timeoutTask)
                     }
                 }
             }
         } onCancel: {
-            settle(id, .failure(CancellationError()))
+            settle(id, .failure(CancellationError()), waiterID: waiterID)
         }
     }
 
@@ -58,13 +64,19 @@ final class FinalStillWaiterRegistry: Sendable {
     /// Resolve the slot exactly once. Success with no waiter is buffered for the next `wait`;
     /// failures are never buffered.
     @discardableResult
-    private func settle(_ id: UUID, _ outcome: Result<Data, any Error>) -> Bool {
+    private func settle(_ id: UUID, _ outcome: Result<Data, any Error>, waiterID: UUID? = nil) -> Bool {
         let pending = slots.withLock { slots -> (CheckedContinuation<Data, any Error>, Task<Void, Never>)? in
-            switch slots.removeValue(forKey: id) {
-            case .waiting(let continuation, let timeout):
+            switch slots[id] {
+            case .waiting(let owner, let continuation, let timeout):
+                guard waiterID == nil || waiterID == owner else { return nil }
+                slots[id] = nil
                 return (continuation, timeout)
             case .buffered, nil:
-                if case .success(let data) = outcome { slots[id] = .buffered(data) }
+                guard waiterID == nil else { return nil }
+                switch outcome {
+                case .success(let data): slots[id] = .buffered(data)
+                case .failure: slots[id] = nil
+                }
                 return nil
             }
         }

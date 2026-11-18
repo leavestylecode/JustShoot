@@ -158,7 +158,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     @MainActor
     func anyCachedThumbnail(for photoId: UUID) -> UIImage? {
         // 高分→低分顺序遍历：找到第一个 hit 就用，保证拿到当前内存里"最好"的那份。
-        let commonSizes = [1500, 1200, 800, 600, 400, 300, 264, 256, 200, 160, 150, 120, 96, 88]
+        let commonSizes = [1500, 1200, 800, 600, 400, 300, 264, 256, 200, 192, 160, 150, 120, 96, 88]
         let prefix = "thumb_\(photoId.uuidString)_"
         for size in commonSizes {
             if let img = cache.object(forKey: "\(prefix)\(size)" as NSString) {
@@ -230,12 +230,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
                 kCGImageSourceShouldCacheImmediately: false
             ]
             guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
-            let downOptions: [CFString: Any] = [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceThumbnailMaxPixelSize: maxPixel,
-                kCGImageSourceCreateThumbnailWithTransform: true
-            ]
-            guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, downOptions as CFDictionary) else { return nil }
+            guard let cgThumb = Self.downsample(src, maxPixel: maxPixel) else { return nil }
             let opaque = ImageLoader.makeOpaque(cgThumb)
             let image = UIImage(cgImage: opaque)
             self.cachePreview(image, forKey: key as NSString, generation: generation)
@@ -273,12 +268,7 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
                 kCGImageSourceShouldCacheImmediately: false
             ]
             guard let src = CGImageSourceCreateWithData(imageData as CFData, options as CFDictionary) else { return nil }
-            let thumbOptions: [CFString: Any] = [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceThumbnailMaxPixelSize: maxPixel,
-                kCGImageSourceCreateThumbnailWithTransform: true
-            ]
-            guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(src, 0, thumbOptions as CFDictionary) else { return nil }
+            guard let cgThumb = Self.downsample(src, maxPixel: maxPixel) else { return nil }
             let opaque = ImageLoader.makeOpaque(cgThumb)
             let image = UIImage(cgImage: opaque)
             self.cacheImage(image, forKey: key as NSString)
@@ -288,6 +278,20 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
             }
             return image
         }
+    }
+
+    static func downsample(_ source: CGImageSource, maxPixel: Int) -> CGImage? {
+        // ImageIO's HEIF decoder can reject a thumbnail request larger than a small original.
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let width = properties?[kCGImagePropertyPixelWidth] as? Int ?? 0
+        let height = properties?[kCGImagePropertyPixelHeight] as? Int ?? 0
+        let edge = max(width, height)
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: edge > 0 ? min(edge, maxPixel) : maxPixel,
+            kCGImageSourceCreateThumbnailWithTransform: true
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 
     private func thumbsDirectory() -> URL? {

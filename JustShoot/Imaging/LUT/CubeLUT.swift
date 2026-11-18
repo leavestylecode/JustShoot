@@ -3,7 +3,21 @@ import Foundation
 struct CubeLUT: Sendable {
     let data: Data
     let dimension: Int
-    var material: FilmMaterial? = nil
+    var material: FilmMaterial? {
+        didSet { materialCheckpoint = nil }
+    }
+    private(set) var materialCheckpoint: FilmMaterial.Checkpoint?
+
+    init(data: Data, dimension: Int, material: FilmMaterial? = nil) {
+        self.data = data
+        self.dimension = dimension
+        self.material = material
+    }
+
+    mutating func prepareMaterialCheckpoint() throws {
+        guard materialCheckpoint == nil, let material else { return }
+        materialCheckpoint = try FilmMaterial.Checkpoint(material)
+    }
     var byteCount: Int { data.count + (material?.byteCount ?? 0) }
 
     enum ParseError: LocalizedError {

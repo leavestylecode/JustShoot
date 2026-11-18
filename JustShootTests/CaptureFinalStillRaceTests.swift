@@ -10,11 +10,12 @@ private actor FinalPhotoGate {
     private(set) var calls = 0
     private(set) var cancellations = 0
 
-    func wait(_ id: String) async throws -> Data {
+    func wait(_ id: String, onRegistration: @Sendable () -> Void = {}) async throws -> Data {
         calls += 1
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 pending[id] = continuation
+                onRegistration()
             }
         } onCancel: { Task { await self.cancel(id) } }
     }
@@ -98,6 +99,29 @@ final class CaptureFinalStillRaceTests: XCTestCase {
         XCTAssertEqual(pipeline.lastCompletion?.captureID, captureID)
     }
 
+    func testProxyReceiptProtectsAnActiveCaptureBeforeItsAssetIsInTheManifest() async throws {
+        let fixture = try fixture()
+        let journal = fixture.journal
+        var job = try journal.job(for: fixture.recipe.id)
+        job.deferredPhoto?.assetIdentifier = nil
+        try journal.update(job)
+        let gate = FinalPhotoGate()
+        let final = fixture.final
+        let receipt = UUID().uuidString
+        let pipeline = CapturePipeline(journal: journal, storeDeferredProxy: { _, recipe in
+            try journal.recordProxyPlaceholder(receipt, for: recipe.id)
+            _ = try await gate.wait(receipt)
+            return receipt
+        }, finalizeDeferredPhoto: { _, _ in final }, prepareDeferredEditingInput: { _ in nil },
+            saveDeferredAdjustment: { _, _, _, _ in })
+        await pipeline.configure(container: fixture.container)
+        try await waitForReRead(gate: gate)
+        let deletion = await pipeline.beginDeletion(rowIDs: [UUID()], assetIDs: [receipt])
+        XCTAssertNil(deletion, "A renamed proxy must not bypass capture deletion protection")
+        await gate.resolve(receipt, with: final)
+        try await waitForCompletion(pipeline, captureID: fixture.recipe.id)
+    }
+
     func testNativeFinalWinsWhilePhotoKitReReadStaysParked() async throws {
         let fixture = try fixture()
         let gate = FinalPhotoGate()
@@ -131,6 +155,54 @@ final class CaptureFinalStillRaceTests: XCTestCase {
         try await waitForCompletion(pipeline, captureID: fixture.recipe.id)
         let committed = await recorder.committed
         XCTAssertEqual(committed.map(\.id), [fixture.recipe.id.uuidString])
+    }
+
+    func testDeferredRenderIsCheckpointedWhileEditingInputIsPending() async throws {
+        let fixture = try fixture()
+        let editing = FinalPhotoGate()
+        let recorder = AdjustmentRecorder()
+        let bytes = fixture.final
+        let pipeline = CapturePipeline(journal: fixture.journal,
+            finalizeDeferredPhoto: { _, _ in bytes },
+            prepareDeferredEditingInput: { id in _ = try await editing.wait(id); return nil },
+            saveDeferredAdjustment: { data, id, _, _ in await recorder.record(data, id: id) })
+        await pipeline.configure(container: fixture.container)
+        try await waitForReRead(gate: editing)
+        let id = fixture.recipe.id
+        let deadline = Date().addingTimeInterval(10)
+        while try !fixture.journal.job(for: id).rendered, Date() < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertTrue(try fixture.journal.job(for: id).rendered)
+        let checkpoint = try Data(contentsOf: fixture.journal.file("rendered.image", for: id))
+        XCTAssertNil(pipeline.lastCompletion)
+        await pipeline.enterBackground()
+        await editing.resolve(id.uuidString, with: Data())
+        try await waitForCompletion(pipeline, captureID: id)
+        let committed = await recorder.committed
+        XCTAssertEqual(committed.map(\.data), [checkpoint])
+    }
+
+    func testBackgroundLetsReadyPhotoCommitToTheSameAssetWithoutResume() async throws {
+        let fixture = try fixture()
+        let saving = FinalPhotoGate()
+        let saveStarted = expectation(description: "The rendered adjustment reached the Photos save")
+        let bytes = fixture.final
+        let pipeline = CapturePipeline(journal: fixture.journal,
+            finalizeDeferredPhoto: { _, _ in bytes },
+            prepareDeferredEditingInput: { _ in nil },
+            saveDeferredAdjustment: { _, id, _, _ in
+                _ = try await saving.wait(id) { saveStarted.fulfill() }
+                try Task.checkCancellation()
+            })
+        await pipeline.configure(container: fixture.container)
+        await fulfillment(of: [saveStarted], timeout: 30)
+        await pipeline.enterBackground()
+        await saving.resolve(fixture.recipe.id.uuidString, with: Data())
+        try await waitForCompletion(pipeline, captureID: fixture.recipe.id)
+        let rows = try fixture.container.mainContext.fetch(FetchDescriptor<Photo>())
+        XCTAssertEqual(rows.map(\.assetLocalIdentifier), [fixture.recipe.id.uuidString])
+        XCTAssertTrue(try fixture.journal.jobs().isEmpty)
     }
 
     func testMismatchedNativeFinalIsIgnoredAndPhotoKitRecovers() async throws {

@@ -278,6 +278,13 @@ final class FilmMaterialTests: XCTestCase {
                 grainSeed: 12, location: nil, lutDimension: lut.dimension, chromaticSceneCCT: nil, photoDisplayTime: nil)
         }
         let job = try journal.stage(recipe: recipe(lut), imageData: Data([1]), movieURL: nil, lut: lut)
+        var prepared = lut
+        try prepared.prepareMaterialCheckpoint()
+        XCTAssertEqual(job.recipe.materialSHA256, prepared.materialCheckpoint?.sha256)
+        let next = try journal.stage(recipe: recipe(prepared), imageData: Data([1]), movieURL: nil, lut: prepared)
+        XCTAssertEqual(try Data(contentsOf: journal.file("material.bin", for: next.id)), prepared.materialCheckpoint?.data)
+        prepared.material?.input = FilmMaterial.identity()
+        XCTAssertNil(prepared.materialCheckpoint, "Changing any part of a look must invalidate the prepared bytes")
         XCTAssertNotNil(job.recipe.materialSHA256)
         XCTAssertEqual(job.recipe.withPhotoDisplayTime(0.25).materialSHA256, job.recipe.materialSHA256)
         XCTAssertEqual(try journal.lut(for: job).material?.encoded(), try lut.material?.encoded())
@@ -342,7 +349,8 @@ final class FilmMaterialTests: XCTestCase {
             .workingFormat: CIFormat.RGBAf, .cacheIntermediates: false])
         let export = environment["JUSTSHOOT_MATERIAL_EXPORT"].map { URL(fileURLWithPath: $0, isDirectory: true) }
         if let export { try FileManager.default.createDirectory(at: export, withIntermediateDirectories: true) }
-        let fixtureURLs = try FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: fixtures),
+        let root = URL(fileURLWithPath: fixtures, isDirectory: true, relativeTo: URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true))
+        let fixtureURLs = try FileManager.default.contentsOfDirectory(at: root,
             includingPropertiesForKeys: nil, options: .skipsHiddenFiles)
             .filter { $0.pathExtension.lowercased() == "png" }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }

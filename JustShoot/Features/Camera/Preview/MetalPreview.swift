@@ -209,6 +209,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     /// An explicit SwiftUI input: the shared resource cache does not publish changes.
     let resourcesReady: Bool
     let lutCacheKey: String
+    var presentedLookKey: String? = nil
     let preparedLUT: PreviewLUTTexture?
     let grain: FilmGrainParameters
     let optics: FilmOpticsParameters
@@ -257,6 +258,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     func updateUIView(_ uiView: MTKView, context: Context) {
         (uiView as? CameraPreviewMetalView)?.setContentVisible(isContentVisible)
         (uiView as? CameraPreviewMetalView)?.configurePreviewScale(min(context.environment.displayScale, 2.0))
+        context.coordinator.presentedLookKey = presentedLookKey ?? lutCacheKey
         context.coordinator.lutCacheKey = lutCacheKey
         context.coordinator.preparedLUT = preparedLUT
         context.coordinator.grain = grain
@@ -283,6 +285,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     // 同时需要访问 @MainActor 的 CameraManager 属性（previewInterfaceOrientation 等）
     @MainActor
     final class Coordinator: NSObject, MTKViewDelegate {
+        var presentedLookKey: String?
         var lutCacheKey: String = ""
         var preparedLUT: PreviewLUTTexture?
         var grain: FilmGrainParameters = .disabled
@@ -744,11 +747,12 @@ struct RealtimePreviewView: UIViewRepresentable {
             let manager = self.manager
             // Each changed look requires its own presentation confirmation. Native
             // configuration warmup must still precede the first accepted frame.
-            let readiness = manager?.needsPreviewRender(lutKey: lutCacheKey, capturedAt: capturedAt) == true
-                ? completionGate.ticket(generation: generation, lutKey: lutCacheKey) : nil
+            let lookKey = presentedLookKey ?? lutCacheKey
+            let readiness = manager?.needsPreviewRender(lutKey: lookKey, capturedAt: capturedAt) == true
+                ? completionGate.ticket(generation: generation, lutKey: lookKey) : nil
             let flowStamp = flow?.submitted(at: submittedAt, capturedAt: capturedAt)
             let renderedFrame = CameraPreviewFrame(buffer: pixelBuffer, generation: generation,
-                frameID: frameId, capturedAt: capturedAt, lutKey: lutCacheKey, rotation: rotation,
+                frameID: frameId, capturedAt: capturedAt, lutKey: lookKey, rotation: rotation,
                 crop: transitionPlan.crop, outputSize: CGSize(width: outW, height: outH), grainSeed: params.grainSeed,
                 chromaticGain: chromaticGain, focalSequence: focalSequence, sourceRevision: sourceRevision)
             let presentationLease = CameraPreviewPresentationLease(renderedFrame)
@@ -815,7 +819,7 @@ struct RealtimePreviewView: UIViewRepresentable {
                 if notifyCompletion, let readiness, completionGate.complete(readiness) {
                     Task { @MainActor [weak self] in
                         guard let self, completionGate.isCurrent(readiness),
-                              self.lutCacheKey == readiness.lutKey else { return }
+                              (self.presentedLookKey ?? self.lutCacheKey) == readiness.lutKey else { return }
                         if succeeded {
                             self.manager?.previewDidRender(generation: readiness.generation,
                                 lutKey: readiness.lutKey, capturedAt: capturedAt)

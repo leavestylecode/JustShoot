@@ -5,6 +5,9 @@ struct SettingsView: View {
     @ObservedObject private var capturePipeline = CapturePipeline.shared
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var curveLibrary: FilmCurveLibrary
+    @AppStorage(CameraCapturePolicy.highDetailPreferenceKey) private var highDetail = false
+    @AppStorage(FilmSource.simulationGrainPreferenceKey) private var simulationGrain = false
+    @State private var showsPhotoDeliveryHelp = false
     /// 逐阶段处理对照图（默认关）。与 FilmProcessor 共享同一 key：开 = 每次拍摄额外保留
     /// 原片与 LUT/光学/颗粒各阶段输出，用于定位细节在哪一步丢失。
     @AppStorage("processingStageDiagnostics") private var processingStageDiagnostics = false
@@ -24,6 +27,7 @@ struct SettingsView: View {
                     appHeader
                     if capturePipeline.pendingCount + capturePipeline.retainedCount > 0 { pendingPhotosSection }
                     if !capturePipeline.recoveryIssues.isEmpty { recoveryPhotosSection }
+                    capturePreferencesSection
                     toolsSection
                     feedbackSection
                     Text("© 2026 Leavestylecode")
@@ -59,6 +63,18 @@ struct SettingsView: View {
             }
         } message: {
             Text("This permanently deletes the original and video files kept for this recovery item. Photos already in your library are kept.")
+        }
+    }
+
+    private var capturePreferencesSection: some View {
+        sectionCard {
+            Toggle("Prefer 24 MP stills", isOn: $highDetail)
+            DisclosureGroup("Photo delivery", isExpanded: $showsPhotoDeliveryHelp) {
+                Text("Standard saves the finished film photo. On supported cameras, 24 MP keeps a restorable original in Photos and applies the film after system processing.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Toggle("Grain for FUJIFILM simulations", isOn: $simulationGrain)
         }
     }
 

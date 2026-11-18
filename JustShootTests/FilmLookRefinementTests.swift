@@ -99,6 +99,30 @@ final class FilmLookRefinementTests: XCTestCase {
         }
     }
 
+    func testColorNegativeToeExpandsContinuouslyWithFixedEndpointsAndMidtones() throws {
+        let processor = FilmProcessor()
+        for film in [FilmPreset.kodakGold200, .kodakPortra800, .kodakEktar100] {
+            let original = try processor.loadCubeLUT(resourceName: film.lutResourceName)
+            let refined = try processor.loadLUT(source: .preset(film))
+            let black = sample(original, .zero)
+            XCTAssertEqual(sample(refined, .zero), black)
+            let gray = SIMD3<Float>(repeating: 0.1)
+            let before = (luma(sample(original, gray)) - luma(black)) * 1023
+            let after = (luma(sample(refined, gray)) - luma(black)) * 1023
+            XCTAssertGreaterThan(after, before + 5)
+            XCTAssertLessThan(after, before + 12)
+            print("capture_toe_measurement film=\(film.rawValue) before=\(before) after=\(after)")
+            var previous = luma(black)
+            for step in 1...128 {
+                let value = SIMD3<Float>(repeating: Float(step) / 128)
+                let current = luma(sample(refined, value))
+                XCTAssertGreaterThanOrEqual(current + 0.00001, previous, "\(film) step=\(step)")
+                if step >= 42 { XCTAssertEqual(sample(refined, value), sample(original, value)) }
+                previous = current
+            }
+        }
+    }
+
     func testACROSRemainsMonochrome() throws {
         let cube = try FilmProcessor().loadLUT(source: .preset(.fujiRawACROS))
         cube.data.withUnsafeBytes { storage in

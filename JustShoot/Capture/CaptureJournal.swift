@@ -371,9 +371,10 @@ struct CaptureJournal: Sendable {
         awaitingCaptureCompletion: Bool = false, pendingMovieURL: URL? = nil,
         deferredPhoto: DeferredPhotoState? = nil) throws -> CaptureJob {
         guard recipe.lutDimension == lut.dimension else { throw JournalError.invalidJob }
-        let materialData = try lut.material?.encoded()
+        let checkpoint = try lut.materialCheckpoint ?? lut.material.map(FilmMaterial.Checkpoint.init)
+        let materialData = checkpoint?.data
         var frozenRecipe = recipe
-        frozenRecipe.materialSHA256 = materialData.map(FilmMaterial.digest)
+        frozenRecipe.materialSHA256 = checkpoint?.sha256
         guard recipe.materialSHA256 == nil || recipe.materialSHA256 == frozenRecipe.materialSHA256 else { throw JournalError.invalidJob }
         if let deferredPhoto {
             guard recipe.raw == nil, movieURL == nil, pendingMovieURL == nil,
@@ -471,9 +472,13 @@ struct CaptureJournal: Sendable {
         try write(JSONEncoder().encode(job), to: file("manifest.json", for: job.id))
     }
 
-    func lut(for job: CaptureJob) throws -> CubeLUT {
+    func lut(for job: CaptureJob, stagedMaterial: (sha256: String, material: FilmMaterial)? = nil) throws -> CubeLUT {
         var lut = try CubeLUT.validated(data: Data(contentsOf: file("lut.bin", for: job.id)), dimension: job.recipe.lutDimension)
         if let expected = job.recipe.materialSHA256 {
+            if let stagedMaterial, stagedMaterial.sha256 == expected {
+                lut.material = stagedMaterial.material
+                return lut
+            }
             let url = file("material.bin", for: job.id)
             guard try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? Int.max <= FilmMaterial.maximumBytes else { throw JournalError.invalidJob }
             let data = try Data(contentsOf: url, options: .mappedIfSafe)
@@ -493,6 +498,23 @@ struct CaptureJournal: Sendable {
     func writeRenderedImage(_ data: Data, for id: UUID) throws {
         defer { refreshStorageDirectory(id.uuidString) }
         try write(data, to: file("rendered.image", for: id))
+    }
+
+    // PhotoKit may rename the proxy resource when it develops the original. Persist
+    // the actual asset identity inside the creation transaction, before adding pixels.
+    func recordProxyPlaceholder(_ identifier: String?, for id: UUID) throws {
+        let url = file("proxy-asset.json", for: id)
+        if let identifier {
+            try write(JSONEncoder().encode(identifier), to: url)
+        } else if FileManager.default.fileExists(atPath: url.path) {
+            try FileManager.default.removeItem(at: url)
+        }
+    }
+
+    func proxyPlaceholder(for id: UUID) throws -> String? {
+        let url = file("proxy-asset.json", for: id)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return try JSONDecoder().decode(String.self, from: Data(contentsOf: url))
     }
 
     func finalizeDeferredPhoto(_ data: Data, for id: UUID) throws -> CaptureJob {

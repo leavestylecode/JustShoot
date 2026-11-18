@@ -58,9 +58,7 @@ final class CapturePipeline: ObservableObject {
     private let finalStillTimeout: TimeInterval
 
     init(journal: CaptureJournal = .application,
-         storeDeferredProxy: @escaping @Sendable (Data, CaptureRecipe) async throws -> String = {
-             try await PhotoLibrary.saveDeferredProxy($0, recipe: $1)
-         },
+         storeDeferredProxy: (@Sendable (Data, CaptureRecipe) async throws -> String)? = nil,
          finalizeDeferredPhoto: @escaping @Sendable (String, DeferredPhotoState) async throws -> Data = {
              try await PhotoLibrary.finalizedDeferredPhoto(id: $0, expected: $1)
          },
@@ -72,7 +70,11 @@ final class CapturePipeline: ObservableObject {
          },
          finalStillTimeout: TimeInterval = 120) {
         self.journal = journal
-        self.storeDeferredProxy = storeDeferredProxy
+        self.storeDeferredProxy = storeDeferredProxy ?? { data, recipe in
+            try await PhotoLibrary.saveDeferredProxy(data, recipe: recipe,
+                reservedAsset: try journal.proxyPlaceholder(for: recipe.id),
+                recordPlaceholder: { try journal.recordProxyPlaceholder($0, for: recipe.id) })
+        }
         self.finalizeDeferredPhoto = finalizeDeferredPhoto
         self.prepareDeferredEditingInput = prepareDeferredEditingInput
         self.saveDeferredAdjustment = saveDeferredAdjustment
@@ -83,8 +85,9 @@ final class CapturePipeline: ObservableObject {
     private let deletionGate = CaptureDeletionGate()
     @Published private var isReady = false
     private var queueState = CaptureQueueState()
+    private var latestPreviewDate = Date.distantPast
     private var previewTask: Task<Void, Never>?
-    private var previewCaptureID: UUID?
+    private var previewSource: (frame: CameraPreviewFrame, recipe: CaptureRecipe, lut: CubeLUT)?
     var pendingJobIDs: Set<UUID> { queueState.pendingJobIDs }
     func isProcessing(_ id: UUID) -> Bool { queueState.activeIDs.contains(id) }
 
@@ -178,25 +181,37 @@ final class CapturePipeline: ObservableObject {
     }
 
     func preparePreview(_ frame: CameraPreviewFrame, recipe: CaptureRecipe, lut: CubeLUT) {
+        guard isProcessing(recipe.id),
+              recipe.captureDate >= latestPreviewDate else { return }
+        latestPreviewDate = recipe.captureDate
         previewTask?.cancel()
-        previewCaptureID = recipe.id
-        previewTask = Task(priority: .utility) { [weak self] in
+        previewSource = (frame, recipe, lut)
+        previewTask = Task(priority: .userInitiated) { [weak self] in
             let trace = DiagnosticTrace(id: recipe.id.uuidString)
             let preview = trace.span("capture_quick_preview")
-            let image = await CapturePreviewRenderer.image(frame: frame, lut: lut, recipe: recipe)
+            let image = await CapturePreviewRenderer.image(frame: frame, lut: lut, recipe: recipe, maxPixel: CapturePreviewRenderer.badgePixel)
             preview.end(Task.isCancelled ? "cancelled" : image == nil ? "missing" : "ok")
-            guard !Task.isCancelled, let self, self.previewCaptureID == recipe.id else { return }
-            self.previewTask = nil
+            guard !Task.isCancelled, let self, self.previewSource?.recipe.id == recipe.id else { return }
             guard self.isProcessing(recipe.id) || self.pendingJobIDs.contains(recipe.id), let image else { return }
             self.lastPreview = CapturePreview(id: recipe.id, filterName: recipe.filterName, image: image)
+            if FilmProcessor.stageDiagnosticsEnabled {
+                _ = await CapturePreviewRenderer.image(frame: frame, lut: lut, recipe: recipe)
+            }
+            if self.previewSource?.recipe.id == recipe.id { self.previewTask = nil }
         }
     }
 
+    func reviewImage(for id: UUID) async -> UIImage? {
+        guard let source = previewSource, source.recipe.id == id, !Task.isCancelled else { return nil }
+        let image = await CapturePreviewRenderer.image(frame: source.frame, lut: source.lut, recipe: source.recipe, recordsDiagnostics: false)
+        return previewSource?.recipe.id == id && !Task.isCancelled ? image : nil
+    }
+
     private func clearPreview(_ id: UUID) {
-        if previewCaptureID == id {
+        if previewSource?.recipe.id == id {
             previewTask?.cancel()
             previewTask = nil
-            previewCaptureID = nil
+            previewSource = nil
         }
         if lastPreview?.id == id { lastPreview = nil }
     }
@@ -208,6 +223,7 @@ final class CapturePipeline: ObservableObject {
     func enterBackground() async {
         previewTask?.cancel()
         previewTask = nil
+        previewSource = nil
         await worker?.pause()
     }
 
@@ -286,9 +302,15 @@ final class CapturePipeline: ObservableObject {
     fileprivate func finished(_ id: UUID, completion: CaptureCompletion?, error: String?, retained: Bool, revision: UInt64) {
         queueState.finish(id, retained: retained && completion == nil, revision: revision)
         if let completion {
+            if completion.captureDate >= latestPreviewDate {
+                if let previous = previewSource?.recipe.id, previous != id { clearPreview(previous) }
+                lastPreview = nil
+                latestPreviewDate = completion.captureDate
+            }
             lastCompletion = completion
         }
         if completion != nil || !retained { clearPreview(id) }
+        else if previewSource?.recipe.id == id { previewSource = nil }
         if let error { lastError = error }
         updateCounts()
     }
@@ -341,12 +363,23 @@ private actor CaptureWorker {
     private var queue: [CaptureJob] = []
     private var preparationQueue: [CaptureJob] = []
     private var preparationTasks: [UUID: Task<Void, Never>] = [:]
+    private var deferredFinishing = Set<UUID>()
     private var preparedInputs: [UUID: DeferredEditingInput] = [:]
     private static let maximumPreparations = 2
     private var scheduledIDs: Set<UUID> = []
     private var inFlightNativeIDs: Set<UUID> = []
     private var drainTask: Task<Void, Never>?
     private var suspended = false
+    private var lifecycleRevision: UInt64 = 0
+    private var backgroundTimeExpired = false
+    private var drainingID: UUID?
+    private var canFinishInBackground = false
+    // Both deferred preparations and ordinary jobs share this single full-resolution render slot.
+    // A material was validated and serialized by stage(). Reuse that immutable value
+    // for its own live job. Eviction, suspension and recovery read/verify the journal.
+    private var stagedMaterial: (id: UUID, sha256: String, material: FilmMaterial)?
+    private var rendering = false
+    private var renderWaiters: [(id: UUID, continuation: CheckedContinuation<Bool, Never>)] = []
     private var enqueuedAt: [UUID: TimeInterval] = [:]
     private var recoveryRevision: UInt64 = 0
 
@@ -465,14 +498,20 @@ private actor CaptureWorker {
                 awaitingCaptureCompletion: true, pendingMovieURL: still.pendingLivePhotoMovieURL,
                 deferredPhoto: still.deferredPhoto)
         }
+        if !suspended, let material = lut.material, let digest = job.recipe.materialSHA256 {
+            stagedMaterial = (job.id, digest, material)
+        }
         await owner?.accepted([job.id])
     }
 
     func resume(allowProcessing: Bool = true) async {
-        suspended = true
+        lifecycleRevision &+= 1
+        let revision = lifecycleRevision
         if let drainTask, drainTask.isCancelled { await drainTask.value }
         for task in Array(preparationTasks.values) where task.isCancelled { await task.value }
+        guard lifecycleRevision == revision else { return }
         suspended = !allowProcessing
+        backgroundTimeExpired = !allowProcessing
         do {
             let inventory = try DiagnosticTrace(id: "recovery").measure("capture_recovery") {
                 try journal.recoverInventory(excludingInFlight: inFlightNativeIDs)
@@ -501,6 +540,7 @@ private actor CaptureWorker {
     }
 
     private func publishFinished(_ id: UUID, completion: CaptureCompletion?, error: String?, retained: Bool = true) async {
+        if stagedMaterial?.id == id { stagedMaterial = nil }
         // A finishing capture no longer needs delegate finals; drop any buffered bytes.
         finalStills.discard(id: id)
         await owner?.capturePhase(id, nil)
@@ -511,11 +551,21 @@ private actor CaptureWorker {
     }
 
     func deletionCaptureIDs(rowIDs: Set<UUID>, assetIDs: Set<String>) throws -> Set<UUID> {
-        CaptureDeletionSelection.captureIDs(rowIDs: rowIDs, assetIDs: assetIDs, jobs: try journal.jobs(),
-            libraryCaptureIDs: PhotoLibrary.captureIdentifiers(from: Array(assetIDs)))
+        let jobs = try journal.jobs()
+        var matches = PhotoLibrary.captureIdentifiers(from: Array(assetIDs))
+        if !assetIDs.isEmpty {
+            for job in jobs where job.deferredPhoto != nil && job.deferredPhoto?.assetIdentifier == nil {
+                if let receipt = try journal.proxyPlaceholder(for: job.id), assetIDs.contains(receipt) {
+                    matches.insert(job.id)
+                }
+            }
+        }
+        return CaptureDeletionSelection.captureIDs(rowIDs: rowIDs, assetIDs: assetIDs, jobs: jobs,
+            libraryCaptureIDs: matches)
     }
 
     func completeDeletion(_ ids: Set<UUID>) async {
+        if let captureID = stagedMaterial?.id, ids.contains(captureID) { stagedMaterial = nil }
         queue.removeAll { ids.contains($0.id) }
         preparationQueue.removeAll { ids.contains($0.id) }
         for id in ids {
@@ -567,21 +617,33 @@ private actor CaptureWorker {
         startWork()
     }
 
-    func pause() {
-        Diagnostics.emit("capture_worker_paused", fields: "queued=\(queue.count) scheduled=\(scheduledIDs.count)")
+    func pause(expired: Bool = false) {
+        lifecycleRevision &+= 1
         suspended = true
-        drainTask?.cancel()
-        for task in preparationTasks.values { task.cancel() }
+        stagedMaterial = nil
+        backgroundTimeExpired = backgroundTimeExpired || expired
+        Diagnostics.emit("capture_worker_paused", fields: "queued=\(queue.count) finishing=\(canFinishInBackground) expired=\(expired)")
+        if expired || !canFinishInBackground { drainTask?.cancel() }
+        for (id, task) in preparationTasks where expired || !deferredFinishing.contains(id) {
+            task.cancel()
+        }
+        startWork()
+    }
+
+    private var nextJobIndex: Int? {
+        guard !queue.isEmpty else { return nil }
+        if !suspended { return queue.startIndex }
+        guard !backgroundTimeExpired else { return nil }
+        return queue.firstIndex(where: \.rendered)
     }
 
     /// PhotoKit waits have their own bounded lane; they never occupy the single render lane.
     private func startWork() {
-        guard !suspended else { return }
-        while preparationTasks.count < Self.maximumPreparations, !preparationQueue.isEmpty {
+        while !suspended, preparationTasks.count < Self.maximumPreparations, !preparationQueue.isEmpty {
             let job = preparationQueue.removeFirst()
             preparationTasks[job.id] = Task(priority: .utility) { await prepareDeferred(job) }
         }
-        guard drainTask == nil, !queue.isEmpty else { return }
+        guard drainTask == nil, nextJobIndex != nil else { return }
         drainTask = Task(priority: .utility) { await drain() }
     }
 
@@ -630,7 +692,7 @@ private actor CaptureWorker {
     }
 
     private func prepareDeferred(_ initial: CaptureJob) async {
-        let activity = await CaptureBackgroundActivity { [weak self] in Task { await self?.pause() } }
+        let activity = await CaptureBackgroundActivity { [weak self] in Task { await self?.pause(expired: true) } }
         let trace = DiagnosticTrace(id: initial.id.uuidString)
         let preparing = trace.span("capture_system_prepare", "waiting=\(preparationTasks.count)")
         await owner?.capturePhase(initial.id, .preparing)
@@ -653,7 +715,16 @@ private actor CaptureWorker {
                 job = try journal.finalizeDeferredPhoto(original, for: job.id)
             }
             guard let sourceID = job.deferredPhoto?.assetIdentifier else { throw PhotoLibraryError.saveFailed }
-            let input = try await prepareDeferredEditingInput(sourceID)
+            // Editing access is independent of the verified source pixels. Its wait stays
+            // in this bounded preparation lane, including when rendering finishes first.
+            if job.rendered { deferredFinishing.insert(job.id) }
+            async let editingInput = prepareDeferredEditingInput(sourceID)
+            if !job.rendered {
+                await owner?.capturePhase(job.id, .rendering)
+                job = try await renderAndCheckpoint(job, trace: trace).job
+                await owner?.capturePhase(job.id, .preparing)
+            }
+            let input = try await editingInput
             try checkPending(job.id)
             if let input { preparedInputs[job.id] = input }
             queue.append(job)
@@ -665,6 +736,7 @@ private actor CaptureWorker {
             scheduledIDs.remove(initial.id)
             enqueuedAt[initial.id] = nil
         }
+        deferredFinishing.remove(initial.id)
         preparationTasks[initial.id] = nil
         await activity.end()
         startWork()
@@ -682,19 +754,15 @@ private actor CaptureWorker {
     }
 
     private func drain() async {
-        while !queue.isEmpty {
-            let job = queue.removeFirst()
+        while !Task.isCancelled, let index = nextJobIndex {
+            let job = queue.remove(at: index)
+            drainingID = job.id
+            canFinishInBackground = job.rendered
             let trace = DiagnosticTrace(id: job.id.uuidString)
             let queued = enqueuedAt.removeValue(forKey: job.id) ?? ProcessInfo.processInfo.systemUptime
             trace.event("capture_job_dequeued", "queue_wait_ms=\(Diagnostics.milliseconds(since: queued)) queued=\(queue.count) age_s=\(Int(max(0, Date().timeIntervalSince(job.recipe.captureDate))))")
-            if Task.isCancelled {
-                preparedInputs[job.id] = nil
-                scheduledIDs.remove(job.id)
-                await publishFinished(job.id, completion: nil, error: nil)
-                continue
-            }
             let activity = await CaptureBackgroundActivity { [weak self] in
-                Task { await self?.pause() }
+                Task { await self?.pause(expired: true) }
             }
             let processing = trace.span("capture_job")
             do {
@@ -707,9 +775,12 @@ private actor CaptureWorker {
                 await recordFailure(job, error: error)
             }
             scheduledIDs.remove(job.id)
+            drainingID = nil
+            canFinishInBackground = false
             await activity.end()
         }
         drainTask = nil
+        startWork()
     }
 
     private func process(_ initialJob: CaptureJob, preparedInput: DeferredEditingInput?) async throws -> CaptureCompletion {
@@ -719,63 +790,13 @@ private actor CaptureWorker {
         let timer = Log.perf("capture_job", logger: Log.capture)
         let saver = PhotoSaver(modelContainer: container)
         try checkPending(job.id)
-        await owner?.capturePhase(job.id, .rendering)
+        await owner?.capturePhase(job.id, job.rendered ? .saving : .rendering)
 
         guard job.deferredPhoto?.finalized != false else { throw CaptureJournal.JournalError.invalidJob }
 
         let image: Data
         if !job.rendered {
-            let lut = try journal.lut(for: job)
-            var contentID: String?
-            var stillSeed = recipe.grainSeed
-            if job.hasSourceMovie {
-                if job.recoveredIncompleteCapture == true,
-                   try await LivePhotoProcessor.isReadableSource(at: journal.file("source.mov", for: job.id)) {
-                    job.recoveredIncompleteCapture = nil
-                    try journal.update(job)
-                }
-                let displayTime = recipe.photoDisplayTime.map { CMTime(seconds: $0, preferredTimescale: 600) } ?? .invalid
-                let video = trace.span("live_video_process")
-                do {
-                    let result = try await LivePhotoProcessor.process(
-                        sourceURL: journal.file("source.mov", for: job.id), lutCacheKey: recipe.filterName,
-                        capturedLUT: lut, grain: recipe.profile.grain, optics: recipe.profile.optics,
-                        chromatic: recipe.profile.effectiveChromatic,
-                        chromaticSceneCCT: recipe.chromaticSceneCCT,
-                        chromaticGainOverride: recipe.frozenChromaticGain,
-                        grainBaseSeed: recipe.grainSeed, photoDisplayTime: displayTime,
-                        outputURL: journal.file("rendered.mov", for: job.id), trace: trace)
-                    video.end()
-                    contentID = result.contentIdentifier
-                    stillSeed = result.stillGrainSeed
-                    job.hasRenderedMovie = true
-                } catch {
-                    video.end(error is CancellationError ? "cancelled" : "error", Diagnostics.errorFields(error))
-                    // A failed movie must not hide the usable still. Keep the complete journal for
-                    // retry, and expose a static fallback in the gallery without discarding the video.
-                    if error is CancellationError { throw error }
-                    if job.recoveredIncompleteCapture == true {
-                        // The process ended while AVFoundation was writing this movie. A partial
-                        // movie must not trap a durable still in a permanently failing retry loop.
-                        job.hasRenderedMovie = false
-                        trace.event("capture_recovered_as_still", "reason=incomplete_movie")
-                    } else {
-                        let fallback = try await renderStill(job, lut: lut, contentID: nil, seed: recipe.grainSeed)
-                        _ = try await saver.save(id: job.id, captureDate: recipe.captureDate,
-                            assetLocalIdentifier: nil, imageData: fallback, filmPresetName: recipe.filterName,
-                            filmDisplayLabel: recipe.displayLabel, latitude: recipe.location?.latitude,
-                            longitude: recipe.location?.longitude, altitude: recipe.location?.altitude,
-                            locationTimestamp: recipe.location?.timestamp)
-                        throw error
-                    }
-                }
-            }
-            try checkPending(job.id)
-            image = try await renderStill(job, lut: lut, contentID: contentID, seed: stillSeed)
-            try checkPending(job.id)
-            try trace.measure("capture_render_checkpoint") { try journal.writeRenderedImage(image, for: job.id) }
-            job.rendered = true
-            try journal.update(job)
+            (job, image) = try await renderAndCheckpoint(job, trace: trace)
         } else {
             image = try trace.measure("capture_rendered_read") {
                 try Data(contentsOf: journal.file("rendered.image", for: job.id))
@@ -789,9 +810,7 @@ private actor CaptureWorker {
             job.assetIdentifier = deferredID
             try journal.update(job)
         }
-        if job.assetIdentifier == nil {
-            job.assetIdentifier = trace.measure("photos_retry_lookup") { PhotoLibrary.findCapture(id: job.id, creationDate: recipe.captureDate) }
-        }
+        // The PhotoLibrary save methods reconcile the capture ID before creating the asset.
         if job.assetIdentifier == nil {
             await owner?.capturePhase(job.id, .saving)
             let saving = trace.span("photos_save")
@@ -833,7 +852,7 @@ private actor CaptureWorker {
         indexing.end()
         try trace.measure("capture_journal_cleanup") { try journal.finish(job.id) }
         let thumbnailLoad = trace.span("capture_thumbnail")
-        let thumbnail = await ImageLoader.shared.loadThumbnail(imageData: image, photoId: photoID, maxPixel: 88)
+        let thumbnail = await ImageLoader.shared.loadThumbnail(imageData: image, photoId: photoID, maxPixel: CapturePreviewRenderer.badgePixel)
         thumbnailLoad.end(thumbnail == nil ? "missing" : "ok")
         if FilmProcessor.stageDiagnosticsEnabled, let assetID = job.assetIdentifier,
            let libraryData = await AssetImageLoader.shared.imageData(id: assetID, timeout: 4) {
@@ -843,6 +862,99 @@ private actor CaptureWorker {
         return CaptureCompletion(id: photoID, captureID: job.id, filterName: recipe.filterName, thumbnail: thumbnail, captureDate: recipe.captureDate)
     }
 
+    private func acquireRenderSlot(for id: UUID) async throws {
+        try Task.checkCancellation()
+        guard !suspended else { throw CancellationError() }
+        if !rendering {
+            rendering = true
+            return
+        }
+        let acquired = await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                renderWaiters.append((id, continuation))
+            }
+        } onCancel: {
+            Task { await self.cancelRenderWaiter(id) }
+        }
+        guard acquired else { throw CancellationError() }
+    }
+
+    private func cancelRenderWaiter(_ id: UUID) {
+        if let index = renderWaiters.firstIndex(where: { $0.id == id }) {
+            renderWaiters.remove(at: index).continuation.resume(returning: false)
+        }
+    }
+
+    private func releaseRenderSlot() {
+        if renderWaiters.isEmpty { rendering = false }
+        else { renderWaiters.removeFirst().continuation.resume(returning: true) }
+    }
+
+    private func renderAndCheckpoint(_ initial: CaptureJob, trace: DiagnosticTrace) async throws -> (job: CaptureJob, image: Data) {
+        try await acquireRenderSlot(for: initial.id)
+        defer { releaseRenderSlot() }
+        try checkPending(initial.id)
+        guard !suspended else { throw CancellationError() }
+        var job = initial
+        let recipe = job.recipe
+        let staged = stagedMaterial?.id == job.id ? stagedMaterial : nil
+        if staged != nil { stagedMaterial = nil }
+        let lut = try trace.measure(staged == nil ? "capture_lut_read" : "capture_lut_reuse") {
+            try journal.lut(for: job, stagedMaterial: staged.map { ($0.sha256, $0.material) })
+        }
+        var contentID: String?
+        var stillSeed = recipe.grainSeed
+        if job.hasSourceMovie {
+            if job.recoveredIncompleteCapture == true,
+               try await LivePhotoProcessor.isReadableSource(at: journal.file("source.mov", for: job.id)) {
+                job.recoveredIncompleteCapture = nil
+                try journal.update(job)
+            }
+            let displayTime = recipe.photoDisplayTime.map { CMTime(seconds: $0, preferredTimescale: 600) } ?? .invalid
+            let video = trace.span("live_video_process")
+            do {
+                let result = try await LivePhotoProcessor.process(
+                    sourceURL: journal.file("source.mov", for: job.id), lutCacheKey: recipe.filterName,
+                    capturedLUT: lut, grain: recipe.profile.grain, optics: recipe.profile.optics,
+                    chromatic: recipe.profile.effectiveChromatic,
+                    chromaticSceneCCT: recipe.chromaticSceneCCT,
+                    chromaticGainOverride: recipe.frozenChromaticGain,
+                    grainBaseSeed: recipe.grainSeed, photoDisplayTime: displayTime,
+                    outputURL: journal.file("rendered.mov", for: job.id), trace: trace)
+                video.end()
+                contentID = result.contentIdentifier
+                stillSeed = result.stillGrainSeed
+                job.hasRenderedMovie = true
+            } catch {
+                video.end(error is CancellationError ? "cancelled" : "error", Diagnostics.errorFields(error))
+                // A failed movie must not hide the usable still. Keep the complete journal for
+                // retry, and expose a static fallback in the gallery without discarding the video.
+                if error is CancellationError { throw error }
+                if job.recoveredIncompleteCapture == true {
+                    // The process ended while AVFoundation was writing this movie. A partial
+                    // movie must not trap a durable still in a permanently failing retry loop.
+                    job.hasRenderedMovie = false
+                    trace.event("capture_recovered_as_still", "reason=incomplete_movie")
+                } else {
+                    let fallback = try await renderStill(job, lut: lut, contentID: nil, seed: recipe.grainSeed)
+                    _ = try await PhotoSaver(modelContainer: container).save(id: job.id, captureDate: recipe.captureDate,
+                        assetLocalIdentifier: nil, imageData: fallback, filmPresetName: recipe.filterName,
+                        filmDisplayLabel: recipe.displayLabel, latitude: recipe.location?.latitude,
+                        longitude: recipe.location?.longitude, altitude: recipe.location?.altitude,
+                        locationTimestamp: recipe.location?.timestamp)
+                    throw error
+                }
+            }
+        }
+        try checkPending(job.id)
+        let image = try await renderStill(job, lut: lut, contentID: contentID, seed: stillSeed)
+        try checkPending(job.id)
+        try trace.measure("capture_render_checkpoint") { try journal.writeRenderedImage(image, for: job.id) }
+        job.rendered = true
+        try journal.update(job)
+        return (job, image)
+    }
+
     private func renderStill(_ job: CaptureJob, lut: CubeLUT, contentID: String?, seed: UInt32) async throws -> Data {
         try checkPending(job.id)
         guard job.deferredPhoto?.finalized != false else { throw CaptureJournal.JournalError.invalidJob }
@@ -850,6 +962,9 @@ private actor CaptureWorker {
         let trace = DiagnosticTrace(id: job.id.uuidString)
         let raw = try trace.measure("still_source_read") { try Data(contentsOf: journal.file("original.image", for: job.id)) }
         let rawLUT = try journal.rawLUT(for: job)
+        guard !suspended else { throw CancellationError() }
+        if drainingID == job.id { canFinishInBackground = true }
+        else if preparationTasks[job.id] != nil { deferredFinishing.insert(job.id) }
         let rendering = trace.span("still_render")
         let cancellation = CaptureRenderCancellation()
         let image = await withTaskCancellationHandler {
@@ -865,6 +980,7 @@ private actor CaptureWorker {
         rendering.end(cancellation.isCancelled ? "cancelled" : image == nil ? "failed" : "ok", "output_bytes=\(image?.count ?? 0)")
         try cancellation.checkCancellation()
         try checkPending(job.id)
+        if image == nil, suspended { throw CancellationError() }
         guard let image else { throw CaptureJournal.JournalError.invalidJob }
         return image
     }

@@ -5,17 +5,18 @@ import Foundation
 actor FilmCapturePreparation {
     static let shared = FilmCapturePreparation()
 
-    func prepareRendering() throws {
+    func prepareRendering(for lut: CubeLUT) throws -> CubeLUT {
         try Task.checkCancellation()
         try FilmMaterialRenderer.prepare()
+        var prepared = lut
+        try prepared.prepareMaterialCheckpoint()
         try Task.checkCancellation()
+        return prepared
     }
 
     func displayLUT(source: FilmSource, curve: FilmCurve) throws -> CubeLUT {
         try Task.checkCancellation()
         let lut = try FilmProcessor.shared.loadLUT(source: source, curve: curve)
-        try prepareRendering()
-        try Task.checkCancellation()
-        return lut
+        return try prepareRendering(for: lut)
     }
 }

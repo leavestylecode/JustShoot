@@ -26,15 +26,18 @@ final class CameraCapturePolicyTests: XCTestCase {
         ], deferredDeliveryEnabled: false)
         XCTAssertEqual(selected?.width, 4032)
         XCTAssertEqual(selected?.height, 3024)
+        XCTAssertGreaterThan(CameraCapturePolicy.automaticPhotoFormatScore(from: [CMVideoDimensions(width: 4032, height: 3024)], deferredDeliveryEnabled: false),
+            CameraCapturePolicy.automaticPhotoFormatScore(from: [CMVideoDimensions(width: 5712, height: 4284)], deferredDeliveryEnabled: false))
         XCTAssertTrue(CameraCapturePolicy.requiresDeferredDelivery(CMVideoDimensions(width: 5712, height: 4284)))
         XCTAssertFalse(CameraCapturePolicy.requiresDeferredDelivery(CMVideoDimensions(width: 4032, height: 3024)))
     }
 
     func testDeferredDeliveryRequiresCapabilityPhotosAccessAndStillMode() {
-        XCTAssertTrue(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: true, livePhoto: false))
-        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: false, photosAuthorized: true, livePhoto: false))
-        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: false, livePhoto: false))
-        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: true, livePhoto: true))
+        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: true, livePhoto: false, highDetailRequested: false))
+        XCTAssertTrue(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: true, livePhoto: false, highDetailRequested: true))
+        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: false, photosAuthorized: true, livePhoto: false, highDetailRequested: true))
+        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: false, livePhoto: false, highDetailRequested: true))
+        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: true, livePhoto: true, highDetailRequested: true))
     }
 
     func testAFormatWithOnly12And48MPUsesItsSupportedOrdinarySize() {

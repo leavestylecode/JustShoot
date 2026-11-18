@@ -29,6 +29,28 @@ final class FinalStillWaiterRegistryTests: XCTestCase {
         } catch {}
     }
 
+    func testCancellationBeforeRegistrationDoesNotWaitForTimeoutOrConsumeEarlyBytes() async throws {
+        let registry = FinalStillWaiterRegistry()
+        for buffered in [false, true] {
+            let id = UUID()
+            if buffered { registry.deliver(id: id, Data([3])) }
+            let task = Task {
+                withUnsafeCurrentTask { $0?.cancel() }
+                return try await registry.wait(id: id, timeout: 0.3)
+            }
+            do {
+                _ = try await task.value
+                XCTFail("The cancelled waiter should never claim the final")
+            } catch {
+                XCTAssertTrue(error is CancellationError)
+            }
+            if buffered {
+                let bytes = try await registry.wait(id: id, timeout: 0.3)
+                XCTAssertEqual(bytes, Data([3]))
+            }
+        }
+    }
+
     func testCancellationFreesTheSlotForTheNextWait() async throws {
         let registry = FinalStillWaiterRegistry()
         let id = UUID()

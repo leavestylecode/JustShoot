@@ -78,7 +78,7 @@ struct RecentPhotosBadge: View {
         return hint
     }
 
-    private static let thumbnailMaxPixel = 160
+    private static let thumbnailMaxPixel = CapturePreviewRenderer.badgePixel
     private var badgeSize: CGFloat { sizeClass == .regular ? 56 : 46 }
 
     init(
@@ -119,17 +119,19 @@ struct RecentPhotosBadge: View {
                         }
                 }
                 if isShutterBusy || isProcessing {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(.black.opacity(0.4))
-                        .frame(width: badgeSize, height: badgeSize)
                     ProgressView()
-                        .progressViewStyle(.circular)
+                        .controlSize(.mini)
                         .tint(.white)
-                        .scaleEffect(0.7)
+                        .padding(3)
+                        .background(.black.opacity(0.65), in: Circle())
+                        .frame(width: badgeSize, height: badgeSize, alignment: .bottomTrailing)
                 }
             }
             .rotationEffect(controlRotationAngle)
             .animation(.spring(duration: 0.35, bounce: 0.15), value: orientation)
+        }
+        .onChange(of: pendingPreview?.id) { _, id in
+            if let id { DiagnosticTrace(id: id.uuidString).event("capture_badge_displayed") }
         }
         .accessibilityLabel("Most recent photo")
         .accessibilityValue(isShutterBusy ? Text("Capturing") : isProcessing ? Text("Saving…") : Text(""))
@@ -249,6 +251,7 @@ struct CapturePreviewReview: View {
     @Query(RecentPhotoPresentation.latestDescriptor()) private var latestPhotos: [Photo]
     @State private var saved: RecentPhotoPresentation?
     @State private var initialImage: UIImage?
+    @State private var reviewImage: UIImage?
     @State private var openError: String?
     @State private var isRetrying = false
     @State private var showsSlowNotice = false
@@ -270,11 +273,16 @@ struct CapturePreviewReview: View {
             } else {
                 ZStack {
                     Color.black.ignoresSafeArea()
-                    ZoomablePhotoView(image: preview.image, isCurrent: true, dismisser: dismisser)
+                    ZoomablePhotoView(image: reviewImage ?? preview.image, isCurrent: true, dismisser: dismisser)
                         .accessibilityLabel("Photo preview")
                     savingOverlay
                 }
                 .onAppear { dismisser.onDismiss = onClose }
+                .task(id: preview.id) {
+                    if max(preview.image.size.width, preview.image.size.height) <= CGFloat(CapturePreviewRenderer.badgePixel) {
+                        reviewImage = await pipeline.reviewImage(for: preview.id)
+                    }
+                }
                 .task(id: preview.id) { await watchSlowSave() }
             }
         }
@@ -365,7 +373,7 @@ struct CapturePreviewReview: View {
         let photoID = completion?.captureID == preview.id ? completion?.id : preview.id
         do {
             saved = try RecentPhotoPresentation.load(in: modelContext, startingAt: photoID)
-            if saved != nil { initialImage = preview.image }
+            if saved != nil { initialImage = reviewImage ?? preview.image }
             else if completion?.captureID == preview.id {
                 openError = String(localized: "Photos could not be loaded. Please try again.")
             }

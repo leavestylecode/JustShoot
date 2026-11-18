@@ -2,6 +2,7 @@ import AVFoundation
 
 /// One policy is used by session setup, prepared settings and actual captures.
 enum CameraCapturePolicy {
+    static let highDetailPreferenceKey = "prefersDeferred24MP"
     private static let ordinaryPhotoPixelLimit: Int64 = 26_000_000
     static let qualityPrioritization: AVCapturePhotoOutput.QualityPrioritization = .quality
 
@@ -24,14 +25,14 @@ enum CameraCapturePolicy {
         return dimensions.width > 0 && dimensions.height > 0 && pixels > 20_000_000 && pixels <= ordinaryPhotoPixelLimit
     }
 
-    static func usesDeferredDelivery(supported: Bool, photosAuthorized: Bool, livePhoto: Bool) -> Bool {
-        supported && photosAuthorized && !livePhoto
+    static func usesDeferredDelivery(supported: Bool, photosAuthorized: Bool, livePhoto: Bool, highDetailRequested: Bool) -> Bool {
+        highDetailRequested && supported && photosAuthorized && !livePhoto
     }
 
     /// Prefer formats with an ordinary supported size. A Max-only format must not beat
     /// a real 24 MP format merely because its fallback dimensions contain more pixels.
-    static func automaticPhotoFormatScore(from dimensions: [CMVideoDimensions]) -> Int64 {
-        guard let selected = automaticPhotoDimensions(from: dimensions) else { return .min }
+    static func automaticPhotoFormatScore(from dimensions: [CMVideoDimensions], deferredDeliveryEnabled: Bool = true) -> Int64 {
+        guard let selected = automaticPhotoDimensions(from: dimensions, deferredDeliveryEnabled: deferredDeliveryEnabled) else { return .min }
         let pixels = Int64(selected.width) * Int64(selected.height)
         return pixels <= ordinaryPhotoPixelLimit ? pixels : -pixels
     }

@@ -8,6 +8,7 @@ import XCTest
 private final class CaptureCameraStub: CameraCaptureControlling {
     struct Callbacks {
         let still: @MainActor (CaptureStill) async -> Void
+        let exposed: () -> Void
         let finalStill: (Data) -> Void
         let ready: () -> Void
         let result: (Result<CaptureResult, CameraCaptureFailure>) -> Void
@@ -66,7 +67,7 @@ private final class CaptureCameraStub: CameraCaptureControlling {
                  completion: @escaping (Result<CaptureResult, CameraCaptureFailure>) -> Void) {
         XCTAssertTrue(admission.beginPreparation(token, generation: diagnosticGeneration))
         if automaticallyIssuesCapture { XCTAssertTrue(admission.markIssued(token, generation: diagnosticGeneration)) }
-        callbacks.append(Callbacks(still: onStillCaptured, finalStill: onFinalStill, ready: {
+        callbacks.append(Callbacks(still: onStillCaptured, exposed: onExposureComplete, finalStill: onFinalStill, ready: {
             self.admission.release(token)
             onShutterReady()
         }, result: completion))
@@ -314,6 +315,10 @@ final class CameraCoordinatorTests: XCTestCase {
         await coordinator.capture(selection: try selection(live: true), currentLookKey: { "film" },
             isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
         let callbacks = try XCTUnwrap(camera.callbacks.first)
+        XCTAssertNil(pipeline.preview)
+        callbacks.exposed()
+        XCTAssertEqual(pipeline.preview?.id, coordinator.activeShutterID)
+        XCTAssertEqual(pipeline.preview?.grainSeed, 42)
         await callbacks.still(CaptureStill(imageData: Data([1]), pendingLivePhotoMovieURL: nil))
         XCTAssertEqual(pipeline.checkpoints.count, 1)
         XCTAssertTrue(coordinator.isShutterBusy)
