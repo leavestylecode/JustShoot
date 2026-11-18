@@ -289,6 +289,35 @@ final class PhotoDetailTransitionTests: XCTestCase {
         withExtendedLifetime(container) {}
     }
 
+    func testGalleryKeepsChosenLightAppearanceAcrossFirstPhotoAndLastDeletion() async throws {
+        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let scene = try await TestWindowScene.foreground()
+        let previous = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        let root = UIHostingController(rootView: NavigationStack { GalleryView() }
+            .preferredColorScheme(.light).modelContainer(container))
+        window.rootViewController = root
+        let photo = try await makePhoto()
+        let id = photo.id
+        window.makeKeyAndVisible()
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previous?.makeKey()
+            ImageLoader.shared.removeDiskCache(for: id)
+        }
+        try await waitFor { root.view.traitCollection.userInterfaceStyle == .light }
+        container.mainContext.insert(photo)
+        try container.mainContext.save()
+        try await waitFor { self.photoGrid(in: root.view)?.numberOfItems(inSection: 0) == 1 }
+        XCTAssertEqual(root.view.traitCollection.userInterfaceStyle, .light)
+        container.mainContext.delete(photo)
+        try container.mainContext.save()
+        try await waitFor { self.photoGrid(in: root.view) == nil }
+        XCTAssertEqual(root.view.traitCollection.userInterfaceStyle, .light)
+    }
+
     func testGalleryToolbarStaysUnchangedWhileOpeningAndClosingPhoto() async throws {
         let photo = try await makePhoto()
         let photoID = photo.id

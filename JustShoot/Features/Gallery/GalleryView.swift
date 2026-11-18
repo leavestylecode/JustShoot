@@ -13,7 +13,7 @@ import ImageIO
 // 本文件保留 SwiftUI 外壳：导航标题、选择模式工具栏（Select / Select All / xmark / Download /
 // Delete）、tab 栏隐藏、批量保存/删除、详情呈现。选择状态通过 @Binding 与 PhotoGridView 双向同步。
 struct GalleryView: View {
-    var onStartShooting: () -> Void = {}
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -32,9 +32,9 @@ struct GalleryView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            (photos.isEmpty && colorScheme == .light ? AppBrand.paper : Color.black).ignoresSafeArea()
             if photos.isEmpty {
-                emptyState
+                GalleryEmptyState()
             } else {
                 GeometryReader { geometry in
                     PhotoGridView(
@@ -163,21 +163,6 @@ struct GalleryView: View {
         .accessibilityLabel("Grid layout options")
     }
 
-    // MARK: - Subviews
-
-    @ViewBuilder
-    private var emptyState: some View {
-        ContentUnavailableView {
-            Label("No photos yet", systemImage: "photo")
-        } actions: {
-            Button("Choose Film", systemImage: "camera.filters", action: onStartShooting)
-                .buttonStyle(.borderedProminent)
-                .tint(.white)
-                .foregroundStyle(.black)
-        }
-        .pageContentWidth()
-    }
-
     // MARK: - Actions
 
     /// 全选 / 取消全选：已全选则清空，否则选中全部。
@@ -254,7 +239,7 @@ private struct GallerySaveIndicator: View {
     var body: some View {
         if pipeline.pendingCount > 0 {
             HStack(spacing: 5) {
-                ProgressView().tint(.white).controlSize(.small)
+                ProgressView().tint(.primary).controlSize(.small)
                     .accessibilityHidden(true)
                 Text(pipeline.pendingCount, format: .number)
                     .font(.caption.monospacedDigit())

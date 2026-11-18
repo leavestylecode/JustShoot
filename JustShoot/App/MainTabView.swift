@@ -27,7 +27,7 @@ struct MainTabView: View {
             FilmHomeView(preparedHome: home)
                 .tabItem { Image(systemName: "camera.filters").accessibilityLabel("Films") }
                 .tag(0)
-            NavigationStack { GalleryView(onStartShooting: { selectedTab = 0 }) }
+            NavigationStack { GalleryView() }
                 .tabItem { Image(systemName: "photo.stack").accessibilityLabel("Photos") }
                 .tag(1)
             NavigationStack { FilmCardLibraryView() }
