@@ -150,14 +150,6 @@ final class CameraManager: NSObject, ObservableObject {
     @Published private(set) var rawCaptureFormat: CameraRAWFormat?
     @Published private(set) var usesDeferredPhotoDelivery = false
     private var livePhotoCaptureDesired = false
-    private var highDetailRequested = false
-
-    func setHighDetailRequested(_ value: Bool) {
-        guard value != highDetailRequested else { return }
-        highDetailRequested = value
-        reconcilePhotoDelivery()
-    }
-
     private var photoDeliveryConfigurationPending = false
     private var photoDeliveryReconciliationPending = false
     private var rawFormatsObservation: NSKeyValueObservation?
@@ -918,11 +910,9 @@ final class CameraManager: NSObject, ObservableObject {
         photoDeliveryReconciliationPending = false
         let live = livePhotoCaptureDesired
         let authorized = PhotoLibrary.isAuthorized
-        let highDetail = highDetailRequested
-        let enabled = CameraCapturePolicy.usesDeferredDelivery(
-            supported: photoOutput.isAutoDeferredPhotoDeliverySupported
-                && device.activeFormat.supportedMaxPhotoDimensions.contains(where: CameraCapturePolicy.requiresDeferredDelivery),
-            photosAuthorized: authorized, livePhoto: live, highDetailRequested: highDetail)
+        let enabled = CameraCapturePolicy.photoDelivery(from: device.activeFormat.supportedMaxPhotoDimensions,
+            deferredDeliverySupported: photoOutput.isAutoDeferredPhotoDeliverySupported,
+            photosAuthorized: authorized, livePhoto: live).deferred
         let modeChanged = live != photoDeliveryConfiguredForLivePhoto || enabled != photoOutput.isAutoDeferredPhotoDeliveryEnabled
         guard modeChanged else {
             usesDeferredPhotoDelivery = enabled
@@ -946,7 +936,7 @@ final class CameraManager: NSObject, ObservableObject {
             if self.sessionIntent.withLock({ $0.permitsStart(generation) }) {
                 let switching = trace.span("photo_delivery_apply", "live=\(live) deferred=\(enabled)")
                 captureSession.beginConfiguration()
-                self.configurePhotoDelivery(output: output, device: device, live: live, photosAuthorized: authorized, highDetail: highDetail)
+                self.configurePhotoDelivery(output: output, device: device, live: live, photosAuthorized: authorized)
                 captureSession.commitConfiguration()
                 switching.end("configured", "live_supported=\(output.isLivePhotoCaptureSupported) live_enabled=\(output.isLivePhotoCaptureEnabled) preview_proxy=\(videoOutput.deliversPreviewSizedOutputBuffers)")
             }
@@ -1130,14 +1120,16 @@ final class CameraManager: NSObject, ObservableObject {
         }
         // Native 24 MP processing must round-trip through Photos. Request the same
         // read/write permission already used by saving, before configuring this output.
-        let supports24MP = await withCheckedContinuation { continuation in
-            sessionQueue.async {
-                continuation.resume(returning: device.formats.contains {
-                    $0.supportedMaxPhotoDimensions.contains(where: CameraCapturePolicy.requiresDeferredDelivery)
-                })
+        if !PhotoLibrary.isAuthorized {
+            let supports24MP = await withCheckedContinuation { continuation in
+                sessionQueue.async {
+                    continuation.resume(returning: device.formats.contains {
+                        $0.supportedMaxPhotoDimensions.contains(where: CameraCapturePolicy.requiresDeferredDelivery)
+                    })
+                }
             }
+            if supports24MP { try? await PhotoLibrary.ensureAuthorized(trace: trace) }
         }
-        if supports24MP { try? await PhotoLibrary.ensureAuthorized(trace: trace) }
         guard !Task.isCancelled, sessionIntent.withLock({ $0.permitsStart(token) }) else { return }
         setupOrientationMonitoring()
         beginCameraPreparation()
@@ -1154,7 +1146,6 @@ final class CameraManager: NSObject, ObservableObject {
         let audioDesired = livePhotoAudioDesired
         let liveDesired = livePhotoCaptureDesired
         let photosAuthorized = PhotoLibrary.isAuthorized
-        let highDetail = highDetailRequested
         let intent = sessionIntent
         let queuedAt = Log.now()
         let hardwareCompletedAt = OSAllocatedUnfairLock<TimeInterval?>(initialState: nil)
@@ -1203,7 +1194,7 @@ final class CameraManager: NSObject, ObservableObject {
                     }
 
                     trace.measure("session_format") {
-                        self.applyBestFormatAndModes(on: device, preferDeferred: highDetail && photosAuthorized && !liveDesired)
+                        self.applyBestFormatAndModes(on: device, allowsDeferredDelivery: photosAuthorized && !liveDesired)
                     }
                     let info = trace.measure("session_focal_info") { DeviceFocalInfo.from(virtualDevice: device) }
                     preparedFocalInfo = info
@@ -1233,7 +1224,7 @@ final class CameraManager: NSObject, ObservableObject {
                         }
 
                         // Still-photo dimensions remain independent of preview proxy size.
-                        self.configurePhotoDelivery(output: output, device: device, live: liveDesired, photosAuthorized: photosAuthorized, highDetail: highDetail)
+                        self.configurePhotoDelivery(output: output, device: device, live: liveDesired, photosAuthorized: photosAuthorized)
                     }
 
                     photoSetup.end()
@@ -1250,7 +1241,7 @@ final class CameraManager: NSObject, ObservableObject {
                     if captureSession.canAddOutput(audioOutput) { captureSession.addOutput(audioOutput) }
                     previewSetup.end()
                     if output.isAppleProRAWSupported { output.isAppleProRAWEnabled = true }
-                    self.configurePhotoDelivery(output: output, device: device, live: liveDesired, photosAuthorized: photosAuthorized, highDetail: highDetail)
+                    self.configurePhotoDelivery(output: output, device: device, live: liveDesired, photosAuthorized: photosAuthorized)
                 } catch {
                     trace.event("session_configuration_error", Diagnostics.errorFields(error))
                     Log.session.error("session_setup_error error=\(error.localizedDescription, privacy: .public)")
@@ -1574,9 +1565,9 @@ final class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    /// Prefer a supported ordinary photo format. Preview buffers and still dimensions are
-    /// negotiated separately; choosing a large video format must not imply HEIF Max output.
-    nonisolated private func applyBestFormatAndModes(on device: AVCaptureDevice, preferDeferred: Bool) {
+    /// Rank compatible formats by the still size available in the starting mode.
+    /// Look at the other mode next to keep both modes on the same format when possible.
+    nonisolated private func applyBestFormatAndModes(on device: AVCaptureDevice, allowsDeferredDelivery: Bool) {
         let candidates = device.formats.filter { fmt in
             let d = CMVideoFormatDescriptionGetDimensions(fmt.formatDescription)
             guard d.width > 0, d.height > 0 else { return false }
@@ -1587,8 +1578,8 @@ final class CameraManager: NSObject, ObservableObject {
 
         func score(_ format: AVCaptureDevice.Format) -> (Int64, Int64) {
             let dimensions = format.supportedMaxPhotoDimensions
-            return (CameraCapturePolicy.automaticPhotoFormatScore(from: dimensions, deferredDeliveryEnabled: preferDeferred),
-                CameraCapturePolicy.automaticPhotoFormatScore(from: dimensions, deferredDeliveryEnabled: !preferDeferred))
+            return (CameraCapturePolicy.automaticPhotoFormatScore(from: dimensions, allowsDeferredDelivery: allowsDeferredDelivery),
+                CameraCapturePolicy.automaticPhotoFormatScore(from: dimensions, allowsDeferredDelivery: !allowsDeferredDelivery))
         }
         let bestFormat = candidates.max { lhs, rhs in
             let lp = score(lhs), rp = score(rhs)
@@ -1657,23 +1648,19 @@ final class CameraManager: NSObject, ObservableObject {
     }
 
     nonisolated private func configurePhotoDelivery(output: AVCapturePhotoOutput, device: AVCaptureDevice,
-                                                   live: Bool, photosAuthorized: Bool, highDetail: Bool) {
+                                                   live: Bool, photosAuthorized: Bool) {
         let supported = device.activeFormat.supportedMaxPhotoDimensions
-        let deferred = CameraCapturePolicy.usesDeferredDelivery(
-            supported: output.isAutoDeferredPhotoDeliverySupported
-                && supported.contains(where: CameraCapturePolicy.requiresDeferredDelivery),
-            photosAuthorized: photosAuthorized, livePhoto: live, highDetailRequested: highDetail)
+        let (selected, deferred) = CameraCapturePolicy.photoDelivery(from: supported,
+            deferredDeliverySupported: output.isAutoDeferredPhotoDeliverySupported,
+            photosAuthorized: photosAuthorized, livePhoto: live)
         if output.isAutoDeferredPhotoDeliveryEnabled != deferred { output.isAutoDeferredPhotoDeliveryEnabled = deferred }
-        let selected = CameraCapturePolicy.automaticPhotoDimensions(from: supported, deferredDeliveryEnabled: deferred)
         if let selected, selected.width != output.maxPhotoDimensions.width
             || selected.height != output.maxPhotoDimensions.height {
             output.maxPhotoDimensions = selected
         }
         let supportedText = supported.map { "\($0.width)x\($0.height)" }.joined(separator: ",")
         let selectedText = selected.map { "\($0.width)x\($0.height)" } ?? "none"
-        let reason = selected.map { _ in
-            CameraCapturePolicy.automaticPhotoFormatScore(from: supported, deferredDeliveryEnabled: deferred) > 0 ? "ordinary_supported" : "smallest_supported_fallback"
-        } ?? "no_supported_4_3_dimensions"
+        let reason = selected == nil ? "no_supported_4_3_dimensions" : "largest_supported"
         diagnostics.event("photo_dimensions_selected", "supported=[\(supportedText)] selected=\(selectedText) deferred=\(deferred) live=\(live) reason=\(reason)")
     }
 
@@ -2615,9 +2602,17 @@ final class CameraManager: NSObject, ObservableObject {
         } else {
             settings = AVCapturePhotoSettings()
         }
-        // Per-capture settings must explicitly use the ordinary dimensions selected for this
-        // output; AVFoundation may still deliver a different final size for the current scene.
-        settings.maxPhotoDimensions = photoOutput.maxPhotoDimensions
+        // RAW stills cannot use the processed 24 MP fusion size.
+        let maximum = photoOutput.maxPhotoDimensions
+        if request.rawFormat != nil, CameraCapturePolicy.requiresDeferredDelivery(maximum) {
+            if let device = videoCaptureDevice,
+               let directSize = CameraCapturePolicy.automaticPhotoDimensions(
+                   from: device.activeFormat.supportedMaxPhotoDimensions, allowsDeferredDelivery: false) {
+                settings.maxPhotoDimensions = directSize
+            }
+        } else {
+            settings.maxPhotoDimensions = maximum
+        }
         // Prioritize image quality, bounded by the output capability.
         settings.photoQualityPrioritization = CameraCapturePolicy.qualityPrioritization(supportedMax: photoOutput.maxPhotoQualityPrioritization)
         if request.rawFormat?.kind == .bayerRAW { settings.photoQualityPrioritization = .speed }

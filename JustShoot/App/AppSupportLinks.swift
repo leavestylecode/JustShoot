@@ -1,23 +1,27 @@
 import Foundation
 
-/// Unconfigured destinations stay out of Settings. Supply real values through
-/// OOOAppStoreID / OOOFeedbackEmail in the app's Info configuration. The legacy
-/// keys remain valid for existing build configurations.
+/// Supply OOOAppStoreID and OOOFeedbackEmail in the app's Info configuration.
+/// The legacy keys remain valid for existing build configurations.
 struct AppSupportLinks {
+    private static let projectURL = URL(string: "https://github.com/leavestylecode/JustShoot")!
+
     let reviewURL: URL?
+    let shareURL: URL
     let feedbackURL: URL?
 
     init(info: [String: Any]) {
-        reviewURL = Self.reviewURL(id: info["OOOAppStoreID"] as? String)
-            ?? Self.reviewURL(id: info["JustShootAppStoreID"] as? String)
+        let storeURL = Self.storeURL(id: info["OOOAppStoreID"] as? String)
+            ?? Self.storeURL(id: info["JustShootAppStoreID"] as? String)
+        reviewURL = storeURL?.appending(queryItems: [URLQueryItem(name: "action", value: "write-review")])
+        shareURL = storeURL ?? Self.projectURL
         feedbackURL = Self.feedbackURL(email: info["OOOFeedbackEmail"] as? String)
             ?? Self.feedbackURL(email: info["JustShootFeedbackEmail"] as? String)
     }
 
-    private static func reviewURL(id: String?) -> URL? {
+    private static func storeURL(id: String?) -> URL? {
         guard let appID = id?.trimmingCharacters(in: .whitespacesAndNewlines),
               appID.allSatisfy(\.isNumber), let number = UInt64(appID), number > 0 else { return nil }
-        return URL(string: "https://apps.apple.com/app/id\(appID)?action=write-review")
+        return URL(string: "https://apps.apple.com/app/id\(appID)")
     }
 
     private static func feedbackURL(email value: String?) -> URL? {

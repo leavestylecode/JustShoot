@@ -16,7 +16,6 @@ struct CameraView: View {
     @ObservedObject private var filmSettings: FilmPageSettings
     /// Preserve the saved Live Photo preference; the still-photo format is automatic.
     @AppStorage("photoCaptureMode") private var captureModeValue = PhotoCaptureMode.quality.rawValue
-    @AppStorage(CameraCapturePolicy.highDetailPreferenceKey) private var highDetail = false
     @AppStorage(FilmSource.simulationGrainPreferenceKey) private var simulationGrain = false
     /// 曲线目录同时提供当前选择、默认曲线显隐及用户自定义曲线。
     @EnvironmentObject private var curveLibrary: FilmCurveLibrary
@@ -99,11 +98,9 @@ struct CameraView: View {
             cameraManager.setEntrySceneActive(scenePhase == .active)
             cameraManager.updateEntryPipelineReady(capturePipeline.isPrepared)
             cameraManager.updateEntryLUT(expectedKey: previewLUTKey, preparedKey: preparedLUT?.key)
-            cameraManager.setHighDetailRequested(highDetail)
             cameraManager.requestCameraPermission()
             cameraManager.setLivePhotoAudio(live: wantsLiveCapture)
         }
-        .onChange(of: highDetail) { _, value in cameraManager.setHighDetailRequested(value) }
         .onChange(of: captureModeValue) { _, _ in
             cameraManager.diagnostics.event("live_photo_preference_changed", "requested=\(wantsLiveCapture) supported=\(cameraManager.livePhotoCaptureState.supported) enabled=\(cameraManager.livePhotoCaptureState.enabled)")
             cameraManager.setLivePhotoAudio(live: wantsLiveCapture)

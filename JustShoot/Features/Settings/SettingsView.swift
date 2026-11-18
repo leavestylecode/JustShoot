@@ -5,9 +5,7 @@ struct SettingsView: View {
     @ObservedObject private var capturePipeline = CapturePipeline.shared
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var curveLibrary: FilmCurveLibrary
-    @AppStorage(CameraCapturePolicy.highDetailPreferenceKey) private var highDetail = false
     @AppStorage(FilmSource.simulationGrainPreferenceKey) private var simulationGrain = false
-    @State private var showsPhotoDeliveryHelp = false
     /// 逐阶段处理对照图（默认关）。与 FilmProcessor 共享同一 key：开 = 每次拍摄额外保留
     /// 原片与 LUT/光学/颗粒各阶段输出，用于定位细节在哪一步丢失。
     @AppStorage("processingStageDiagnostics") private var processingStageDiagnostics = false
@@ -17,33 +15,64 @@ struct SettingsView: View {
     @State private var recoveryExport: RecoveryOriginalExport?
     @State private var isManagingRecovery = false
     @State private var showsDiagnostics = false
+    @State private var showsReview = false
+    @State private var showsShare = false
+    @State private var preparingShare = false
+    @State private var shareIcon: UIImage?
 
-    private let supportLinks = AppSupportLinks(info: Bundle.main.infoDictionary ?? [:])
+    private static let supportLinks = AppSupportLinks(info: Bundle.main.infoDictionary ?? [:])
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    appHeader
-                    if capturePipeline.pendingCount + capturePipeline.retainedCount > 0 { pendingPhotosSection }
-                    if !capturePipeline.recoveryIssues.isEmpty { recoveryPhotosSection }
-                    capturePreferencesSection
-                    toolsSection
-                    feedbackSection
-                    Text("© 2026 Leavestylecode")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .padding(.vertical, 12)
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        VStack(spacing: 16) {
+                            SettingsProfileCard()
+                            if capturePipeline.pendingCount + capturePipeline.retainedCount > 0 { pendingPhotosSection }
+                            if !capturePipeline.recoveryIssues.isEmpty { recoveryPhotosSection }
+                            capturePreferencesSection
+                            toolsSection
+                            appLinksSection
+                        }
+
+                        Spacer(minLength: 24)
+                        settingsFooter
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 16)
+                    .frame(minHeight: geometry.size.height)
+                    .pageContentWidth()
                 }
-                .padding()
-                .pageContentWidth()
+                .scrollIndicators(.hidden)
             }
             .background(Color.black)
             .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .softScrollEdges()
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showsReview) {
+            AnimatedReviewSheet(reviewURL: Self.supportLinks.reviewURL)
+        }
+        .sheet(isPresented: $showsShare) {
+            AppStoreShareSheet(url: Self.supportLinks.shareURL, title: AppBrand.displayName,
+                               subject: AppBrand.displayName, icon: shareIcon)
+        }
+        .task(id: preparingShare) {
+            guard preparingShare else { return }
+            if shareIcon == nil {
+                let icon = await BlockingImageWork.shared.run {
+                    (UIImage(named: "Appicon60x60") ?? UIImage(named: "OOOLogo"))?.preparingForDisplay()
+                }
+                guard !Task.isCancelled else { return }
+                shareIcon = icon
+            }
+            guard !Task.isCancelled else { return }
+            showsShare = true
+            preparingShare = false
+        }
         .alert("Log export failed", isPresented: $diagnosticExportFailed) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -68,12 +97,6 @@ struct SettingsView: View {
 
     private var capturePreferencesSection: some View {
         sectionCard {
-            Toggle("Prefer 24 MP stills", isOn: $highDetail)
-            DisclosureGroup("Photo delivery", isExpanded: $showsPhotoDeliveryHelp) {
-                Text("Standard saves the finished film photo. On supported cameras, 24 MP keeps a restorable original in Photos and applies the film after system processing.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
             Toggle("Grain for FUJIFILM simulations", isOn: $simulationGrain)
         }
     }
@@ -223,75 +246,63 @@ struct SettingsView: View {
         }
     }
 
-    private var appHeader: some View {
-        HStack(spacing: 16) {
-            AppBrandMark()
-                .frame(width: 40, height: 40)
-                .frame(width: 64, height: 64)
-                .background(Color.white.opacity(0.08), in: .rect(cornerRadius: 20))
-                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.white.opacity(0.12)))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: AppBrand.displayName)
-                    .font(.title2.weight(.semibold))
-                    .accessibilityAddTraits(.isHeader)
-                Text("Version \(appVersion)")
-                    .font(.footnote.monospacedDigit())
-                    .foregroundStyle(.secondary)
+    private var appLinksSection: some View {
+        sectionCard(spacing: 4) {
+            NavigationLink {
+                AboutAuthorView()
+            } label: {
+                SettingRow(icon: "person.circle.fill", iconColor: .teal,
+                           title: "About the Author", showsChevron: true)
             }
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(colors: [Color(red: 0.15, green: 0.10, blue: 0.11), Color(white: 0.07)],
-                startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: .rect(cornerRadius: 24)
-        )
-        .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.white.opacity(0.08)))
-    }
+            .buttonStyle(.plain)
 
-    // MARK: - 评分 / 反馈
-    @ViewBuilder
-    private var feedbackSection: some View {
-        if supportLinks.reviewURL != nil || supportLinks.feedbackURL != nil {
-            sectionCard {
-                if let url = supportLinks.reviewURL {
-                    Button { openURL(url) } label: {
-                        SettingRow(icon: "star.fill", iconColor: .yellow,
-                                   title: "Rate on the App Store", showsChevron: true)
-                    }
-                    .buttonStyle(.plain)
-                }
+            Button {
+                showsReview = true
+            } label: {
+                SettingRow(icon: "star.circle.fill", iconColor: Color(red: 0.95, green: 0.76, blue: 0.35),
+                           title: "Rate on the App Store", showsChevron: true)
+            }
+            .buttonStyle(.plain)
 
-                if supportLinks.reviewURL != nil && supportLinks.feedbackURL != nil {
-                    Divider().overlay(Color.white.opacity(0.08))
-                }
+            Button {
+                preparingShare = true
+            } label: {
+                SettingRow(icon: "heart.circle.fill", iconColor: .red,
+                           title: "Share App", showsChevron: true)
+            }
+            .buttonStyle(.plain)
+            .disabled(preparingShare)
 
-                if let url = supportLinks.feedbackURL {
-                    Button { openURL(url) } label: {
-                        SettingRow(icon: "envelope.fill", iconColor: .blue,
-                                   title: "Send Feedback", showsChevron: true)
-                    }
-                    .buttonStyle(.plain)
+            if let url = Self.supportLinks.feedbackURL {
+                Button { openURL(url) } label: {
+                    SettingRow(icon: "envelope", iconColor: .blue,
+                               title: "Send Feedback", showsChevron: true)
                 }
+                .buttonStyle(.plain)
             }
         }
     }
 
-    // MARK: - Helpers
-
-    private var appVersion: String {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        return "\(v) (\(b))"
+    private var settingsFooter: some View {
+        VStack(spacing: 4) {
+            Text("Version \(Self.appVersion)")
+                .font(.caption.monospacedDigit())
+            Text(verbatim: "Copyright © 2026 Leavestylecode")
+                .font(.caption)
+        }
+        .foregroundStyle(.secondary)
+        .multilineTextAlignment(.center)
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .combine)
     }
 
-    /// 分区卡片：白 6% 圆角实色背景（非玻璃），内部纵向堆叠行。
+    private static let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+
     private func sectionCard<Content: View>(spacing: CGFloat = 12, @ViewBuilder content: () -> Content) -> some View {
         VStack(spacing: spacing) { content() }
             .padding(16)
             .frame(maxWidth: .infinity)
-            .background(Color.white.opacity(0.06), in: .rect(cornerRadius: 20))
+            .settingsGlassCard(cornerRadius: 24)
     }
 }
 
@@ -308,9 +319,10 @@ private struct SettingRow: View {
     var body: some View {
         HStack(spacing: 15) {
             Image(systemName: icon)
-                .font(.system(size: 18))
+                .font(.system(size: 22))
                 .foregroundStyle(iconColor)
                 .frame(width: 26, height: 26)
+                .accessibilityHidden(true)
             Text(title)
                 .foregroundStyle(.white)
             Spacer()
@@ -321,9 +333,21 @@ private struct SettingRow: View {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
             }
         }
         .frame(minHeight: 44)
         .contentShape(Rectangle())
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func settingsGlassCard(cornerRadius: CGFloat, interactive: Bool = false) -> some View {
+        if #available(iOS 26, *) {
+            glassEffect(.regular.interactive(interactive), in: .rect(cornerRadius: cornerRadius))
+        } else {
+            background(Color.white.opacity(0.08), in: .rect(cornerRadius: cornerRadius))
+        }
     }
 }

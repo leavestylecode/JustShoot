@@ -10,64 +10,67 @@ final class CameraCapturePolicyTests: XCTestCase {
         XCTAssertEqual(CameraCapturePolicy.qualityPrioritization(supportedMax: .speed), .speed)
     }
 
-    func testOrdinaryPhotoModePrefersSupported24MPOver48MP() {
-        let selected = CameraCapturePolicy.automaticPhotoDimensions(from: [
+    func testStillModeRequests48MPWhenItIsTheLargestAvailableSize() {
+        let delivery = CameraCapturePolicy.photoDelivery(from: [
             CMVideoDimensions(width: 4032, height: 3024),
             CMVideoDimensions(width: 8064, height: 6048),
             CMVideoDimensions(width: 5712, height: 4284)
-        ])
-        XCTAssertEqual(selected?.width, 5712)
-        XCTAssertEqual(selected?.height, 4284)
+        ], deferredDeliverySupported: true, photosAuthorized: true, livePhoto: false)
+        XCTAssertEqual(delivery.dimensions?.width, 8064)
+        XCTAssertEqual(delivery.dimensions?.height, 6048)
+        XCTAssertFalse(delivery.deferred)
     }
 
-    func test24MPIsNotRequestedWhenDeferredDeliveryIsUnavailable() {
-        let selected = CameraCapturePolicy.automaticPhotoDimensions(from: [
-            CMVideoDimensions(width: 4032, height: 3024), CMVideoDimensions(width: 5712, height: 4284)
-        ], deferredDeliveryEnabled: false)
-        XCTAssertEqual(selected?.width, 4032)
-        XCTAssertEqual(selected?.height, 3024)
-        XCTAssertGreaterThan(CameraCapturePolicy.automaticPhotoFormatScore(from: [CMVideoDimensions(width: 4032, height: 3024)], deferredDeliveryEnabled: false),
-            CameraCapturePolicy.automaticPhotoFormatScore(from: [CMVideoDimensions(width: 5712, height: 4284)], deferredDeliveryEnabled: false))
-        XCTAssertTrue(CameraCapturePolicy.requiresDeferredDelivery(CMVideoDimensions(width: 5712, height: 4284)))
-        XCTAssertFalse(CameraCapturePolicy.requiresDeferredDelivery(CMVideoDimensions(width: 4032, height: 3024)))
+    func testStillModeUsesDeferred24MPWhenItIsTheLargestAvailableSize() {
+        let delivery = CameraCapturePolicy.photoDelivery(from: [
+            CMVideoDimensions(width: 4032, height: 3024),
+            CMVideoDimensions(width: 5712, height: 4284)
+        ], deferredDeliverySupported: true, photosAuthorized: true, livePhoto: false)
+
+        XCTAssertEqual(delivery.dimensions?.width, 5712)
+        XCTAssertEqual(delivery.dimensions?.height, 4284)
+        XCTAssertTrue(delivery.deferred)
     }
 
-    func testDeferredDeliveryRequiresCapabilityPhotosAccessAndStillMode() {
-        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: true, livePhoto: false, highDetailRequested: false))
-        XCTAssertTrue(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: true, livePhoto: false, highDetailRequested: true))
-        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: false, photosAuthorized: true, livePhoto: false, highDetailRequested: true))
-        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: false, livePhoto: false, highDetailRequested: true))
-        XCTAssertFalse(CameraCapturePolicy.usesDeferredDelivery(supported: true, photosAuthorized: true, livePhoto: true, highDetailRequested: true))
+    func testDeferred24MPFallsBackWithoutCapabilityPhotosAccessOrStillMode() {
+        let dimensions = [CMVideoDimensions(width: 4032, height: 3024), CMVideoDimensions(width: 5712, height: 4284)]
+        for (supported, authorized, live) in [(false, true, false), (true, false, false), (true, true, true)] {
+            let delivery = CameraCapturePolicy.photoDelivery(from: dimensions,
+                deferredDeliverySupported: supported, photosAuthorized: authorized, livePhoto: live)
+            XCTAssertEqual(delivery.dimensions?.width, 4032)
+            XCTAssertEqual(delivery.dimensions?.height, 3024)
+            XCTAssertFalse(delivery.deferred)
+        }
     }
 
-    func testAFormatWithOnly12And48MPUsesItsSupportedOrdinarySize() {
-        let selected = CameraCapturePolicy.automaticPhotoDimensions(from: [
-            CMVideoDimensions(width: 8064, height: 6048), CMVideoDimensions(width: 4032, height: 3024)
-        ])
-        XCTAssertEqual(selected?.width, 4032)
-        XCTAssertEqual(selected?.height, 3024)
-    }
-
-    func testOnlyHighResolutionFormatKeepsASupportedSizeInsteadOfInventing24MP() {
-        let selected = CameraCapturePolicy.automaticPhotoDimensions(from: [CMVideoDimensions(width: 8064, height: 6048)])
-        XCTAssertEqual(selected?.width, 8064)
-        XCTAssertEqual(selected?.height, 6048)
+    func testLivePhotoUsesTheLargestDirectSize() {
+        let delivery = CameraCapturePolicy.photoDelivery(from: [
+            CMVideoDimensions(width: 8064, height: 6048),
+            CMVideoDimensions(width: 4032, height: 3024)
+        ], deferredDeliverySupported: true, photosAuthorized: true, livePhoto: true)
+        XCTAssertEqual(delivery.dimensions?.width, 8064)
+        XCTAssertEqual(delivery.dimensions?.height, 6048)
+        XCTAssertFalse(delivery.deferred)
     }
 
     func testPhotoSizeSelectionRejectsInvalidAndNonPhotoAspectRatios() {
         XCTAssertNil(CameraCapturePolicy.automaticPhotoDimensions(from: [
             CMVideoDimensions(width: 0, height: 0), CMVideoDimensions(width: -1, height: 3024),
             CMVideoDimensions(width: 3840, height: 2160)
-        ]))
+        ], allowsDeferredDelivery: false))
     }
 
-    func testFormatRankingPrefersAnOrdinarySizeOverAMaxOnlyFormat() {
-        let ordinary = CameraCapturePolicy.automaticPhotoFormatScore(from: [CMVideoDimensions(width: 5712, height: 4284)])
-        let maxOnly = CameraCapturePolicy.automaticPhotoFormatScore(from: [CMVideoDimensions(width: 8064, height: 6048)])
-        let invalid = CameraCapturePolicy.automaticPhotoFormatScore(from: [])
-        XCTAssertGreaterThan(ordinary, maxOnly)
-        XCTAssertGreaterThan(maxOnly, invalid)
-        XCTAssertGreaterThan(CameraCapturePolicy.automaticPhotoFormatScore(from: [CMVideoDimensions(width: 8000, height: 6000)]), maxOnly)
+    func testFormatRankingUsesTheLargestDeliverableSize() {
+        let fusionOnly = [CMVideoDimensions(width: 5712, height: 4284)]
+        let direct = [CMVideoDimensions(width: 4032, height: 3024)]
+        let directScore = CameraCapturePolicy.automaticPhotoFormatScore(from: direct, allowsDeferredDelivery: false)
+        let maxScore = CameraCapturePolicy.automaticPhotoFormatScore(
+            from: [CMVideoDimensions(width: 8064, height: 6048)], allowsDeferredDelivery: false)
+        let fusionScore = CameraCapturePolicy.automaticPhotoFormatScore(from: fusionOnly, allowsDeferredDelivery: true)
+        XCTAssertGreaterThan(maxScore, fusionScore)
+        XCTAssertGreaterThan(fusionScore, directScore)
+        XCTAssertGreaterThan(directScore,
+            CameraCapturePolicy.automaticPhotoFormatScore(from: fusionOnly, allowsDeferredDelivery: false))
     }
 
     func testSafeShutterUsesFocalLengthWithA24mmFloor() {

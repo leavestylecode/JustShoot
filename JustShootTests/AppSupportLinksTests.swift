@@ -2,14 +2,16 @@ import XCTest
 @testable import JustShoot
 
 final class AppSupportLinksTests: XCTestCase {
-    func testUnconfiguredOrPlaceholderDestinationsAreHidden() {
+    func testUnconfiguredOrPlaceholderStoreIDUsesPublicProjectForSharing() {
         let absent = AppSupportLinks(info: [:])
         XCTAssertNil(absent.reviewURL)
         XCTAssertNil(absent.feedbackURL)
+        XCTAssertEqual(absent.shareURL.absoluteString, "https://github.com/leavestylecode/JustShoot")
         let placeholder = AppSupportLinks(info: ["OOOAppStoreID": "0000000000",
             "OOOFeedbackEmail": "feedback@example.com"])
         XCTAssertNil(placeholder.reviewURL)
         XCTAssertNil(placeholder.feedbackURL)
+        XCTAssertEqual(placeholder.shareURL, absent.shareURL)
     }
 
     func testConfiguredDestinationsAreWellFormed() {
@@ -17,6 +19,8 @@ final class AppSupportLinksTests: XCTestCase {
             "OOOFeedbackEmail": "support@justshoot.test"])
         XCTAssertEqual(links.reviewURL?.host, "apps.apple.com")
         XCTAssertEqual(links.reviewURL?.path, "/app/id123456789")
+        XCTAssertEqual(links.reviewURL?.query, "action=write-review")
+        XCTAssertEqual(links.shareURL.absoluteString, "https://apps.apple.com/app/id123456789")
         XCTAssertEqual(links.feedbackURL?.scheme, "mailto")
         XCTAssertEqual(URLComponents(url: links.feedbackURL!, resolvingAgainstBaseURL: false)?.queryItems,
             [URLQueryItem(name: "subject", value: "OOO Feedback")])
@@ -29,6 +33,7 @@ final class AppSupportLinksTests: XCTestCase {
         ])
 
         XCTAssertEqual(links.reviewURL?.path, "/app/id123456789")
+        XCTAssertEqual(links.shareURL.absoluteString, "https://apps.apple.com/app/id123456789")
         XCTAssertEqual(links.feedbackURL?.path, "old@justshoot.test")
     }
 
@@ -41,6 +46,7 @@ final class AppSupportLinksTests: XCTestCase {
         ])
 
         XCTAssertEqual(links.reviewURL?.path, "/app/id987654321")
+        XCTAssertEqual(links.shareURL.absoluteString, "https://apps.apple.com/app/id987654321")
         XCTAssertEqual(links.feedbackURL?.path, "new@justshoot.test")
     }
 
