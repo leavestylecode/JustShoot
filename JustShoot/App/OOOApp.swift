@@ -26,6 +26,7 @@ struct OOOApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var curveLibrary = FilmCurveLibrary()
     @StateObject private var startup = AppStartupPreparation()
+    @State private var introFinished = false
     @Environment(\.scenePhase) private var scenePhase
 
     private var isRunningUnitTests: Bool {
@@ -38,7 +39,8 @@ struct OOOApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppStartupContent(startup: startup, curveLibrary: curveLibrary, isRunningUnitTests: isRunningUnitTests)
+            AppStartupContent(startup: startup, curveLibrary: curveLibrary, isRunningUnitTests: isRunningUnitTests,
+                              introFinished: $introFinished)
                 // Keep typography and scaled layout metrics at the design's default size.
                 .dynamicTypeSize(.large)
                 .onChange(of: scenePhase, initial: true) { _, phase in startup.setActive(phase == .active) }
@@ -50,23 +52,38 @@ private struct AppStartupContent: View {
     @ObservedObject var startup: AppStartupPreparation
     let curveLibrary: FilmCurveLibrary
     let isRunningUnitTests: Bool
+    @Binding var introFinished: Bool
     @Environment(\.displayScale) private var displayScale
 
+    private var showsIntro: Bool {
+        !startup.hasFailed && (!introFinished || startup.ready == nil)
+    }
+
     var body: some View {
-        Group {
-            if isRunningUnitTests {
-                Color.clear
-            } else if let ready = startup.ready {
-                MainTabView(home: ready.home)
-                    .environmentObject(curveLibrary)
-                    .modelContainer(ready.container)
-            } else if !startup.hasFailed {
-                AppStartupLoadingScreen()
-            } else {
-                PreparationErrorScreen(title: "Your library could not be prepared", message: startup.failureMessage,
-                    onAction: { Task { await startup.retry(displayScale: displayScale) } })
+        if isRunningUnitTests {
+            Color.clear
+        } else {
+            ZStack {
+                if introFinished, let ready = startup.ready {
+                    MainTabView(home: ready.home)
+                        .environmentObject(curveLibrary)
+                        .modelContainer(ready.container)
+                } else if startup.hasFailed {
+                    PreparationErrorScreen(title: "Your library could not be prepared", message: startup.failureMessage,
+                        onAction: { Task { await startup.retry(displayScale: displayScale) } })
+                }
+
+                if showsIntro {
+                    AppStartupIntro(isFinished: $introFinished)
+                        .zIndex(1)
+                        .transition(.opacity.animation(.easeOut(duration: 0.18)))
+                }
             }
+            .statusBarHidden(showsIntro)
+            .onChange(of: startup.hasFailed) { _, failed in
+                if failed { introFinished = true }
+            }
+            .task { await startup.prepare(displayScale: displayScale) }
         }
-        .task { if !isRunningUnitTests { await startup.prepare(displayScale: displayScale) } }
     }
 }

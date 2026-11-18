@@ -1,32 +1,5 @@
 import SwiftUI
 
-struct AppStartupLoadingScreen: View {
-    var body: some View {
-        // Match the launch storyboard's lockup. Progress sits below it without shifting it.
-        VStack(spacing: 16) {
-            AppBrandMark()
-                .frame(width: 64, height: 64)
-            Text(verbatim: AppBrand.displayName)
-                .font(.system(size: 24, weight: .semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .frame(height: 30)
-        }
-        .overlay(alignment: .bottom) {
-            ProgressView()
-                .tint(.white)
-                .offset(y: 40)
-                .accessibilityLabel("Preparing your library…")
-        }
-        .padding(.horizontal, 24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.ignoresSafeArea())
-        .foregroundStyle(.white)
-        .preferredColorScheme(.dark)
-        .accessibilityIdentifier("preparation_screen")
-    }
-}
-
 struct PreparationErrorScreen: View {
     let title: LocalizedStringKey
     var message: String? = nil

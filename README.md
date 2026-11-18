@@ -222,7 +222,7 @@ memory still need measurement under rapid scrolling, paging and camera return.
 
 ## Entry preparation
 
-The system launch screen and home preparation screen share a black background, an aperture icon and the JustShoot name. The system screen bridges process launch; asynchronous preparation runs in the app, and completion determines when the destination appears. There is no fixed branding delay. This follows Apple's distinction between [launching](https://developer.apple.com/design/human-interface-guidelines/launching) and [loading content](https://developer.apple.com/design/human-interface-guidelines/loading).
+The black system launch screen continues into a short cold-start animation. The logo traces a ring, expands to fill the window and reveals the OOO wordmark one letter at a time, with a short rebound and a matching impact on haptic-capable devices. Home preparation runs alongside the animation. The app shows the home screen once both are ready and offers Retry if preparation fails. Reduce Motion shows the wordmark immediately and opens home as soon as it is ready.
 
 Home preparation opens the existing store, reads a lightweight custom-filter snapshot, decodes the eight bundled covers, prepares preview pipelines and registers the Photos observer. Prepared images stay strongly held through the first home render. SwiftData Query updates continue to drive later imports, edits and deletions. Historical-photo reconciliation and pending-capture processing keep their background lifecycle; they are not prerequisites for showing the home catalog.
 

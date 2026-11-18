@@ -1,6 +1,7 @@
 import SwiftUI
 
 enum AppBrand {
+    static let wordmark = "OOO"
     static let displayName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "OOO Cam"
 }
 
