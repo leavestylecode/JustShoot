@@ -1,50 +1,25 @@
 import SwiftUI
 
-/// The trace closes before the iris opens.
+/// The trace closes before the iris opens. Core Animation interpolates between these frames.
 struct StartupIntroFrame {
     static let duration: TimeInterval = 1.06
     static let ringRadius: CGFloat = 36
-    static let strokeFraction: CGFloat = 1 / 7
+    static let sequence = [
+        Self(time: 0, trace: 0, expansion: 0),
+        Self(time: 0.62, trace: 1, expansion: 0),
+        Self(time: 0.70, trace: 1, expansion: 0),
+        Self(time: duration, trace: 1, expansion: 1)
+    ]
 
+    let time: TimeInterval
     let trace: CGFloat
     let expansion: CGFloat
-
-    init(elapsed: TimeInterval) {
-        func eased(from start: TimeInterval, to end: TimeInterval) -> CGFloat {
-            let t = min(max((elapsed - start) / (end - start), 0), 1)
-            return t * t * (3 - 2 * t)
-        }
-
-        trace = eased(from: 0, to: 0.62)
-        expansion = eased(from: 0.70, to: Self.duration)
-    }
 
     func radii(in size: CGSize) -> (outer: CGFloat, inner: CGFloat) {
         let radius = Self.ringRadius
         let corner = max(radius, hypot(size.width, size.height) / 2 + 1)
         return (radius + (corner - radius) * expansion,
-                radius * (1 - 2 * Self.strokeFraction) * (1 - expansion))
-    }
-}
-
-struct StartupLetterBeat: Equatable {
-    let lettersShown: Int
-    let delay: Duration
-    let intensity: Double
-
-    static let sequence = [
-        Self(lettersShown: 1, delay: .milliseconds(35), intensity: 0.82),
-        Self(lettersShown: 2, delay: .milliseconds(230), intensity: 0.91),
-        Self(lettersShown: 3, delay: .milliseconds(280), intensity: 1)
-    ]
-
-    @MainActor
-    static func play(_ strike: (Self) -> Void) async throws {
-        for beat in sequence {
-            try await Task.sleep(for: beat.delay)
-            try Task.checkCancellation()
-            strike(beat)
-        }
+                radius * (1 - 2 * AppBrand.ringStrokeFraction) * (1 - expansion))
     }
 }
 
@@ -52,23 +27,19 @@ struct AppStartupIntro: View {
     @Binding var isFinished: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
-    @State private var elapsed: TimeInterval = 0
-    @State private var irisOpened = false
-    @State private var lastBeat: StartupLetterBeat?
+    @State private var startedAt: CFTimeInterval?
     @State private var showsProgress = false
 
-    private var settled: Bool { reduceMotion || isFinished }
-    private var playsLetters: Bool { irisOpened && !settled }
-
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                StartupIris(elapsed: settled ? StartupIntroFrame.duration : elapsed)
-                StartupWordmark(
-                    diameter: min(88, min(geometry.size.width, geometry.size.height) * 0.16),
-                    lettersShown: lastBeat?.lettersShown ?? 0,
-                    settled: settled
-                )
+        ZStack {
+            if reduceMotion || isFinished {
+                AppBrand.paper
+            } else {
+                Color.black
+                Image(decorative: "LaunchRing")
+                    .resizable()
+                    .frame(width: 2 * StartupIntroFrame.ringRadius, height: 2 * StartupIntroFrame.ringRadius)
+                StartupIris(startedAt: startedAt)
             }
         }
         .ignoresSafeArea()
@@ -80,32 +51,16 @@ struct AppStartupIntro: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: AppBrand.wordmark))
-        .accessibilityValue(Text("Preparing your library…"))
+        .accessibilityLabel(Text("Preparing your library…"))
         .accessibilityIdentifier("preparation_screen")
         .task(id: reduceMotion) {
             guard !isFinished else { return }
-            if reduceMotion {
-                isFinished = true
-            } else {
-                withAnimation(.linear(duration: StartupIntroFrame.duration)) {
-                    elapsed = StartupIntroFrame.duration
-                } completion: {
-                    irisOpened = true
-                }
+            if !reduceMotion {
+                startedAt = CACurrentMediaTime()
+                do { try await Task.sleep(for: .seconds(StartupIntroFrame.duration)) }
+                catch { return }
             }
-        }
-        .task(id: playsLetters) {
-            guard playsLetters else { return }
-            do {
-                try await StartupLetterBeat.play { lastBeat = $0 }
-                try await Task.sleep(for: .milliseconds(570))
-                isFinished = true
-            } catch { return }
-        }
-        .sensoryFeedback(trigger: lastBeat) { _, beat in
-            guard let beat, !settled, scenePhase == .active else { return nil }
-            return .impact(weight: .heavy, intensity: beat.intensity)
+            isFinished = true
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { isFinished = true }
@@ -119,70 +74,68 @@ struct AppStartupIntro: View {
     }
 }
 
-private struct StartupIris: View, Animatable {
-    nonisolated var elapsed: TimeInterval
-    nonisolated var animatableData: Double {
-        get { elapsed }
-        set { elapsed = newValue }
+/// A layer animation keeps drawing while SwiftUI lays out the home tabs underneath.
+private struct StartupIris: UIViewRepresentable {
+    let startedAt: CFTimeInterval?
+
+    func makeUIView(context: Context) -> IrisView { IrisView() }
+
+    func updateUIView(_ view: IrisView, context: Context) {
+        if view.startedAt != startedAt {
+            view.startedAt = startedAt
+            view.setNeedsLayout()
+        }
     }
 
-    private let paper = Color(red: 0.957, green: 0.941, blue: 0.910)
+    final class IrisView: UIView {
+        var startedAt: CFTimeInterval?
+        private let ring = CAShapeLayer()
 
-    var body: some View {
-        let frame = StartupIntroFrame(elapsed: elapsed)
-        ZStack {
-            Color.black
-            Image(decorative: "LaunchRing")
-                .resizable()
-                .frame(width: 2 * StartupIntroFrame.ringRadius, height: 2 * StartupIntroFrame.ringRadius)
-            Canvas { context, size in
-                let center = CGPoint(x: size.width / 2, y: size.height / 2)
-                let (outer, inner) = frame.radii(in: size)
-                if frame.trace < 1 {
-                    var arc = Path()
-                    arc.addArc(center: center, radius: (outer + inner) / 2, startAngle: .degrees(-90),
-                               endAngle: .degrees(-90 + 360 * frame.trace), clockwise: false)
-                    context.stroke(arc, with: .color(paper),
-                                   style: StrokeStyle(lineWidth: outer - inner, lineCap: .round))
-                } else {
-                    func circle(_ radius: CGFloat) -> CGRect {
-                        CGRect(x: center.x - radius, y: center.y - radius, width: 2 * radius, height: 2 * radius)
-                    }
-                    var iris = Path(ellipseIn: circle(outer))
-                    if inner > 0 { iris.addEllipse(in: circle(inner)) }
-                    context.fill(iris, with: .color(paper), style: FillStyle(eoFill: true))
-                }
-            }
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            isUserInteractionEnabled = false
+            ring.fillColor = nil
+            ring.strokeColor = UIColor(AppBrand.paper).cgColor
+            ring.lineCap = .round
+            layer.addSublayer(ring)
         }
-        .transaction { $0.animation = nil }
-    }
-}
 
-private struct StartupWordmark: View {
-    let diameter: CGFloat
-    let lettersShown: Int
-    let settled: Bool
+        required init?(coder: NSCoder) { nil }
 
-    var body: some View {
-        HStack(spacing: diameter * 0.10) {
-            ForEach(0..<AppBrand.wordmark.count, id: \.self) { index in
-                let arrived = index < lettersShown
-                Circle()
-                    .strokeBorder(lineWidth: diameter * StartupIntroFrame.strokeFraction)
-                    .frame(width: diameter, height: diameter)
-                    .keyframeAnimator(initialValue: 0.0, trigger: arrived) { ring, recoil in
-                        ring.offset(y: settled ? 0 : diameter * 0.15 * recoil)
-                    } keyframes: { _ in
-                        MoveKeyframe(1)
-                        CubicKeyframe(-0.62, duration: 0.055)
-                        CubicKeyframe(0.29, duration: 0.055)
-                        CubicKeyframe(-0.11, duration: 0.055)
-                        CubicKeyframe(0, duration: 0.065)
-                    }
-                    .opacity(settled || arrived ? 1 : 0)
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            guard let startedAt, !bounds.isEmpty else { return }
+            let frames = StartupIntroFrame.sequence
+            let center = CGPoint(x: bounds.midX, y: bounds.midY)
+            let radii = frames.map { $0.radii(in: bounds.size) }
+            let paths = radii.map { outer, inner in
+                UIBezierPath(arcCenter: center, radius: (outer + inner) / 2,
+                             startAngle: -.pi / 2, endAngle: 3 * .pi / 2, clockwise: true).cgPath
             }
+            let widths = radii.map { $0.outer - $0.inner }
+            let keyTimes = frames.map { NSNumber(value: $0.time / StartupIntroFrame.duration) }
+            let ease = CAMediaTimingFunction(controlPoints: 1 / 3, 0, 2 / 3, 1)
+
+            func track(_ property: String, _ values: [Any]) -> CAKeyframeAnimation {
+                let animation = CAKeyframeAnimation(keyPath: property)
+                animation.values = values
+                animation.keyTimes = keyTimes
+                animation.duration = StartupIntroFrame.duration
+                animation.timingFunctions = Array(repeating: ease, count: frames.count - 1)
+                return animation
+            }
+
+            let group = CAAnimationGroup()
+            group.animations = [track("strokeEnd", frames.map(\.trace)), track("path", paths), track("lineWidth", widths)]
+            group.duration = StartupIntroFrame.duration
+            group.beginTime = ring.convertTime(startedAt, from: nil)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            ring.frame = bounds
+            ring.path = paths.last
+            ring.lineWidth = widths.last ?? 0
+            ring.add(group, forKey: "iris")
+            CATransaction.commit()
         }
-        .foregroundStyle(Color(red: 0.102, green: 0.094, blue: 0.086))
-        .environment(\.layoutDirection, .leftToRight)
     }
 }

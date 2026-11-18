@@ -222,7 +222,7 @@ memory still need measurement under rapid scrolling, paging and camera return.
 
 ## Entry preparation
 
-The black system launch screen continues into a short cold-start animation. The logo traces a ring, expands to fill the window and reveals the OOO wordmark one letter at a time, with a short rebound and a matching impact on haptic-capable devices. Home preparation runs alongside the animation. The app shows the home screen once both are ready and offers Retry if preparation fails. Reduce Motion shows the wordmark immediately and opens home as soon as it is ready.
+The black system launch screen continues into a short cold-start animation. The logo traces a ring and expands to fill the window, then fades directly into home. Home preparation runs alongside the animation. The app opens home once both are ready and offers Retry if preparation fails. Reduce Motion skips the animation and opens home as soon as it is ready.
 
 Home preparation opens the existing store, reads a lightweight custom-filter snapshot, decodes the eight bundled covers, prepares preview pipelines and registers the Photos observer. Prepared images stay strongly held through the first home render. SwiftData Query updates continue to drive later imports, edits and deletions. Historical-photo reconciliation and pending-capture processing keep their background lifecycle; they are not prerequisites for showing the home catalog.
 

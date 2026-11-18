@@ -64,10 +64,12 @@ private struct AppStartupContent: View {
             Color.clear
         } else {
             ZStack {
-                if introFinished, let ready = startup.ready {
+                if let ready = startup.ready {
                     MainTabView(home: ready.home)
                         .environmentObject(curveLibrary)
                         .modelContainer(ready.container)
+                        .allowsHitTesting(!showsIntro)
+                        .accessibilityHidden(showsIntro)
                 } else if startup.hasFailed {
                     PreparationErrorScreen(title: "Your library could not be prepared", message: startup.failureMessage,
                         onAction: { Task { await startup.retry(displayScale: displayScale) } })

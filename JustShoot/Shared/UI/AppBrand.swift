@@ -2,6 +2,8 @@ import SwiftUI
 
 enum AppBrand {
     static let wordmark = "OOO"
+    static let paper = Color(red: 0.957, green: 0.941, blue: 0.910)
+    static let ringStrokeFraction: CGFloat = 1 / 7
     static let displayName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "OOO Cam"
 }
 
