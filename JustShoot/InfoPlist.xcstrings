@@ -14,7 +14,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "OOO 相机"
+            "value" : "OOO相机"
           }
         }
       }
@@ -43,7 +43,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "OOO 相机需要使用相机来拍摄照片。"
+            "value" : "OOO相机需要使用相机来拍摄照片。"
           }
         }
       }
@@ -60,7 +60,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "OOO 相机使用你的位置信息为照片添加地理位置标签。"
+            "value" : "OOO相机使用你的位置信息为照片添加地理位置标签。"
           }
         }
       }
@@ -77,7 +77,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "OOO 相机在拍摄 Live Photo 时录入声音。"
+            "value" : "OOO相机在拍摄 Live Photo 时录入声音。"
           }
         }
       }
@@ -94,7 +94,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "OOO 相机需要将拍摄的照片保存到相册。"
+            "value" : "OOO相机需要将拍摄的照片保存到相册。"
           }
         }
       }
@@ -112,7 +112,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "OOO 相机将拍摄的照片保存到系统照片图库，并读取这些照片以在应用内显示。"
+            "value" : "OOO相机将拍摄的照片保存到系统照片图库，并读取这些照片以在应用内显示。"
           }
         }
       }
