@@ -1,913 +1,160 @@
 import SwiftUI
-import UIKit
-
-// MARK: - Color palette (matches the bucket names emitted by the offline script)
-
-enum CardColorPalette {
-    /// Display order: warm → cool → neutral
-    static let order: [String] = [
-        "red", "orange", "yellow", "green", "blue", "purple", "brown", "black", "white", "gray"
-    ]
-
-    /// Localized name for accessibility. Each case returns a `LocalizedStringKey`
-    /// literal so Xcode's catalog can extract them.
-    static func localizedName(_ key: String) -> LocalizedStringKey {
-        switch key {
-        case "red":    return "Red"
-        case "orange": return "Orange"
-        case "yellow": return "Yellow"
-        case "green":  return "Green"
-        case "blue":   return "Blue"
-        case "purple": return "Purple"
-        case "brown":  return "Brown"
-        case "black":  return "Black"
-        case "white":  return "White"
-        case "gray":   return "Gray"
-        default:       return ""
-        }
-    }
-
-    static func swatch(_ key: String) -> Color {
-        switch key {
-        case "red": return Color(red: 0.95, green: 0.27, blue: 0.27)
-        case "orange": return Color(red: 0.97, green: 0.58, blue: 0.20)
-        case "yellow": return Color(red: 0.99, green: 0.83, blue: 0.20)
-        case "green": return Color(red: 0.30, green: 0.75, blue: 0.40)
-        case "blue": return Color(red: 0.25, green: 0.55, blue: 0.95)
-        case "purple": return Color(red: 0.65, green: 0.40, blue: 0.85)
-        case "brown": return Color(red: 0.55, green: 0.38, blue: 0.25)
-        case "black": return Color(red: 0.10, green: 0.10, blue: 0.10)
-        case "white": return Color(red: 0.95, green: 0.95, blue: 0.95)
-        case "gray": return Color(red: 0.55, green: 0.55, blue: 0.55)
-        default: return Color.gray
-        }
-    }
-}
-
-// MARK: - Grid layout options (left-toolbar menu, @AppStorage-persisted)
-//
-// Mirrors the gallery's GalleryDensity / GalleryShape pattern (PhotoGridView) so the
-// two browse screens feel consistent, extended with a circular cover option and a
-// caption show/hide toggle for the library's card-style thumbnails.
-
-/// Keep persisted raw values stable; iPad uses larger browsing sizes.
-enum FilmGridDensity: Int, CaseIterable, Identifiable {
-    case large = 150       // ~2 columns on iPhone
-    case standard = 100    // ~3 columns (default — matches the previous fixed layout)
-    case small = 78        // ~4 columns
-    var id: Int { rawValue }
-
-    var minItemWidth: CGFloat { CGFloat(rawValue) }
-    func minimumWidth(isRegular: Bool) -> CGFloat {
-        guard isRegular else { return minItemWidth }
-        switch self {
-        case .large: return 200
-        case .standard: return 144
-        case .small: return 112
-        }
-    }
-
-    var displayName: LocalizedStringKey {
-        switch self {
-        case .large:    return "Large"
-        case .standard: return "Standard"
-        case .small:    return "Small"
-        }
-    }
-
-    /// Column spacing; rows add a little extra for the caption.
-    var itemSpacing: CGFloat {
-        switch self {
-        case .large:    return 12
-        case .standard: return 10
-        case .small:    return 8
-        }
-    }
-    var rowSpacing: CGFloat { itemSpacing + 4 }
-
-    /// Corner radius used when the cover shape is `.rounded` (scales with density).
-    var cornerRadius: CGFloat {
-        switch self {
-        case .large:    return 14
-        case .standard: return 10
-        case .small:    return 8
-        }
-    }
-
-    /// Caption type shrinks with denser grids.
-    var titleFontSize: CGFloat {
-        switch self {
-        case .large:    return 13
-        case .standard: return 11
-        case .small:    return 10
-        }
-    }
-    var metaFontSize: CGFloat {
-        switch self {
-        case .large:    return 11
-        case .standard: return 10
-        case .small:    return 9
-        }
-    }
-}
-
-/// Cover clip shape. Extends the gallery's rounded/square set with a circular option.
-enum FilmCoverShape: String, CaseIterable, Identifiable {
-    case rounded
-    case square
-    case circle
-    var id: String { rawValue }
-
-    var displayName: LocalizedStringKey {
-        switch self {
-        case .rounded: return "Rounded"
-        case .square:  return "Square"
-        case .circle:  return "Circle"
-        }
-    }
-
-    /// Shape for `.clipShape`. `roundedRadius` comes from the active density.
-    func clipShape(roundedRadius: CGFloat) -> AnyShape {
-        switch self {
-        case .rounded: return AnyShape(RoundedRectangle(cornerRadius: roundedRadius, style: .continuous))
-        case .square:  return AnyShape(Rectangle())
-        case .circle:  return AnyShape(Circle())
-        }
-    }
-}
-
-// MARK: - Library main view
 
 struct FilmCardLibraryView: View {
     @StateObject private var settings: FilmPageSettings
+    @State private var library = FilmCardLibrary.shared
     @Environment(\.horizontalSizeClass) private var sizeClass
     @ScaledMetric(relativeTo: .body) private var gridScale = 1.0
-    @State private var library = FilmCardLibrary.shared
-    /// Brand selection. Contains specific brand names, or `otherKey` for "Other (small brands)".
-    @State private var selectedBrands: Set<String> = []
-    @State private var selectedFormats: Set<String> = []
-    @State private var selectedColors: Set<String> = []
-    /// ISO selection. Contains stringified main ISO values ("50"/"100"/…) or `otherKey` for "Other".
-    @State private var selectedISOs: Set<String> = []
-    @State private var showFilterSheet = false
-    @State private var query = ""
-    /// View-options menu state (left toolbar), persisted across launches.
-    @AppStorage("filmLibrary.density") private var density: FilmGridDensity = .standard
-    @AppStorage("filmLibrary.shape") private var coverShape: FilmCoverShape = .rounded
-    @AppStorage("filmLibrary.showsCaption") private var showsCaption = true
-    /// Shared namespace for the iOS 18 zoom navigation transition. The grid
-    /// thumbnail tagged with `card.id` morphs into the detail view tagged with
-    /// the same id when the user pushes.
     @Namespace private var zoomNamespace
 
     init(settings: FilmPageSettings? = nil) {
         _settings = StateObject(wrappedValue: settings ?? .shared)
     }
 
-    private func columns(availableWidth: CGFloat) -> [GridItem] {
-        let isRegular = sizeClass == .regular
-        let width = (isRegular ? min(availableWidth, PageLayout.browseWidth) : availableWidth) - (isRegular ? 48 : 28)
-        let count = PageLayout.gridColumns(width: width,
-            minimum: density.minimumWidth(isRegular: isRegular) * gridScale,
-            spacing: density.itemSpacing, maximum: 8)
-        return Array(repeating: GridItem(.flexible(), spacing: density.itemSpacing, alignment: .top), count: count)
-    }
-
-    static let mainISOs = FilmCardCatalogIndex.mainISOs
-    static let otherKey = FilmCardCatalogIndex.otherKey
-    @State private var filteredCards: [FilmCard] = []
-    private struct FilterRequest: Hashable {
-        let selection: FilmCardSelection
-        let query: String
-        let isLoaded: Bool
-    }
-
-    private var selection: FilmCardSelection {
-        FilmCardSelection(brands: selectedBrands, formats: selectedFormats,
-                          colors: selectedColors, isos: selectedISOs)
-    }
-
     var body: some View {
         GeometryReader { geometry in
+            let regular = sizeClass == .regular
+            let inset: CGFloat = regular ? 24 : 14
+            let width = min(geometry.size.width, PageLayout.browseWidth) - 2 * inset
+            let count = PageLayout.gridColumns(width: width, minimum: (regular ? 144 : 100) * gridScale,
+                spacing: 10, maximum: 8)
+            let columns = Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: count)
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    if hasActiveFilter { activeFilters }
-                    LazyVGrid(columns: columns(availableWidth: geometry.size.width), alignment: .leading, spacing: density.rowSpacing) {
-                        ForEach(filteredCards) { card in
-                            VStack(spacing: 8) {
-                                NavigationLink(value: card) {
-                                    FilmCardThumbnail(card: card,
-                                                      density: density,
-                                                      coverShape: coverShape,
-                                                      showsCaption: showsCaption)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityIdentifier("filmLibrary.film.\(card.id)")
-                                .filmTransitionSource(id: card.id, in: zoomNamespace)
-                                if let preset = FilmLUTCatalog.preset(for: card) {
-                                    FilmLibraryAddButton(preset: preset, settings: settings)
-                                }
-                            }
-                        }
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
+                    ForEach(library.presets) { preset in
+                        tile(preset)
                     }
                 }
-                .padding(.horizontal, sizeClass == .regular ? 24 : 14)
+                .padding(.horizontal, inset)
                 .padding(.top, 8)
                 .padding(.bottom, 24)
                 .pageContentWidth(PageLayout.browseWidth)
-                // Animate the cheap caption insert/remove; let density / shape changes snap
-                // (reflowing hundreds of cells under a spring is the biggest jank source).
-                .animation(.smooth, value: showsCaption)
-            }
-            .appPageBackground()
-            .navigationTitle(Text("Film Library"))
-            .navigationBarTitleDisplayMode(.inline)
-            .softScrollEdges()
-            .searchable(text: $query, prompt: "Search films")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    layoutMenu
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showFilterSheet = true
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease")
-                            .font(.system(size: 17, weight: hasActiveFilter ? .semibold : .medium))
-                            .foregroundStyle(hasActiveFilter ? Color.accentColor : Color.primary)
-                    }
-                    .accessibilityLabel(hasActiveFilter ? Text("Filter (active)") : Text("Filter"))
-                    .popover(isPresented: $showFilterSheet, arrowEdge: .top) {
-                        FilmCardFilterSheet(
-                            brandChips: library.catalog.brandChips,
-                            formatChips: library.catalog.formatChips,
-                            availableColors: library.catalog.availableColors,
-                            isoChips: library.catalog.isoChips,
-                            resultCount: filteredCards.count,
-                            selectedBrands: $selectedBrands,
-                            selectedFormats: $selectedFormats,
-                            selectedColors: $selectedColors,
-                            selectedISOs: $selectedISOs
-                        )
-                        .frame(width: sizeClass == .regular ? 520 : nil, height: sizeClass == .regular ? 680 : nil)
-                        .presentationCompactAdaptation(.sheet)
-                        .presentationDetents([.large])
-                    }
-                }
-            }
-            .navigationDestination(for: FilmCard.self) { card in
-                FilmCardDetailView(card: card, settings: settings)
-                    .filmZoomTransition(id: card.id, in: zoomNamespace)
-            }
-            .navigationDestination(for: FilmSource.self) { source in
-                CameraView(source: source, filmSettings: settings)
-            }
-            .task {
-                await library.loadIfNeeded()
-            }
-            .task(id: FilterRequest(selection: selection, query: query, isLoaded: library.isLoaded)) {
-                let catalog = library.catalog
-                let selection = selection
-                let query = query
-                do {
-                    if !query.isEmpty { try await Task.sleep(for: .milliseconds(120)) }
-                    try Task.checkCancellation()
-                    let result = await Task.detached(priority: .userInitiated) {
-                        catalog.filtered(using: selection, query: query)
-                    }.value
-                    try Task.checkCancellation()
-                    filteredCards = result
-                } catch is CancellationError { /* A newer query owns the next result. */ }
-                catch { assertionFailure("Unexpected catalog search error: \(error)") }
             }
             .overlay {
-                if !library.isLoaded {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(.primary)
-                } else if filteredCards.isEmpty {
-                    ContentUnavailableView {
-                        Label("No matches", systemImage: "line.3.horizontal.decrease")
-                    } actions: {
-                        Button("Reset") {
-                            resetFilters()
-                            query = ""
-                        }
-                    }
-                    .foregroundColor(.secondary)
+                switch library.loadState {
+                case .loading:
+                    ProgressView().accessibilityLabel("Loading films")
+                case .failed:
+                    PageNotice(title: "Film Vault unavailable", systemImage: "shippingbox",
+                        action: .init(title: "Retry", icon: "arrow.clockwise") { Task { await library.loadIfNeeded() } })
+                case .ready where library.presets.isEmpty:
+                    PageNotice(title: "No films available", systemImage: "film")
+                case .ready:
+                    EmptyView()
                 }
             }
         }
-    }
-
-    // MARK: - View options menu
-
-    /// Left-toolbar menu: grid density + cover shape + caption show/hide.
-    /// Mirrors the gallery's layout menu; selections persist via @AppStorage.
-    private var layoutMenu: some View {
-        Menu {
-            Picker("Grid size", selection: $density) {
-                ForEach(FilmGridDensity.allCases) { d in Text(d.displayName).tag(d) }
-            }
-            .pickerStyle(.inline)
-            Picker("Cover shape", selection: $coverShape) {
-                ForEach(FilmCoverShape.allCases) { s in Text(s.displayName).tag(s) }
-            }
-            .pickerStyle(.inline)
-            Picker("Caption", selection: $showsCaption) {
-                Text("Show").tag(true)
-                Text("Hide").tag(false)
-            }
-            .pickerStyle(.inline)
-        } label: {
-            Image(systemName: "square.grid.2x2")
-        }
-        .accessibilityLabel("Grid layout options")
-    }
-
-    private var hasActiveFilter: Bool {
-        !selectedBrands.isEmpty
-            || !selectedFormats.isEmpty
-            || !selectedColors.isEmpty
-            || !selectedISOs.isEmpty
-    }
-
-    private func resetFilters() {
-        selectedBrands = []
-        selectedFormats = []
-        selectedColors = []
-        selectedISOs = []
-    }
-
-    private var activeFilters: some View {
-        FlowLayout(spacing: 8, lineSpacing: 8) {
-            filterChips(selectedBrands, selection: $selectedBrands)
-            filterChips(selectedFormats, selection: $selectedFormats)
-            ForEach(selectedColors.sorted(), id: \.self) { color in
-                Button { selectedColors.remove(color) } label: {
-                    HStack(spacing: 6) {
-                        Text(CardColorPalette.localizedName(color))
-                        Image(systemName: "xmark").accessibilityHidden(true)
-                    }
-                    .font(.caption)
-                    .padding(.horizontal, 12)
-                    .frame(minHeight: 44)
-                    .background(.primary.opacity(0.1), in: .capsule)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Remove filter")
-            }
-            filterChips(selectedISOs, selection: $selectedISOs, isISO: true)
-            Button("Reset", action: resetFilters)
-                .font(.caption.weight(.semibold))
-                .frame(minHeight: 44)
-        }
-    }
-
-    private func filterChips(_ values: Set<String>, selection: Binding<Set<String>>, isISO: Bool = false) -> some View {
-        ForEach(values.sorted(), id: \.self) { value in
-            Button { selection.wrappedValue.remove(value) } label: {
-                HStack(spacing: 6) {
-                    Text(verbatim: value == Self.otherKey ? String(localized: "Other") : isISO ? "ISO \(value)" : value)
-                    Image(systemName: "xmark").accessibilityHidden(true)
-                }
-                .font(.caption)
-                .padding(.horizontal, 12)
-                .frame(minHeight: 44)
-                .background(.primary.opacity(0.1), in: .capsule)
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Remove filter")
-        }
-    }
-}
-
-/// Data for a "name + count + Other" style chip used by brand / format / ISO sections.
-struct BrandChipEntry: Hashable, Sendable {
-    let key: String
-    let displayName: String
-    let count: Int
-}
-
-// MARK: - Thumbnail cell
-
-struct FilmCardThumbnail: View {
-    let card: FilmCard
-    let density: FilmGridDensity
-    let coverShape: FilmCoverShape
-    let showsCaption: Bool
-    @State private var image: UIImage?
-    @Environment(\.displayScale) private var displayScale
-    @Environment(\.horizontalSizeClass) private var sizeClass
-    @ScaledMetric(relativeTo: .caption) private var captionScale = 1.0
-
-    /// Captions center under circular covers (Artists-style), left-align otherwise.
-    private var isCircle: Bool { coverShape == .circle }
-    private var thumbnailPixel: Int { max(Int((sizeClass == .regular ? 280 : 200) * displayScale), 300) }
-
-    var body: some View {
-        VStack(alignment: isCircle ? .center : .leading, spacing: 6) {
-            ZStack {
-                Color.primary.opacity(0.05)
-                if let image = image ?? FilmCardImageCache.shared.cachedImage(imageName: card.image, maxPixel: thumbnailPixel) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                } else {
-                    Image(systemName: "photo")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .aspectRatio(1, contentMode: .fit)
-            .clipShape(coverShape.clipShape(roundedRadius: density.cornerRadius))
-
-            if showsCaption {
-                caption
-            }
-        }
-        .task(id: card.id) {
-            // Stable pixel anchor (independent of density) so switching grid size is
-            // a cache hit, not a re-decode. Sized for the largest cell × scale,
-            // floored at 300 to satisfy the thumbnail API's minimum.
-            let loaded = await FilmCardLibrary.shared.image(for: card, maxPixel: thumbnailPixel)
-            guard !Task.isCancelled else { return }
-            image = loaded
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: card.product ?? card.brand ?? String(localized: "Unknown")))
-        .accessibilityValue(Text(verbatim: [card.brand, card.iso.map { "ISO \($0)" }, card.format].compactMap { $0 }.joined(separator: ", ")))
-    }
-
-    @ViewBuilder
-    private var caption: some View {
-        VStack(alignment: isCircle ? .center : .leading, spacing: 2) {
-            // Product names are proper nouns from source data — render verbatim.
-            // Fall back to the localized "Unknown" string when product is missing.
-            Group {
-                if let product = card.product, !product.isEmpty {
-                    Text(verbatim: product)
-                } else {
-                    Text("Unknown")
-                }
-            }
-            .font(.system(size: max(density.titleFontSize, sizeClass == .regular ? 14 : 0) * captionScale, weight: .medium))
-            .foregroundColor(.primary)
-            .lineLimit(2)
-
-            HStack(spacing: 4) {
-                if FilmLUTCatalog.preset(for: card)?.rawSimulation != nil {
-                    Text("Film simulation")
-                        .font(.system(size: max(density.metaFontSize, sizeClass == .regular ? 12 : 0) * captionScale))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-                if let iso = card.iso {
-                    Text(verbatim: "ISO \(iso)")
-                        .font(.system(size: max(density.metaFontSize, sizeClass == .regular ? 12 : 0) * captionScale))
-                        .foregroundColor(.secondary)
-                }
-                if let format = card.format {
-                    Text(verbatim: format)
-                        .font(.system(size: max(density.metaFontSize, sizeClass == .regular ? 12 : 0) * captionScale))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: isCircle ? .center : .leading)
-    }
-}
-
-// MARK: - Detail view
-
-struct FilmCardDetailView: View {
-    let card: FilmCard
-    @StateObject private var settings: FilmPageSettings
-    @Environment(\.horizontalSizeClass) private var sizeClass
-    @State private var image: UIImage?
-    @State private var colorManager = FilmCardCoverColorManager()
-
-    init(card: FilmCard, settings: FilmPageSettings? = nil) {
-        self.card = card
-        _settings = StateObject(wrappedValue: settings ?? .shared)
-    }
-
-    /// Foreground ink + chip tints derived from the cover's dominant luminance.
-    /// Recomputed on every body pass; cheap (a single comparison + Color inits).
-    private var palette: FilmCardForegroundPalette {
-        FilmCardForegroundPalette(luminance: colorManager.luminance)
-    }
-
-    var body: some View {
-        GeometryReader { geometry in
-            let sideBySide = PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular)
-            let layout = sideBySide
-                ? AnyLayout(HStackLayout(alignment: .top, spacing: 32))
-                : AnyLayout(VStackLayout(alignment: .leading, spacing: 22))
-            ScrollView {
-                layout {
-                    glassImageCard
-                        .frame(maxWidth: sizeClass == .regular ? PageLayout.detailCoverWidth : .infinity)
-                        .frame(maxWidth: sideBySide ? PageLayout.detailCoverWidth : .infinity)
-
-                    VStack(alignment: .leading, spacing: 22) {
-                        headerSection
-                        if let preset = FilmLUTCatalog.preset(for: card) {
-                            HStack(spacing: 12) {
-                                FilmLibraryAddButton(preset: preset, settings: settings,
-                                    tint: palette.prefersDarkInk ? .black : .white)
-                                NavigationLink(value: FilmSource.preset(preset)) {
-                                    Label("Start Shooting", systemImage: "camera")
-                                        .frame(minHeight: 44)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .tint(palette.prefersDarkInk ? .black : .white)
-                                .accessibilityIdentifier("filmLibrary.use.\(preset.rawValue)")
-                            }
-                            if preset.rawSimulation != nil {
-                                Text("Film simulation").font(.subheadline).foregroundStyle(palette.secondary)
-                            }
-                        }
-                        if hasSpecChips { specChips }
-                        if let notes = card.notes, !notes.isEmpty { notesSection(notes) }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(.horizontal, 22)
-                .padding(.top, 12)
-                .padding(.bottom, 28)
-                .pageContentWidth(sideBySide ? PageLayout.browseWidth : PageLayout.readingWidth)
-            }
-        }
-        .background(
-            FilmCardCoverBackdrop(
-                dominantColor: colorManager.dominantColor,
-                luminance: colorManager.luminance
-            )
-        )
+        .appPageBackground()
+        .navigationTitle("Film Vault")
         .navigationBarTitleDisplayMode(.inline)
         .softScrollEdges()
-        .toolbar(.hidden, for: .tabBar)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                principalTitle
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(palette.primary)
-                    .lineLimit(1)
+        .navigationDestination(for: FilmPreset.self) { preset in
+            FilmCardDetailView(preset: preset, settings: settings)
+                .filmZoomTransition(id: preset.id, in: zoomNamespace)
+        }
+        .navigationDestination(for: FilmSource.self) { source in
+            CameraView(source: source, filmSettings: settings)
+        }
+        .task { await library.loadIfNeeded() }
+    }
+
+    private func tile(_ preset: FilmPreset) -> some View {
+        let added = settings.preferences.isVisible(.preset(preset))
+        return ZStack(alignment: .topTrailing) {
+            NavigationLink(value: preset) {
+                VStack(alignment: .leading, spacing: 7) {
+                    Group {
+                        if let cover = preset.libraryCardImage {
+                            VaultImage(filename: cover, maxPixel: sizeClass == .regular ? 640 : 384)
+                        } else {
+                            Rectangle().fill(.primary.opacity(0.05)).overlay { Image(systemName: "film") }
+                        }
+                    }
+                    .aspectRatio(1, contentMode: .fit)
+                    .clipShape(.rect(cornerRadius: 10))
+                    Text(verbatim: preset.tileTitle)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .contentShape(Rectangle())
             }
-        }
-        .toolbarColorScheme(palette.prefersDarkInk ? .light : .dark, for: .navigationBar)
-        .onAppear {
-            colorManager.prefetchFromCache(cardId: card.id)
-        }
-        .task(id: card.id) {
-            colorManager.refresh(for: card)
-            let loaded = await FilmCardLibrary.shared.image(for: card, maxPixel: 1024)
-            guard !Task.isCancelled else { return }
-            image = loaded
-        }
-    }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(verbatim: preset.displayName))
+            .accessibilityValue(added ? Text("Added") : Text("Not added"))
+            .accessibilityIdentifier("filmLibrary.film.\(preset.id)")
+            .filmTransitionSource(id: preset.id, in: zoomNamespace)
 
-    @ViewBuilder
-    private var principalTitle: some View {
-        if let product = card.product, !product.isEmpty {
-            Text(verbatim: product)
-        } else if let brand = card.brand, !brand.isEmpty {
-            Text(verbatim: brand)
-        } else {
-            Text("Film Card")
-        }
-    }
-
-    /// Rounded image with `glassEffect` overlaid on the same shape so the
-    /// material aligns with the image edge.
-    private var glassImageCard: some View {
-        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-        return Group {
-            if let image = image
-                ?? FilmCardImageCache.shared.cachedImage(imageName: card.image, maxPixel: 1024)
-                ?? FilmCardImageCache.shared.cachedImage(imageName: card.image, maxPixel: 640)
-                ?? FilmCardImageCache.shared.cachedImage(imageName: card.image, maxPixel: 384) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
+            if added {
+                badge(added: true)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             } else {
-                palette.chipFill
-                    .overlay(ProgressView().tint(palette.primary).scaleEffect(0.9))
-            }
-        }
-        .aspectRatio(1, contentMode: .fit)
-        .frame(maxWidth: .infinity)
-        .clipShape(shape)
-        .filmCardSurface(in: shape)
-    }
-
-    /// Brand (small uppercase) stacked above the product name (large bold).
-    @ViewBuilder
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let brand = card.brand, !brand.isEmpty {
-                Text(verbatim: brand)
-                    .font(.caption.weight(.semibold))
-                    .tracking(1.2)
-                    .textCase(.uppercase)
-                    .foregroundStyle(palette.tertiary)
-            }
-            if let product = card.product, !product.isEmpty {
-                Text(verbatim: product)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(palette.primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// Chip-style spec tags. Each entry skipped when the value is missing,
-    /// empty, or a placeholder ("N/A") that source data uses when unspecified.
-    private var hasSpecChips: Bool {
-        !specChipEntries.isEmpty
-    }
-
-    private var specChipEntries: [String] {
-        var entries: [String] = []
-        if let iso = card.iso {
-            entries.append("ISO \(iso)")
-        }
-        if let format = card.format, !format.isEmpty {
-            entries.append(format)
-        }
-        if let process = card.process, !process.isEmpty {
-            entries.append(process)
-        }
-        if let qty = card.quantity, !qty.isEmpty,
-           qty.caseInsensitiveCompare("N/A") != .orderedSame {
-            entries.append(qty)
-        }
-        if let subtype = card.subtype, !subtype.isEmpty {
-            entries.append(subtype)
-        }
-        return entries
-    }
-
-    private var specChips: some View {
-        FlowLayout(spacing: 6, lineSpacing: 6) {
-            ForEach(specChipEntries, id: \.self) { entry in
-                Text(verbatim: entry)
-                    .font(.system(size: 12.5, weight: .medium))
-                    .foregroundStyle(palette.primary)
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 6)
-                    .background(Capsule().fill(palette.chipFill))
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// Notes block — rendered as a paragraph under a small section label so
-    /// long-form copy doesn't get squeezed into a "label : value" row.
-    private func notesSection(_ notes: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Rectangle()
-                .fill(palette.divider)
-                .frame(height: 1)
-                .padding(.bottom, 4)
-
-            Text("Notes")
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(1.0)
-                .textCase(.uppercase)
-                .foregroundStyle(palette.tertiary)
-
-            Text(verbatim: notes)
-                .font(.system(size: 14))
-                .foregroundStyle(palette.secondary)
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-private struct FilmLibraryAddButton: View {
-    let preset: FilmPreset
-    @ObservedObject var settings: FilmPageSettings
-    var tint: Color = .primary
-
-    private var isAdded: Bool { settings.preferences.isVisible(.preset(preset)) }
-
-    var body: some View {
-        Button { settings.setVisible(preset, true) } label: {
-            Label(isAdded ? LocalizedStringKey("Added") : LocalizedStringKey("Add"),
-                systemImage: isAdded ? "checkmark" : "plus")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(tint)
-                .frame(maxWidth: .infinity, minHeight: 32)
-        }
-        .buttonStyle(.bordered)
-        .tint(tint)
-        .disabled(isAdded)
-        .accessibilityLabel(isAdded ? Text("Added \(preset.displayName)") : Text("Add \(preset.displayName) to Films"))
-        .accessibilityIdentifier("filmLibrary.add.\(preset.rawValue)")
-    }
-}
-
-// MARK: - Filter sheet
-
-struct FilmCardFilterSheet: View {
-    let brandChips: [BrandChipEntry]
-    let formatChips: [BrandChipEntry]
-    let availableColors: [String]
-    let isoChips: [BrandChipEntry]
-    /// Live result count from the parent. Updates as bindings change because the parent
-    /// re-renders the sheet content view on each state change.
-    let resultCount: Int
-    @Binding var selectedBrands: Set<String>
-    @Binding var selectedFormats: Set<String>
-    @Binding var selectedColors: Set<String>
-    @Binding var selectedISOs: Set<String>
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    countedChipSection(title: "Brand", chips: brandChips, selection: $selectedBrands)
-                    countedChipSection(title: "Format", chips: formatChips, selection: $selectedFormats)
-                    colorSection
-                    countedChipSection(title: "ISO", chips: isoChips, selection: $selectedISOs)
+                Button { settings.setVisible(preset, true) } label: {
+                    badge(added: false)
+                        .contentShape(Rectangle())
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-            }
-            .appPageBackground()
-            .navigationTitle(Text("Filter · \(resultCount)"))
-            .navigationBarTitleDisplayMode(.inline)
-            .softScrollEdges()
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Reset", action: reset)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }.bold()
-                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Add \(preset.displayName) to Films"))
+                .accessibilityIdentifier("filmLibrary.add.\(preset.rawValue)")
             }
         }
     }
 
-    /// Renders one of the "name + count + Other" chip sections (brand / format / ISO).
-    @ViewBuilder
-    private func countedChipSection(title: LocalizedStringKey, chips: [BrandChipEntry], selection: Binding<Set<String>>) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
-            FlowLayout(spacing: 6, lineSpacing: 6) {
-                ForEach(chips, id: \.key) { entry in
-                    let isOn = selection.wrappedValue.contains(entry.key)
-                    Button {
-                        if isOn { selection.wrappedValue.remove(entry.key) }
-                        else { selection.wrappedValue.insert(entry.key) }
-                    } label: {
-                        BrandCountChipLabel(brand: entry.displayName, count: entry.count, selected: isOn)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(isOn ? .isSelected : [])
-                    // Verbatim avoids forcing the catalog to carry a key whose only
-                    // content is format specifiers (Xcode can't derive a symbol).
-                    .accessibilityLabel(Text(verbatim: "\(entry.displayName), \(entry.count)"))
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var colorSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Color")
-                .font(.headline)
-            FlowLayout(spacing: 8, lineSpacing: 8) {
-                ForEach(availableColors, id: \.self) { key in
-                    let isOn = selectedColors.contains(key)
-                    Button {
-                        if isOn { selectedColors.remove(key) }
-                        else { selectedColors.insert(key) }
-                    } label: {
-                        ColorSwatchChip(colorKey: key, selected: isOn)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(isOn ? .isSelected : [])
-                    .accessibilityLabel(Text(CardColorPalette.localizedName(key)))
-                }
-            }
-        }
-    }
-
-    private func reset() {
-        selectedBrands = []
-        selectedFormats = []
-        selectedColors = []
-        selectedISOs = []
-    }
-}
-
-// MARK: - Chip visuals
-
-/// Brand / format / ISO chip: name + lighter trailing count. No nested backgrounds.
-struct BrandCountChipLabel: View {
-    /// Already-localized display string (proper nouns rendered verbatim,
-    /// "Other" already passed through `String(localized:)` by the caller).
-    let brand: String
-    let count: Int
-    let selected: Bool
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Text(verbatim: brand)
-                .font(.subheadline.weight(.medium))
-                .lineLimit(1)
-            Text(verbatim: "\(count)")
-                .font(.caption.monospacedDigit())
-                .lineLimit(1)
-                .opacity(selected ? 0.7 : 0.5)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .frame(minHeight: 44)
-        .background(
-            Capsule().fill(selected
-                           ? Color.accentColor
-                           : Color.secondary.opacity(0.15))
-        )
-        .foregroundColor(selected ? .black : .primary)
-        .fixedSize(horizontal: true, vertical: false)
-    }
-}
-
-/// Color chip: swatch only, no label. Selected state uses a thicker white ring + slight scale.
-struct ColorSwatchChip: View {
-    let colorKey: String
-    let selected: Bool
-
-    var body: some View {
-        Circle()
-            .fill(CardColorPalette.swatch(colorKey))
-            .frame(width: 32, height: 32)
-            .overlay(
-                Circle().stroke(
-                    selected ? Color.primary : Color.primary.opacity(0.18),
-                    lineWidth: selected ? 2.5 : 0.5
-                )
-            )
-            .scaleEffect(selected ? 1.08 : 1.0)
-            .animation(.spring(duration: 0.18), value: selected)
+    private func badge(added: Bool) -> some View {
+        Image(systemName: added ? "checkmark" : "plus")
+            .font(.system(size: 13, weight: .bold))
+            .foregroundStyle(added ? .white : AppBrand.ink)
+            .frame(width: 26, height: 26)
+            .background(added ? VaultMembershipStyle.green : AppBrand.paper, in: Circle())
+            .overlay { Circle().strokeBorder(.white.opacity(0.55), lineWidth: 0.8) }
+            .shadow(color: .black.opacity(0.24), radius: 2, y: 1)
             .frame(width: 44, height: 44)
     }
 }
 
-// MARK: - Generic chip flow layout
+enum VaultMembershipStyle {
+    static let green = Color(red: 0.15, green: 0.34, blue: 0.26)
+}
 
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 6
-    var lineSpacing: CGFloat = 6
+/// All images use the cancellable, coalescing bundle decoder. Giving each file its
+/// own view identity also prevents a previous scene from flashing under a new label.
+struct VaultImage: View {
+    let filename: String
+    let maxPixel: Int
+    var isHero = false
+    @State private var image: UIImage?
+    @State private var failed = false
+    @State private var attempt = 0
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let maxWidth = proposal.width ?? .greatestFiniteMagnitude
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-
-        for sub in subviews {
-            let size = sub.sizeThatFits(.unspecified)
-            // Wrap only if we're not at the start of a row — otherwise let an oversized
-            // item overflow on its own row. Matches placeSubviews exactly.
-            if x > 0 && x + size.width > maxWidth {
-                x = 0
-                y += rowHeight + lineSpacing
-                rowHeight = 0
-            }
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
-        let totalHeight = y + rowHeight
-        return CGSize(width: proposal.width ?? x, height: totalHeight)
+    private struct Request: Hashable {
+        let filename: String
+        let maxPixel: Int
+        let attempt: Int
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x = bounds.minX
-        var y = bounds.minY
-        var rowHeight: CGFloat = 0
-
-        for sub in subviews {
-            let size = sub.sizeThatFits(.unspecified)
-            if x > bounds.minX && x + size.width > bounds.maxX {
-                x = bounds.minX
-                y += rowHeight + lineSpacing
-                rowHeight = 0
+    var body: some View {
+        Rectangle().fill(.primary.opacity(0.05))
+            .overlay {
+                if let image = image ?? FilmCardImageCache.shared.cachedImage(imageName: filename, maxPixel: maxPixel) {
+                    Image(uiImage: image).resizable().scaledToFill()
+                } else if isHero && failed {
+                    PageNotice(title: "Preview unavailable", systemImage: "photo",
+                        action: .init(title: "Retry", icon: "arrow.clockwise") { attempt += 1 })
+                } else if isHero {
+                    ProgressView().accessibilityLabel("Loading sample")
+                } else {
+                    Image(systemName: "photo").foregroundStyle(.secondary)
+                }
             }
-            sub.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: ProposedViewSize(size))
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
+            .clipped()
+            .task(id: Request(filename: filename, maxPixel: maxPixel, attempt: attempt)) {
+                failed = false
+                let result = await FilmCardImageCache.shared.loadImage(imageName: filename, maxPixel: maxPixel)
+                guard !Task.isCancelled else { return }
+                image = result
+                failed = result == nil
+            }
     }
 }

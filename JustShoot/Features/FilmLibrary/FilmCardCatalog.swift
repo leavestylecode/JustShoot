@@ -3,38 +3,6 @@ import UIKit
 import ImageIO
 import os
 
-// MARK: - Film packaging card library
-//
-// Resources/cards.json + Resources/cards/*.heic — 550 cards after dedup,
-// 96 distinct brands. Every optional field in the JSON may be null.
-
-struct FilmCard: Codable, Identifiable, Hashable, Sendable {
-    let id: String
-    let image: String
-    let brand: String?
-    let product: String?
-    let format: String?
-    let iso: Int?
-    let process: String?
-    let expiry: String?
-    let type: String?
-    let subtype: String?
-    let quantity: String?
-    let notes: String?
-    let author: String?
-    /// Coarse dominant-color classification produced by scripts/compute_card_colors.py.
-    /// One of 10 buckets: red / orange / yellow / green / blue / purple / brown / black / white / gray.
-    let color: String?
-}
-
-struct FilmCardBundle: Codable, Sendable {
-    let version: Int
-    let generatedAt: String
-    let count: Int
-    let imageSize: Int
-    let cards: [FilmCard]
-}
-
 /// NSCache-backed image loader for cards. Mirrors `ImageLoader`'s pattern but uses
 /// its own cache so the gallery's loaded photos and library card thumbnails don't
 /// evict each other.
@@ -67,15 +35,7 @@ final class FilmCardImageCache: @unchecked Sendable {
         cache.object(forKey: "\(imageName)_\(Self.pixelSize(for: maxPixel))" as NSString)
     }
 
-    /// Async downsampled load. Returns the cached image on hit; otherwise
-    /// produces a display-prepared thumbnail on the bounded blocking-image queue.
-    func loadImage(card: FilmCard, maxPixel: Int) async -> UIImage? {
-        await loadImage(imageName: card.image, maxPixel: maxPixel)
-    }
-
-    /// Same downsampling pipeline keyed by raw filename. Used by callers that
-    /// don't have a `FilmCard` (e.g., the home grid mapping each preset to
-    /// a hand-picked card image).
+    /// Decode a bundled cover or scene on the shared, bounded image worker.
     func loadImage(imageName: String, maxPixel: Int) async -> UIImage? {
         guard !Task.isCancelled else { return nil }
         let maxPixel = Self.pixelSize(for: maxPixel)
@@ -130,50 +90,42 @@ final class FilmCardImageCache: @unchecked Sendable {
 final class FilmCardLibrary {
     static let shared = FilmCardLibrary()
 
-    private(set) var catalog = FilmCardCatalogIndex(cards: [])
-    private(set) var isLoaded = false
-    private var loading: Task<FilmCardCatalogIndex?, Never>?
+    enum LoadState { case loading, ready, failed }
+    private(set) var presets: [FilmPreset] = []
+    private(set) var loadState = LoadState.loading
+    private var loading: Task<[FilmPreset]?, Never>?
+    private let loadCatalog: @Sendable () -> [FilmPreset]?
 
-    private init() {}
+    init(loadCatalog: @escaping @Sendable () -> [FilmPreset]? = FilmCardLibrary.bundledCatalog) {
+        self.loadCatalog = loadCatalog
+    }
 
-    /// Parsing and all filter indexes are prepared once, away from MainActor.
+    /// The LUT-backed catalog is prepared once, away from MainActor.
     func loadIfNeeded() async {
-        guard !isLoaded else { return }
-        let task: Task<FilmCardCatalogIndex?, Never>
+        guard loadState != .ready else { return }
+        let task: Task<[FilmPreset]?, Never>
         if let loading { task = loading }
         else {
-            task = Task.detached(priority: .userInitiated) {
-                let timer = Log.perf("filmcard_load", logger: Log.gallery)
-                let url = Bundle.main.url(forResource: "cards", withExtension: "json")
-                    ?? Bundle.main.url(forResource: "cards", withExtension: "json", subdirectory: "cards")
-                guard let url, let data = try? Data(contentsOf: url) else {
-                    timer.end("missing")
-                    return nil
-                }
-                let decoder = JSONDecoder()
-                decoder.keyDecodingStrategy = .convertFromSnakeCase
-                guard let bundle = try? decoder.decode(FilmCardBundle.self, from: data) else {
-                    timer.end("invalid")
-                    return nil
-                }
-                let cards = FilmLUTCatalog.cards(packaging: bundle.cards,
-                    availablePresets: FilmLUTCatalog.availablePresets())
-                let index = FilmCardCatalogIndex(cards: cards, includesSmallGroups: true)
-                timer.end("count=\(cards.count)")
-                return index
-            }
+            loadState = .loading
+            task = Task.detached(priority: .userInitiated) { [loadCatalog] in loadCatalog() }
             loading = task
         }
         let prepared = await task.value
-        guard !isLoaded else { return }
-        if let prepared { catalog = prepared }
-        else { Log.gallery.error("filmcard_bundle_missing") }
-        isLoaded = true
+        guard loading == task else { return }
         loading = nil
+        if let prepared {
+            presets = prepared
+            loadState = .ready
+        } else {
+            loadState = .failed
+            Log.gallery.error("filmcard_bundle_missing")
+        }
     }
 
-    /// Async downsampled card image load; cache hits return immediately.
-    func image(for card: FilmCard, maxPixel: Int = 300) async -> UIImage? {
-        await FilmCardImageCache.shared.loadImage(card: card, maxPixel: maxPixel)
+    nonisolated private static func bundledCatalog() -> [FilmPreset]? {
+        let timer = Log.perf("filmcard_load", logger: Log.gallery)
+        let presets = FilmLUTCatalog.availablePresets()
+        timer.end("count=\(presets?.count ?? 0)")
+        return presets
     }
 }

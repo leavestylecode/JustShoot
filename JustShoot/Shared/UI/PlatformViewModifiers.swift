@@ -42,15 +42,6 @@ extension View {
     }
 
     @ViewBuilder
-    func filmCardSurface(in shape: RoundedRectangle) -> some View {
-        if #available(iOS 26.0, *) {
-            glassEffect(.regular, in: shape)
-        } else {
-            overlay(shape.strokeBorder(.white.opacity(0.16)))
-        }
-    }
-
-    @ViewBuilder
     func filmTransitionSource(id: String, in namespace: Namespace.ID) -> some View {
         if #available(iOS 18.0, *) {
             matchedTransitionSource(id: id, in: namespace)

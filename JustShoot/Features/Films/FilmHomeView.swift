@@ -119,7 +119,7 @@ struct FilmHomeView: View {
                     ToolbarItem(placement: .primaryAction) {
                         Menu {
                             Button { showsCatalog = true } label: {
-                                Label("Add Films", systemImage: "film")
+                                Label("Film Vault", systemImage: "shippingbox")
                             }
                             Button { showFileImporter = true } label: {
                                 Label("Import LUT", systemImage: "square.and.arrow.down")

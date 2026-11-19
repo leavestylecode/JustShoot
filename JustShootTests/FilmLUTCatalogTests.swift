@@ -2,52 +2,25 @@ import XCTest
 @testable import JustShoot
 
 final class FilmLUTCatalogTests: XCTestCase {
-    private func packaging() throws -> [FilmCard] {
-        let url = try XCTUnwrap(Bundle.main.url(forResource: "cards", withExtension: "json"))
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return try decoder.decode(FilmCardBundle.self, from: Data(contentsOf: url)).cards
-    }
-
-    func testLibraryHasOneEntryPerBundledCaptureLUTAndStartsWithDefaultNine() throws {
-        let available = FilmLUTCatalog.availablePresets()
-        XCTAssertEqual(available, Set(FilmPreset.allCases))
-        let cards = FilmLUTCatalog.cards(packaging: try packaging(), availablePresets: available)
-        XCTAssertEqual(cards.count, 19)
-        XCTAssertEqual(Set(cards.map(\.id)).count, cards.count)
-        XCTAssertEqual(Set(cards.compactMap(FilmLUTCatalog.preset)), available)
-        XCTAssertEqual(cards.prefix(9).compactMap(FilmLUTCatalog.preset), FilmPagePreferences.defaultPresets)
-        for card in cards {
-            let preset = try XCTUnwrap(FilmLUTCatalog.preset(for: card))
-            XCTAssertEqual(card.image, preset.libraryCardImage)
-            XCTAssertNil(card.expiry, "Packaging expiry dates do not describe a digital look")
+    func testEveryBundledCaptureLUTHasOneEntryAndAnAvailableCover() throws {
+        let catalog = try XCTUnwrap(FilmLUTCatalog.availablePresets())
+        XCTAssertEqual(catalog.count, 19)
+        XCTAssertEqual(Set(catalog), Set(FilmPreset.allCases))
+        XCTAssertEqual(catalog.prefix(9), FilmPagePreferences.defaultPresets[...])
+        for preset in catalog {
+            let filename = try XCTUnwrap(preset.libraryCardImage)
+            XCTAssertNotNil(Bundle.main.url(forResource: filename, withExtension: nil), filename)
         }
     }
 
-    func testPackagingVariantsAndMissingLUTsNeverBecomeSelectableFilms() throws {
-        let cards = FilmLUTCatalog.cards(packaging: try packaging(), availablePresets: [.kodakPortra400, .fujiRawVelvia])
-        XCTAssertEqual(cards.map(\.id), [FilmPreset.kodakPortra400.rawValue, FilmPreset.fujiRawVelvia.rawValue])
-        XCTAssertTrue(FilmLUTCatalog.cards(packaging: try packaging(), availablePresets: []).isEmpty)
+    func testPackagingAndMissingLUTsNeverBecomeSelectableFilms() {
+        let looks = FilmLUTCatalog.presets(withLUTs: ["00001_000", "KodakPortra400", "FujiRawVelvia"])
+        XCTAssertEqual(looks, [.kodakPortra400, .fujiRawVelvia])
+        XCTAssertTrue(FilmLUTCatalog.presets(withLUTs: []).isEmpty)
     }
 
-    func testCameraSimulationsKeepDistinctIdentityAndDoNotClaimPhysicalISO() throws {
-        let cards = FilmLUTCatalog.cards(packaging: try packaging(), availablePresets: Set(FilmPreset.allCases))
-        for card in cards {
-            let preset = try XCTUnwrap(FilmLUTCatalog.preset(for: card))
-            if preset.rawSimulation != nil { XCTAssertNil(card.iso) }
-            else { XCTAssertEqual(card.iso, Int(preset.iso)) }
-        }
-        let velvias = cards.filter { [FilmPreset.fujiRawVelvia.id, FilmPreset.fujiVelvia50.id].contains($0.id) }
-        XCTAssertEqual(Set(velvias.map(\.image)).count, 2)
-    }
-
-    func testSmallLibraryFiltersKeepEveryBrandAndTheirCountsReachable() throws {
-        let cards = FilmLUTCatalog.cards(packaging: try packaging(), availablePresets: Set(FilmPreset.allCases))
-        let index = FilmCardCatalogIndex(cards: cards, includesSmallGroups: true)
-        XCTAssertEqual(Set(index.brandChips.map(\.key)), ["Kodak", "Fujifilm", "Ilford"])
-        XCTAssertEqual(index.brandChips.reduce(0) { $0 + $1.count }, cards.count)
-        let ilford = index.filtered(using: .init(brands: ["Ilford"]))
-        XCTAssertEqual(ilford.map(\.id), [FilmPreset.ilfordHP5Plus400.rawValue])
-        XCTAssertEqual(index.filtered(using: .init(), query: "portra 800").map(\.id), [FilmPreset.kodakPortra800.rawValue])
+    func testCameraSimulationsKeepDistinctCoversFromPhysicalFilms() {
+        XCTAssertNotEqual(FilmPreset.fujiVelvia50.libraryCardImage, FilmPreset.fujiRawVelvia.libraryCardImage)
+        XCTAssertNotEqual(FilmPreset.fujiSlideProvia100F.libraryCardImage, FilmPreset.fujiProvia100F.libraryCardImage)
     }
 }

@@ -7,7 +7,7 @@ import SwiftData
 //   Films    首页胶片网格 + 拍摄（FilmHomeView 本体——其内部已含 NavigationStack，承载
 //            tile→CameraView 的 destination，所以不再额外包一层）
 //   Photos   相册（GalleryView）
-//   Library  胶片卡片库（FilmCardLibraryView）
+//   Vault    宝藏库（FilmCardLibraryView）
 //   Settings 设置
 //
 // 原来 Gallery / FilmCardLibrary 是首页工具栏按钮 push 进去的，它们的 body 自身不带
@@ -31,7 +31,7 @@ struct MainTabView: View {
                 .tabItem { Image(systemName: "photo.stack").accessibilityLabel("Photos") }
                 .tag(1)
             NavigationStack { FilmCardLibraryView() }
-                .tabItem { Image(systemName: "books.vertical").accessibilityLabel("Library") }
+                .tabItem { Image(systemName: "shippingbox").accessibilityLabel("Film Vault") }
                 .tag(2)
             SettingsView()
                 .tabItem { Image(systemName: "gearshape").accessibilityLabel("Settings") }

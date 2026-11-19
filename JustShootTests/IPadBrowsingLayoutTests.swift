@@ -22,8 +22,7 @@ final class IPadBrowsingLayoutTests: XCTestCase {
         let covers = try await FilmPresetCoverPreparation.prepareHome(displayScale: window.screen.scale)
         let home = HomePreparationSnapshot(customFilters: [], presetCovers: covers, customCover: nil)
         await FilmCardLibrary.shared.loadIfNeeded()
-        let card = try XCTUnwrap(FilmCardLibrary.shared.catalog.cards.first)
-        _ = await FilmCardLibrary.shared.image(for: card, maxPixel: 1024)
+        let preset = try XCTUnwrap(FilmCardLibrary.shared.presets.first)
         let photo = try samplePhoto()
         container.mainContext.insert(photo)
         try container.mainContext.save()
@@ -37,7 +36,7 @@ final class IPadBrowsingLayoutTests: XCTestCase {
         let pages: [(String, AnyView)] = [
             ("films", AnyView(FilmHomeView(preparedHome: home))),
             ("library", AnyView(NavigationStack { FilmCardLibraryView() })),
-            ("film-detail", AnyView(NavigationStack { FilmCardDetailView(card: card) })),
+            ("film-detail", AnyView(NavigationStack { FilmCardDetailView(preset: preset) })),
             ("settings", AnyView(SettingsView())),
             ("curves", AnyView(NavigationStack { FilmCurveLibraryView() })),
             ("curve-editor", AnyView(NavigationStack { FilmCurveEditorView(curve: CustomFilmCurve(name: "Rotation Draft")) })),

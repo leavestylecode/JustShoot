@@ -82,7 +82,7 @@ struct FilmManagementView: View {
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Remove \(source.filmPageTitle) from Films")
-                .accessibilityHint("You can add this film again from the library")
+                .accessibilityHint("You can add this film again from the Film Vault")
                 .accessibilityIdentifier("films.visibility.\(source.id)")
             case .custom:
                 Button(role: .destructive) { pendingDelete = source } label: {
