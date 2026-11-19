@@ -1,0 +1,346 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "About this film" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About this film"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶片介绍"
+          }
+        }
+      }
+    },
+    "fujiC200" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "C200 is a daylight color negative film made for everyday photography. Its bright blues stand apart from warm skin and brickwork, giving a sunny street a lively palette."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "C200 是一款适合日常拍摄的日光型彩色负片。它把清亮的蓝色和偏暖的肤色、砖墙拉开，让晴天街头的颜色显得轻快。"
+          }
+        }
+      }
+    },
+    "fujiPro400H" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pro 400H is a portrait color negative film known for its soft highlights and delicate greens. In open shade, cool shadows set off the warmer tones of a face."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pro 400H 是一款人像彩色负片，以柔和的高光和清淡的绿色见长。在树荫下拍人，偏冷的阴影会自然衬出脸上的暖色。"
+          }
+        }
+      }
+    },
+    "fujiProvia100F" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PROVIA is Fujifilm’s standard camera simulation. Moderate contrast and balanced color keep blue sky, green trees and sunlit walls distinct in the same frame."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PROVIA 是富士相机的标准胶片模拟。适中的反差和平衡的色彩让蓝天、绿树和受光的墙面在同一幅画面里各自清晰，适合记录白天沿途的景色。"
+          }
+        }
+      }
+    },
+    "fujiRawACROS" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACROS is Fujifilm’s monochrome simulation. Deep blacks anchor a long run of midtones, separating the texture of stone or fabric from the shadow beside it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ACROS 是富士的黑白胶片模拟。厚实的黑色衬出细腻的中间调，石墙的纹理、衣料的褶皱和旁边的阴影，各有不同的灰度。"
+          }
+        }
+      }
+    },
+    "fujiRawASTIA" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fujifilm’s ASTIA simulation gives skin a gentle transition from light to shade while keeping clothing colors vivid. In a window-lit portrait, the folds of a bright shirt can stand out alongside a softly lit face."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ASTIA 是富士为人像设计的胶片模拟。它让面部从亮处到阴影的过渡柔和，同时保留衣料的鲜明色彩。拍窗边人像时，既能看见脸颊上细微的光影，也能看清彩色衬衫的褶皱。"
+          }
+        }
+      }
+    },
+    "fujiRawClassicChrome" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CLASSIC CHROME draws on the restrained color of documentary photographs. Muted reds and blues and firm shadows draw attention to gestures, faces and the shapes of buildings."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CLASSIC CHROME 取材于纪实摄影的色彩风格。红色和蓝色较为含蓄，阴影扎实。在街头画面里，人物的手势、神情和建筑的形状更容易被看见。"
+          }
+        }
+      }
+    },
+    "fujiRawClassicNeg" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspired by color negatives used for everyday snapshots, CLASSIC Neg. gives sunlit areas warmth and shadows depth. The same painted wall takes on two distinct tones where a shadow crosses it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CLASSIC Neg. 的灵感来自记录日常生活的彩色负片。它让受光处偏暖，背光处颜色更沉。同一面彩墙被树荫分成两半时，这种明暗间的色调变化尤其明显。"
+          }
+        }
+      }
+    },
+    "fujiRawVelvia" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fujifilm’s Velvia simulation takes its vivid palette from slide film. Blues and greens grow intense, and deep shadows give sunlit hills and foliage a strong outline."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "富士的 Velvia 胶片模拟沿用了反转片浓郁的色彩。蓝天和绿叶更鲜明，阴影也更深，适合表现阳光在山脊和树林间划出的轮廓。"
+          }
+        }
+      }
+    },
+    "fujiSlideProvia100F" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provia 100F is a fine-grained color slide film with balanced saturation. It suits scenes where changes in the light matter as much as color, such as a shaded coast beneath a bright sky."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provia 100F 是一款颗粒细腻、色彩均衡的彩色反转片。拍摄晴空下的海岸时，海水的颜色和岸边阴影的层次都能成为画面的一部分。"
+          }
+        }
+      }
+    },
+    "fujiSuperiaXTRA400" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Superia X-TRA 400 is an everyday color negative film with a lively palette. In an evening street scene, cool daylight and warm shop windows can each keep their own color."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Superia X-TRA 400 是一款色彩明快的日常彩色负片。傍晚的街道上，偏冷的天光和偏暖的橱窗灯光可以各自保有颜色，适合记录两种光线交会的时刻。"
+          }
+        }
+      }
+    },
+    "fujiVelvia50" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Velvia 50 is a low-speed color slide film prized by landscape photographers. Dense greens, saturated reds and deep shadows give foliage and the last light on a ridge a vivid presence."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Velvia 50 是一款低感光度彩色反转片，因浓郁的颜色而受到风光摄影师喜爱。它的绿色深厚，红色饱满，适合表现林间的层次和日落时山顶的最后一抹光。"
+          }
+        }
+      }
+    },
+    "ilfordHP5Plus400" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HP5 Plus 400 is a black-and-white film favored for documentary work. Its broad midtones keep detail in faces and worn surfaces, even in the soft light of an overcast street."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HP5 Plus 400 是纪实摄影中常见的黑白负片。丰富的中间调适合表现面孔和旧物的表面，在阴天柔和的光线下，细微的灰度变化也有层次。"
+          }
+        }
+      }
+    },
+    "kodakEktar100" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ektar 100 pairs very fine grain with saturated color. It brings out small textures in brightly colored subjects, from flower petals to painted walls in direct sun."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ektar 100 是一款兼具细颗粒和高饱和度的彩色负片。日光下的花瓣、漆面和砖墙既有鲜明的色块，也有值得近看的细小纹理。"
+          }
+        }
+      }
+    },
+    "kodakGold200" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gold 200 is a daylight color negative film long associated with family snapshots. Its warm yellows and reds give afternoon sunlight, brick walls and sandy beaches a familiar glow."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gold 200 是一款日光型彩色负片，常见于家庭相册。偏暖的黄色和红色是它的特点，午后的阳光落在砖墙或沙滩上时，这层金黄色调尤为明显。"
+          }
+        }
+      }
+    },
+    "kodakKodachrome64" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kodachrome 64 is the color slide film associated with decades of projected travel photographs. Rich reds, clear blues and deep shadows give sunlit streets a distinctive palette."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kodachrome 64 是一款经典彩色反转片，曾被广泛用于拍摄旅行幻灯片。浓郁的红色、清晰的蓝色和深沉的阴影，让晴天街景里的招牌与天空格外醒目。"
+          }
+        }
+      }
+    },
+    "kodakPortra400" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portra 400 is a color negative film designed for portraits. Warm skin tones and gentle contrast suit a face lit from the side, where a bright cheek gradually falls into shadow."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portra 400 是柯达为人像拍摄设计的彩色负片。它的肤色偏暖，反差柔和，适合表现侧光下脸颊从明亮处逐渐转入阴影的细微变化。"
+          }
+        }
+      }
+    },
+    "kodakPortra800" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portra 800 is the high-speed portrait film in the Portra family. It is known for warm skin tones and visible grain, a combination that suits portraits made by a café window at dusk."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portra 800 是 Portra 系列中的高感光度人像负片。温暖的肤色和可见的颗粒是它的特点，很适合傍晚坐在咖啡馆窗边、脸上还留着一点天光的人。"
+          }
+        }
+      }
+    },
+    "kodakTMax100" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "T-Max 100 is a fine-grained black-and-white film with a smooth tonal scale. Subtle changes in gray give definition to pale stone, metal and the edges of architectural shadows."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "T-Max 100 是一款细颗粒黑白负片，灰阶过渡平滑。浅色石材、金属表面以及建筑投影的边缘，都适合用它来表现细微的明暗变化。"
+          }
+        }
+      }
+    },
+    "kodakTriX400" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tri-X 400 has a long history in black-and-white reportage. Distinct grain and strong dark tones lend shape to a moving figure, especially against a brightly lit street."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tri-X 400 长期用于黑白新闻与纪实摄影。鲜明的颗粒和厚重的暗调让人物轮廓突出，在明亮街面前拍一个走过的人，就能看到这种黑白反差。"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

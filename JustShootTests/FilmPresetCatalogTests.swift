@@ -81,6 +81,23 @@ final class FilmPresetCatalogTests: XCTestCase {
         }
     }
 
+    func testEachFilmHasItsOwnIntroductionInBothLanguages() {
+        var englishIntroductions = Set<String>()
+        var chineseIntroductions = Set<String>()
+        for preset in FilmPreset.allCases {
+            var resource = preset.introduction
+            resource.locale = Locale(identifier: "en")
+            let english = String(localized: resource)
+            resource.locale = Locale(identifier: "zh-Hans")
+            let chinese = String(localized: resource)
+            XCTAssertFalse([english, chinese].contains(""), preset.id)
+            XCTAssertFalse([english, chinese].contains(preset.id), preset.id)
+            XCTAssertNotEqual(english, chinese, preset.id)
+            XCTAssertTrue(englishIntroductions.insert(english).inserted, preset.id)
+            XCTAssertTrue(chineseIntroductions.insert(chinese).inserted, preset.id)
+        }
+    }
+
     func testSceneVocabularyAndSubtitlesFollowTheRequestedLanguage() {
         let english = Locale(identifier: "en")
         let chinese = Locale(identifier: "zh-Hans")

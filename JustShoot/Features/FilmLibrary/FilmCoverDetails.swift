@@ -19,6 +19,10 @@ struct FilmCoverDetails {
 }
 
 extension FilmPreset {
+    var introduction: LocalizedStringResource {
+        LocalizedStringResource(String.LocalizationValue(stringLiteral: id), table: "FilmIntroductions")
+    }
+
     var coverDetails: FilmCoverDetails {
         switch self {
         case .fujiRawVelvia: .init(brand: "Fujifilm", swatch: 0x089138)

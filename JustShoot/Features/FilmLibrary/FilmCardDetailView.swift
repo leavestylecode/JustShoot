@@ -34,16 +34,20 @@ struct FilmCardDetailView: View {
                 let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 32))
                                   : AnyLayout(VStackLayout(alignment: .leading, spacing: 22))
                 ScrollView {
-                    layout {
-                        cover
-                            .frame(maxWidth: coverWidth)
-                            .frame(maxWidth: wide ? coverWidth : .infinity)
-                        VStack(alignment: .leading, spacing: 22) {
-                            filmInfo(packaging)
-                            recommendations
-                            gallery
+                    VStack(spacing: 26) {
+                        layout {
+                            cover
+                                .frame(maxWidth: coverWidth)
+                                .frame(maxWidth: wide ? coverWidth : .infinity)
+                            VStack(alignment: .leading, spacing: 22) {
+                                filmInfo(packaging)
+                                introduction
+                                recommendations
+                                gallery
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        shootingButton
                     }
                     .padding(.horizontal, 22)
                     .padding(.top, 12)
@@ -51,9 +55,6 @@ struct FilmCardDetailView: View {
                     .pageContentWidth(wide ? PageLayout.browseWidth : PageLayout.readingWidth)
                 }
             }
-            shootingButton
-                .padding(.horizontal, 18)
-                .padding(.vertical, 8)
         }
         .background {
             packaging.color.overlay {
@@ -126,6 +127,18 @@ struct FilmCardDetailView: View {
                 }
                 .font(.subheadline.monospacedDigit())
             }
+        }
+    }
+
+    private var introduction: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("About this film", tableName: "FilmIntroductions")
+                .font(.headline)
+                .accessibilityAddTraits(.isHeader)
+            Text(preset.introduction)
+                .font(.body)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
