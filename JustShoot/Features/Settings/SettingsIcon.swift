@@ -56,11 +56,23 @@ struct SettingsIcon: View {
     }
 }
 
+enum SettingsChevron: View {
+    case forward, down
+
+    var body: some View {
+        Image(systemName: self == .forward ? "chevron.forward" : "chevron.down")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: 14)
+            .accessibilityHidden(true)
+    }
+}
+
 struct SettingRow: View {
     let icon: SettingsIcon
     let title: LocalizedStringKey
     var value: String? = nil
-    var showsChevron: Bool = false
+    var chevron: SettingsChevron? = nil
 
     var body: some View {
         HStack(spacing: 15) {
@@ -71,12 +83,7 @@ struct SettingRow: View {
             if let value {
                 Text(value).foregroundStyle(.secondary)
             }
-            if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-            }
+            chevron
         }
         .frame(minHeight: 44)
         .contentShape(Rectangle())

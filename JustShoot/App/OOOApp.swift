@@ -75,10 +75,14 @@ private struct AppStartupContent: View {
                 } else if startup.hasFailed {
                     PreparationErrorScreen(title: "Your library could not be prepared", message: startup.failureMessage,
                         onAction: { Task { await startup.retry(displayScale: displayScale) } })
+                } else if introFinished {
+                    AppPageBackground()
+                        .zIndex(0.5)
+                        .transition(.opacity.animation(.easeOut(duration: 0.18)))
                 }
 
                 if showsIntro {
-                    AppStartupIntro(isFinished: $introFinished)
+                    AppStartupIntro(homeReady: startup.ready != nil, isFinished: $introFinished)
                         .zIndex(1)
                         .transition(.opacity.animation(.easeOut(duration: 0.18)))
                 }

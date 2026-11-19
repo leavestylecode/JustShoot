@@ -1457,6 +1457,16 @@
         }
       }
     },
+    "Collapsed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已收起"
+          }
+        }
+      }
+    },
     "Color Intensity" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2068,6 +2078,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "编辑曲线"
+          }
+        }
+      }
+    },
+    "Expanded" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已展开"
           }
         }
       }
@@ -4460,7 +4480,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "语言"
+            "value" : "选择语言"
           }
         }
       }

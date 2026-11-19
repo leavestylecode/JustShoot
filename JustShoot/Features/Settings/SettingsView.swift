@@ -97,18 +97,18 @@ struct SettingsView: View {
                 if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
             } label: {
                 SettingRow(icon: .language, title: "Select Language", value: String(localized: "settings_language_name"),
-                           showsChevron: true)
+                           chevron: .forward)
             }
             .accessibilityHint("Opens the language options in iOS Settings")
             NavigationLink {
                 CapturePreferencesView()
             } label: {
-                SettingRow(icon: .preferences, title: "Preferences", showsChevron: true)
+                SettingRow(icon: .preferences, title: "Preferences", chevron: .forward)
             }
             NavigationLink {
                 AppearanceSettingsView()
             } label: {
-                SettingRow(icon: .appearance, title: "Appearance Management", showsChevron: true)
+                SettingRow(icon: .appearance, title: "Appearance Management", chevron: .forward)
             }
         }
         .buttonStyle(.plain)
@@ -241,7 +241,7 @@ struct SettingsView: View {
                 AboutAuthorView()
             } label: {
                 SettingRow(icon: .author,
-                           title: "About the Author", showsChevron: true)
+                           title: "About the Author", chevron: .forward)
             }
             .buttonStyle(.plain)
 
@@ -249,7 +249,7 @@ struct SettingsView: View {
                 showsReview = true
             } label: {
                 SettingRow(icon: .rating,
-                           title: "Rate on the App Store", showsChevron: true)
+                           title: "Rate on the App Store", chevron: .forward)
             }
             .buttonStyle(.plain)
 
@@ -257,7 +257,7 @@ struct SettingsView: View {
                 preparingShare = true
             } label: {
                 SettingRow(icon: .share,
-                           title: "Share App", showsChevron: true)
+                           title: "Share App", chevron: .forward)
             }
             .buttonStyle(.plain)
             .disabled(preparingShare)
@@ -265,18 +265,22 @@ struct SettingsView: View {
             if let url = Self.supportLinks.feedbackURL {
                 Button { openURL(url) } label: {
                     SettingRow(icon: SettingsIcon("envelope.circle.fill", color: .blue),
-                               title: "Send Feedback", showsChevron: true)
+                               title: "Send Feedback", chevron: .forward)
                 }
                 .buttonStyle(.plain)
             }
 
-            DisclosureGroup(isExpanded: $showsDiagnostics) {
-                diagnosticsSection
-                    .padding(.top, 8)
+            Button {
+                withAnimation { showsDiagnostics.toggle() }
             } label: {
-                SettingRow(icon: SettingsIcon("waveform.circle.fill", color: .gray), title: "Diagnostics")
+                SettingRow(icon: SettingsIcon("waveform.circle.fill", color: .gray), title: "Diagnostics",
+                           chevron: showsDiagnostics ? .down : .forward)
             }
-            .tint(.secondary)
+            .buttonStyle(.plain)
+            .accessibilityValue(showsDiagnostics ? Text("Expanded") : Text("Collapsed"))
+            if showsDiagnostics {
+                diagnosticsSection.padding(.top, 8)
+            }
         }
     }
 

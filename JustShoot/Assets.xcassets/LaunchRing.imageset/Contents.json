@@ -1,6 +1,13 @@
 {
   "images" : [
     {
+      "filename" : "LaunchRingLight.svg",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        { "appearance" : "luminosity", "value" : "dark" }
+      ],
       "filename" : "LaunchRing.svg",
       "idiom" : "universal"
     }

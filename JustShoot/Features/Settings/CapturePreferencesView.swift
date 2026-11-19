@@ -19,7 +19,7 @@ struct CapturePreferencesView: View {
                     SettingRow(icon: SettingsIcon("chart.line.uptrend.xyaxis.circle.fill", color: .mint),
                                title: "Film Curves",
                                value: "\(curveLibrary.visibleCurveCount)/\(curveLibrary.totalCurveCount)",
-                               showsChevron: true)
+                               chevron: .forward)
                 }
                 .buttonStyle(.plain)
             }

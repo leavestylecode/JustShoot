@@ -30,15 +30,13 @@ struct SettingsProfileCard: View {
                         .lineLimit(2)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsChevron.forward
             }
             .multilineTextAlignment(.leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding()
+        .padding(16)
         .settingsGlassCard(cornerRadius: 24)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: "\(name), \(description)"))
