@@ -113,6 +113,17 @@
         }
       }
     },
+    "Live Preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实时预览"
+          }
+        }
+      }
+    },
     "Loading films" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -292,6 +303,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "渐变"
+          }
+        }
+      }
+    },
+    "Gradient Direction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "渐变方向"
           }
         }
       }
@@ -863,6 +885,17 @@
         }
       }
     },
+    "General Page Background" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通用页面背景"
+          }
+        }
+      }
+    },
     "Gently increase midtone contrast." : {
       "localizations" : {
         "en" : {
@@ -1069,6 +1102,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apple ProRAW"
+          }
+        }
+      }
+    },
+    "Apply the selected background to app pages." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将所选背景应用到通用页面。"
           }
         }
       }
@@ -1741,6 +1785,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "色彩强度"
+          }
+        }
+      }
+    },
+    "Color Scheme" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "外观模式"
           }
         }
       }
@@ -3605,6 +3660,17 @@
         }
       }
     },
+    "Off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已关闭"
+          }
+        }
+      }
+    },
     "OK" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3789,6 +3855,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "输出"
+          }
+        }
+      }
+    },
+    "Page Appearance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "页面外观"
           }
         }
       }
@@ -4764,7 +4841,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "图标样式"
+            "value" : "设置页图标"
           }
         }
       }
@@ -5219,6 +5296,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "静态照片将会保存，但未能拍摄实况视频。"
+          }
+        }
+      }
+    },
+    "Theme Selection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主题选择"
           }
         }
       }
