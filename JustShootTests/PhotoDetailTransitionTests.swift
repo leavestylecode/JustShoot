@@ -318,6 +318,66 @@ final class PhotoDetailTransitionTests: XCTestCase {
         XCTAssertEqual(root.view.traitCollection.userInterfaceStyle, .light)
     }
 
+    func testGalleryCanScrollLastRowAboveCapsuleTabBar() async throws {
+        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        for _ in 0..<120 {
+            container.mainContext.insert(Photo(assetLocalIdentifier: nil, imageData: nil))
+        }
+        try container.mainContext.save()
+        let scene = try await TestWindowScene.foreground()
+        let previous = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        let selection = Binding<MainTab>.constant(.photos)
+        let root = UIHostingController(rootView: TabView(selection: selection) {
+            NavigationStack { GalleryView() }.mainTabItem(.photos)
+            Color.clear.mainTabItem(.films)
+        }.environment(\.capsuleTabSelection, selection).modelContainer(container))
+        window.rootViewController = root
+        window.makeKeyAndVisible()
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previous?.makeKey()
+        }
+        try await waitFor { self.photoGrid(in: root.view)?.numberOfItems(inSection: 0) == 120 }
+        let grid = try XCTUnwrap(photoGrid(in: root.view))
+        grid.layoutIfNeeded()
+        let last = IndexPath(item: 119, section: 0)
+        grid.scrollToItem(at: last, at: .bottom, animated: false)
+        grid.layoutIfNeeded()
+        let cell = try XCTUnwrap(grid.cellForItem(at: last))
+        let bar: UITabBar = try XCTUnwrap(identifiedView("main.tabs", in: root.view))
+        XCTAssertLessThanOrEqual(cell.convert(cell.bounds, to: window).maxY, bar.convert(bar.bounds, to: window).minY)
+    }
+
+    func testCapsuleRestoresSelectionAndExposesFourNamedIconOnlyTabs() async throws {
+        var selectedTab = MainTab.library
+        let selection = Binding(get: { selectedTab }, set: { selectedTab = $0 })
+        let scene = try await TestWindowScene.foreground()
+        let previous = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        let root = UIHostingController(rootView: Color.clear.mainTabRoot(.library)
+            .environment(\.capsuleTabSelection, selection))
+        window.rootViewController = root
+        window.makeKeyAndVisible()
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previous?.makeKey()
+        }
+
+        root.view.layoutIfNeeded()
+        let bar: UITabBar = try XCTUnwrap(identifiedView("main.tabs", in: root.view))
+        let items = try XCTUnwrap(bar.items)
+        XCTAssertEqual(items.map(\.accessibilityLabel), MainTab.allCases.map { String(localized: $0.title) })
+        XCTAssertTrue(items.allSatisfy { $0.title == nil && $0.image != nil && $0.selectedImage != nil })
+        XCTAssertEqual(bar.selectedItem?.tag, MainTab.library.rawValue)
+        let photos = try XCTUnwrap(items.first { $0.tag == MainTab.photos.rawValue })
+        bar.delegate?.tabBar?(bar, didSelect: photos)
+        XCTAssertEqual(selectedTab, .photos)
+    }
+
     func testGalleryToolbarStaysUnchangedWhileOpeningAndClosingPhoto() async throws {
         let container = try ModelContainer(for: Photo.self, CustomLUT.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
@@ -441,8 +501,12 @@ final class PhotoDetailTransitionTests: XCTestCase {
     }
 
     private func photoGrid(in view: UIView) -> UICollectionView? {
-        if let collection = view as? UICollectionView, collection.accessibilityIdentifier == "gallery.grid" { return collection }
-        return view.subviews.lazy.compactMap { self.photoGrid(in: $0) }.first
+        identifiedView("gallery.grid", in: view)
+    }
+
+    private func identifiedView<T: UIView>(_ identifier: String, in view: UIView) -> T? {
+        if view.accessibilityIdentifier == identifier, let match = view as? T { return match }
+        return view.subviews.lazy.compactMap { self.identifiedView(identifier, in: $0) as T? }.first
     }
 
     private func waitFor(_ predicate: () -> Bool) async throws {

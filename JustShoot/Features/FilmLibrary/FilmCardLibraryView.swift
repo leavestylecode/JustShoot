@@ -56,6 +56,7 @@ struct FilmCardLibraryView: View {
             CameraView(source: source, filmSettings: settings)
         }
         .task { await library.loadIfNeeded() }
+        .mainTabRoot(.library)
     }
 
     private func tile(_ preset: FilmPreset) -> some View {

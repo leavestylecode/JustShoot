@@ -14,6 +14,7 @@ import ImageIO
 // Delete）、tab 栏隐藏、批量保存/删除、详情呈现。选择状态通过 @Binding 与 PhotoGridView 双向同步。
 struct GalleryView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.capsuleTabSelection) private var capsuleTabSelection
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query(sort: \Photo.timestamp, order: .reverse) private var photos: [Photo]
@@ -51,10 +52,8 @@ struct GalleryView: View {
                         isActive: isVisible && selectedDetail == nil,
                         transitionSource: transitionSource
                     )
-                    // 忽略上下安全区：collection view 延伸到 nav 栏 / tab 栏之下，靠
-                    // contentInsetAdjustmentBehavior=.automatic 把首/末行内边距顶到安全区内，
-                    // 内容可以滚到顶部 nav 栏之下。
-                    .ignoresSafeArea()
+                    // UIKit adjusts for system bars, but only SwiftUI knows the capsule's inset.
+                    .ignoresSafeArea(edges: capsuleTabSelection != nil && !isSelecting ? .top : .all)
                 }
                 .pageContentWidth(PageLayout.browseWidth)
             }
@@ -65,7 +64,7 @@ struct GalleryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .softScrollEdges()
         // 选择模式隐藏底部 tab 栏，让位给 Download / Delete 操作栏（Photos.app 一致）。
-        .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
+        .mainTabRoot(.photos, isHidden: isSelecting)
         .toolbar {
             // 全选放左上、xmark 放右上——两端分置，不挤在一起。
             ToolbarItem(placement: .navigationBarLeading) {

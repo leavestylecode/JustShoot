@@ -48,6 +48,7 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .softScrollEdges()
+            .mainTabRoot(.settings)
         }
         .sheet(isPresented: $showsReview) {
             AnimatedReviewSheet(reviewURL: Self.supportLinks.reviewURL)

@@ -176,6 +176,7 @@ struct FilmHomeView: View {
                     Text(importError ?? String(localized: "Unknown error"))
                 }
             }
+            .mainTabRoot(.films)
         }
         .task(id: settings.preferences.addedPresetIDs) {
             let presets = settings.preferences.addedPresets
