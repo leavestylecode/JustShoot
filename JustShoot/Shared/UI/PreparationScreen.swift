@@ -27,8 +27,8 @@ struct PreparationErrorScreen: View {
                     Button(actionTitle, action: onAction)
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
-                        .tint(.white)
-                        .foregroundStyle(.black)
+                        .tint(.primary)
+                        .foregroundStyle(Color(uiColor: .systemBackground))
                         .padding(.top, 6)
                 }
                 .multilineTextAlignment(.center)
@@ -39,9 +39,8 @@ struct PreparationErrorScreen: View {
             }
             .scrollIndicators(.hidden)
         }
-        .background(Color.black.ignoresSafeArea())
-        .foregroundStyle(.white)
-        .preferredColorScheme(.dark)
+        .background(Color(uiColor: .systemBackground).ignoresSafeArea())
+        .foregroundStyle(.primary)
         .accessibilityIdentifier("preparation_screen")
     }
 }

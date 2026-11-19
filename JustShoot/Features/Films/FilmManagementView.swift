@@ -47,7 +47,7 @@ struct FilmManagementView: View {
             .environment(\.editMode, .constant(.active))
             .scrollContentBackground(.hidden)
             .pageContentWidth()
-            .background(Color.black)
+            .appPageBackground()
             .navigationTitle("Manage Films")
             .navigationBarTitleDisplayMode(.inline)
             .softScrollEdges()
@@ -58,7 +58,6 @@ struct FilmManagementView: View {
             }
             .modifier(FilmDeletionConfirmation(pending: $pendingDelete, onDelete: onDelete))
         }
-        .preferredColorScheme(.dark)
     }
 
     private func filmRow(_ source: FilmSource) -> some View {
@@ -100,7 +99,7 @@ struct FilmManagementView: View {
 
     private func cover(_ source: FilmSource) -> some View {
         ZStack {
-            Color.white.opacity(0.08)
+            Color.primary.opacity(0.08)
             if case .preset(let preset) = source, let image = presetCovers[preset] {
                 Image(uiImage: image).resizable().scaledToFill()
             } else {

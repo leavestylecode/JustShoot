@@ -74,7 +74,7 @@ struct FilmCurveLibraryView: View {
         }
         .scrollContentBackground(.hidden)
         .pageContentWidth()
-        .background(Color.black)
+        .appPageBackground()
         .navigationTitle("Film Curves")
         .navigationBarTitleDisplayMode(.inline)
         .softScrollEdges()
@@ -233,8 +233,8 @@ struct FilmCurveEditorView: View {
                 .pageContentWidth()
             }
         }
-        .background(Color.black)
-        .tint(.white)
+        .appPageBackground()
+        .tint(.primary)
         .navigationTitle(isNew ? String(localized: "New Curve") : String(localized: "Edit Curve"))
         .navigationBarTitleDisplayMode(.inline)
         .softScrollEdges()

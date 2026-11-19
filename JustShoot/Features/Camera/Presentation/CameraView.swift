@@ -88,6 +88,8 @@ struct CameraView: View {
             if isIPad { iPadBackButton }
         }
         .ignoresSafeArea(.container, edges: isIPad ? .all : [])
+        .environment(\.colorScheme, .dark)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
         .onAppear {
@@ -251,7 +253,6 @@ struct CameraView: View {
             NavigationStack {
                 FilmCurveLibraryView(showsDoneButton: true)
             }
-            .preferredColorScheme(.dark)
         }
     }
 

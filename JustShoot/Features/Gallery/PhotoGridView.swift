@@ -77,7 +77,7 @@ struct PhotoGridView: UIViewRepresentable {
         layout.columns = CGFloat(columns)
         let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
         cv.accessibilityIdentifier = "gallery.grid"
-        cv.backgroundColor = .black
+        cv.backgroundColor = .clear
         cv.alwaysBounceVertical = true
         cv.allowsSelection = true
         cv.allowsMultipleSelectionDuringEditing = true
@@ -357,7 +357,7 @@ final class PhotoCell: UICollectionViewCell {
         accessibilityTraits = .button
         contentView.clipsToBounds = true
         contentView.layer.cornerCurve = .continuous   // 圆角值由 configure(cornerRadius:) 设置
-        contentView.backgroundColor = UIColor.white.withAlphaComponent(0.08)
+        contentView.backgroundColor = UIColor.secondarySystemFill
 
         imageView.contentMode = .scaleAspectFill
         imageView.clipsToBounds = true

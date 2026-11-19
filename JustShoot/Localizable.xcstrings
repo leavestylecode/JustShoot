@@ -1,6 +1,39 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Gradient" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "渐变"
+          }
+        }
+      }
+    },
+    "Gradient Origin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "渐变起点"
+          }
+        }
+      }
+    },
+    "Gradient Range" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "渐变范围"
+          }
+        }
+      }
+    },
     "Grain for FUJIFILM simulations": {
       "extractionState": "manual",
       "localizations": {
@@ -728,6 +761,34 @@
         }
       }
     },
+    "Appearance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "外观"
+          }
+        }
+      }
+    },
+    "Appearance Management" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "外观管理"
+          }
+        }
+      }
+    },
     "Apple ProRAW" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -758,6 +819,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "约 %lld 毫米等效焦距"
+          }
+        }
+      }
+    },
+    "Aurora" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "极光"
           }
         }
       }
@@ -840,6 +912,17 @@
         }
       }
     },
+    "Automatic" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动"
+          }
+        }
+      }
+    },
     "Automatic value unavailable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -898,6 +981,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "蓝"
+          }
+        }
+      }
+    },
+    "Blur" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模糊程度"
+          }
+        }
+      }
+    },
+    "Bottom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "底部"
+          }
+        }
+      }
+    },
+    "Bottom Left" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左下"
+          }
+        }
+      }
+    },
+    "Bottom Right" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右下"
           }
         }
       }
@@ -1330,6 +1457,17 @@
         }
       }
     },
+    "Color Intensity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "色彩强度"
+          }
+        }
+      }
+    },
     "Color temperature" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1466,6 +1604,17 @@
         }
       }
     },
+    "Couldn’t update the background photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法更新背景照片"
+          }
+        }
+      }
+    },
     "Cover shape" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1483,6 +1632,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "创建第一条曲线"
+          }
+        }
+      }
+    },
+    "Crimson" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "绯红"
           }
         }
       }
@@ -1667,6 +1827,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自定义滤镜"
+          }
+        }
+      }
+    },
+    "Custom Photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自选照片"
+          }
+        }
+      }
+    },
+    "Cyan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "青蓝"
+          }
+        }
+      }
+    },
+    "Dark" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深色"
+          }
+        }
+      }
+    },
+    "Deep Space" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深空"
           }
         }
       }
@@ -2290,6 +2494,23 @@
         }
       }
     },
+    "FUJIFILM Grain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FUJIFILM Grain"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "富士模拟颗粒"
+          }
+        }
+      }
+    },
     "Gallery" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2384,6 +2605,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "隐藏"
+          }
+        }
+      }
+    },
+    "High" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高"
           }
         }
       }
@@ -2521,6 +2753,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "大"
+          }
+        }
+      }
+    },
+    "Left" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左侧"
           }
         }
       }
@@ -2720,6 +2963,17 @@
         }
       }
     },
+    "Low" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低"
+          }
+        }
+      }
+    },
     "LUT color space" : {
       "localizations" : {
         "en" : {
@@ -2850,12 +3104,51 @@
         }
       }
     },
+    "Medium" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中"
+          }
+        }
+      }
+    },
     "Microphone access is off. Turn it on in Settings to record sound." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "麦克风权限已关闭。前往“设置”开启后即可录音。"
+          }
+        }
+      }
+    },
+    "Monochrome" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monochrome"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "单色"
+          }
+        }
+      }
+    },
+    "Moonlight" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "月光"
           }
         }
       }
@@ -3154,6 +3447,23 @@
         }
       }
     },
+    "Opens the language options in iOS Settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the language options in iOS Settings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前往系统设置更改应用语言"
+          }
+        }
+      }
+    },
     "Orange" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3226,6 +3536,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "输出"
+          }
+        }
+      }
+    },
+    "Palette" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配色"
           }
         }
       }
@@ -3415,6 +3736,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请等待照片保存完成后再拍摄。"
+          }
+        }
+      }
+    },
+    "Preferences" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preferences"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "偏好配置"
           }
         }
       }
@@ -3626,13 +3964,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rate on the App Store"
+            "value" : "Rate App"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "好评一下"
+            "value" : "给个好评"
           }
         }
       }
@@ -3738,6 +4076,17 @@
         }
       }
     },
+    "Remove Background Photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除背景照片"
+          }
+        }
+      }
+    },
     "Remove filter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3751,6 +4100,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "移除此筛选"
+          }
+        }
+      }
+    },
+    "Replace Photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更换照片"
           }
         }
       }
@@ -3849,6 +4209,28 @@
         }
       }
     },
+    "Right" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右侧"
+          }
+        }
+      }
+    },
+    "Rose Gold" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "玫瑰金"
+          }
+        }
+      }
+    },
     "Rounded" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3872,6 +4254,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "S 曲线"
+          }
+        }
+      }
+    },
+    "Saturation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "饱和度"
           }
         }
       }
@@ -4055,6 +4448,23 @@
         }
       }
     },
+    "Select Language" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Language"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语言"
+          }
+        }
+      }
+    },
     "Send Feedback" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4085,6 +4495,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "设置"
+          }
+        }
+      }
+    },
+    "Settings Icons" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings Icons"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图标样式"
+          }
+        }
+      }
+    },
+    "settings_language_name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "English"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "简体中文"
           }
         }
       }
@@ -4289,6 +4733,17 @@
         }
       }
     },
+    "Starlight" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "星芒"
+          }
+        }
+      }
+    },
     "Start From" : {
       "localizations" : {
         "zh-Hans" : {
@@ -4329,6 +4784,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "开始使用此滤镜拍摄"
+          }
+        }
+      }
+    },
+    "Subtle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subtle"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低调"
           }
         }
       }
@@ -5105,6 +5577,28 @@
         }
       }
     },
+    "Background Effect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背景效果"
+          }
+        }
+      }
+    },
+    "Background Style" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背景样式"
+          }
+        }
+      }
+    },
     "Backlight" : {
       "comment" : "Photography scene recommendation shown below a film name.",
       "extractionState" : "manual",
@@ -5245,6 +5739,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "风光"
+          }
+        }
+      }
+    },
+    "Nebula" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "星云"
           }
         }
       }
@@ -5425,6 +5930,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "日落"
+          }
+        }
+      }
+    },
+    "Top" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顶部"
+          }
+        }
+      }
+    },
+    "Top Left" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左上"
+          }
+        }
+      }
+    },
+    "Top Right" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右上"
           }
         }
       }
@@ -5727,7 +6265,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "About the Author"
+            "value" : "About Author"
           }
         },
         "zh-Hans" : {
@@ -5772,6 +6310,17 @@
         }
       }
     },
+    "Center" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中心"
+          }
+        }
+      }
+    },
     "Change Profile Photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5785,6 +6334,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "更换头像"
+          }
+        }
+      }
+    },
+    "Choose Photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择照片"
           }
         }
       }
@@ -5853,6 +6413,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "编辑资料"
+          }
+        }
+      }
+    },
+    "Ember" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "余晖"
           }
         }
       }
@@ -5947,6 +6518,17 @@
     },
     "leavestyle101@gmail.com" : {
 
+    },
+    "Light" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浅色"
+          }
+        }
+      }
     },
     "linkedin" : {
       "extractionState" : "manual",

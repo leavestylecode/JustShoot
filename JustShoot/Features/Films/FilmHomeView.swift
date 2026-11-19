@@ -104,7 +104,7 @@ struct FilmHomeView: View {
                     .padding(.bottom, 20)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .background(Color.black)
+                .appPageBackground()
                 .navigationTitle("Films")
                 .navigationBarTitleDisplayMode(.inline)
                 .softScrollEdges()
@@ -177,7 +177,6 @@ struct FilmHomeView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
         .task(id: settings.preferences.addedPresetIDs) {
             let presets = settings.preferences.addedPresets
             presetCovers = presetCovers.filter { settings.preferences.addedPresetIDs.contains($0.key.rawValue) }

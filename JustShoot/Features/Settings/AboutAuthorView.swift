@@ -26,7 +26,7 @@ struct AboutAuthorView: View {
             .padding()
             .pageContentWidth()
         }
-        .background(Color.black)
+        .appPageBackground()
         .navigationTitle("About the Author")
         .navigationBarTitleDisplayMode(.inline)
         .softScrollEdges()
@@ -51,7 +51,7 @@ struct AboutAuthorView: View {
         Text(title)
             .font(.footnote)
             .bold()
-            .foregroundStyle(Color.gray)
+            .foregroundStyle(.secondary)
             .padding(.top)
             .padding(.leading)
     }
@@ -95,7 +95,7 @@ struct AboutAuthorView: View {
         Text(NSLocalizedString("Independent Website", comment: ""))
             .font(.footnote)
             .bold()
-            .foregroundStyle(Color.gray)
+            .foregroundStyle(.secondary)
             .padding(.top)
             .padding(.leading)
     }
@@ -336,14 +336,14 @@ struct MoreAuthorCard: View {
                     HStack {
                         Text("LeaveStyle")
                             .font(.headline)
-                            .foregroundStyle(Color.white)
+                            .foregroundStyle(.primary)
                         Spacer()
                     }
 
                     HStack {
                         Text("Leave the comfortable style, and leap into the imagination.")
                             .font(.caption)
-                            .foregroundStyle(Color.gray)
+                            .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.5)
                         Spacer()
@@ -390,12 +390,12 @@ struct MoreProductCard: View {
                     HStack {
                         Text(LocalizedStringKey(product.titleKey))
                             .font(.headline)
-                            .foregroundStyle(Color.white)
+                            .foregroundStyle(.primary)
                         Spacer()
                         Text(verbatim: " iOS ")
                             .font(.caption)
                             .padding(4)
-                            .foregroundStyle(Color.white)
+                            .foregroundStyle(.primary)
                             .background(
                                 Color(
                                     red: product.badgeRed,
@@ -410,7 +410,7 @@ struct MoreProductCard: View {
                     HStack {
                         Text(LocalizedStringKey(product.descriptionKey))
                             .font(.caption)
-                            .foregroundStyle(Color.gray)
+                            .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.5)
                         Spacer()

@@ -82,7 +82,7 @@ private struct ProfileEditor: View {
             }
             .scrollContentBackground(.hidden)
             .scrollIndicators(.hidden)
-            .background(Color.black.ignoresSafeArea())
+            .appPageBackground()
             .navigationTitle("Edit Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -212,12 +212,12 @@ private struct ProfileEditor: View {
     ) -> some View {
         let title = String(localized: key)
         return Section {
-            TextField(title, text: text, prompt: Text(verbatim: title).foregroundStyle(.white.opacity(0.6)))
+            TextField(title, text: text, prompt: Text(verbatim: title).foregroundStyle(.secondary))
                 .focused(focused)
                 .autocorrectionDisabled()
                 .font(.body)
-                .foregroundStyle(.white)
-                .tint(.white)
+                .foregroundStyle(.primary)
+                .tint(.primary)
                 .padding(4)
                 .onChange(of: text.wrappedValue) { _, value in
                     if value.count > limit { text.wrappedValue = String(value.prefix(limit)) }
@@ -229,7 +229,7 @@ private struct ProfileEditor: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .listRowBackground(Color(white: 0.10))
+        .listRowBackground(Color(uiColor: .secondarySystemGroupedBackground))
     }
 
     private var keyboardToolbar: some View {
@@ -291,7 +291,7 @@ private struct ProfileAvatar: View {
                     .scaledToFill()
                     .frame(width: size, height: size)
                     .clipShape(Circle())
-                    .overlay { if editing { Circle().strokeBorder(.white.opacity(0.6)) } }
+                    .overlay { if editing { Circle().strokeBorder(.secondary) } }
             } else {
                 Circle()
                     .fill(.secondary.opacity(editing ? 0.18 : 0.12))

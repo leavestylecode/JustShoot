@@ -39,8 +39,7 @@ struct MainTabView: View {
         }
         // 向下滚动时自动收起成 mini tab 栏（iOS 26），上滑恢复——给内容腾出更多竖向空间。
         .scrollingTabBar()
-        .tint(.white)
-        .preferredColorScheme(.dark)
+        .tint(.primary)
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             ImageLoader.shared.clearCache()
             AssetImageLoader.shared.clearCache()

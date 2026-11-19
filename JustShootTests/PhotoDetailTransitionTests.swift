@@ -296,7 +296,7 @@ final class PhotoDetailTransitionTests: XCTestCase {
         let previous = scene.windows.first { $0.isKeyWindow }
         let window = UIWindow(windowScene: scene)
         let root = UIHostingController(rootView: NavigationStack { GalleryView() }
-            .preferredColorScheme(.light).modelContainer(container))
+            .preferredColorScheme(AppAppearance.light.scheme).modelContainer(container))
         window.rootViewController = root
         let photo = try await makePhoto()
         let id = photo.id

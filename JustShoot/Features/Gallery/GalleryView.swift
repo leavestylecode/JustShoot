@@ -13,7 +13,6 @@ import ImageIO
 // 本文件保留 SwiftUI 外壳：导航标题、选择模式工具栏（Select / Select All / xmark / Download /
 // Delete）、tab 栏隐藏、批量保存/删除、详情呈现。选择状态通过 @Binding 与 PhotoGridView 双向同步。
 struct GalleryView: View {
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -32,7 +31,7 @@ struct GalleryView: View {
 
     var body: some View {
         ZStack {
-            (photos.isEmpty && colorScheme == .light ? AppBrand.paper : Color.black).ignoresSafeArea()
+            AppPageBackground(lightBase: photos.isEmpty ? AppBrand.paper : Color(uiColor: .systemBackground))
             if photos.isEmpty {
                 GalleryEmptyState()
             } else {
@@ -111,7 +110,7 @@ struct GalleryView: View {
                         } else {
                             Image(systemName: "square.and.arrow.up")
                                 .font(.system(size: 18))
-                                .foregroundColor(selectedPhotos.isEmpty ? .gray : .white)
+                                .foregroundColor(selectedPhotos.isEmpty ? .gray : .primary)
                         }
                     }
                     .disabled(selectedPhotos.isEmpty || isPreparingShare)

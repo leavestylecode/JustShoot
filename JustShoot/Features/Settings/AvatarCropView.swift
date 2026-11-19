@@ -156,7 +156,7 @@ struct AvatarCropView: View {
                     Text("profile_photo_unavailable")
                 }
             }
-            .background(Color.black.ignoresSafeArea())
+            .background(Color(uiColor: .systemBackground).ignoresSafeArea())
         }
         .task(id: pendingCrop) {
             guard let selection = pendingCrop else { return }

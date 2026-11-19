@@ -24,6 +24,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct OOOApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @AppStorage(AppAppearance.key) private var appearance = AppAppearance.automatic
     @StateObject private var curveLibrary = FilmCurveLibrary()
     @StateObject private var startup = AppStartupPreparation()
     @State private var introFinished = false
@@ -43,6 +44,7 @@ struct OOOApp: App {
                               introFinished: $introFinished)
                 // Keep typography and scaled layout metrics at the design's default size.
                 .dynamicTypeSize(.large)
+                .preferredColorScheme(appearance.scheme)
                 .onChange(of: scenePhase, initial: true) { _, phase in startup.setActive(phase == .active) }
         }
     }

@@ -29,6 +29,8 @@ struct ImportLUTSheet: View {
                 }
             }
             .disabled(isImporting)
+            .scrollContentBackground(.hidden)
+            .appPageBackground()
             .navigationTitle("Import LUT")
             .navigationBarTitleDisplayMode(.inline)
             .softScrollEdges()

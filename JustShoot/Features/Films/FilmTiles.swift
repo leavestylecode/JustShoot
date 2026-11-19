@@ -39,7 +39,7 @@ struct FilmPresetTile: View {
                     if textVisibility.showsTitle {
                         Text(preset.tileTitle)
                             .font(.system(size: (sizeClass == .regular ? 15 : 13) * captionScale, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(.primary)
                             .lineLimit(1)
                             .minimumScaleFactor(sizeClass == .regular ? 13.0 / 15.0 : 11.0 / 13.0)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -48,7 +48,7 @@ struct FilmPresetTile: View {
                     if textVisibility.showsSubtitle {
                         Text(verbatim: sceneTitles.joined(separator: " · "))
                             .font(.system(size: (sizeClass == .regular ? 12 : 11) * captionScale))
-                            .foregroundColor(.white.opacity(0.65))
+                            .foregroundColor(.secondary)
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -64,7 +64,7 @@ struct FilmPresetTile: View {
     private var coverArt: some View {
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         return ZStack {
-            Color.white.opacity(0.05)
+            Color.primary.opacity(0.05)
             if let image {
                 Image(uiImage: image)
                     .resizable()
@@ -72,7 +72,7 @@ struct FilmPresetTile: View {
             } else {
                 Image(systemName: "film")
                     .font(.title3)
-                    .foregroundColor(.white.opacity(0.25))
+                    .foregroundColor(.secondary)
             }
         }
         .clipShape(shape)
@@ -118,7 +118,7 @@ struct CustomLUTTile: View {
             if textVisibility.showsTitle {
                 Text(lut.displayName)
                     .font(.system(size: (sizeClass == .regular ? 15 : 13) * captionScale, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(sizeClass == .regular ? 13.0 / 15.0 : 11.0 / 13.0)
                     .frame(maxWidth: .infinity, alignment: .leading)

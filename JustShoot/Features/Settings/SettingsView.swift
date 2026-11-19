@@ -4,8 +4,6 @@ import UIKit
 struct SettingsView: View {
     @ObservedObject private var capturePipeline = CapturePipeline.shared
     @Environment(\.openURL) private var openURL
-    @EnvironmentObject private var curveLibrary: FilmCurveLibrary
-    @AppStorage(FilmSource.simulationGrainPreferenceKey) private var simulationGrain = false
     /// 逐阶段处理对照图（默认关）。与 FilmProcessor 共享同一 key：开 = 每次拍摄额外保留
     /// 原片与 LUT/光学/颗粒各阶段输出，用于定位细节在哪一步丢失。
     @AppStorage("processingStageDiagnostics") private var processingStageDiagnostics = false
@@ -31,8 +29,7 @@ struct SettingsView: View {
                             SettingsProfileCard()
                             if capturePipeline.pendingCount + capturePipeline.retainedCount > 0 { pendingPhotosSection }
                             if !capturePipeline.recoveryIssues.isEmpty { recoveryPhotosSection }
-                            capturePreferencesSection
-                            toolsSection
+                            appPreferencesSection
                             appLinksSection
                         }
 
@@ -47,12 +44,11 @@ struct SettingsView: View {
                 }
                 .scrollIndicators(.hidden)
             }
-            .background(Color.black)
+            .appPageBackground()
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .softScrollEdges()
         }
-        .preferredColorScheme(.dark)
         .sheet(isPresented: $showsReview) {
             AnimatedReviewSheet(reviewURL: Self.supportLinks.reviewURL)
         }
@@ -95,10 +91,27 @@ struct SettingsView: View {
         }
     }
 
-    private var capturePreferencesSection: some View {
-        sectionCard {
-            Toggle("Grain for FUJIFILM simulations", isOn: $simulationGrain)
+    private var appPreferencesSection: some View {
+        sectionCard(spacing: 4) {
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            } label: {
+                SettingRow(icon: .language, title: "Select Language", value: String(localized: "settings_language_name"),
+                           showsChevron: true)
+            }
+            .accessibilityHint("Opens the language options in iOS Settings")
+            NavigationLink {
+                CapturePreferencesView()
+            } label: {
+                SettingRow(icon: .preferences, title: "Preferences", showsChevron: true)
+            }
+            NavigationLink {
+                AppearanceSettingsView()
+            } label: {
+                SettingRow(icon: .appearance, title: "Appearance Management", showsChevron: true)
+            }
         }
+        .buttonStyle(.plain)
     }
 
     private var diagnosticsSection: some View {
@@ -119,21 +132,24 @@ struct SettingsView: View {
                 }
             } label: {
                 HStack {
-                    SettingRow(icon: "doc.text", iconColor: .orange, title: "Export Diagnostic Log")
+                    SettingRow(icon: SettingsIcon("list.bullet.circle.fill", color: .gray), title: "Export Diagnostic Log")
                     if exportingDiagnostics { ProgressView() }
                 }
             }
             .buttonStyle(.plain)
             .disabled(exportingDiagnostics)
 
-            Divider().overlay(Color.white.opacity(0.08))
+            Divider().overlay(Color.primary.opacity(0.08))
 
             // 逐阶段对照图：原片 + LUT 后 + 光学后 + 成片，同一拍摄的四张图放进同一个
             // 查看器对比，即可直接定位"细节在哪一步消失"（对照本 app 的画质排查）。
             Toggle(isOn: $processingStageDiagnostics) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Keep Processing Stages")
-                        .foregroundStyle(.white)
+                    Label {
+                        Text("Keep Processing Stages").foregroundStyle(.primary)
+                    } icon: {
+                        SettingsIcon("rectangle.on.rectangle.circle.fill", color: .gray)
+                    }
                     Text("Save the original plus each processing stage (LUT, optics, grain) for every shot. Find them in Files → On My iPhone → \(AppBrand.displayName) → ProcessingDiagnostics. Only the last 6 shots are kept.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -150,7 +166,7 @@ struct SettingsView: View {
     private var pendingPhotosSection: some View {
         sectionCard {
             VStack(alignment: .leading, spacing: 12) {
-                Label("Photos waiting to save", systemImage: "photo.badge.arrow.down")
+                Label { Text("Photos waiting to save") } icon: { SettingsIcon("photo.circle.fill", color: .blue) }
                     .font(.headline)
                 Text("\(capturePipeline.pendingCount + capturePipeline.retainedCount) photos are waiting to save.")
                 Text("Your original photos and Live Photo videos are kept on this device.")
@@ -172,7 +188,7 @@ struct SettingsView: View {
     private var recoveryPhotosSection: some View {
         sectionCard {
             VStack(alignment: .leading, spacing: 12) {
-                Label("Photos needing attention", systemImage: "exclamationmark.triangle")
+                Label { Text("Photos needing attention") } icon: { SettingsIcon("exclamationmark.circle.fill", color: .orange) }
                     .font(.headline)
                 Text("\(capturePipeline.recoveryIssues.count) photos need recovery attention.")
                 Text("These files are kept on this device. You can retry recovery or export the original before deleting them.")
@@ -219,39 +235,12 @@ struct SettingsView: View {
         }
     }
 
-    private var toolsSection: some View {
-        sectionCard(spacing: 4) {
-            NavigationLink {
-                FilmCurveLibraryView()
-            } label: {
-                SettingRow(
-                    icon: "point.topleft.down.curvedto.point.bottomright.up",
-                    iconColor: .mint,
-                    title: "Film Curves",
-                    value: "\(curveLibrary.visibleCurveCount)/\(curveLibrary.totalCurveCount)",
-                    showsChevron: true
-                )
-            }
-            .buttonStyle(.plain)
-
-            Divider().overlay(Color.white.opacity(0.08))
-
-            DisclosureGroup(isExpanded: $showsDiagnostics) {
-                diagnosticsSection
-                    .padding(.top, 8)
-            } label: {
-                SettingRow(icon: "waveform.path.ecg", iconColor: .orange, title: "Diagnostics")
-            }
-            .tint(.secondary)
-        }
-    }
-
     private var appLinksSection: some View {
         sectionCard(spacing: 4) {
             NavigationLink {
                 AboutAuthorView()
             } label: {
-                SettingRow(icon: "person.circle.fill", iconColor: .teal,
+                SettingRow(icon: .author,
                            title: "About the Author", showsChevron: true)
             }
             .buttonStyle(.plain)
@@ -259,7 +248,7 @@ struct SettingsView: View {
             Button {
                 showsReview = true
             } label: {
-                SettingRow(icon: "star.circle.fill", iconColor: Color(red: 0.95, green: 0.76, blue: 0.35),
+                SettingRow(icon: .rating,
                            title: "Rate on the App Store", showsChevron: true)
             }
             .buttonStyle(.plain)
@@ -267,7 +256,7 @@ struct SettingsView: View {
             Button {
                 preparingShare = true
             } label: {
-                SettingRow(icon: "heart.circle.fill", iconColor: .red,
+                SettingRow(icon: .share,
                            title: "Share App", showsChevron: true)
             }
             .buttonStyle(.plain)
@@ -275,11 +264,19 @@ struct SettingsView: View {
 
             if let url = Self.supportLinks.feedbackURL {
                 Button { openURL(url) } label: {
-                    SettingRow(icon: "envelope", iconColor: .blue,
+                    SettingRow(icon: SettingsIcon("envelope.circle.fill", color: .blue),
                                title: "Send Feedback", showsChevron: true)
                 }
                 .buttonStyle(.plain)
             }
+
+            DisclosureGroup(isExpanded: $showsDiagnostics) {
+                diagnosticsSection
+                    .padding(.top, 8)
+            } label: {
+                SettingRow(icon: SettingsIcon("waveform.circle.fill", color: .gray), title: "Diagnostics")
+            }
+            .tint(.secondary)
         }
     }
 
@@ -306,48 +303,13 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - 设置行（可复用脚手架）
-//
-// 左侧 SF Symbol 图标 + 标题，右侧可选 value 文本 + chevron。点击行为由外层 Button 包裹。
-private struct SettingRow: View {
-    let icon: String
-    let iconColor: Color
-    let title: LocalizedStringKey
-    var value: String? = nil
-    var showsChevron: Bool = false
-
-    var body: some View {
-        HStack(spacing: 15) {
-            Image(systemName: icon)
-                .font(.system(size: 22))
-                .foregroundStyle(iconColor)
-                .frame(width: 26, height: 26)
-                .accessibilityHidden(true)
-            Text(title)
-                .foregroundStyle(.white)
-            Spacer()
-            if let value {
-                Text(value).foregroundStyle(.secondary)
-            }
-            if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-            }
-        }
-        .frame(minHeight: 44)
-        .contentShape(Rectangle())
-    }
-}
-
 extension View {
     @ViewBuilder
     func settingsGlassCard(cornerRadius: CGFloat, interactive: Bool = false) -> some View {
         if #available(iOS 26, *) {
             glassEffect(.regular.interactive(interactive), in: .rect(cornerRadius: cornerRadius))
         } else {
-            background(Color.white.opacity(0.08), in: .rect(cornerRadius: cornerRadius))
+            background(Color.primary.opacity(0.08), in: .rect(cornerRadius: cornerRadius))
         }
     }
 }

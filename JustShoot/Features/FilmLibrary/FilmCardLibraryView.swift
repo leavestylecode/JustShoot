@@ -219,7 +219,7 @@ struct FilmCardLibraryView: View {
                 // (reflowing hundreds of cells under a spring is the biggest jank source).
                 .animation(.smooth, value: showsCaption)
             }
-            .background(Color.black)
+            .appPageBackground()
             .navigationTitle(Text("Film Library"))
             .navigationBarTitleDisplayMode(.inline)
             .softScrollEdges()
@@ -284,7 +284,7 @@ struct FilmCardLibraryView: View {
                 if !library.isLoaded {
                     ProgressView()
                         .progressViewStyle(.circular)
-                        .tint(.white)
+                        .tint(.primary)
                 } else if filteredCards.isEmpty {
                     ContentUnavailableView {
                         Label("No matches", systemImage: "line.3.horizontal.decrease")
@@ -294,10 +294,9 @@ struct FilmCardLibraryView: View {
                             query = ""
                         }
                     }
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(.secondary)
                 }
             }
-            .preferredColorScheme(.dark)
         }
     }
 
@@ -353,7 +352,7 @@ struct FilmCardLibraryView: View {
                     .font(.caption)
                     .padding(.horizontal, 12)
                     .frame(minHeight: 44)
-                    .background(.white.opacity(0.1), in: .capsule)
+                    .background(.primary.opacity(0.1), in: .capsule)
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Remove filter")
@@ -375,7 +374,7 @@ struct FilmCardLibraryView: View {
                 .font(.caption)
                 .padding(.horizontal, 12)
                 .frame(minHeight: 44)
-                .background(.white.opacity(0.1), in: .capsule)
+                .background(.primary.opacity(0.1), in: .capsule)
             }
             .buttonStyle(.plain)
             .accessibilityHint("Remove filter")
@@ -409,7 +408,7 @@ struct FilmCardThumbnail: View {
     var body: some View {
         VStack(alignment: isCircle ? .center : .leading, spacing: 6) {
             ZStack {
-                Color.white.opacity(0.05)
+                Color.primary.opacity(0.05)
                 if let image = image ?? FilmCardImageCache.shared.cachedImage(imageName: card.image, maxPixel: thumbnailPixel) {
                     Image(uiImage: image)
                         .resizable()
@@ -417,7 +416,7 @@ struct FilmCardThumbnail: View {
                 } else {
                     Image(systemName: "photo")
                         .font(.title3)
-                        .foregroundColor(.white.opacity(0.25))
+                        .foregroundColor(.secondary)
                 }
             }
             .aspectRatio(1, contentMode: .fit)
@@ -453,25 +452,25 @@ struct FilmCardThumbnail: View {
                 }
             }
             .font(.system(size: max(density.titleFontSize, sizeClass == .regular ? 14 : 0) * captionScale, weight: .medium))
-            .foregroundColor(.white.opacity(0.85))
+            .foregroundColor(.primary)
             .lineLimit(2)
 
             HStack(spacing: 4) {
                 if FilmLUTCatalog.preset(for: card)?.rawSimulation != nil {
                     Text("Film simulation")
                         .font(.system(size: max(density.metaFontSize, sizeClass == .regular ? 12 : 0) * captionScale))
-                        .foregroundColor(.white.opacity(0.45))
+                        .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
                 if let iso = card.iso {
                     Text(verbatim: "ISO \(iso)")
                         .font(.system(size: max(density.metaFontSize, sizeClass == .regular ? 12 : 0) * captionScale))
-                        .foregroundColor(.white.opacity(0.45))
+                        .foregroundColor(.secondary)
                 }
                 if let format = card.format {
                     Text(verbatim: format)
                         .font(.system(size: max(density.metaFontSize, sizeClass == .regular ? 12 : 0) * captionScale))
-                        .foregroundColor(.white.opacity(0.45))
+                        .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
             }
@@ -694,7 +693,7 @@ struct FilmCardDetailView: View {
 private struct FilmLibraryAddButton: View {
     let preset: FilmPreset
     @ObservedObject var settings: FilmPageSettings
-    var tint: Color = .white
+    var tint: Color = .primary
 
     private var isAdded: Bool { settings.preferences.isVisible(.preset(preset)) }
 
@@ -742,7 +741,7 @@ struct FilmCardFilterSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .background(Color(.systemBackground))
+            .appPageBackground()
             .navigationTitle(Text("Filter · \(resultCount)"))
             .navigationBarTitleDisplayMode(.inline)
             .softScrollEdges()
@@ -856,7 +855,7 @@ struct ColorSwatchChip: View {
             .frame(width: 32, height: 32)
             .overlay(
                 Circle().stroke(
-                    selected ? Color.white : Color.white.opacity(0.18),
+                    selected ? Color.primary : Color.primary.opacity(0.18),
                     lineWidth: selected ? 2.5 : 0.5
                 )
             )
