@@ -98,18 +98,6 @@ final class FilmPresetCatalogTests: XCTestCase {
         }
     }
 
-    func testEveryGuideLinksToTheManufacturerAndAnIndependentSource() throws {
-        for preset in FilmPreset.allCases {
-            let sources = preset.guideSources
-            let hosts = try [sources.manufacturer, sources.community].map { url in
-                XCTAssertEqual(url.scheme, "https", preset.id)
-                XCTAssertFalse(url.path.isEmpty, preset.id)
-                return try XCTUnwrap(url.host, preset.id)
-            }
-            XCTAssertEqual(Set(hosts).count, 2, preset.id)
-        }
-    }
-
     func testSceneVocabularyAndSubtitlesFollowTheRequestedLanguage() {
         let english = Locale(identifier: "en")
         let chinese = Locale(identifier: "zh-Hans")

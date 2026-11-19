@@ -17,9 +17,7 @@ final class FilmSampleGalleryTests: XCTestCase {
             .cacheIntermediates: false])
         let processor = FilmProcessor()
         for preset in FilmPreset.allCases {
-            let scenes = preset.sampleScenes
-            XCTAssertEqual(Set(scenes), Set(FilmSampleScene.allCases), preset.id)
-            XCTAssertEqual(scenes.count, FilmSampleScene.allCases.count, preset.id)
+            let scenes = preset.recommendations.map(\.scene)
             let lut = try processor.loadLUT(source: .preset(preset))
             for scene in scenes {
                 try autoreleasepool {
@@ -40,6 +38,42 @@ final class FilmSampleGalleryTests: XCTestCase {
                     }
                 }
             }
+        }
+    }
+
+    func testEachFilmPairsDistinctRegionalPhotographsWithItsRecommendedScenes() {
+        let usa: Set<FilmSampleScene> = [.quilter, .ranch, .roadside, .fair, .diner, .motel,
+            .ballpark, .fruitStand, .pinkDiner, .hats, .boots, .orchard]
+        let britain: Set<FilmSampleScene> = [.foodStall, .borough, .pier]
+        let japan: Set<FilmSampleScene> = [.park, .kimono, .wedding, .festival, .ceremony, .teaMaster,
+            .teaPortrait, .wagashi, .bamboo, .seaSunset, .hydrangea, .fuji, .shoppingStreet, .asakusa,
+            .train, .torii, .fishMarket]
+        var used = Set<FilmSampleScene>()
+        for preset in FilmPreset.allCases {
+            let entries = preset.recommendations
+            let scenes = Set(entries.map(\.scene))
+            XCTAssertEqual(entries.count, 3, preset.id)
+            XCTAssertEqual(scenes.count, 3, preset.id)
+            let regionalScenes: Set<FilmSampleScene>
+            switch preset.coverDetails.brand {
+            case "Fujifilm": regionalScenes = japan
+            case "Kodak": regionalScenes = usa
+            case "Ilford": regionalScenes = britain
+            default:
+                XCTFail("Missing regional sample coverage for \(preset.id)")
+                continue
+            }
+            XCTAssertTrue(scenes.isSubset(of: regionalScenes), preset.id)
+            used.formUnion(scenes)
+        }
+        XCTAssertEqual(used, Set(FilmSampleScene.allCases))
+        for scene in used {
+            var title = scene.title
+            title.locale = Locale(identifier: "en")
+            let english = String(localized: title)
+            title.locale = Locale(identifier: "zh-Hans")
+            XCTAssertNotEqual(String(localized: title), english, scene.rawValue)
+            XCTAssertNotEqual(english, scene.rawValue)
         }
     }
 

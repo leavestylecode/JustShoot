@@ -13,9 +13,6 @@ struct FilmCoverDetails {
     private var blue: Double { Double(swatch & 255) / 255 }
 
     var color: Color { Color(red: red, green: green, blue: blue) }
-    var scheme: ColorScheme {
-        (0.2126 * red + 0.7152 * green + 0.0722 * blue) >= 0.55 ? .light : .dark
-    }
 }
 
 extension FilmPreset {

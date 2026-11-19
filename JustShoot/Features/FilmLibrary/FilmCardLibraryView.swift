@@ -30,6 +30,7 @@ struct FilmCardLibraryView: View {
                 .padding(.bottom, 24)
                 .pageContentWidth(PageLayout.browseWidth)
             }
+            .scrollIndicators(.hidden)
             .overlay {
                 switch library.loadState {
                 case .loading:

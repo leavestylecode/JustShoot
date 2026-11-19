@@ -1,25 +1,41 @@
 import Foundation
 
-/// Three shared Library of Congress photographs. Each preview is graded offline
-/// with the app's FilmImagePipeline. See research/film-vault/sources.md for credits.
-enum FilmSampleScene: String, CaseIterable, Identifiable, Sendable {
-    case quilter, ranch, roadside
-
-    var id: Self { self }
-
-    var archiveURL: URL {
-        switch self {
-        case .quilter: URL(string: "https://www.loc.gov/resource/highsm.07201/")!
-        case .ranch: URL(string: "https://www.loc.gov/item/2017685457/")!
-        case .roadside: URL(string: "https://www.loc.gov/item/2010630157/")!
-        }
-    }
+/// Each scene names one sRGB photograph and its bundled LUT renderings.
+enum FilmSampleScene: String, CaseIterable, Sendable {
+    case quilter, ranch, roadside, fair, diner, motel
+    case ballpark, fruitStand, pinkDiner, hats, boots, orchard
+    case park, kimono, wedding, festival, ceremony, teaMaster
+    case teaPortrait, wagashi, bamboo, seaSunset, hydrangea, fuji
+    case shoppingStreet, asakusa, train, torii, fishMarket, foodStall
+    case borough, pier
 
     var title: LocalizedStringResource {
+        LocalizedStringResource(String.LocalizationValue(stringLiteral: rawValue), table: "FilmIntroductions")
+    }
+
+    var credit: String {
         switch self {
-        case .quilter: "Quilter on a porch"
-        case .ranch: "Mountain pasture"
-        case .roadside: "Roadside gas station"
+        case .quilter, .ranch, .roadside, .fair, .diner, .motel,
+             .ballpark, .fruitStand, .pinkDiner, .hats, .boots, .orchard:
+            "Carol M. Highsmith"
+        case .park: "HAGAT hOMSZE"
+        case .kimono: "Redd Angelo"
+        case .wedding: "Jon Connell · CC BY 2.0"
+        case .festival: "Torsodog · CC BY-SA 3.0"
+        case .ceremony: "MIKI Yoshihito · CC BY 2.0"
+        case .teaMaster: "KuboBella · CC BY-SA 4.0"
+        case .teaPortrait: "Olivier Lejade · CC BY-SA 2.0"
+        case .wagashi: "rhosoi · CC BY 2.0"
+        case .bamboo: "Ståle Grut"
+        case .seaSunset: "Maarten Heerlien · CC BY 2.0"
+        case .hydrangea: "Man On Mission · CC BY-SA 3.0"
+        case .fuji: "DimiTalen"
+        case .shoppingStreet, .asakusa: "Asanagi"
+        case .train: "James..g · CC BY-SA 4.0"
+        case .torii: "Daderot"
+        case .fishMarket: "WorldContributor · CC BY-SA 4.0"
+        case .foodStall, .pier: "Andy Li"
+        case .borough: "Jeong seolah"
         }
     }
 
@@ -29,18 +45,58 @@ enum FilmSampleScene: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+struct FilmRecommendation: Identifiable {
+    let tag: FilmSceneTag
+    let scene: FilmSampleScene
+    var id: FilmSceneTag { tag }
+
+    init(_ tag: FilmSceneTag, _ scene: FilmSampleScene) {
+        self.tag = tag
+        self.scene = scene
+    }
+}
+
 extension FilmPreset {
-    /// Lead with a representative subject. All three originals are shared across looks.
-    var sampleScenes: [FilmSampleScene] {
+    var recommendations: [FilmRecommendation] {
         switch self {
-        case .fujiRawASTIA, .fujiPro400H, .kodakPortra400, .kodakPortra800:
-            [.quilter, .ranch, .roadside]
-        case .fujiRawVelvia, .fujiVelvia50, .fujiSlideProvia100F, .kodakEktar100:
-            [.ranch, .roadside, .quilter]
-        case .fujiProvia100F, .fujiRawClassicChrome, .fujiRawClassicNeg, .fujiRawACROS,
-             .fujiC200, .fujiSuperiaXTRA400, .kodakGold200, .kodakKodachrome64,
-             .ilfordHP5Plus400, .kodakTriX400, .kodakTMax100:
-            [.roadside, .quilter, .ranch]
+        case .fujiRawVelvia:
+            [.init(.landscape, .fuji), .init(.forest, .bamboo), .init(.sunset, .seaSunset)]
+        case .fujiRawASTIA:
+            [.init(.portrait, .park), .init(.fashion, .kimono), .init(.indoor, .teaMaster)]
+        case .fujiRawClassicChrome:
+            [.init(.documentary, .fishMarket), .init(.street, .shoppingStreet), .init(.travel, .train)]
+        case .fujiRawClassicNeg:
+            [.init(.street, .train), .init(.family, .festival), .init(.travel, .asakusa)]
+        case .fujiRawACROS:
+            [.init(.street, .asakusa), .init(.portrait, .teaPortrait), .init(.architecture, .torii)]
+        case .fujiC200:
+            [.init(.sunny, .asakusa), .init(.portrait, .park), .init(.landscape, .fuji)]
+        case .fujiPro400H:
+            [.init(.portrait, .teaPortrait), .init(.wedding, .wedding), .init(.fashion, .kimono)]
+        case .fujiProvia100F:
+            [.init(.travel, .train), .init(.portrait, .park), .init(.landscape, .torii)]
+        case .kodakPortra400:
+            [.init(.portrait, .quilter), .init(.fashion, .hats), .init(.travel, .roadside)]
+        case .kodakGold200:
+            [.init(.family, .fair), .init(.sunny, .pinkDiner), .init(.travel, .roadside)]
+        case .kodakEktar100:
+            [.init(.landscape, .ranch), .init(.travel, .pinkDiner), .init(.stillLife, .boots)]
+        case .kodakPortra800:
+            [.init(.portrait, .quilter), .init(.indoor, .diner), .init(.night, .motel)]
+        case .fujiSuperiaXTRA400:
+            [.init(.street, .shoppingStreet), .init(.family, .ceremony), .init(.travel, .torii)]
+        case .fujiVelvia50:
+            [.init(.landscape, .fuji), .init(.flowers, .hydrangea), .init(.forest, .bamboo)]
+        case .fujiSlideProvia100F:
+            [.init(.landscape, .seaSunset), .init(.portrait, .park), .init(.stillLife, .wagashi)]
+        case .kodakKodachrome64:
+            [.init(.travel, .roadside), .init(.street, .fruitStand), .init(.landscape, .ranch)]
+        case .kodakTriX400:
+            [.init(.street, .fruitStand), .init(.documentary, .fair), .init(.sports, .ballpark)]
+        case .ilfordHP5Plus400:
+            [.init(.documentary, .foodStall), .init(.indoor, .borough), .init(.travel, .pier)]
+        case .kodakTMax100:
+            [.init(.architecture, .pinkDiner), .init(.stillLife, .boots), .init(.sunny, .orchard)]
         }
     }
 }

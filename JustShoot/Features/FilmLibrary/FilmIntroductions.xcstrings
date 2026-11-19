@@ -1,19 +1,223 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "About this film" : {
+    "asakusa" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "About this film"
+            "value" : "Asakusa · Nakamise Street"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "胶片介绍"
+            "value" : "浅草 · 仲见世街"
+          }
+        }
+      }
+    },
+    "ballpark" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scottsdale · Spring training"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "斯科茨代尔 · 棒球春训"
+          }
+        }
+      }
+    },
+    "bamboo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arashiyama · Bamboo canopy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "岚山 · 竹林"
+          }
+        }
+      }
+    },
+    "boots" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "San Antonio · Western boots"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圣安东尼奥 · 牛仔靴"
+          }
+        }
+      }
+    },
+    "borough" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "London · Borough Market"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伦敦 · 博罗市场"
+          }
+        }
+      }
+    },
+    "ceremony" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Japan · Shichi-Go-San"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日本 · 七五三节"
+          }
+        }
+      }
+    },
+    "diner" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phoenix · At the counter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "凤凰城 · 餐吧里的服务员"
+          }
+        }
+      }
+    },
+    "fair" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wyoming · Father and son"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "怀俄明 · 集市上的父子"
+          }
+        }
+      }
+    },
+    "festival" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asakusa · Children at the festival"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浅草 · 祭典上的孩子"
+          }
+        }
+      }
+    },
+    "fishMarket" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tokyo · Tsukiji fish market"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "东京 · 筑地鱼市场"
+          }
+        }
+      }
+    },
+    "foodStall" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "London · Market stall"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伦敦 · 街市摊位"
+          }
+        }
+      }
+    },
+    "fruitStand" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alexandria · The fruit stall"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "亚历山德里亚 · 水果摊"
+          }
+        }
+      }
+    },
+    "fuji" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lake Kawaguchi · Mount Fuji"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "河口湖 · 远望富士山"
           }
         }
       }
@@ -205,6 +409,40 @@
         }
       }
     },
+    "hats" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scottsdale · Hats at the polo grounds"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "斯科茨代尔 · 马球场的礼帽"
+          }
+        }
+      }
+    },
+    "hydrangea" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kamakura · Hydrangea"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "镰仓 · 绣球花"
+          }
+        }
+      }
+    },
     "ilfordHP5Plus400" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -218,6 +456,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "黑白反差适中，暗部扎实，中灰层次丰富。室内侧光下，脸部背光一侧的轮廓和深色衣物仍然容易分辨。"
+          }
+        }
+      }
+    },
+    "kimono" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kyoto · Kimono in the street"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "京都 · 街头和服"
           }
         }
       }
@@ -341,87 +596,274 @@
         }
       }
     },
-    "Manufacturer’s guide" : {
+    "motel" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Manufacturer’s guide"
+            "value" : "Arizona · Motel at dusk"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "厂商资料"
+            "value" : "亚利桑那 · 暮色中的旅馆"
           }
         }
       }
     },
-    "Photograph by Carol M. Highsmith" : {
+    "orchard" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Photograph by Carol M. Highsmith"
+            "value" : "Vermont · Orchard crates"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "样片摄影 · Carol M. Highsmith"
+            "value" : "佛蒙特 · 果园里的木箱"
           }
         }
       }
     },
-    "Photographers’ notes" : {
+    "park" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Photographers’ notes"
+            "value" : "Kyoto · By the pond"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "摄影社区实拍"
+            "value" : "京都 · 池畔人像"
           }
         }
       }
     },
-    "Sample photographs" : {
+    "pier" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sample photographs"
+            "value" : "Brighton · Palace Pier"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "样片"
+            "value" : "布莱顿 · 海滨栈桥"
           }
         }
       }
     },
-    "Sources" : {
+    "pinkDiner" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sources"
+            "value" : "Kingman · Roadside diner"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "资料来源"
+            "value" : "金曼 · 公路餐馆"
+          }
+        }
+      }
+    },
+    "quilter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gee’s Bend · The quilter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "吉斯本德 · 门廊上的拼布艺人"
+          }
+        }
+      }
+    },
+    "ranch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Colorado · Mountain pasture"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "科罗拉多 · 山间牧场"
+          }
+        }
+      }
+    },
+    "roadside" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Truxton · Route 66"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "特拉克斯顿 · 66 号公路"
+          }
+        }
+      }
+    },
+    "seaSunset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enoshima · Sunset by the sea"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "江之岛 · 海上日落"
+          }
+        }
+      }
+    },
+    "shoppingStreet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tokyo · Sugamo shopping street"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "东京 · 巢鸭商店街"
+          }
+        }
+      }
+    },
+    "teaMaster" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tokyo · Tea ceremony"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "东京 · 茶席"
+          }
+        }
+      }
+    },
+    "teaPortrait" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kyoto · Before the dance"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "京都 · 茶席人像"
+          }
+        }
+      }
+    },
+    "torii" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Miyajima · The great torii"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "宫岛 · 海上鸟居"
+          }
+        }
+      }
+    },
+    "train" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kamakura · Railway crossing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "镰仓 · 江之电道口"
+          }
+        }
+      }
+    },
+    "wagashi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kyoto · Matcha and wagashi"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "京都 · 抹茶与和果子"
+          }
+        }
+      }
+    },
+    "wedding" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tokyo · A shrine wedding"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "东京 · 神社婚礼"
           }
         }
       }

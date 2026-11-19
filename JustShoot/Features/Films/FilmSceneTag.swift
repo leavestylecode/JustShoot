@@ -50,30 +50,7 @@ enum FilmSceneTag: String, CaseIterable, Identifiable, Sendable {
 }
 
 extension FilmPreset {
-    /// Ordered recommendations for the film-page subtitle, independent of rendering recipes.
-    var sceneTags: [FilmSceneTag] {
-        switch self {
-        case .fujiRawVelvia: return [.landscape, .forest, .sunset]
-        case .fujiRawASTIA: return [.portrait, .fashion, .indoor]
-        case .fujiRawClassicChrome: return [.documentary, .street, .travel]
-        case .fujiRawClassicNeg: return [.street, .family, .travel]
-        case .fujiRawACROS: return [.street, .portrait, .architecture]
-        case .fujiC200: return [.sunny, .portrait, .landscape]
-        case .fujiPro400H: return [.portrait, .wedding, .fashion]
-        case .fujiProvia100F: return [.travel, .portrait, .landscape]
-        case .kodakPortra400: return [.portrait, .fashion, .travel]
-        case .kodakGold200: return [.family, .sunny, .travel]
-        case .kodakEktar100: return [.landscape, .travel, .stillLife]
-        case .kodakPortra800: return [.portrait, .indoor, .night]
-        case .fujiSuperiaXTRA400: return [.street, .family, .travel]
-        case .fujiVelvia50: return [.landscape, .flowers, .forest]
-        case .fujiSlideProvia100F: return [.landscape, .portrait, .stillLife]
-        case .kodakKodachrome64: return [.travel, .street, .landscape]
-        case .kodakTriX400: return [.street, .documentary, .sports]
-        case .ilfordHP5Plus400: return [.documentary, .indoor, .travel]
-        case .kodakTMax100: return [.architecture, .stillLife, .sunny]
-        }
-    }
+    var sceneTags: [FilmSceneTag] { recommendations.map(\.tag) }
 
     func sceneSubtitle(locale: Locale) -> String {
         sceneTags.map { $0.localizedTitle(locale: locale) }.joined(separator: " · ")
