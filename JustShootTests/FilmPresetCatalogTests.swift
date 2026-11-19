@@ -57,18 +57,27 @@ final class FilmPresetCatalogTests: XCTestCase {
         }
     }
 
-    func testEveryFilmHasItsOwnLocalizedStyleDescription() {
-        var englishDescriptions = Set<String>()
+    func testCoverDetailsMatchBundledPackaging() throws {
+        struct Catalog: Decodable {
+            struct Card: Decodable {
+                let image: String
+                let brand: String?
+                let format: String?
+                let process: String?
+            }
+            let cards: [Card]
+        }
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "cards", withExtension: "json"))
+        let catalog = try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: url))
         for preset in FilmPreset.allCases {
-            var resource = preset.styleDescription
-            resource.locale = Locale(identifier: "en")
-            let english = String(localized: resource)
-            resource.locale = Locale(identifier: "zh-Hans")
-            let chinese = String(localized: resource)
-            XCTAssertTrue(englishDescriptions.insert(english).inserted, preset.id)
-            XCTAssertFalse(english.isEmpty, preset.id)
-            XCTAssertFalse(chinese.isEmpty, preset.id)
-            XCTAssertNotEqual(english, chinese, preset.id)
+            let filename = try XCTUnwrap(preset.libraryCardImage, preset.id)
+            XCTAssertNotNil(Bundle.main.url(forResource: filename, withExtension: nil), preset.id)
+            let stock = catalog.cards.first { $0.image == filename }
+            let details = preset.coverDetails
+            if let brand = stock?.brand { XCTAssertEqual(details.brand, brand, preset.id) }
+            XCTAssertEqual(details.format, stock?.format, preset.id)
+            XCTAssertEqual(details.process, stock?.process, preset.id)
+            XCTAssertTrue(preset.displayName.hasSuffix(preset.coverTitle), preset.id)
         }
     }
 

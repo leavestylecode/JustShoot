@@ -4,7 +4,7 @@ struct FilmCardDetailView: View {
     let preset: FilmPreset
     @ObservedObject private var settings: FilmPageSettings
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @Environment(\.colorScheme) private var scheme
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var selectedScene: FilmSampleScene?
     @State private var showsOriginal = false
@@ -23,57 +23,118 @@ struct FilmCardDetailView: View {
     }
 
     private var detail: some View {
-        GeometryReader { geometry in
-            let wide = PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular)
-            let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 32))
-                              : AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack(alignment: .top, spacing: 12) {
-                        if let cover = preset.libraryCardImage {
-                            VaultImage(filename: cover, maxPixel: 256)
-                                .frame(width: 52, height: 52)
-                                .clipShape(.rect(cornerRadius: 10))
-                                .accessibilityHidden(true)
-                        }
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(verbatim: preset.displayName)
-                                .font(.system(.largeTitle, design: .serif, weight: .medium))
-                                .accessibilityAddTraits(.isHeader)
-                            Text(preset.styleDescription)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        membership
-                    }
-
+        let packaging = preset.coverDetails
+        let wash: Color = packaging.scheme == .dark ? .black : .white
+        return VStack(spacing: 0) {
+            navigationHeader
+            GeometryReader { geometry in
+                let wide = PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular)
+                let coverWidth = min(geometry.size.height * 0.76,
+                                     sizeClass == .regular ? PageLayout.detailCoverWidth : .infinity)
+                let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 32))
+                                  : AnyLayout(VStackLayout(alignment: .leading, spacing: 22))
+                ScrollView {
                     layout {
-                        gallery
-                        recommendations
-                            .frame(maxWidth: wide ? 240 : .infinity, alignment: .leading)
+                        cover
+                            .frame(maxWidth: coverWidth)
+                            .frame(maxWidth: wide ? coverWidth : .infinity)
+                        VStack(alignment: .leading, spacing: 22) {
+                            filmInfo(packaging)
+                            recommendations
+                            gallery
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .padding(.horizontal, 22)
+                    .padding(.top, 12)
+                    .padding(.bottom, 20)
+                    .pageContentWidth(wide ? PageLayout.browseWidth : PageLayout.readingWidth)
                 }
-                .padding(.horizontal, sizeClass == .regular ? 24 : 18)
-                .padding(.vertical, 8)
-                .pageContentWidth(wide ? PageLayout.browseWidth : PageLayout.readingWidth)
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                shootingButton
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 8)
+            shootingButton
+                .padding(.horizontal, 18)
+                .padding(.vertical, 8)
+        }
+        .background {
+            packaging.color.overlay {
+                LinearGradient(colors: [wash.opacity(0.08), .clear, wash.opacity(0.22)],
+                               startPoint: .top, endPoint: .bottom)
+            }
+            .ignoresSafeArea()
+        }
+        .environment(\.colorScheme, packaging.scheme)
+        .navigationTitle(Text(verbatim: preset.coverTitle))
+        .toolbar(.hidden, for: .navigationBar, .tabBar)
+    }
+
+    private var navigationHeader: some View {
+        HStack(spacing: 12) {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.backward")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 44, height: 44)
+                    .cameraControlSurface()
+                    .contentShape(.circle)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Back")
+
+            Text(verbatim: preset.coverTitle)
+                .font(.headline)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity)
+                .accessibilityAddTraits(.isHeader)
+
+            membership
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 4)
+    }
+
+    private var cover: some View {
+        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+        return Group {
+            if let filename = preset.libraryCardImage {
+                VaultImage(filename: filename, maxPixel: 1024, isHero: true)
+            } else {
+                Rectangle().fill(.quaternary).overlay { Image(systemName: "film") }
             }
         }
-        .appPageBackground()
-        .navigationTitle("OOO Samples")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
+        .aspectRatio(1, contentMode: .fit)
+        .clipShape(shape)
+        .overlay { shape.strokeBorder(.white.opacity(0.2), lineWidth: 1) }
+        .accessibilityLabel(Text(verbatim: preset.displayName))
+    }
+
+    private func filmInfo(_ packaging: FilmCoverDetails) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(verbatim: packaging.brand.uppercased())
+                    .font(.caption.weight(.semibold))
+                    .tracking(1.2)
+                Text(verbatim: preset.coverTitle)
+                    .font(.title2.bold())
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+
+            if preset.rawSimulation == nil {
+                HStack(spacing: 10) {
+                    Text(verbatim: "ISO \(Int(preset.iso))")
+                    if let format = packaging.format { Text(verbatim: format) }
+                    if let process = packaging.process { Text(verbatim: process) }
+                }
+                .font(.subheadline.monospacedDigit())
+            }
+        }
     }
 
     private var gallery: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let scene = selectedScene ?? preset.sampleScenes.first {
+                Text("OOO Samples")
+                    .font(.headline)
+                    .accessibilityAddTraits(.isHeader)
                 let filename = scene.filename(gradedWith: showsOriginal ? nil : preset)
                 VaultImage(filename: filename, maxPixel: 1024, isHero: true)
                     .id(filename)
@@ -149,9 +210,9 @@ struct FilmCardDetailView: View {
         if settings.preferences.isVisible(.preset(preset)) {
             Image(systemName: "checkmark")
                 .font(.body.weight(.semibold))
-                .foregroundStyle(scheme == .dark ? Color.mint : VaultMembershipStyle.green)
+                .foregroundStyle(preset.coverDetails.scheme == .dark ? Color.white : VaultMembershipStyle.green)
                 .frame(width: 44, height: 44)
-                .background(.green.opacity(0.1), in: Circle())
+                .background(.primary.opacity(0.12), in: Circle())
                 .accessibilityLabel(Text("Added \(preset.displayName)"))
         } else {
             Button { settings.setVisible(preset, true) } label: {
