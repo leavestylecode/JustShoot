@@ -60,57 +60,46 @@ struct FilmCardLibraryView: View {
 
     private func tile(_ preset: FilmPreset) -> some View {
         let added = settings.preferences.isVisible(.preset(preset))
-        return ZStack(alignment: .topTrailing) {
-            NavigationLink(value: preset) {
-                VStack(alignment: .leading, spacing: 7) {
-                    Group {
-                        if let cover = preset.libraryCardImage {
-                            VaultImage(filename: cover, maxPixel: sizeClass == .regular ? 640 : 384)
-                        } else {
-                            Rectangle().fill(.primary.opacity(0.05)).overlay { Image(systemName: "film") }
-                        }
+        return NavigationLink(value: preset) {
+            VStack(alignment: .leading, spacing: 7) {
+                Group {
+                    if let cover = preset.libraryCardImage {
+                        VaultImage(filename: cover, maxPixel: sizeClass == .regular ? 640 : 384)
+                    } else {
+                        Rectangle().fill(.primary.opacity(0.05)).overlay { Image(systemName: "film") }
                     }
-                    .aspectRatio(1, contentMode: .fit)
-                    .clipShape(.rect(cornerRadius: 10))
-                    Text(verbatim: preset.tileTitle)
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text(verbatim: preset.displayName))
-            .accessibilityValue(added ? Text("Added") : Text("Not added"))
-            .accessibilityIdentifier("filmLibrary.film.\(preset.id)")
-            .filmTransitionSource(id: preset.id, in: zoomNamespace)
-
-            if added {
-                badge(added: true)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            } else {
-                Button { settings.setVisible(preset, true) } label: {
-                    badge(added: false)
-                        .contentShape(Rectangle())
+                .aspectRatio(1, contentMode: .fit)
+                .clipShape(.rect(cornerRadius: 10))
+                .overlay(alignment: .topTrailing) {
+                    badge(added: added)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text("Add \(preset.displayName) to Films"))
-                .accessibilityIdentifier("filmLibrary.add.\(preset.rawValue)")
+                Text(verbatim: preset.tileTitle)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(verbatim: preset.displayName))
+        .accessibilityValue(added ? Text("Added") : Text("Not added"))
+        .accessibilityIdentifier("filmLibrary.film.\(preset.id)")
+        .filmTransitionSource(id: preset.id, in: zoomNamespace)
     }
 
     private func badge(added: Bool) -> some View {
-        Image(systemName: added ? "checkmark" : "plus")
+        Image(systemName: added ? "checkmark" : "circle.dashed")
             .font(.system(size: 13, weight: .bold))
             .foregroundStyle(added ? .white : AppBrand.ink)
             .frame(width: 26, height: 26)
             .background(added ? VaultMembershipStyle.green : AppBrand.paper, in: Circle())
             .overlay { Circle().strokeBorder(.white.opacity(0.55), lineWidth: 0.8) }
             .shadow(color: .black.opacity(0.24), radius: 2, y: 1)
-            .frame(width: 44, height: 44)
+            .padding(8)
     }
 }
 
