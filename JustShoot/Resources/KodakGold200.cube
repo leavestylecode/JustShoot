@@ -1,10 +1,5 @@
 TITLE "KodakGold200"
-# Community spectral model; not manufacturer endorsed or camera calibrated.
-# Derived from Spectral Film LUT by Jan Lohse, MIT License.
-# Source: https://github.com/JanLohse/spectral_film_lut/tree/bcbcfc6861f49cc706dc5d00ea048e4853060aab
-# Film: Kodak Gold 200; print: Kodak Portra Endura Paper.
-# Input: encoded sRGB [0,1]; output: encoded sRGB [0,1].
-# Recipe: LUTProvenance.json. No app shadow toe or legacy output calibration.
+# Adapted by Leavestylecode
 LUT_3D_SIZE 33
 0.111716382 0.080237977 0.083179273
 0.122336395 0.082107909 0.083417200

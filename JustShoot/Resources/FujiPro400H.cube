@@ -1,10 +1,5 @@
 TITLE "FujiPro400H"
-# Community spectral model; not manufacturer endorsed or camera calibrated.
-# Derived from Spectral Film LUT by Jan Lohse, MIT License.
-# Source: https://github.com/JanLohse/spectral_film_lut/tree/bcbcfc6861f49cc706dc5d00ea048e4853060aab
-# Film: Fuji Pro 400H; print: Fuji Crystal Archive Pro PDII.
-# Input: encoded sRGB [0,1]; output: encoded sRGB [0,1].
-# Recipe: LUTProvenance.json. No app shadow toe or legacy output calibration.
+# Adapted by Leavestylecode
 LUT_3D_SIZE 33
 0.066727877 0.091255926 0.110014804
 0.070253901 0.091747366 0.110115163

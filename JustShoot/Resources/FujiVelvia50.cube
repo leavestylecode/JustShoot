@@ -1,10 +1,5 @@
 TITLE "FujiVelvia50"
-# Community spectral model; not manufacturer endorsed or camera calibrated.
-# Derived from Spectral Film LUT by Jan Lohse, MIT License.
-# Source: https://github.com/JanLohse/spectral_film_lut/tree/bcbcfc6861f49cc706dc5d00ea048e4853060aab
-# Film: Fuji Velvia 50; print: none (direct slide projection).
-# Input: encoded sRGB [0,1]; output: encoded sRGB [0,1].
-# Recipe: LUTProvenance.json. No app shadow toe or legacy output calibration.
+# Adapted by Leavestylecode
 LUT_3D_SIZE 33
 0.009740084 0.005058744 0.006349293
 0.010228932 0.005098898 0.006363156

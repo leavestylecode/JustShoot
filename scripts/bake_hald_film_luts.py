@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from bake_film_luts import read_table, sample
+from bake_film_luts import ADAPTED_BY, CUBE_CREDIT, read_table, sample
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = "https://rawtherapee.com/shared/HaldCLUT.zip"
@@ -37,14 +37,8 @@ def main():
     readme = (args.source / "README.txt").read_text()
     if "CC BY-SA 4.0" not in readme or "2015-09-20" not in readme:
         raise ValueError("Unexpected source collection/license")
-    license_name = "RawTherapeeFilmLUT-LICENSE.txt"
-    (destination / license_name).write_text(
-        "JustShoot adaptations: trilinear resampling to 33-point .cube and .jslut.\n"
-        "Adapted LUT data remains licensed under CC BY-SA 4.0.\n"
-        "License: https://creativecommons.org/licenses/by-sa/4.0/\n"
-        f"Source archive: {SOURCE}\n\n" + readme)
-    manifest = {"schemaVersion": 1, "source": SOURCE, "collection": "2015-09-20",
-                "license": "CC-BY-SA-4.0", "licenseFile": license_name,
+    manifest = {"schemaVersion": 1, "adaptedBy": ADAPTED_BY, "source": SOURCE, "collection": "2015-09-20",
+                "license": "CC-BY-SA-4.0",
                 "input": "Encoded sRGB [0,1]", "output": "Encoded sRGB [0,1]",
                 "limitations": "Community appearance simulations, not measured iPhone/film matches or manufacturer endorsed.",
                 "stocks": []}
@@ -68,11 +62,7 @@ def main():
         table = sample(original, grid)
         path = destination / (resource + ".cube")
         with path.open("w") as stream:
-            stream.write(f'# RawTherapee Film Simulation Collection 2015-09-20: {filename}\n')
-            stream.write('# Credits: Pat David, Pavlov Dmitry, Michael Ezra. CC BY-SA 4.0.\n')
-            stream.write(f'# Source: {SOURCE}\n')
-            stream.write('# Adaptation: 33-point trilinear resampling; encoded sRGB input/output.\n')
-            stream.write(f'# License/attribution: {license_name}\nTITLE "{resource}"\nLUT_3D_SIZE 33\n')
+            stream.write(f'TITLE "{resource}"\n# {CUBE_CREDIT}\nLUT_3D_SIZE 33\n')
             for red, green, blue in table.reshape(-1, 3):
                 stream.write(f"{red:.9f} {green:.9f} {blue:.9f}\n")
         decoded = read_table(path)

@@ -7,7 +7,7 @@ final class BundledFilmLUTTests: XCTestCase {
     private struct Manifest: Decodable {
         let schemaVersion: Int
         let modelSourceCommit: String
-        let modelLicenseFile: String
+        let modelLicense: String
         let stocks: [Stock]
     }
 
@@ -21,7 +21,6 @@ final class BundledFilmLUTTests: XCTestCase {
 
     private struct HaldManifest: Decodable {
         let license: String
-        let licenseFile: String
         let stocks: [Stock]
     }
 
@@ -51,7 +50,27 @@ final class BundledFilmLUTTests: XCTestCase {
         try CubeLUT.parse(FilmProcessor.readCubeText(from: resource(name, extension: "cube")))
     }
 
-    func testProvenanceCoversEveryStockAndShipsTheModelLicense() throws {
+    func testBundledLUTsCreditTheProjectAdaptation() throws {
+        struct Adaptation: Decodable {
+            let adaptedBy: String
+        }
+
+        for name in ["LUTProvenance", "RawTherapeeLUTProvenance", "RawLUTProvenance", "PortraEndura-material-v1"] {
+            let data = try Data(contentsOf: resource(name, extension: "json"))
+            let adaptation = try JSONDecoder().decode(Adaptation.self, from: data)
+            XCTAssertEqual(adaptation.adaptedBy, "Leavestylecode", name)
+        }
+
+        for stock in try stocks() {
+            let url = try resource(stock.resourceName, extension: "cube")
+            let cube = try String(contentsOf: url, encoding: .utf8)
+            let headerEnd = try XCTUnwrap(cube.range(of: "LUT_3D_SIZE")?.lowerBound)
+            let comments = cube[..<headerEnd].split(whereSeparator: \.isNewline).filter { $0.hasPrefix("#") }
+            XCTAssertEqual(comments, ["# Adapted by Leavestylecode"], stock.resourceName)
+        }
+    }
+
+    func testProvenanceCoversEveryStockAndMatchesSourceHashes() throws {
         let provenance = try manifest()
         XCTAssertEqual(provenance.schemaVersion, 2)
         XCTAssertEqual(provenance.modelSourceCommit, "bcbcfc6861f49cc706dc5d00ea048e4853060aab")
@@ -60,18 +79,10 @@ final class BundledFilmLUTTests: XCTestCase {
         XCTAssertEqual(Set(allStocks.map(\.resourceName)), Set(filmStocks.map(\.lutResourceName)))
         XCTAssertEqual(allStocks.count, filmStocks.count)
         XCTAssertTrue(provenance.stocks.allSatisfy { $0.status == "communityModel" })
-        let license = try String(contentsOf: resource("SpectralFilmLUT-LICENSE", extension: "txt"), encoding: .utf8)
-        XCTAssertEqual(provenance.modelLicenseFile, "SpectralFilmLUT-LICENSE.txt")
-        XCTAssertTrue(license.contains("Copyright (c) 2026 Jan Lohse"))
-        XCTAssertTrue(license.contains("Permission is hereby granted"))
+        XCTAssertEqual(provenance.modelLicense, "MIT")
         let hald = try haldManifest()
         XCTAssertEqual(hald.license, "CC-BY-SA-4.0")
-        XCTAssertEqual(hald.licenseFile, "RawTherapeeFilmLUT-LICENSE.txt")
         XCTAssertTrue(hald.stocks.allSatisfy { $0.status == "communityHaldCLUT" })
-        let attribution = try String(contentsOf: resource("RawTherapeeFilmLUT-LICENSE", extension: "txt"), encoding: .utf8)
-        for credit in ["Pat David", "Pavlov Dmitry", "Michael Ezra", "https://creativecommons.org/licenses/by-sa/4.0/"] {
-            XCTAssertTrue(attribution.contains(credit))
-        }
         for stock in allStocks {
             let data = try Data(contentsOf: resource(stock.resourceName, extension: "cube"))
             let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()

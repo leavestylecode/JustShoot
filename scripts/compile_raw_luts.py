@@ -17,6 +17,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import PyOpenColorIO as ocio
 
+from bake_film_luts import ADAPTED_BY
 from bake_fujifilm_raw_luts import MODES
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,7 +34,7 @@ def sha(data):
 
 def main():
     source = json.loads((SOURCE / "manifest.json").read_text())
-    manifest = {"schemaVersion": 1, "source": source["source"],
+    manifest = {"schemaVersion": 1, "adaptedBy": ADAPTED_BY, "source": source["source"],
                 "input": source["input"], "rawDevelopmentContract": source["rawDevelopmentContract"],
                 "outputViewingAssumption": source["outputViewingAssumption"],
                 "runtimeUsage": {'capturePlanVersion': 2, 'rawRecipeVersion': 4, 'canonicalCube': 'The previously named sRGB preview cube is the canonical display-referred look for all new RAW stills, HEIF, Live Photo and viewfinder frames. It accepts and returns encoded sRGB. The transform is a display interpretation derived from the official LUT, not a calibrated reproduction of a Fujifilm camera sensor.', 'legacyTables': 'JSRAW001 scene-linear tables remain for recovery of already checkpointed version 1/3 RAW jobs and regression verification. New camera captures do not load these tables.'}, "stocks": []}

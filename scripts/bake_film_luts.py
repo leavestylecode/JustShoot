@@ -15,7 +15,6 @@ import importlib.metadata
 import json
 import os
 from pathlib import Path
-import shutil
 import struct
 import subprocess
 import sys
@@ -23,6 +22,8 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 COMMIT = "bcbcfc6861f49cc706dc5d00ea048e4853060aab"
 SOURCE = "https://github.com/JanLohse/spectral_film_lut"
+ADAPTED_BY = "Leavestylecode"
+CUBE_CREDIT = f"Adapted by {ADAPTED_BY}"
 # resource name, negative/slide module, constant, print module, constant
 STOCKS = [
     ("FujiC200", "negative_film.fuji_c200", "FUJI_C200", "print_film.fuji_ca_pdII", "FUJI_CA_PRO_PDII"),
@@ -92,10 +93,10 @@ def main() -> None:
     manifest = {
         "schemaVersion": 2,
         "revision": "community-srgb-20261024",
+        "adaptedBy": ADAPTED_BY,
         "modelSource": SOURCE,
         "modelSourceCommit": COMMIT,
         "modelLicense": "MIT",
-        "modelLicenseFile": "SpectralFilmLUT-LICENSE.txt",
         "input": "Encoded sRGB, unit domain",
         "output": "Encoded sRGB: Rec.709 primaries and sRGB transfer function, unit domain",
         "limitations": "Sources and rendering methods vary by stock. Not manufacturer endorsed or a measured iPhone/film match. sRGB decoding cannot undo the camera ISP or reconstruct scene radiance. Selection prioritizes appearance; no claim of universal best or community consensus.",
@@ -121,13 +122,7 @@ def main() -> None:
         if not np.isfinite(table).all() or table.min() < 0 or table.max() > 1:
             raise ValueError(f"{name}: invalid output")
         path = destination / f"{name}.cube"
-        comments = ["Community spectral model; not manufacturer endorsed or camera calibrated.",
-                    "Derived from Spectral Film LUT by Jan Lohse, MIT License.",
-                    f"Source: {SOURCE}/tree/{COMMIT}",
-                    f"Film: {film.name}; print: {paper.name if paper else 'none (direct slide projection)' }.",
-                    "Input: encoded sRGB [0,1]; output: encoded sRGB [0,1].",
-                    "Recipe: LUTProvenance.json. No app shadow toe or legacy output calibration."]
-        colour.io.write_LUT(colour.LUT3D(table=table, name=name, comments=comments), str(path), decimals=9)
+        colour.io.write_LUT(colour.LUT3D(table=table, name=name, comments=[CUBE_CREDIT]), str(path), decimals=9)
         decoded = read_table(path)
         indices = np.round(anchors * 32).astype(int)
         np.testing.assert_allclose(sample(decoded, anchors), table[indices[:, 0], indices[:, 1], indices[:, 2]], atol=7e-8)
@@ -156,7 +151,6 @@ def main() -> None:
         reports.append(report)
         print(f"  33^3; model approximation dE00 p95={report['deltaE2000P95']:.3f}; worst gray step={report['worstGrayStep']:.7f}", flush=True)
 
-    shutil.copyfile(source / "LICENSE", destination / manifest["modelLicenseFile"])
     (destination / "LUTProvenance.json").write_text(json.dumps(manifest, indent=2) + "\n")
     (destination / "LUTValidation.json").write_text(json.dumps(reports, indent=2) + "\n")
 

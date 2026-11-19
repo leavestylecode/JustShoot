@@ -33,7 +33,7 @@ def main():
     from spectral_film_lut.negative_film.kodak_portra_400 import KODAK_PORTRA_400
     from spectral_film_lut.print_film.kodak_portra_endura import KODAK_PORTRA_ENDURA
     from spectral_film_lut.utils import film_conversion
-    from bake_film_luts import sample
+    from bake_film_luts import ADAPTED_BY, sample
 
     film, paper = FilmSpectral(KODAK_PORTRA_400), FilmSpectral(KODAK_PORTRA_ENDURA)
     dimension = 65
@@ -70,11 +70,11 @@ def main():
         [.15, .45, .18], [1, .05, .12], [.1, .9, 1], [.99, .98, .95]])])
     anchor_density = film_conversion(anchors.copy(), film, paper, mode="negative", **settings) / maximum
     anchor_output = film_conversion(anchors.copy(), film, paper, mode="full", **settings)
-    manifest = dict(version=1, identifier="portra-endura-density-v1", dimension=dimension,
+    manifest = dict(version=1, adaptedBy=ADAPTED_BY, identifier="portra-endura-density-v1", dimension=dimension,
                     input="encoded sRGB [0,1], display-referred approximation; not scene radiance",
                     intermediate="per-layer activation density above base; normalized by densityMaximum; NOT RGB or ADX",
                     densityMaximum=maximum.tolist(), source="https://github.com/JanLohse/spectral_film_lut",
-                    sourceCommit=COMMIT, license="MIT", licenseFile="SpectralFilmLUT-LICENSE.txt",
+                    sourceCommit=COMMIT, license="MIT",
                     settings=settings, tables=tables,
                     validation=dict(samples=len(probes), deltaE2000Median=float(np.median(de)),
                                     deltaE2000P95=float(np.percentile(de, 95)), deltaE2000Max=float(de.max())),

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 2,
   "revision": "community-srgb-20261024",
+  "adaptedBy": "Leavestylecode",
   "modelSource": "https://github.com/JanLohse/spectral_film_lut",
   "modelSourceCommit": "bcbcfc6861f49cc706dc5d00ea048e4853060aab",
   "modelLicense": "MIT",
-  "modelLicenseFile": "SpectralFilmLUT-LICENSE.txt",
   "input": "Encoded sRGB, unit domain",
   "output": "Encoded sRGB: Rec.709 primaries and sRGB transfer function, unit domain",
   "limitations": "Sources and rendering methods vary by stock. Not manufacturer endorsed or a measured iPhone/film match. sRGB decoding cannot undo the camera ISP or reconstruct scene radiance. Selection prioritizes appearance; no claim of universal best or community consensus.",
@@ -23,7 +23,7 @@
       "film": "Fuji C200",
       "print": "Fuji Crystal Archive Pro PDII",
       "dimension": 33,
-      "sha256": "b65c2d622b8f56d9e5816a549008977aa9deb0b83ce3c1412408918662310507",
+      "sha256": "796d159dcc6c0267ee71f66afacc04e72471c2e6b67a3fc947ae29d9d4482d0c",
       "settings": {
         "mode": "full",
         "input_colorspace": "sRGB",
@@ -121,7 +121,7 @@
       "film": "Fuji Pro 400H",
       "print": "Fuji Crystal Archive Pro PDII",
       "dimension": 33,
-      "sha256": "6dd97c6876ac978515034404dea09b94dfaea51e37d1faee4951fca18af1c4c3",
+      "sha256": "e43b6172bc18149d4fa7ce5317c23ad445e2b932698c0ec6bd0971a3f79ee07b",
       "settings": {
         "mode": "full",
         "input_colorspace": "sRGB",
@@ -219,7 +219,7 @@
       "film": "Fuji Provia 100F",
       "print": null,
       "dimension": 33,
-      "sha256": "0e966561060aaf417010a42f6697b61fbff01cc40bfd94ffcd23337fed1a5e9d",
+      "sha256": "b4dc1f6633675d0b6237062465e66478d06f44ccaea2aceabb3d24f27c9df6e3",
       "settings": {
         "mode": "full",
         "input_colorspace": "sRGB",
@@ -316,7 +316,7 @@
       "film": "Kodak Portra 400",
       "print": "Kodak Portra Endura Paper",
       "dimension": 33,
-      "sha256": "1997a0033e753466fbb239cc03bde692a8f39558ae948e75336c3b6874c279b4",
+      "sha256": "fb7935e02064559ca4c00416503fce43e88401c08df77ac516dbbb1091d52c4a",
       "settings": {
         "mode": "full",
         "input_colorspace": "sRGB",
@@ -414,7 +414,7 @@
       "film": "Kodak Gold 200",
       "print": "Kodak Portra Endura Paper",
       "dimension": 33,
-      "sha256": "8c3e4c3eff8f07ce6a9c2bc669bd47725758516743b525fdb228400e1ef6b003",
+      "sha256": "e407830fbf4dd23d8c14ad7149018035fd38d668ade28f2d2a3970676b588aa0",
       "settings": {
         "mode": "full",
         "input_colorspace": "sRGB",
@@ -512,7 +512,7 @@
       "film": "Kodak Ektar 100",
       "print": "Kodak Portra Endura Paper",
       "dimension": 33,
-      "sha256": "4af87b1bd95146104d8b6f5c1026682cd31080458be3b01e8bcabc45c1a8f7eb",
+      "sha256": "3a096fa3d430c9348ff4a7840d5f23543bf6e68c4f5799ee3938509025ac6de7",
       "settings": {
         "mode": "full",
         "input_colorspace": "sRGB",
@@ -610,7 +610,7 @@
       "film": "Kodak Portra 800",
       "print": "Kodak Portra Endura Paper",
       "dimension": 33,
-      "sha256": "88174035f01724733a32dca3baebef682e42c26dc000285e6ebe03bbc179fae3",
+      "sha256": "1dd451dfe7e7f9f196592c16e48f5761df95b02896437b8920c3a032999e3439",
       "settings": {
         "mode": "full",
         "input_colorspace": "sRGB",
@@ -708,7 +708,7 @@
       "film": "Fuji Superia X-Tra 400",
       "print": "Fuji Crystal Archive Pro PDII",
       "dimension": 33,
-      "sha256": "d6bb6810775e924d2088906b0b4b4bdccf986417ed5052b12db01ef880ea5686",
+      "sha256": "7e81237d4989eadf269183dc0a0330995503c2e8c9dab41cfbaa96470d5d44d4",
       "settings": {
         "mode": "full",
         "input_colorspace": "sRGB",
@@ -806,7 +806,7 @@
       "film": "Fuji Velvia 50",
       "print": null,
       "dimension": 33,
-      "sha256": "b9f8c70cbb84f534e41d202a1cfb59523ad42d0858a6941363347040b09b356a",
+      "sha256": "dcf4b9bfda8d9fb97e1f94a989728b859f0e8a53ebc73a7bfe7e19bd5c42b80f",
       "settings": {
         "mode": "full",
         "input_colorspace": "sRGB",
@@ -903,7 +903,7 @@
       "film": "Kodachrome 64",
       "print": null,
       "dimension": 33,
-      "sha256": "426c5cde49b198794399330dde4020ccc8b64fadf461a8b5cad76cdc1811cf18",
+      "sha256": "9ef82789d426a65d9600ff5825865990a1cb9f9d214a79625168a3a0e9e8531f",
       "settings": {
         "mode": "full",
         "input_colorspace": "sRGB",

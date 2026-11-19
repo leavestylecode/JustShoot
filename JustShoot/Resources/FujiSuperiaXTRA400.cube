@@ -1,10 +1,5 @@
 TITLE "FujiSuperiaXTRA400"
-# Community spectral model; not manufacturer endorsed or camera calibrated.
-# Derived from Spectral Film LUT by Jan Lohse, MIT License.
-# Source: https://github.com/JanLohse/spectral_film_lut/tree/bcbcfc6861f49cc706dc5d00ea048e4853060aab
-# Film: Fuji Superia X-Tra 400; print: Fuji Crystal Archive Pro PDII.
-# Input: encoded sRGB [0,1]; output: encoded sRGB [0,1].
-# Recipe: LUTProvenance.json. No app shadow toe or legacy output calibration.
+# Adapted by Leavestylecode
 LUT_3D_SIZE 33
 0.035625625 0.063913718 0.082415365
 0.048673384 0.065578505 0.082800128

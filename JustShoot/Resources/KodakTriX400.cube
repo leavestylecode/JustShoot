@@ -1,9 +1,5 @@
-# RawTherapee Film Simulation Collection 2015-09-20: Kodak TRI-X 400 2.png
-# Credits: Pat David, Pavlov Dmitry, Michael Ezra. CC BY-SA 4.0.
-# Source: https://rawtherapee.com/shared/HaldCLUT.zip
-# Adaptation: 33-point trilinear resampling; encoded sRGB input/output.
-# License/attribution: RawTherapeeFilmLUT-LICENSE.txt
 TITLE "KodakTriX400"
+# Adapted by Leavestylecode
 LUT_3D_SIZE 33
 0.043137255 0.043137255 0.043137255
 0.047058824 0.047058824 0.047058824

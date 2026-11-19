@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "adaptedBy": "Leavestylecode",
   "identifier": "portra-endura-density-v1",
   "dimension": 65,
   "input": "encoded sRGB [0,1], display-referred approximation; not scene radiance",
@@ -12,7 +13,6 @@
   "source": "https://github.com/JanLohse/spectral_film_lut",
   "sourceCommit": "bcbcfc6861f49cc706dc5d00ea048e4853060aab",
   "license": "MIT",
-  "licenseFile": "SpectralFilmLUT-LICENSE.txt",
   "settings": {
     "input_colorspace": "sRGB",
     "output_gamut": "Rec. 709",
