@@ -1,3 +1,4 @@
+import Accelerate
 import Metal
 import os
 
@@ -122,22 +123,51 @@ final class PreviewLUTTextureCache: Sendable {
         let dimension = lut.dimension
         let descriptor = MTLTextureDescriptor()
         descriptor.textureType = .type3D
-        descriptor.pixelFormat = .rgba32Float
+        // Earlier Apple GPUs can read RGBA32Float but cannot linearly filter it.
+        // The preview shader needs trilinear interpolation between adjacent cube nodes.
+        descriptor.pixelFormat = device.supports32BitFloatFiltering ? .rgba32Float : .rgba16Float
         descriptor.width = dimension
         descriptor.height = dimension
         descriptor.depth = dimension
         descriptor.usage = [.shaderRead]
         descriptor.storageMode = .shared
         guard let texture = device.makeTexture(descriptor: descriptor) else { return nil }
-        lut.data.withUnsafeBytes { bytes in
-            texture.replace(region: MTLRegion(origin: MTLOrigin(x: 0, y: 0, z: 0),
-                size: MTLSize(width: dimension, height: dimension, depth: dimension)),
-                mipmapLevel: 0, slice: 0, withBytes: bytes.baseAddress!,
-                bytesPerRow: dimension * 4 * MemoryLayout<Float>.size,
-                bytesPerImage: dimension * dimension * 4 * MemoryLayout<Float>.size)
+        let bytesPerComponent: Int
+        let pixels: Data
+        if descriptor.pixelFormat == .rgba16Float {
+            guard let converted = halfPrecisionComponents(lut.data) else { return nil }
+            pixels = converted
+            bytesPerComponent = MemoryLayout<Float16>.stride
+        } else {
+            pixels = lut.data
+            bytesPerComponent = MemoryLayout<Float>.stride
         }
-        Diagnostics.emit("preview_lut_uploaded", fields: "dimension=\(dimension) bytes=\(lut.data.count) duration_ms=\(Diagnostics.milliseconds(since: startedAt))")
+        let bytesPerRow = dimension * 4 * bytesPerComponent
+        let bytesPerImage = dimension * bytesPerRow
+        guard pixels.count == dimension * bytesPerImage else { return nil }
+        pixels.withUnsafeBytes { bytes in
+            texture.replace(region: MTLRegionMake3D(0, 0, 0, dimension, dimension, dimension),
+                mipmapLevel: 0, slice: 0, withBytes: bytes.baseAddress!,
+                bytesPerRow: bytesPerRow, bytesPerImage: bytesPerImage)
+        }
+        Diagnostics.emit("preview_lut_uploaded", fields: "dimension=\(dimension) bytes=\(pixels.count) duration_ms=\(Diagnostics.milliseconds(since: startedAt))")
         return PreviewLUTTexture(key: key, texture: texture, dimension: dimension,
-            byteCount: max(lut.data.count, texture.allocatedSize))
+            byteCount: max(pixels.count, texture.allocatedSize))
+    }
+
+    private static func halfPrecisionComponents(_ data: Data) -> Data? {
+        let count = data.count / MemoryLayout<Float>.stride
+        guard count > 0 else { return nil }
+        var result = Data(count: count * MemoryLayout<Float16>.stride)
+        let status = result.withUnsafeMutableBytes { destination in
+            data.withUnsafeBytes { source in
+                var input = vImage_Buffer(data: UnsafeMutableRawPointer(mutating: source.baseAddress),
+                    height: 1, width: vImagePixelCount(count), rowBytes: source.count)
+                var output = vImage_Buffer(data: destination.baseAddress,
+                    height: 1, width: vImagePixelCount(count), rowBytes: destination.count)
+                return vImageConvert_PlanarFtoPlanar16F(&input, &output, vImage_Flags(kvImageNoFlags))
+            }
+        }
+        return status == kvImageNoError ? result : nil
     }
 }

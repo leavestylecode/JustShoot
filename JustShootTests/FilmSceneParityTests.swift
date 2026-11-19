@@ -87,16 +87,7 @@ final class FilmSceneParityTests: XCTestCase {
             // This test isolates the original RGB cube. Material stages have independent
             // full-pipeline Metal/CI and unbaked-model coverage in FilmMaterialTests.
             let lut = CubeLUT(data: prepared.data, dimension: prepared.dimension)
-            let descriptor = MTLTextureDescriptor()
-            descriptor.textureType = .type3D
-            descriptor.pixelFormat = .rgba32Float
-            descriptor.width = lut.dimension; descriptor.height = lut.dimension; descriptor.depth = lut.dimension
-            descriptor.storageMode = .shared; descriptor.usage = .shaderRead
-            let table = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
-            lut.data.withUnsafeBytes { table.replace(
-                region: MTLRegionMake3D(0, 0, 0, lut.dimension, lut.dimension, lut.dimension),
-                mipmapLevel: 0, slice: 0, withBytes: $0.baseAddress!,
-                bytesPerRow: lut.dimension * 16, bytesPerImage: lut.dimension * lut.dimension * 16) }
+            let table = try await PreviewLUTTextureCache.shared.prepare(key: "scene-parity-\(preset.rawValue)", lut: lut).texture
             for scene in scenes {
                 let width = Int(scene.image.extent.width), height = Int(scene.image.extent.height)
                 var bytes = [UInt8](repeating: 0, count: width * height * 4)

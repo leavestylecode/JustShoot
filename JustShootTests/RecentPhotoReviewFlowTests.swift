@@ -33,7 +33,12 @@ final class RecentPhotoReviewFlowTests: XCTestCase {
         }.modelContainer(container).tint(.white).preferredColorScheme(.dark)
         let window = try await host(view)
         defer { cleanUp(window: window, ids: ids) }
-        try await waitFor { self.viewports(in: window).count > 0 }
+        try await waitFor {
+            self.viewports(in: window).contains { viewport in
+                viewport.convert(viewport.bounds, to: window).contains(CGPoint(x: window.bounds.midX, y: window.bounds.midY))
+            }
+        }
+        XCTAssertEqual(selection, ids[2], "Opening another page must preserve the requested photo")
         try await snapshot(window, name: "recent-photos-all-films")
         container.mainContext.delete(photos[2])
         try container.mainContext.save()
@@ -184,13 +189,13 @@ final class RecentPhotoReviewFlowTests: XCTestCase {
         (view as? ZoomingScrollView).map { [$0] } ?? view.subviews.flatMap { viewports(in: $0) }
     }
 
-    private func waitFor(_ predicate: () async -> Bool) async throws {
+    private func waitFor(file: StaticString = #filePath, line: UInt = #line, _ predicate: () async -> Bool) async throws {
         let deadline = ProcessInfo.processInfo.systemUptime + 4
         while !(await predicate()), ProcessInfo.processInfo.systemUptime < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }
         let settled = await predicate()
-        XCTAssertTrue(settled, "Photo review did not settle")
+        XCTAssertTrue(settled, "Photo review did not settle", file: file, line: line)
     }
 
     private func snapshot(_ window: UIWindow, name: String) async throws {

@@ -262,8 +262,10 @@ final class FilmMaterialTests: XCTestCase {
         XCTAssertEqual(cachedBytes, adjusted.byteCount)
         XCTAssertLessThanOrEqual(cachedBytes, 16 * 1_024 * 1_024)
         let texture = try await PreviewLUTTextureCache.shared.prepare(key: "material-test-upload", lut: adjusted)
-        XCTAssertNotNil(texture.material)
-        XCTAssertGreaterThanOrEqual(texture.byteCount, m.byteCount)
+        let materialTextures = try XCTUnwrap(texture.material)
+        let allocatedBytes = [texture.texture, materialTextures.density, materialTextures.paper, materialTextures.finish]
+            .reduce(0) { $0 + $1.allocatedSize }
+        XCTAssertGreaterThanOrEqual(texture.byteCount, allocatedBytes)
         XCTAssertGreaterThan(adjusted.byteCount, adjusted.data.count)
         XCTAssertNil(try FilmProcessor.shared.loadLUT(source: .preset(.fujiC200)).material)
     }

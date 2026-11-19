@@ -88,6 +88,7 @@ struct PhotoDetailView: View {
     @State private var thumbWarmupTask: Task<Void, Never>?
     @State private var preheatedAssetIDs: [String] = []
     @State private var isVisible = false
+    @State private var didPositionPager = false
     @State private var limitsPreviewsToCurrent = false
 
     /// The thumbnail strip and the pager share one small, display-ready placeholder.
@@ -163,32 +164,43 @@ struct PhotoDetailView: View {
                     // Measure the full viewport explicitly. containerRelativeFrame subtracts
                     // navigation bars even here, making a single tap resize the photograph.
                     GeometryReader { viewport in
-                        ScrollView(.horizontal) {
-                            LazyHStack(spacing: 0) {
-                                ForEach(photos) { photoItem in
-                                    PagerImage(
-                                        photo: photoItem,
-                                        isCurrent: photoItem.id == currentPhotoID,
-                                        loadsPreview: isVisible && previewIDs.contains(photoItem.id),
-                                        previewMaxPixel: previewMaxPixel,
-                                        dismisser: dismisser,
-                                        initialImage: photoItem.id == initialPhotoID ? initialImage : nil
-                                    )
-                                    .frame(width: viewport.size.width, height: viewport.size.height)
-                                    .id(photoItem.id)
+                        ScrollViewReader { reader in
+                            ScrollView(.horizontal) {
+                                LazyHStack(spacing: 0) {
+                                    ForEach(photos) { photoItem in
+                                        PagerImage(
+                                            photo: photoItem,
+                                            isCurrent: photoItem.id == currentPhotoID,
+                                            loadsPreview: isVisible && previewIDs.contains(photoItem.id),
+                                            previewMaxPixel: previewMaxPixel,
+                                            dismisser: dismisser,
+                                            initialImage: photoItem.id == initialPhotoID ? initialImage : nil
+                                        )
+                                        .frame(width: viewport.size.width, height: viewport.size.height)
+                                        .id(photoItem.id)
+                                    }
                                 }
+                                .scrollTargetLayout()
                             }
-                            .scrollTargetLayout()
+                            .scrollTargetBehavior(.paging)
+                            .scrollPosition(id: Binding(get: { currentPhotoID }, set: {
+                                // Layout can transiently report no visible page. Keep the last
+                                // selection so actions and deletion reconciliation stay anchored.
+                                if let id = $0 { currentPhotoID = id }
+                            }))
+                            .scrollIndicators(.hidden)
+                            // Toolbars must not add content insets and shift the fitted image.
+                            .contentMargins(.all, 0, for: .scrollContent)
+                            .task(id: viewport.size.width) {
+                                guard #unavailable(iOS 18.0), !didPositionPager, viewport.size.width > 0 else { return }
+                                // On iOS 17 the initial scrollPosition can precede the lazy stack's layout.
+                                // Position it once the viewport exists, including when opening the last item.
+                                await Task.yield()
+                                guard !Task.isCancelled, let currentPhotoID else { return }
+                                reader.scrollTo(currentPhotoID, anchor: .center)
+                                didPositionPager = true
+                            }
                         }
-                        .scrollTargetBehavior(.paging)
-                        .scrollPosition(id: Binding(get: { currentPhotoID }, set: {
-                            // Layout can transiently report no visible page. Keep the last
-                            // selection so actions and deletion reconciliation stay anchored.
-                            if let id = $0 { currentPhotoID = id }
-                        }))
-                        .scrollIndicators(.hidden)
-                        // Toolbars must not add content insets and shift the fitted image.
-                        .contentMargins(.all, 0, for: .scrollContent)
                     }
                     .ignoresSafeArea()
 

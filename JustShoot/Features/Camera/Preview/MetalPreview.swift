@@ -5,6 +5,20 @@ import MetalPerformanceShaders
 @preconcurrency import CoreVideo
 import os
 
+// The worker only calls CAMetalLayer.nextDrawable(). It transfers the result
+// through the locked pool to the render callback and never uses it again.
+private struct PreviewDrawableSource: @unchecked Sendable {
+    let layer: CAMetalLayer
+
+    struct Acquired: @unchecked Sendable {
+        let drawable: any CAMetalDrawable
+    }
+
+    func next() -> Acquired? {
+        layer.nextDrawable().map { Acquired(drawable: $0) }
+    }
+}
+
 /// Core Video owns the camera buffer's recycling lease. Retaining just MTLTexture is insufficient.
 private final class PreviewFrameLease: @unchecked Sendable {
     private var texture: CVMetalTexture?
@@ -293,6 +307,11 @@ struct RealtimePreviewView: UIViewRepresentable {
         var chromatic: FilmChromaticResponseParameters = .neutral
         weak var manager: CameraManager?
 
+        // nextDrawable() can wait for the compositor even after GPU completion.
+        // Only the layer crosses to this serial queue. Camera frames are selected at draw time.
+        private let drawables = PreviewTargetPool<PreviewDrawableSource.Acquired>(maximumCount: 1,
+            preparationQueue: DispatchQueue(label: "com.justshoot.preview-drawables", qos: .userInteractive))
+
         // Metal 核心对象
         private var metalDevice: (any MTLDevice)?
         private var commandQueue: (any MTLCommandQueue)?
@@ -444,12 +463,14 @@ struct RealtimePreviewView: UIViewRepresentable {
 
         func renderingAvailabilityChanged(_ active: Bool) {
             completionGate.setActive(active)
+            if !active { drawables.invalidate() }
             // Reattaching may reuse the latest native frame. It still needs a fresh GPU
             // completion in the new renderer epoch before the entry overlay can reveal.
             lastRenderedFrameId = nil
         }
 
         func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
+            drawables.invalidate()
             lastRenderedFrameId = nil
             manager?.diagnostics.event("preview_drawable_changed", "width=\(Int(size.width)) height=\(Int(size.height)) scale=\(view.contentScaleFactor)")
         }
@@ -559,7 +580,10 @@ struct RealtimePreviewView: UIViewRepresentable {
             }
 
             let drawableStartedAt = ProcessInfo.processInfo.systemUptime
-            let currentDrawable = view.currentDrawable
+            let currentDrawable = (view.layer as? CAMetalLayer).flatMap { layer in
+                let source = PreviewDrawableSource(layer: layer)
+                return drawables.request(width: requestedWidth, height: requestedHeight, replenish: true) { source.next() }?.drawable
+            }
             drawableWaitMS = (ProcessInfo.processInfo.systemUptime - drawableStartedAt) * 1_000
             guard let drawable = currentDrawable else {
                 flow?.skipped(.drawable)

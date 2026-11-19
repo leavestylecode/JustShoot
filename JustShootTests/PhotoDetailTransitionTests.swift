@@ -98,11 +98,11 @@ final class PhotoDetailTransitionTests: XCTestCase {
     }
 
     func testNativePresentationPreservesSelectionWhileCoveredAndCanReopenAfterDismissal() async throws {
+        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         let photo = try await makePhoto()
         let photoID = photo.id
         defer { ImageLoader.shared.removeDiskCache(for: photoID) }
-        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         container.mainContext.insert(photo)
         try container.mainContext.save()
         let source = PhotoGridTransitionSource()
@@ -162,10 +162,10 @@ final class PhotoDetailTransitionTests: XCTestCase {
     }
 
     func testCloseButtonDismissesWithoutAnotherRepresentableUpdate() async throws {
-        let photo = try await makePhoto()
-        let photoID = photo.id
         let container = try ModelContainer(for: Photo.self, CustomLUT.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let photo = try await makePhoto()
+        let photoID = photo.id
         container.mainContext.insert(photo)
         try container.mainContext.save()
         let anchor = PhotoPresentationAnchor()
@@ -202,10 +202,10 @@ final class PhotoDetailTransitionTests: XCTestCase {
     }
 
     func testStaleDismissedSelectionCannotReopenAndLateCallbackCannotClearNextSession() async throws {
-        let photo = try await makePhoto()
-        let photoID = photo.id
         let container = try ModelContainer(for: Photo.self, CustomLUT.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let photo = try await makePhoto()
+        let photoID = photo.id
         container.mainContext.insert(photo)
         try container.mainContext.save()
         let anchor = PhotoPresentationAnchor()
@@ -257,11 +257,11 @@ final class PhotoDetailTransitionTests: XCTestCase {
     }
 
     func testQueuedPresentationHonorsCancellationAndDismantling() async throws {
+        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         let photo = try await makePhoto()
         let photoID = photo.id
         defer { ImageLoader.shared.removeDiskCache(for: photoID) }
-        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         container.mainContext.insert(photo)
         try container.mainContext.save()
         let anchor = PhotoPresentationAnchor()
@@ -319,10 +319,10 @@ final class PhotoDetailTransitionTests: XCTestCase {
     }
 
     func testGalleryToolbarStaysUnchangedWhileOpeningAndClosingPhoto() async throws {
-        let photo = try await makePhoto()
-        let photoID = photo.id
         let container = try ModelContainer(for: Photo.self, CustomLUT.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let photo = try await makePhoto()
+        let photoID = photo.id
         container.mainContext.insert(photo)
         try container.mainContext.save()
         let window = UIWindow(windowScene: try await TestWindowScene.foreground())
@@ -365,10 +365,10 @@ final class PhotoDetailTransitionTests: XCTestCase {
     }
 
     func testGalleryCloseButtonAndNativeDismissalAllowImmediateSingleTapReopening() async throws {
-        let photo = try await makePhoto()
-        let photoID = photo.id
         let container = try ModelContainer(for: Photo.self, CustomLUT.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let photo = try await makePhoto()
+        let photoID = photo.id
         container.mainContext.insert(photo)
         try container.mainContext.save()
         let window = UIWindow(windowScene: try await TestWindowScene.foreground())

@@ -15,7 +15,8 @@ final class CameraLocationProvider: NSObject, CLLocationManagerDelegate {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-        manager.distanceFilter = 20
+        // A stationary viewfinder still needs a fix within the shutter's 30-second freshness window.
+        manager.distanceFilter = kCLDistanceFilterNone
     }
 
     func location(at date: Date) -> CLLocation? {

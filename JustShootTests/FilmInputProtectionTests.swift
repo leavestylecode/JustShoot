@@ -146,11 +146,12 @@ final class FilmInputProtectionTests: XCTestCase {
     }
 
     @MainActor
-    func testMetalPreviewMatchesCoreImageForProtectedAndLegacyRecipes() throws {
+    func testMetalPreviewMatchesCoreImageForProtectedAndLegacyRecipes() async throws {
+        try await PreviewMetalResources.warmUp()
         let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
         let library = try device.makeDefaultLibrary(bundle: .main)
         let function = try XCTUnwrap(library.makeFunction(name: "previewLUT"))
-        let pipeline = try device.makeComputePipelineState(function: function)
+        let pipeline = try await device.makeComputePipelineState(function: function)
         let queue = try XCTUnwrap(device.makeCommandQueue())
         // Half precision is the actual preview input/output format.
         let colors: [SIMD3<Float>] = [SIMD3(0.62, 0.44, 0.35), SIMD3(repeating: 0.85),
@@ -171,18 +172,7 @@ final class FilmInputProtectionTests: XCTestCase {
         let energy = try XCTUnwrap(device.makeTexture(descriptor: descriptor))
         for preset in FilmPreset.allCases {
             let lut = try FilmProcessor().loadCubeLUT(resourceName: preset.lutResourceName)
-            let lutDescriptor = MTLTextureDescriptor()
-            lutDescriptor.textureType = .type3D
-            lutDescriptor.pixelFormat = .rgba32Float
-            lutDescriptor.width = lut.dimension
-            lutDescriptor.height = lut.dimension
-            lutDescriptor.depth = lut.dimension
-            lutDescriptor.storageMode = .shared
-            lutDescriptor.usage = .shaderRead
-            let lutTexture = try XCTUnwrap(device.makeTexture(descriptor: lutDescriptor))
-            lut.data.withUnsafeBytes { lutTexture.replace(region: MTLRegionMake3D(0, 0, 0, lut.dimension, lut.dimension, lut.dimension),
-                mipmapLevel: 0, slice: 0, withBytes: $0.baseAddress!, bytesPerRow: lut.dimension * 16,
-                bytesPerImage: lut.dimension * lut.dimension * 16) }
+            let lutTexture = try XCTUnwrap(PreviewLUTTextureCache.upload(key: preset.rawValue, lut: lut)).texture
             let gain = preset.chromaticResponse.responseGain(sceneCCT: 3_200)
             for protection in [false, true] {
                 var params = RealtimePreviewView.Coordinator.PreviewParams(scale: 1, offsetX: 0, offsetY: 0,
@@ -204,8 +194,10 @@ final class FilmInputProtectionTests: XCTestCase {
                 encoder.dispatchThreads(MTLSize(width: colors.count, height: 1, depth: 1),
                     threadsPerThreadgroup: MTLSize(width: pipeline.threadExecutionWidth, height: 1, depth: 1))
                 encoder.endEncoding()
-                command.commit()
-                command.waitUntilCompleted()
+                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                    command.addCompletedHandler { _ in continuation.resume() }
+                    command.commit()
+                }
                 XCTAssertEqual(command.status, .completed, "\(String(describing: command.error))")
                 var preview = [Float16](repeating: 0, count: colors.count * 4)
                 preview.withUnsafeMutableBytes { output.getBytes($0.baseAddress!, bytesPerRow: colors.count * 8,

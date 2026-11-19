@@ -18,7 +18,7 @@ final class PhotoDisplayRoundTripTests: XCTestCase {
         let date = Date()
         let id = try await PhotoLibrary.save(imageData: source, creationDate: date,
             latitude: nil, longitude: nil, altitude: nil, locationTimestamp: nil, captureID: captureID)
-        defer { Task { try? await PhotoLibrary.delete(localIdentifiers: [id]) } }
+        defer { removeFixtureUnlessRetained(id) }
         let image = CIImage(color: CIColor(red: 0.2, green: 0.7, blue: 0.3))
             .cropped(to: CGRect(x: 0, y: 0, width: 768, height: 576))
         let edited = try XCTUnwrap(PhotoImageEncoder.encode(image, context: CIContext(),
@@ -94,7 +94,7 @@ final class PhotoDisplayRoundTripTests: XCTestCase {
             latitude: nil, longitude: nil, altitude: nil, locationTimestamp: nil,
             captureID: captureID
         )
-        defer { Task { try? await PhotoLibrary.delete(localIdentifiers: [savedID]) } }
+        defer { removeFixtureUnlessRetained(savedID) }
         XCTAssertFalse(savedID.isEmpty)
 
         // 4) 显示链第一环:按 localIdentifier fetch PHAsset(viewer 的取图入口)
@@ -115,6 +115,13 @@ final class PhotoDisplayRoundTripTests: XCTestCase {
     }
 
     // MARK: - 辅助
+
+    /// Unattended device runs can retain their synthetic images for inspection.
+    /// Deleting an asset on a physical iPhone opens a system confirmation over subsequent tests.
+    private func removeFixtureUnlessRetained(_ identifier: String) {
+        guard ProcessInfo.processInfo.environment["JUSTSHOOT_KEEP_PHOTO_FIXTURES"] != "1" else { return }
+        Task { try? await PhotoLibrary.delete(localIdentifiers: [identifier]) }
+    }
 
     /// 测试进程照片库授权。注意**不主动 requestAuthorization**——弹窗在测试宿主里无人应答会挂死。
     /// 需先 `xcrun simctl privacy <udid> grant photos leavestylecode.JustShoot`(在 app 安装后执行)。

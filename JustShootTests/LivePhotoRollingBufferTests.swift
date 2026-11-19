@@ -41,6 +41,7 @@ final class LivePhotoRollingBufferTests: XCTestCase {
         #if targetEnvironment(simulator)
         throw XCTSkip("The production buffer requires the device hardware encoder")
         #else
+        try XCTSkipUnless(LivePhotoEncoderConfiguration.isSupported, "Live Photo capture requires iOS 18")
         let buffer = LivePhotoRollingBuffer()
         buffer.setEnabled(true, audio: true)
         defer { buffer.setEnabled(false) }
@@ -87,6 +88,7 @@ final class LivePhotoRollingBufferTests: XCTestCase {
         #if targetEnvironment(simulator)
         throw XCTSkip("The production buffer requires the device hardware encoder")
         #else
+        try XCTSkipUnless(LivePhotoEncoderConfiguration.isSupported, "Live Photo capture requires iOS 18")
         let buffer = LivePhotoRollingBuffer()
         buffer.setEnabled(true)
         defer { buffer.setEnabled(false) }
@@ -115,6 +117,7 @@ final class LivePhotoRollingBufferTests: XCTestCase {
         #if targetEnvironment(simulator)
         throw XCTSkip("The production buffer requires the device hardware encoder")
         #else
+        try XCTSkipUnless(LivePhotoEncoderConfiguration.isSupported, "Live Photo capture requires iOS 18")
         let buffer = LivePhotoRollingBuffer()
         buffer.setEnabled(true)
         defer { buffer.setEnabled(false) }

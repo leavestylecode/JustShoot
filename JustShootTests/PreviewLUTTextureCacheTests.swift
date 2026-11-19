@@ -35,13 +35,18 @@ final class PreviewLUTTextureCacheTests: XCTestCase {
         XCTAssertTrue(textures.allSatisfy { $0.texture === first.texture })
         XCTAssertEqual(first.key, "film")
         XCTAssertEqual(first.dimension, 2)
-        var actual = [Float](repeating: 0, count: 32)
-        actual.withUnsafeMutableBytes { bytes in
-            first.texture.getBytes(bytes.baseAddress!, bytesPerRow: 32, bytesPerImage: 64,
-                from: MTLRegion(origin: MTLOrigin(x: 0, y: 0, z: 0), size: MTLSize(width: 2, height: 2, depth: 2)),
-                mipmapLevel: 0, slice: 0)
+        let fullPrecision = first.texture.device.supports32BitFloatFiltering
+        XCTAssertEqual(first.texture.pixelFormat, fullPrecision ? .rgba32Float : .rgba16Float)
+        let rowBytes = 2 * 4 * (fullPrecision ? MemoryLayout<Float>.stride : MemoryLayout<Float16>.stride)
+        var pixels = Data(count: rowBytes * 4)
+        pixels.withUnsafeMutableBytes { bytes in
+            first.texture.getBytes(bytes.baseAddress!, bytesPerRow: rowBytes, bytesPerImage: rowBytes * 2,
+                from: MTLRegionMake3D(0, 0, 0, 2, 2, 2), mipmapLevel: 0, slice: 0)
         }
-        XCTAssertEqual(actual.withUnsafeBufferPointer { Data(buffer: $0) }, lut.data)
+        let actual = pixels.withUnsafeBytes { bytes in
+            fullPrecision ? Array(bytes.bindMemory(to: Float.self)) : bytes.bindMemory(to: Float16.self).map(Float.init)
+        }
+        XCTAssertEqual(actual, lut.data.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) })
     }
 
     func testEvictionDoesNotInvalidateAnActiveRendererTexture() async throws {

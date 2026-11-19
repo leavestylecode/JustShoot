@@ -30,6 +30,16 @@ float3 rawCubeNode(coreimage::sampler cube, float3 index) {
     return cube.sample(cube.transform(p)).rgb;
 }
 
+// Some devices cannot linearly filter a full-precision curve texture.
+float rawCurveValue(coreimage::sampler curves, float value, uint channel) {
+    float position = clamp(value, 0.0, 1.0) * 255.0;
+    float lower = floor(position);
+    float2 start = float2(lower + 0.5, 0.5);
+    float2 end = float2(min(lower + 1.0, 255.0) + 0.5, 0.5);
+    return mix(curves.sample(curves.transform(start))[channel],
+               curves.sample(curves.transform(end))[channel], position - lower);
+}
+
 [[stitchable]] float4 justShootRawFilm(coreimage::sampler image, coreimage::sampler inputTable,
     coreimage::sampler cube, coreimage::sampler outputTable, coreimage::sampler curves) {
     float4 pixel = image.sample(image.coord());
@@ -43,9 +53,8 @@ float3 rawCubeNode(coreimage::sampler cube, float3 index) {
     float3 d = mix(rawCubeNode(cube, float3(lo.x, hi.y, hi.z)), rawCubeNode(cube, hi), f.x);
     float3 look = mix(mix(a, b, f.y), mix(c, d, f.y), f.z);
     float3 srgb = float3(rawHalfLookup(outputTable, look.r), rawHalfLookup(outputTable, look.g), rawHalfLookup(outputTable, look.b));
-    float3 result = float3(
-        curves.sample(curves.transform(float2(srgb.r * 255.0 + 0.5, 0.5))).r,
-        curves.sample(curves.transform(float2(srgb.g * 255.0 + 0.5, 0.5))).g,
-        curves.sample(curves.transform(float2(srgb.b * 255.0 + 0.5, 0.5))).b);
+    float3 result = float3(rawCurveValue(curves, srgb.r, 0),
+                           rawCurveValue(curves, srgb.g, 1),
+                           rawCurveValue(curves, srgb.b, 2));
     return float4(result * pixel.a, pixel.a);
 }

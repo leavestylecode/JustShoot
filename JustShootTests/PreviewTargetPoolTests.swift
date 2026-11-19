@@ -64,6 +64,29 @@ final class PreviewTargetPoolTests: XCTestCase {
         XCTAssertEqual(pool.take(width: 816, height: 1088), 7)
     }
 
+    func testConsumingADrawableReplenishesOneSlotAndPauseDiscardsTheOutstandingRequest() async throws {
+        let pool = PreviewTargetPool<Int>(maximumCount: 1)
+        XCTAssertNil(pool.request(width: 8, height: 4, replenish: true) { 1 })
+        try await Self.waitForPreparation(pool)
+        let started = expectation(description: "Next drawable requested")
+        let release = DispatchSemaphore(value: 0)
+        defer { release.signal() }
+        XCTAssertEqual(pool.request(width: 8, height: 4, replenish: true) {
+            started.fulfill()
+            _ = release.wait(timeout: .now() + 3)
+            return 2
+        }, 1)
+        await fulfillment(of: [started], timeout: 2)
+        pool.invalidate()
+        XCTAssertNil(pool.request(width: 8, height: 4, replenish: true) {
+            XCTFail("The previous request is still in flight")
+            return 3
+        })
+        release.signal()
+        try await Self.waitForPreparation(pool)
+        XCTAssertNil(pool.take(width: 8, height: 4))
+    }
+
     func testInvalidOrDisabledRequestsNeverAllocate() {
         let pool = PreviewTargetPool<Int>()
         let disabled = PreviewTargetPool<Int>(maximumCount: 0)

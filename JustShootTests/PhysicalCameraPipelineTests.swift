@@ -2,6 +2,7 @@ import XCTest
 import SwiftData
 import SwiftUI
 import CoreImage
+import CoreLocation
 import ImageIO
 import AVFoundation
 @preconcurrency import Photos
@@ -12,6 +13,30 @@ import AVFoundation
 /// Delivery and process-recovery checks explicitly opt in to importing assets into Photos.
 /// Ordinary test runs never capture. Use a stationary, textured subject for framing.
 final class PhysicalCameraPipelineTests: XCTestCase {
+    @MainActor
+    func testStationaryCameraKeepsAFreshLocationForTheShutter() async throws {
+        guard ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_LOCATION"] == "1" else {
+            throw XCTSkip("Enable location validation on a stationary, authorized physical device")
+        }
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Physical location updates required")
+        #else
+        let status = CLLocationManager().authorizationStatus
+        try XCTSkipUnless(status == .authorizedWhenInUse || status == .authorizedAlways)
+        let provider = CameraLocationProvider { _ in }
+        provider.start()
+        defer { provider.stop() }
+        let deadline = ContinuousClock.now + .seconds(45)
+        while provider.location(at: .now) == nil && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(250))
+        }
+        let first = try XCTUnwrap(provider.location(at: .now), "No usable initial location")
+        try await Task.sleep(for: .seconds(38))
+        let latest = try XCTUnwrap(provider.location(at: .now), "Location expired while the camera was stationary")
+        XCTAssertGreaterThan(latest.timestamp, first.timestamp)
+        #endif
+    }
+
     /// Opt-in same-scene framing evidence. Keeps test attachments, never Photos assets.
     @MainActor
     func testLivePhotoShutterFramingWithoutSavingToPhotos() async throws {
@@ -21,6 +46,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         #if targetEnvironment(simulator)
         throw XCTSkip("Physical device required")
         #else
+        try XCTSkipUnless(LivePhotoEncoderConfiguration.isSupported, "Live Photo capture requires iOS 18")
         if ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_AUDIO"] == "1" {
             if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
                 _ = await AVCaptureDevice.requestAccess(for: .audio)
@@ -327,13 +353,14 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             camera.requestCameraPermission()
             for live in [startsLive, !startsLive, startsLive] {
                 camera.setLivePhotoAudio(live: live, sound: false)
+                let expectsLive = live && LivePhotoEncoderConfiguration.isSupported
                 let deadline = Date().addingTimeInterval(20)
                 var configured = false
                 while Date() < deadline {
                     if camera.isCaptureAvailable,
                        let video = camera.session.outputs.compactMap({ $0 as? AVCaptureVideoDataOutput }).first,
                        !video.automaticallyConfiguresOutputBufferDimensions,
-                       !live || camera.livePhotoCaptureState.canCapture {
+                       camera.livePhotoCaptureState.canCapture == expectsLive {
                         configured = true
                         break
                     }
@@ -342,8 +369,8 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                 XCTAssertTrue(configured, "cold_live=\(startsLive) requested_live=\(live) state=\(camera.livePhotoCaptureState)")
                 let video = try XCTUnwrap(camera.session.outputs.compactMap { $0 as? AVCaptureVideoDataOutput }.first)
                 XCTAssertFalse(video.deliversPreviewSizedOutputBuffers)
-                XCTAssertFalse(live && camera.usesDeferredPhotoDelivery)
-                if live { XCTAssertTrue(camera.livePhotoCaptureState.canCapture) }
+                XCTAssertFalse(expectsLive && camera.usesDeferredPhotoDelivery)
+                XCTAssertEqual(camera.livePhotoCaptureState.canCapture, expectsLive)
                 print("configuration_probe cold_live=\(startsLive) requested_live=\(live) proxy=\(video.deliversPreviewSizedOutputBuffers) live=\(camera.livePhotoCaptureState.canCapture)")
             }
             camera.stopSession()
@@ -444,8 +471,8 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                 .map { (initialFocal, .preset($0), .quality) }
         } else {
             captures = camera.focalInfo.options.map { ($0, .preset(.fujiProvia100F), .quality) }
-                + [(initialFocal, .preset(.kodakPortra400), .quality),
-                   (initialFocal, customSource, .quality), (initialFocal, customSource, .livePhoto)]
+                + [(initialFocal, .preset(.kodakPortra400), .quality), (initialFocal, customSource, .quality)]
+                + (LivePhotoEncoderConfiguration.isSupported ? [(initialFocal, customSource, .livePhoto)] : [])
         }
         for (index, capture) in captures.enumerated() {
             let (focal, source, mode) = capture

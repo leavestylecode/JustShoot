@@ -18,7 +18,7 @@ final class PreviewTargetPool<Value: Sendable>: Sendable {
         var revision: UInt64 = 0
         var isAllocating = false
 
-        mutating func select(_ size: Size) {
+        mutating func select(_ size: Size?) {
             guard self.size != size else { return }
             self.size = size
             revision &+= 1
@@ -27,8 +27,16 @@ final class PreviewTargetPool<Value: Sendable>: Sendable {
     }
     private let state = OSAllocatedUnfairLock(initialState: State())
     private let maximumCount: Int
+    private let preparationQueue: DispatchQueue
 
-    init(maximumCount: Int = 3) { self.maximumCount = max(0, maximumCount) }
+    init(maximumCount: Int = 3, preparationQueue: DispatchQueue? = nil) {
+        self.maximumCount = max(0, maximumCount)
+        self.preparationQueue = preparationQueue ?? PreviewTargetPreparation.queue
+    }
+
+    func invalidate() {
+        state.withLock { $0.select(nil) }
+    }
 
     var availableCount: Int { state.withLock { $0.available.count } }
     var isPreparing: Bool { state.withLock { $0.isAllocating } }
@@ -41,20 +49,21 @@ final class PreviewTargetPool<Value: Sendable>: Sendable {
         }
     }
 
-    /// A miss schedules at most one allocation. Drawing keeps its previous frame instead of
-    /// waiting on the driver. Resizes invalidate both queued work and completed stale results.
-    func request(width: Int, height: Int, allocate: @escaping @Sendable () -> Value?) -> Value? {
+    /// A miss starts one background allocation. Replenishing also requests the next
+    /// target after a hit, so a single-use drawable can be ready for the next frame.
+    /// Size and lifecycle revisions discard stale results.
+    func request(width: Int, height: Int, replenish: Bool = false, allocate: @escaping @Sendable () -> Value?) -> Value? {
         guard width > 0, height > 0 else { return nil }
         let size = Size(width: width, height: height)
         let (value, revision): (Value?, UInt64?) = state.withLock {
             $0.select(size)
-            if let value = $0.available.popLast() { return (value, nil) }
-            guard maximumCount > 0, !$0.isAllocating else { return (nil, nil) }
+            let available = $0.available.popLast()
+            guard available == nil || replenish, maximumCount > 0, !$0.isAllocating else { return (available, nil) }
             $0.isAllocating = true
-            return (nil, $0.revision)
+            return (available, $0.revision)
         }
         if let revision {
-            PreviewTargetPreparation.queue.async { [weak self] in
+            preparationQueue.async { [weak self] in
                 guard let self else { return }
                 let isCurrent = state.withLock { $0.revision == revision }
                 let prepared = isCurrent ? autoreleasepool(invoking: allocate) : nil
