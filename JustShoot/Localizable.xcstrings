@@ -1,22 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "About these samples" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "About these samples"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "关于样片"
-          }
-        }
-      }
-    },
     "Add to Films" : {
       "localizations" : {
         "en" : {
@@ -33,6 +17,22 @@
         }
       }
     },
+    "Balanced colors · Slide film" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balanced colors · Slide film"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "均衡色彩 · 反转片"
+          }
+        }
+      }
+    },
     "Blue hour" : {
       "localizations" : {
         "en" : {
@@ -45,6 +45,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "蓝调时刻"
+          }
+        }
+      }
+    },
+    "Bold black and white · Street photography" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bold black and white · Street photography"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "鲜明黑白 · 街拍"
+          }
+        }
+      }
+    },
+    "Bold colors · Film simulation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bold colors · Film simulation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "强烈色彩 · 数码模拟"
+          }
+        }
+      }
+    },
+    "Bold colors · Landscapes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bold colors · Landscapes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "鲜明色彩 · 风光"
           }
         }
       }
@@ -77,6 +125,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "海岸"
+          }
+        }
+      }
+    },
+    "Delicate black and white · Film simulation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delicate black and white · Film simulation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "细腻黑白 · 数码模拟"
+          }
+        }
+      }
+    },
+    "Everyday color · Mixed light" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everyday color · Mixed light"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日常色彩 · 混合光"
+          }
+        }
+      }
+    },
+    "Everyday warmth · Sunny days" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everyday warmth · Sunny days"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暖色日常 · 晴天"
           }
         }
       }
@@ -129,6 +225,38 @@
         }
       }
     },
+    "Fine gray tones · Black and white" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fine gray tones · Black and white"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "细致灰阶 · 黑白"
+          }
+        }
+      }
+    },
+    "Light, everyday color · Street photography" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light, everyday color · Street photography"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻快日常 · 街拍"
+          }
+        }
+      }
+    },
     "Loading films" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -152,6 +280,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在载入样片"
+          }
+        }
+      }
+    },
+    "Muted colors · Documentary" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muted colors · Documentary"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "低饱和 · 纪实"
+          }
+        }
+      }
+    },
+    "Natural colors · Film simulation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Natural colors · Film simulation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标准色彩 · 数码模拟"
           }
         }
       }
@@ -204,22 +364,6 @@
         }
       }
     },
-    "OOO created these scenes with AI and applied this film’s color treatment. Choose Original to compare the same scene before grading." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OOO created these scenes with AI and applied this film’s color treatment. Choose Original to compare the same scene before grading."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "场景原图由 OOO 使用 AI 创作，样片经过这款胶片的调色处理。选择「原图」可对照调色前的同一画面。"
-          }
-        }
-      }
-    },
     "Outdoor portrait" : {
       "localizations" : {
         "en" : {
@@ -252,6 +396,22 @@
         }
       }
     },
+    "Rich colors · Classic look" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rich colors · Classic look"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浓郁色彩 · 经典"
+          }
+        }
+      }
+    },
     "Sample appearance" : {
       "localizations" : {
         "en" : {
@@ -264,6 +424,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "样片对照"
+          }
+        }
+      }
+    },
+    "Soft colors · Green tones" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soft colors · Green tones"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清淡色彩 · 绿调"
+          }
+        }
+      }
+    },
+    "Soft gray tones · Documentary" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soft gray tones · Documentary"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "柔和灰阶 · 纪实"
+          }
+        }
+      }
+    },
+    "Soft portraits · Film simulation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soft portraits · Film simulation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "柔和人像 · 数码模拟"
+          }
+        }
+      }
+    },
+    "Soft skin tones · Daylight portraits" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soft skin tones · Daylight portraits"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "柔和肤色 · 日光人像"
           }
         }
       }
@@ -284,6 +508,54 @@
         }
       },
       "extractionState" : "manual"
+    },
+    "Vivid colors · Film simulation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vivid colors · Film simulation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "鲜艳色彩 · 数码模拟"
+          }
+        }
+      }
+    },
+    "Vivid greens · Slide film" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vivid greens · Slide film"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "饱和绿植 · 反转片"
+          }
+        }
+      }
+    },
+    "Warm portraits · Low light" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warm portraits · Low light"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暖调人像 · 暗光"
+          }
+        }
+      }
     },
     "Window portrait" : {
       "localizations" : {

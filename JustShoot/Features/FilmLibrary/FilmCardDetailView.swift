@@ -8,7 +8,6 @@ struct FilmCardDetailView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var selectedScene: FilmSampleScene?
     @State private var showsOriginal = false
-    @State private var showsInfo = false
 
     init(preset: FilmPreset, settings: FilmPageSettings? = nil) {
         self.preset = preset
@@ -16,23 +15,38 @@ struct FilmCardDetailView: View {
     }
 
     var body: some View {
+        if #available(iOS 27.1, *) {
+            detail.toolbarVerticalBehavior(.disabled)
+        } else {
+            detail
+        }
+    }
+
+    private var detail: some View {
         GeometryReader { geometry in
             let wide = PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular)
             let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 32))
-                              : AnyLayout(VStackLayout(alignment: .leading, spacing: 26))
+                              : AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .top, spacing: 12) {
                         if let cover = preset.libraryCardImage {
                             VaultImage(filename: cover, maxPixel: 256)
                                 .frame(width: 52, height: 52)
                                 .clipShape(.rect(cornerRadius: 10))
                                 .accessibilityHidden(true)
                         }
-                        Text(verbatim: preset.displayName)
-                            .font(.system(.largeTitle, design: .serif, weight: .medium))
-                            .fixedSize(horizontal: false, vertical: true)
-                            .accessibilityAddTraits(.isHeader)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(verbatim: preset.displayName)
+                                .font(.system(.largeTitle, design: .serif, weight: .medium))
+                                .accessibilityAddTraits(.isHeader)
+                            Text(preset.styleDescription)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        membership
                     }
 
                     layout {
@@ -42,33 +56,19 @@ struct FilmCardDetailView: View {
                     }
                 }
                 .padding(.horizontal, sizeClass == .regular ? 24 : 18)
-                .padding(.vertical, 12)
+                .padding(.vertical, 8)
                 .pageContentWidth(wide ? PageLayout.browseWidth : PageLayout.readingWidth)
             }
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            actions
-                .padding(.horizontal, 18)
-                .padding(.vertical, 8)
-                .pageContentWidth(PageLayout.readingWidth)
-                .background(.bar)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                shootingButton
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 8)
+            }
         }
         .appPageBackground()
-        .softScrollEdges()
         .navigationTitle("OOO Samples")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { showsInfo = true } label: { Image(systemName: "info.circle") }
-                    .accessibilityLabel("About these samples")
-            }
-        }
-        .alert("About these samples", isPresented: $showsInfo) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("OOO created these scenes with AI and applied this film’s color treatment. Choose Original to compare the same scene before grading.")
-        }
     }
 
     private var gallery: some View {
@@ -144,40 +144,52 @@ struct FilmCardDetailView: View {
         }
     }
 
-    private var actions: some View {
-        let added = settings.preferences.isVisible(.preset(preset))
-        let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(spacing: 6)) : AnyLayout(HStackLayout(spacing: 12))
-        return layout {
-            if added {
-                Label("Added", systemImage: "checkmark.circle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(scheme == .dark ? Color.mint : VaultMembershipStyle.green)
-                    .padding(.horizontal, 12)
-                    .frame(minHeight: 48)
-                    .accessibilityLabel(Text("Added \(preset.displayName)"))
-            } else {
-                Button { settings.setVisible(preset, true) } label: {
-                    Label("Add to Films", systemImage: "plus.circle")
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 12)
-                        .frame(minHeight: 48)
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text("Add \(preset.displayName) to Films"))
-                .accessibilityIdentifier("filmLibrary.add.\(preset.id)")
-            }
-
-            NavigationLink(value: FilmSource.preset(preset)) {
-                Label("Start Shooting", systemImage: "camera.fill")
-                    .font(.headline)
-                    .foregroundStyle(scheme == .dark ? AppBrand.ink : AppBrand.paper)
-                    .frame(maxWidth: .infinity, minHeight: 48)
-                    .background(scheme == .dark ? AppBrand.paper : AppBrand.ink, in: Capsule())
+    @ViewBuilder
+    private var membership: some View {
+        if settings.preferences.isVisible(.preset(preset)) {
+            Image(systemName: "checkmark")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(scheme == .dark ? Color.mint : VaultMembershipStyle.green)
+                .frame(width: 44, height: 44)
+                .background(.green.opacity(0.1), in: Circle())
+                .accessibilityLabel(Text("Added \(preset.displayName)"))
+        } else {
+            Button { settings.setVisible(preset, true) } label: {
+                Image(systemName: "plus")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 44, height: 44)
+                    .cameraControlSurface()
+                    .contentShape(.circle)
             }
             .buttonStyle(.plain)
-            .accessibilityIdentifier("filmLibrary.use.\(preset.id)")
+            .accessibilityLabel(Text("Add \(preset.displayName) to Films"))
+            .accessibilityIdentifier("filmLibrary.add.\(preset.id)")
         }
+    }
+
+    private var shootingButton: some View {
+        let label = Label("Start Shooting", systemImage: "camera.fill")
+            .font(.headline)
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 18)
+
+        return Group {
+            if #available(iOS 26.0, *) {
+                NavigationLink(value: FilmSource.preset(preset)) { label }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.large)
+            } else {
+                NavigationLink(value: FilmSource.preset(preset)) {
+                    label
+                        .frame(minHeight: 50)
+                        .cameraControlSurface()
+                        .contentShape(.capsule)
+                        .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .accessibilityIdentifier("filmLibrary.use.\(preset.id)")
     }
 }
