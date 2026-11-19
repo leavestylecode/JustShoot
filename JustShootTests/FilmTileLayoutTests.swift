@@ -47,6 +47,21 @@ final class FilmTileLayoutTests: XCTestCase {
         }
     }
 
+    func testDetailSceneTagsWrapOnlyWhenTheNextTagDoesNotFit() {
+        let widths: [CGFloat] = [72, 60, 88, 64, 56]
+        let host = UIHostingController(rootView: FilmSceneTagLayout {
+            ForEach(widths, id: \.self) { width in
+                Color.clear.frame(width: width, height: 44)
+            }
+        })
+        let cases: [(CGFloat, CGFloat)] = [(364, 44), (363, 90), (164, 136), (90, 228)]
+        for (width, height) in cases {
+            let size = host.sizeThatFits(in: CGSize(width: width, height: 1000))
+            XCTAssertLessThanOrEqual(size.width, width)
+            XCTAssertEqual(size.height, height, accuracy: 0.5)
+        }
+    }
+
     func testHidingSubtitleRestoresCompactEnglishGrid() {
         let locale = Locale(identifier: "en")
         for width in [CGFloat(375), 393, 402, 430, 440] {

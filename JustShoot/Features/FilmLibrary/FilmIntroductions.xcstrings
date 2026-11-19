@@ -103,6 +103,23 @@
         }
       }
     },
+    "cullumStreet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "London · Cullum Street"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伦敦 · 卡勒姆街"
+          }
+        }
+      }
+    },
     "diner" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -592,6 +609,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "中间调明亮，亮面和暗面分隔鲜明。拍街头人物时，光照在脸上或浅色衣服上，主体容易从背景中显出来。"
+          }
+        }
+      }
+    },
+    "lambStreet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "London · Lamb Street"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伦敦 · 兰姆街"
           }
         }
       }

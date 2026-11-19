@@ -8,6 +8,22 @@ struct CurvePreviewData: Hashable, Sendable {
     let green: [Float]
     let blue: [Float]
     let master: [Float]
+
+    init(red: [Float], green: [Float], blue: [Float]) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+        usesChannelCurves = red != green || green != blue
+        master = usesChannelCurves ? red.indices.map { (red[$0] + green[$0] + blue[$0]) / 3 } : red
+    }
+
+    let usesChannelCurves: Bool
+
+    func sampleGray(_ input: Float) -> CurveRGBSample {
+        CurveRGBSample(red: CurveMath.sample(red, at: input),
+                       green: CurveMath.sample(green, at: input),
+                       blue: CurveMath.sample(blue, at: input))
+    }
 }
 
 struct CurveRGBSample: Sendable {
@@ -216,9 +232,7 @@ enum CurvePreset: String, CaseIterable, Identifiable, Codable, Sendable {
             let red = CurveMath.expand(points.red)
             let green = CurveMath.expand(points.green)
             let blue = CurveMath.expand(points.blue)
-            let master = red == green && green == blue ? red
-                : red.indices.map { (red[$0] + green[$0] + blue[$0]) / 3 }
-            cache[preset] = CurvePreviewData(red: red, green: green, blue: blue, master: master)
+            cache[preset] = CurvePreviewData(red: red, green: green, blue: blue)
         }
         return cache
     }()
@@ -227,8 +241,7 @@ enum CurvePreset: String, CaseIterable, Identifiable, Codable, Sendable {
         Self.tableCache[self] ?? CurvePreviewData(
             red: CurveMath.identityTable,
             green: CurveMath.identityTable,
-            blue: CurveMath.identityTable,
-            master: CurveMath.identityTable
+            blue: CurveMath.identityTable
         )
     }
 }
@@ -392,7 +405,7 @@ struct FilmCurve: Identifiable, Hashable, Sendable {
     let displayName: String
     let previewData: CurvePreviewData
     let isNeutral: Bool
-    let usesChannelCurves: Bool
+    var usesChannelCurves: Bool { previewData.usesChannelCurves }
     private let contentFingerprint: String
 
     private init(origin: Origin, displayName: String, data: CurvePreviewData, fingerprint: String = "") {
@@ -405,7 +418,6 @@ struct FilmCurve: Identifiable, Hashable, Sendable {
                 abs(pair.0 - pair.1) <= Float.ulpOfOne
             }
         }
-        usesChannelCurves = data.red != data.green || data.green != data.blue
     }
 
     var id: String {
@@ -431,11 +443,7 @@ struct FilmCurve: Identifiable, Hashable, Sendable {
     }
 
     func sampleGray(_ input: Float) -> CurveRGBSample {
-        CurveRGBSample(
-            red: CurveMath.sample(previewData.red, at: input),
-            green: CurveMath.sample(previewData.green, at: input),
-            blue: CurveMath.sample(previewData.blue, at: input)
-        )
+        previewData.sampleGray(input)
     }
 
     func applied(to lut: CubeLUT) -> CubeLUT {
@@ -477,10 +485,8 @@ struct FilmCurve: Identifiable, Hashable, Sendable {
         let red = combined(normalized.redPoints)
         let green = combined(normalized.greenPoints)
         let blue = combined(normalized.bluePoints)
-        let composite = red == green && green == blue ? red
-            : red.indices.map { (red[$0] + green[$0] + blue[$0]) / 3 }
         return FilmCurve(origin: .custom(normalized.id), displayName: normalized.name,
-            data: CurvePreviewData(red: red, green: green, blue: blue, master: composite),
+            data: CurvePreviewData(red: red, green: green, blue: blue),
             fingerprint: fingerprint(normalized))
     }
 

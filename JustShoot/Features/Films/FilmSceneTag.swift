@@ -50,9 +50,8 @@ enum FilmSceneTag: String, CaseIterable, Identifiable, Sendable {
 }
 
 extension FilmPreset {
-    var sceneTags: [FilmSceneTag] { recommendations.map(\.tag) }
-
+    /// The compact home tile shows the three lead subjects from the full guide.
     func sceneSubtitle(locale: Locale) -> String {
-        sceneTags.map { $0.localizedTitle(locale: locale) }.joined(separator: " · ")
+        recommendations.prefix(3).map { $0.tag.localizedTitle(locale: locale) }.joined(separator: " · ")
     }
 }

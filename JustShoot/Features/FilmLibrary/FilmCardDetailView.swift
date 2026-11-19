@@ -1,10 +1,13 @@
 import SwiftUI
 
 struct FilmCardDetailView: View {
+    private static let pageInset: CGFloat = 20
+
     let preset: FilmPreset
     @ObservedObject private var settings: FilmPageSettings
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var pageScheme
     @State private var selectedTag: FilmSceneTag?
     @State private var showsOriginal = false
 
@@ -23,34 +26,60 @@ struct FilmCardDetailView: View {
 
     private var detail: some View {
         let packaging = preset.coverDetails
-        return VStack(spacing: 0) {
-            navigationHeader
-            GeometryReader { geometry in
-                let wide = PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular)
-                let coverWidth = min(geometry.size.height * 0.76,
-                                     sizeClass == .regular ? PageLayout.detailCoverWidth : .infinity)
-                let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 32))
-                                  : AnyLayout(VStackLayout(alignment: .leading, spacing: 24))
-                ScrollView {
-                    VStack(spacing: 32) {
-                        layout {
-                            cover
-                                .frame(maxWidth: coverWidth)
-                                .frame(maxWidth: wide ? coverWidth : .infinity)
-                            VStack(alignment: .leading, spacing: 30) {
-                                filmInfo(packaging)
-                                gallery
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+        return GeometryReader { geometry in
+            let wide = PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular)
+            let pageWidth = wide ? PageLayout.browseWidth
+                : min(PageLayout.readingWidth, max(PageLayout.detailCoverWidth, geometry.size.height))
+            let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 32))
+                              : AnyLayout(VStackLayout(alignment: .leading, spacing: 24))
+            let scroll = ScrollView {
+                VStack(spacing: 64) {
+                    layout {
+                        cover
+                            .frame(maxWidth: wide ? PageLayout.detailCoverWidth : .infinity)
+                        VStack(alignment: .leading, spacing: 30) {
+                            filmInfo(packaging)
+                            gallery
+                            FilmToneCurveSection(preset: preset)
+                                .id(preset)
                         }
-                        shootingButton
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(.horizontal, 22)
-                    .padding(.top, 12)
-                    .padding(.bottom, 28)
-                    .pageContentWidth(wide ? PageLayout.browseWidth : PageLayout.readingWidth)
+                    shootingButton
                 }
-                .scrollIndicators(.hidden)
+                .padding(.top, 12)
+                .padding(.bottom, 44)
+                .padding(.horizontal, Self.pageInset)
+                .frame(maxWidth: pageWidth)
+                .frame(maxWidth: .infinity)
+            }
+            .scrollIndicators(.hidden)
+
+            let header = navigationHeader
+                .padding(.horizontal, Self.pageInset)
+                .frame(maxWidth: pageWidth)
+
+            if #available(iOS 26.0, *) {
+                scroll
+                    .safeAreaBar(edge: .top, spacing: 0) {
+                        header
+                            .frame(maxWidth: .infinity)
+                            .background {
+                                let base: Color = pageScheme == .dark ? .black : .white
+                                LinearGradient(stops: [
+                                    .init(color: base.opacity(0.82), location: 0),
+                                    .init(color: base.opacity(0.64), location: 0.72),
+                                    .init(color: .clear, location: 1)
+                                ], startPoint: .top, endPoint: .bottom)
+                                .ignoresSafeArea(edges: .top)
+                            }
+                            .environment(\.colorScheme, pageScheme)
+                    }
+                    .scrollEdgeEffectStyle(.soft, for: .top)
+            } else {
+                scroll.safeAreaInset(edge: .top, spacing: 0) {
+                    header.frame(maxWidth: .infinity).background(.thinMaterial)
+                }
             }
         }
         .background {
@@ -81,12 +110,11 @@ struct FilmCardDetailView: View {
 
             Text("Film Vault")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity)
 
             membership
         }
-        .padding(.horizontal, 18)
         .padding(.vertical, 4)
     }
 
@@ -141,9 +169,8 @@ struct FilmCardDetailView: View {
                     .font(.title3.weight(.semibold))
                     .accessibilityAddTraits(.isHeader)
 
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 8) { sceneButtons(recommendations, selected: selection.tag) }
-                    VStack(alignment: .leading, spacing: 2) { sceneButtons(recommendations, selected: selection.tag) }
+                FilmSceneTagLayout {
+                    sceneButtons(recommendations, selected: selection.tag)
                 }
 
                 let scene = selection.scene
@@ -175,8 +202,8 @@ struct FilmCardDetailView: View {
             Button { selectedTag = item.tag } label: {
                 Text(item.tag.title)
                     .font(.subheadline.weight(active ? .semibold : .regular))
-                    .fixedSize()
-                    .padding(.horizontal, 14)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12)
                     .padding(.vertical, 7)
                     .foregroundStyle(active ? Color(.systemBackground) : .primary)
                     .background(active ? Color.primary : Color.primary.opacity(0.06), in: Capsule())
@@ -256,5 +283,72 @@ struct FilmCardDetailView: View {
             }
         }
         .accessibilityIdentifier("filmLibrary.use.\(preset.id)")
+    }
+}
+
+private struct FilmToneCurveSection: View {
+    let preset: FilmPreset
+    @State private var data: CurvePreviewData?
+    @State private var failed = false
+    @State private var attempt = 0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Tone Curve")
+                .font(.title3.weight(.semibold))
+                .accessibilityAddTraits(.isHeader)
+            if let data {
+                CurveResponsePreview(data: data)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text("Tone Curve"))
+                    .accessibilityValue(Text(verbatim: preset.displayName))
+            } else if failed {
+                PageNotice(title: "Preview unavailable", systemImage: "waveform.path",
+                           action: .init(title: "Retry", icon: "arrow.clockwise") { attempt += 1 })
+            } else {
+                ProgressView().frame(maxWidth: .infinity, minHeight: 90)
+            }
+        }
+        .task(id: attempt) {
+            do {
+                let preview = try await FilmToneCurveCatalog.shared.preview(for: preset)
+                try Task.checkCancellation()
+                data = preview
+            } catch {
+                if !Task.isCancelled { failed = true }
+            }
+        }
+    }
+}
+
+/// Place tags at their natural widths and wrap in reading order as text grows.
+struct FilmSceneTagLayout: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let frames = frames(for: subviews, width: proposal.width ?? .infinity)
+        return CGSize(width: frames.map(\.maxX).max() ?? 0, height: frames.map(\.maxY).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for (subview, frame) in zip(subviews, frames(for: subviews, width: bounds.width)) {
+            subview.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                          anchor: .topLeading, proposal: ProposedViewSize(frame.size))
+        }
+    }
+
+    private func frames(for subviews: Subviews, width: CGFloat) -> [CGRect] {
+        var origin = CGPoint.zero
+        var rowBottom: CGFloat = 0
+        return subviews.map { subview in
+            let ideal = subview.sizeThatFits(.unspecified)
+            let size = ideal.width > width
+                ? subview.sizeThatFits(ProposedViewSize(width: width, height: nil)) : ideal
+            if origin.x > 0, origin.x + size.width > width {
+                origin = CGPoint(x: 0, y: rowBottom + 2)
+            }
+            let frame = CGRect(origin: origin, size: size)
+            rowBottom = max(rowBottom, frame.maxY)
+            origin.x = frame.maxX + 6
+            return frame
+        }
     }
 }

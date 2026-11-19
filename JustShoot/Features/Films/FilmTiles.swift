@@ -27,7 +27,7 @@ struct FilmPresetTile: View {
     }
 
     var body: some View {
-        let sceneTitles = preset.sceneTags.map { $0.localizedTitle(locale: locale) }
+        let subtitle = preset.sceneSubtitle(locale: locale)
 
         return VStack(alignment: .leading, spacing: 8) {
             coverArt
@@ -46,7 +46,7 @@ struct FilmPresetTile: View {
                     }
 
                     if textVisibility.showsSubtitle {
-                        Text(verbatim: sceneTitles.joined(separator: " · "))
+                        Text(verbatim: subtitle)
                             .font(.system(size: (sizeClass == .regular ? 12 : 11) * captionScale))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
@@ -57,7 +57,7 @@ struct FilmPresetTile: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(preset.rawSimulation != nil ? Text(verbatim: preset.displayName) : Text("\(preset.displayName), ISO \(Int(preset.iso))"))
-        .accessibilityValue(Text(verbatim: sceneTitles.joined(separator: " · ")))
+        .accessibilityValue(Text(verbatim: subtitle))
         .accessibilityHint("Start shooting with this film")
     }
 

@@ -1,8 +1,17 @@
 import SwiftUI
 
 struct CurveGraphView: View {
-    let curve: FilmCurve
+    let data: CurvePreviewData
     let accent: Color
+
+    init(data: CurvePreviewData, accent: Color) {
+        self.data = data
+        self.accent = accent
+    }
+
+    init(curve: FilmCurve, accent: Color) {
+        self.init(data: curve.previewData, accent: accent)
+    }
 
     private static let red = Color(red: 1.00, green: 0.30, blue: 0.28)
     private static let green = Color(red: 0.22, green: 0.86, blue: 0.40)
@@ -10,8 +19,7 @@ struct CurveGraphView: View {
 
     var body: some View {
         Canvas { context, size in
-            let data = curve.previewData
-            let identity = FilmCurve.builtIn(.none).previewData.master
+            let identity = CurveMath.identityTable
 
             var midtoneGuide = Path()
             midtoneGuide.move(to: CGPoint(x: size.width / 2, y: 2))
@@ -25,14 +33,14 @@ struct CurveGraphView: View {
                 style: StrokeStyle(lineWidth: 0.8, lineCap: .round, dash: [2, 2])
             )
 
-            if !curve.isNeutral {
+            if data.master != identity {
                 context.fill(
                     Self.deltaPath(curve: data.master, identity: identity, in: size),
                     with: .color(accent.opacity(0.20))
                 )
             }
 
-            if curve.usesChannelCurves {
+            if data.usesChannelCurves {
                 for (values, color) in [
                     (data.red, Self.red),
                     (data.green, Self.green),
@@ -48,7 +56,7 @@ struct CurveGraphView: View {
 
             context.stroke(
                 Self.linePath(from: data.master, in: size),
-                with: .color(curve.usesChannelCurves ? .white.opacity(0.88) : accent),
+                with: .color(data.usesChannelCurves ? .white.opacity(0.88) : accent),
                 style: StrokeStyle(lineWidth: 2.0, lineCap: .round, lineJoin: .round)
             )
         }
@@ -90,14 +98,17 @@ struct CurveGraphView: View {
 // MARK: - 五档输出色阶
 /// 比曲线图更直接地显示黑位、暗部、中间调、高光和白点；RGB 曲线的色偏也会真实显现。
 struct CurveOutputStrip: View {
-    let curve: FilmCurve
+    let data: CurvePreviewData
+
+    init(data: CurvePreviewData) { self.data = data }
+    init(curve: FilmCurve) { self.init(data: curve.previewData) }
 
     private static let inputs: [Float] = [0.03, 0.18, 0.42, 0.70, 0.96]
 
     var body: some View {
         HStack(spacing: 1) {
             ForEach(Self.inputs.indices, id: \.self) { index in
-                let sample = curve.sampleGray(Self.inputs[index])
+                let sample = data.sampleGray(Self.inputs[index])
                 Rectangle()
                     .fill(
                         Color(
@@ -116,6 +127,18 @@ struct CurveOutputStrip: View {
     }
 }
 
-// MARK: - 胶片单 cell
-/// Picker 条里单个胶片格子：纯 52×52 封面。选中态用黄色描边标识；用户可通过封面图本身
-/// 辨识胶片，不再叠加文字（节省空间 + 减少视觉噪声）。VoiceOver 仍朗读 source.displayName。
+/// Both the curve library and the film guide use the same graph and output scale.
+struct CurveResponsePreview: View {
+    let data: CurvePreviewData
+
+    var body: some View {
+        VStack(spacing: 6) {
+            CurveGraphView(data: data, accent: .white)
+                .aspectRatio(220.0 / 60, contentMode: .fit)
+            CurveOutputStrip(data: data)
+                .frame(height: 5)
+        }
+        .padding(8)
+        .background(Color(white: 0.085), in: .rect(cornerRadius: 9))
+    }
+}

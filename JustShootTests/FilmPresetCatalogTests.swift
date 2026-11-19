@@ -48,12 +48,13 @@ final class FilmPresetCatalogTests: XCTestCase {
         }
     }
 
-    func testEveryCapturePresetHasThreeDistinctSceneRecommendations() {
+    func testEveryCapturePresetHasFiveDistinctSceneRecommendations() {
         let vocabulary = Set(FilmSceneTag.allCases)
         for preset in FilmPreset.allCases {
-            XCTAssertEqual(preset.sceneTags.count, 3, preset.rawValue)
-            XCTAssertEqual(Set(preset.sceneTags).count, preset.sceneTags.count, preset.rawValue)
-            XCTAssertTrue(Set(preset.sceneTags).isSubset(of: vocabulary), preset.rawValue)
+            let tags = preset.recommendations.map(\.tag)
+            XCTAssertEqual(tags.count, 5, preset.rawValue)
+            XCTAssertEqual(Set(tags).count, tags.count, preset.rawValue)
+            XCTAssertTrue(Set(tags).isSubset(of: vocabulary), preset.rawValue)
         }
     }
 
