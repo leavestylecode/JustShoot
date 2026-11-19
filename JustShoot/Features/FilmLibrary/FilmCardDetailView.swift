@@ -132,9 +132,32 @@ struct FilmCardDetailView: View {
 
     private var introduction: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("About this film", tableName: "FilmIntroductions")
-                .font(.headline)
-                .accessibilityAddTraits(.isHeader)
+            HStack {
+                Text("About this film", tableName: "FilmIntroductions")
+                    .font(.headline)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Menu {
+                    let sources = preset.guideSources
+                    Link(destination: sources.manufacturer) {
+                        Text("Manufacturer’s guide", tableName: "FilmIntroductions")
+                    }
+                    Link(destination: sources.community) {
+                        Text("Photographers’ notes", tableName: "FilmIntroductions")
+                    }
+                    if let scene = selectedScene ?? preset.sampleScenes.first {
+                        Link(destination: scene.archiveURL) {
+                            Text("Photograph by Carol M. Highsmith", tableName: "FilmIntroductions")
+                        }
+                    }
+                } label: {
+                    Image(systemName: "book")
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .foregroundStyle(.primary)
+                .accessibilityLabel(Text("Sources", tableName: "FilmIntroductions"))
+            }
             Text(preset.introduction)
                 .font(.body)
                 .lineSpacing(3)
@@ -145,7 +168,7 @@ struct FilmCardDetailView: View {
     private var gallery: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let scene = selectedScene ?? preset.sampleScenes.first {
-                Text("OOO Samples")
+                Text("Sample photographs", tableName: "FilmIntroductions")
                     .font(.headline)
                     .accessibilityAddTraits(.isHeader)
                 let filename = scene.filename(gradedWith: showsOriginal ? nil : preset)

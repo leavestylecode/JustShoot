@@ -2363,6 +2363,23 @@
         }
       }
     },
+    "Documentary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Documentary"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "纪实"
+          }
+        }
+      }
+    },
     "Done" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3506,6 +3523,23 @@
         }
       }
     },
+    "Mountain pasture" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mountain pasture"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "山间牧场"
+          }
+        }
+      }
+    },
     "My Curve" : {
       "localizations" : {
         "zh-Hans" : {
@@ -4305,6 +4339,23 @@
         }
       }
     },
+    "Quilter on a porch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quilter on a porch"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "门廊里的拼布艺人"
+          }
+        }
+      }
+    },
     "RAW is unavailable for this camera configuration. Try the native 1× focal length on a RAW-capable camera, or choose another film. These Fujifilm presets require RAW capture." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4546,6 +4597,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "右侧"
+          }
+        }
+      }
+    },
+    "Roadside gas station" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Roadside gas station"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "路边加油站"
           }
         }
       }
@@ -5039,6 +5107,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "部分照片不可访问。请在设置中允许访问这些照片后再删除。"
+          }
+        }
+      }
+    },
+    "Sports" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sports"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "运动"
           }
         }
       }
@@ -5754,6 +5839,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "暖调印相"
+          }
+        }
+      }
+    },
+    "Wedding" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wedding"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "婚礼"
           }
         }
       }
@@ -6782,6 +6884,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "喜欢%@吗？"
+          }
+        }
+      }
+    },
+    "Family" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Family"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "家庭"
+          }
+        }
+      }
+    },
+    "Fashion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fashion"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时装"
           }
         }
       }

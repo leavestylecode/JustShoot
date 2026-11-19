@@ -98,6 +98,18 @@ final class FilmPresetCatalogTests: XCTestCase {
         }
     }
 
+    func testEveryGuideLinksToTheManufacturerAndAnIndependentSource() throws {
+        for preset in FilmPreset.allCases {
+            let sources = preset.guideSources
+            let hosts = try [sources.manufacturer, sources.community].map { url in
+                XCTAssertEqual(url.scheme, "https", preset.id)
+                XCTAssertFalse(url.path.isEmpty, preset.id)
+                return try XCTUnwrap(url.host, preset.id)
+            }
+            XCTAssertEqual(Set(hosts).count, 2, preset.id)
+        }
+    }
+
     func testSceneVocabularyAndSubtitlesFollowTheRequestedLanguage() {
         let english = Locale(identifier: "en")
         let chinese = Locale(identifier: "zh-Hans")
@@ -108,8 +120,8 @@ final class FilmPresetCatalogTests: XCTestCase {
             XCTAssertFalse(chineseTitle.isEmpty, tag.rawValue)
             XCTAssertNotEqual(englishTitle, chineseTitle, tag.rawValue)
         }
-        XCTAssertEqual(FilmPreset.fujiRawVelvia.sceneSubtitle(locale: english), "Sunset · Landscape · Forest")
-        XCTAssertEqual(FilmPreset.fujiRawVelvia.sceneSubtitle(locale: chinese), "日落 · 风光 · 森林")
-        XCTAssertEqual(FilmPreset.kodakPortra400.sceneSubtitle(locale: chinese), "人像 · 逆光 · 日落")
+        XCTAssertEqual(FilmPreset.fujiRawVelvia.sceneSubtitle(locale: english), "Landscape · Forest · Sunset")
+        XCTAssertEqual(FilmPreset.fujiRawVelvia.sceneSubtitle(locale: chinese), "风光 · 森林 · 日落")
+        XCTAssertEqual(FilmPreset.kodakPortra400.sceneSubtitle(locale: chinese), "人像 · 时装 · 旅行")
     }
 }

@@ -24,13 +24,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "C200 is a daylight color negative film made for everyday photography. Its bright blues stand apart from warm skin and brickwork, giving a sunny street a lively palette."
+            "value" : "Reds and greens stand out in daylight. Slightly warm skin and cool blue shadows give brickwork and nearby shade a clear colour separation."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "C200 是一款适合日常拍摄的日光型彩色负片。它把清亮的蓝色和偏暖的肤色、砖墙拉开，让晴天街头的颜色显得轻快。"
+            "value" : "日光下的红色和绿色鲜明，肤色略暖，暗部带一点青蓝。街边的砖墙和树荫放在一起，冷暖层次清楚。"
           }
         }
       }
@@ -41,13 +41,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pro 400H is a portrait color negative film known for its soft highlights and delicate greens. In open shade, cool shadows set off the warmer tones of a face."
+            "value" : "Skin is luminous, with soft highlights and a cool tint in the shadows. Pale fabric and a face in the same light keep their subtle tonal differences."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pro 400H 是一款人像彩色负片，以柔和的高光和清淡的绿色见长。在树荫下拍人，偏冷的阴影会自然衬出脸上的暖色。"
+            "value" : "肤色明亮，高光过渡柔和，阴影略偏冷。浅色衣料和脸部同时受光时，两者都能保留细腻的明暗层次。"
           }
         }
       }
@@ -58,13 +58,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PROVIA is Fujifilm’s standard camera simulation. Moderate contrast and balanced color keep blue sky, green trees and sunlit walls distinct in the same frame."
+            "value" : "Fujifilm’s standard simulation balances colour and contrast. Skin looks natural, while blue skies and green foliage stay distinct around a subject."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PROVIA 是富士相机的标准胶片模拟。适中的反差和平衡的色彩让蓝天、绿树和受光的墙面在同一幅画面里各自清晰，适合记录白天沿途的景色。"
+            "value" : "富士的标准模拟，饱和度和反差适中。肤色自然，蓝天和绿叶各自分明，适合在同一画面里交代人物与环境。"
           }
         }
       }
@@ -75,13 +75,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ACROS is Fujifilm’s monochrome simulation. Deep blacks anchor a long run of midtones, separating the texture of stone or fabric from the shadow beside it."
+            "value" : "Deep blacks and gentle highlights frame a finely graded range of greys. Side light brings out the contours of a face and the weave of clothing in a street portrait."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ACROS 是富士的黑白胶片模拟。厚实的黑色衬出细腻的中间调，石墙的纹理、衣料的褶皱和旁边的阴影，各有不同的灰度。"
+            "value" : "黑位深，高光柔和，中间的灰阶细腻。拍街头人像时，侧光能勾出脸部轮廓，也能带出衣料的纹理。"
           }
         }
       }
@@ -92,13 +92,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fujifilm’s ASTIA simulation gives skin a gentle transition from light to shade while keeping clothing colors vivid. In a window-lit portrait, the folds of a bright shirt can stand out alongside a softly lit face."
+            "value" : "Skin passes gently from light into shade, while reds and blues in clothing stay vivid. It suits portraits where the clothes matter as much as the face."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ASTIA 是富士为人像设计的胶片模拟。它让面部从亮处到阴影的过渡柔和，同时保留衣料的鲜明色彩。拍窗边人像时，既能看见脸颊上细微的光影，也能看清彩色衬衫的褶皱。"
+            "value" : "肤色从亮面到阴影过渡柔和，衣料的红色和蓝色依然鲜明。适合让人物和服装同时成为画面重点。"
           }
         }
       }
@@ -109,13 +109,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CLASSIC CHROME draws on the restrained color of documentary photographs. Muted reds and blues and firm shadows draw attention to gestures, faces and the shapes of buildings."
+            "value" : "Reds and greens are muted, with dense shadows. Street signs recede and the shapes of people and buildings take more of the frame."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CLASSIC CHROME 取材于纪实摄影的色彩风格。红色和蓝色较为含蓄，阴影扎实。在街头画面里，人物的手势、神情和建筑的形状更容易被看见。"
+            "value" : "红色和绿色的饱和度较低，阴影较深。街头招牌的颜色变得低调，人物和建筑的轮廓更突出。"
           }
         }
       }
@@ -126,13 +126,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Inspired by color negatives used for everyday snapshots, CLASSIC Neg. gives sunlit areas warmth and shadows depth. The same painted wall takes on two distinct tones where a shadow crosses it."
+            "value" : "Highlights lean warm and shadows take on a green cast. The transition is distinct enough to give the sunlit and shaded halves of a wall different hues."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CLASSIC Neg. 的灵感来自记录日常生活的彩色负片。它让受光处偏暖，背光处颜色更沉。同一面彩墙被树荫分成两半时，这种明暗间的色调变化尤其明显。"
+            "value" : "亮部偏暖，阴影略带青绿，明暗交界清晰。街角同一面墙的向阳处和背阴处，会呈现不同的色调。"
           }
         }
       }
@@ -143,13 +143,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fujifilm’s Velvia simulation takes its vivid palette from slide film. Blues and greens grow intense, and deep shadows give sunlit hills and foliage a strong outline."
+            "value" : "Blues and greens are intense, with deep shadows and strong contrast. Warm evening light on a hillside stands out against the slopes in shade."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "富士的 Velvia 胶片模拟沿用了反转片浓郁的色彩。蓝天和绿叶更鲜明，阴影也更深，适合表现阳光在山脊和树林间划出的轮廓。"
+            "value" : "蓝天和绿叶色彩浓烈，阴影深，明暗反差强。傍晚的暖光落在山坡上时，与背阴处的色差尤其明显。"
           }
         }
       }
@@ -160,13 +160,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Provia 100F is a fine-grained color slide film with balanced saturation. It suits scenes where changes in the light matter as much as color, such as a shaded coast beneath a bright sky."
+            "value" : "This slide-film look has clear colour, moderate saturation and slightly cool highlights. In even daylight, skies retain tonal variation and skin keeps a natural flush."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Provia 100F 是一款颗粒细腻、色彩均衡的彩色反转片。拍摄晴空下的海岸时，海水的颜色和岸边阴影的层次都能成为画面的一部分。"
+            "value" : "这款反转片模拟的色彩清晰，饱和度适中，亮部略偏冷。柔和日光下，天空有层次，肤色也能保留自然的红润。"
           }
         }
       }
@@ -177,13 +177,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Superia X-TRA 400 is an everyday color negative film with a lively palette. In an evening street scene, cool daylight and warm shop windows can each keep their own color."
+            "value" : "Reds are vivid, blues are clear and shadows lean cool. In a street scene, warm skin in the light stands apart from blue-grey areas in shade."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Superia X-TRA 400 是一款色彩明快的日常彩色负片。傍晚的街道上，偏冷的天光和偏暖的橱窗灯光可以各自保有颜色，适合记录两种光线交会的时刻。"
+            "value" : "红色鲜明，蓝色清透，暗部略偏冷。用来拍街景，亮处的暖肤色与背阴处的蓝灰色对比清楚。"
           }
         }
       }
@@ -194,13 +194,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Velvia 50 is a low-speed color slide film prized by landscape photographers. Dense greens, saturated reds and deep shadows give foliage and the last light on a ridge a vivid presence."
+            "value" : "This slide-film look gives skies a cool blue and renders red flowers and green foliage in rich colour. Deep shade sets off patches of light across a landscape."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Velvia 50 是一款低感光度彩色反转片，因浓郁的颜色而受到风光摄影师喜爱。它的绿色深厚，红色饱满，适合表现林间的层次和日落时山顶的最后一抹光。"
+            "value" : "这款反转片模拟让蓝天偏冷，红花和绿叶色彩浓郁。深色阴影衬出受光的色块，适合表现山林和花卉的色彩层次。"
           }
         }
       }
@@ -211,13 +211,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HP5 Plus 400 is a black-and-white film favored for documentary work. Its broad midtones keep detail in faces and worn surfaces, even in the soft light of an overcast street."
+            "value" : "Moderate contrast pairs solid shadows with a broad range of mid-greys. In side light, the shaded side of a face remains distinct from dark clothing."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HP5 Plus 400 是纪实摄影中常见的黑白负片。丰富的中间调适合表现面孔和旧物的表面，在阴天柔和的光线下，细微的灰度变化也有层次。"
+            "value" : "黑白反差适中，暗部扎实，中灰层次丰富。室内侧光下，脸部背光一侧的轮廓和深色衣物仍然容易分辨。"
           }
         }
       }
@@ -228,13 +228,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ektar 100 pairs very fine grain with saturated color. It brings out small textures in brightly colored subjects, from flower petals to painted walls in direct sun."
+            "value" : "High saturation separates blue skies, green foliage and red subjects. Slightly cool highlights set off sunlit brick and warm rock."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ektar 100 是一款兼具细颗粒和高饱和度的彩色负片。日光下的花瓣、漆面和砖墙既有鲜明的色块，也有值得近看的细小纹理。"
+            "value" : "饱和度高，蓝天、绿叶和红色物体之间的色差明显。亮部略带冷色，阳光下的红砖和暖色岩石格外醒目。"
           }
         }
       }
@@ -245,13 +245,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gold 200 is a daylight color negative film long associated with family snapshots. Its warm yellows and reds give afternoon sunlight, brick walls and sandy beaches a familiar glow."
+            "value" : "The palette leans warm, with pronounced yellows and oranges and a reddish-brown tint in deep shade. Sunlit skin, dry grass and pale walls take on a golden tone."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gold 200 是一款日光型彩色负片，常见于家庭相册。偏暖的黄色和红色是它的特点，午后的阳光落在砖墙或沙滩上时，这层金黄色调尤为明显。"
+            "value" : "整体偏暖，黄色和橙色尤其鲜明，暗部带一点红褐色。日光下的肤色、干草和浅色墙面容易呈现金黄色调。"
           }
         }
       }
@@ -262,13 +262,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kodachrome 64 is the color slide film associated with decades of projected travel photographs. Rich reds, clear blues and deep shadows give sunlit streets a distinctive palette."
+            "value" : "Reds and earth tones have weight against cool skies and deep shade. Brick, painted cars and sky keep distinct colours in daylight street scenes."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kodachrome 64 是一款经典彩色反转片，曾被广泛用于拍摄旅行幻灯片。浓郁的红色、清晰的蓝色和深沉的阴影，让晴天街景里的招牌与天空格外醒目。"
+            "value" : "红色和土色沉稳，蓝天略冷，阴影深。日光下的红砖、旧车漆和天空各有清晰的颜色，适合记录旅途中的街景。"
           }
         }
       }
@@ -279,13 +279,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Portra 400 is a color negative film designed for portraits. Warm skin tones and gentle contrast suit a face lit from the side, where a bright cheek gradually falls into shadow."
+            "value" : "Skin leans warm, with moderate contrast and a gentle transition across the face into shade. Pale clothing gives the warmth of the skin a neutral point of comparison."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Portra 400 是柯达为人像拍摄设计的彩色负片。它的肤色偏暖，反差柔和，适合表现侧光下脸颊从明亮处逐渐转入阴影的细微变化。"
+            "value" : "肤色偏暖，反差适中，脸部从亮面到阴影过渡柔和。浅色衣服与皮肤同框时，亮部的中性色能衬出肤色的暖意。"
           }
         }
       }
@@ -296,13 +296,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Portra 800 is the high-speed portrait film in the Portra family. It is known for warm skin tones and visible grain, a combination that suits portraits made by a café window at dusk."
+            "value" : "Skin is warm, with soft shadows and slightly cool highlights. Under mixed indoor light, a lamp-lit face keeps its warmth beside cooler window light."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Portra 800 是 Portra 系列中的高感光度人像负片。温暖的肤色和可见的颗粒是它的特点，很适合傍晚坐在咖啡馆窗边、脸上还留着一点天光的人。"
+            "value" : "肤色偏暖，暗部柔和，亮部略偏冷。拍室内人物时，暖灯下的脸与窗边较冷的日光仍有清楚的色温差。"
           }
         }
       }
@@ -313,13 +313,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "T-Max 100 is a fine-grained black-and-white film with a smooth tonal scale. Subtle changes in gray give definition to pale stone, metal and the edges of architectural shadows."
+            "value" : "Smooth gradations from pale to dark grey reveal small differences in tone. Stone, fabric and still-life subjects show their surface texture even in gentle light."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "T-Max 100 是一款细颗粒黑白负片，灰阶过渡平滑。浅色石材、金属表面以及建筑投影的边缘，都适合用它来表现细微的明暗变化。"
+            "value" : "从浅灰到深灰过渡平滑，细微的明暗差也清晰可见。拍石墙、衣料或静物时，表面纹理比大块黑白反差更突出。"
           }
         }
       }
@@ -330,13 +330,98 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tri-X 400 has a long history in black-and-white reportage. Distinct grain and strong dark tones lend shape to a moving figure, especially against a brightly lit street."
+            "value" : "Bright midtones give lit surfaces clear separation from shade. In a street portrait, light catching a face or a pale shirt draws the subject out of the background."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tri-X 400 长期用于黑白新闻与纪实摄影。鲜明的颗粒和厚重的暗调让人物轮廓突出，在明亮街面前拍一个走过的人，就能看到这种黑白反差。"
+            "value" : "中间调明亮，亮面和暗面分隔鲜明。拍街头人物时，光照在脸上或浅色衣服上，主体容易从背景中显出来。"
+          }
+        }
+      }
+    },
+    "Manufacturer’s guide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manufacturer’s guide"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "厂商资料"
+          }
+        }
+      }
+    },
+    "Photograph by Carol M. Highsmith" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photograph by Carol M. Highsmith"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "样片摄影 · Carol M. Highsmith"
+          }
+        }
+      }
+    },
+    "Photographers’ notes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photographers’ notes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "摄影社区实拍"
+          }
+        }
+      }
+    },
+    "Sample photographs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sample photographs"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "样片"
+          }
+        }
+      }
+    },
+    "Sources" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sources"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资料来源"
           }
         }
       }

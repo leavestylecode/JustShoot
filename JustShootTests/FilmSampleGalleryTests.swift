@@ -18,8 +18,8 @@ final class FilmSampleGalleryTests: XCTestCase {
         let processor = FilmProcessor()
         for preset in FilmPreset.allCases {
             let scenes = preset.sampleScenes
-            XCTAssertEqual(scenes.count, 3)
-            XCTAssertEqual(Set(scenes).count, scenes.count)
+            XCTAssertEqual(Set(scenes), Set(FilmSampleScene.allCases), preset.id)
+            XCTAssertEqual(scenes.count, FilmSampleScene.allCases.count, preset.id)
             let lut = try processor.loadLUT(source: .preset(preset))
             for scene in scenes {
                 try autoreleasepool {

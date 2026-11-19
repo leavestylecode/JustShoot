@@ -8,6 +8,8 @@ enum FilmSceneTag: String, CaseIterable, Identifiable, Sendable {
     case portrait, street, landscape, architecture, stillLife, flowers, food, travel
     case indoor, forest, beach, snow
 
+    case documentary, family, fashion, wedding, sports
+
     var id: String { rawValue }
 
     var title: LocalizedStringResource {
@@ -32,6 +34,11 @@ enum FilmSceneTag: String, CaseIterable, Identifiable, Sendable {
         case .forest: return "Forest"
         case .beach: return "Beach"
         case .snow: return "Snow"
+        case .documentary: return "Documentary"
+        case .family: return "Family"
+        case .fashion: return "Fashion"
+        case .wedding: return "Wedding"
+        case .sports: return "Sports"
         }
     }
 
@@ -46,25 +53,25 @@ extension FilmPreset {
     /// Ordered recommendations for the film-page subtitle, independent of rendering recipes.
     var sceneTags: [FilmSceneTag] {
         switch self {
-        case .fujiRawVelvia: return [.sunset, .landscape, .forest]
-        case .fujiRawASTIA: return [.sunny, .portrait, .flowers]
-        case .fujiRawClassicChrome: return [.cloudy, .street, .architecture]
-        case .fujiRawClassicNeg: return [.sunny, .street, .travel]
-        case .fujiRawACROS: return [.street, .architecture, .portrait]
-        case .fujiC200: return [.sunny, .travel, .street]
-        case .fujiPro400H: return [.cloudy, .portrait, .indoor]
-        case .fujiProvia100F: return [.sunny, .landscape, .travel]
-        case .kodakPortra400: return [.portrait, .backlight, .sunset]
-        case .kodakGold200: return [.sunny, .travel, .street]
-        case .kodakEktar100: return [.landscape, .sunny, .flowers]
+        case .fujiRawVelvia: return [.landscape, .forest, .sunset]
+        case .fujiRawASTIA: return [.portrait, .fashion, .indoor]
+        case .fujiRawClassicChrome: return [.documentary, .street, .travel]
+        case .fujiRawClassicNeg: return [.street, .family, .travel]
+        case .fujiRawACROS: return [.street, .portrait, .architecture]
+        case .fujiC200: return [.sunny, .portrait, .landscape]
+        case .fujiPro400H: return [.portrait, .wedding, .fashion]
+        case .fujiProvia100F: return [.travel, .portrait, .landscape]
+        case .kodakPortra400: return [.portrait, .fashion, .travel]
+        case .kodakGold200: return [.family, .sunny, .travel]
+        case .kodakEktar100: return [.landscape, .travel, .stillLife]
         case .kodakPortra800: return [.portrait, .indoor, .night]
-        case .fujiSuperiaXTRA400: return [.street, .travel, .cloudy]
-        case .fujiVelvia50: return [.landscape, .sunset, .forest]
-        case .fujiSlideProvia100F: return [.sunny, .landscape, .travel]
-        case .kodakKodachrome64: return [.travel, .street, .sunny]
-        case .kodakTriX400: return [.street, .portrait, .night]
-        case .ilfordHP5Plus400: return [.street, .cloudy, .portrait]
-        case .kodakTMax100: return [.architecture, .sunny, .street]
+        case .fujiSuperiaXTRA400: return [.street, .family, .travel]
+        case .fujiVelvia50: return [.landscape, .flowers, .forest]
+        case .fujiSlideProvia100F: return [.landscape, .portrait, .stillLife]
+        case .kodakKodachrome64: return [.travel, .street, .landscape]
+        case .kodakTriX400: return [.street, .documentary, .sports]
+        case .ilfordHP5Plus400: return [.documentary, .indoor, .travel]
+        case .kodakTMax100: return [.architecture, .stillLife, .sunny]
         }
     }
 
