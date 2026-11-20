@@ -5,6 +5,7 @@ struct MainTabView: View {
     let customFilters: [HomeCustomFilter]
     let isRevealed: Bool
     @SceneStorage("selectedTab") private var selectedTab = MainTab.films
+    @State private var vaultPath = NavigationPath()
     @Environment(\.modelContext) private var modelContext
     @ObservedObject private var capturePipeline = CapturePipeline.shared
     @Environment(\.scenePhase) private var scenePhase
@@ -20,14 +21,15 @@ struct MainTabView: View {
                 .mainTabItem(.films)
             NavigationStack { GalleryView(isRevealed: isRevealed) }
                 .mainTabItem(.photos)
-            NavigationStack { FilmCardLibraryView() }
+            NavigationStack(path: $vaultPath) { FilmCardLibraryView() }
+                // Only the vault root shows the native bar. Details and camera are full-screen.
+                .toolbar(capsuleSelection == nil && vaultPath.isEmpty ? .visible : .hidden, for: .tabBar)
                 .mainTabItem(.library)
             SettingsView()
                 .mainTabItem(.settings)
         }
         .environment(\.capsuleTabSelection, capsuleSelection)
-        // 向下滚动时自动收起成 mini tab 栏（iOS 26），上滑恢复——给内容腾出更多竖向空间。
-        .scrollingTabBar()
+        .keepTabBarExpanded()
         .tint(.primary)
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             ImageLoader.shared.clearCache()

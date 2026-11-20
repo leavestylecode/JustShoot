@@ -23,9 +23,10 @@ extension View {
     }
 
     @ViewBuilder
-    func scrollingTabBar() -> some View {
+    func keepTabBarExpanded() -> some View {
         if #available(iOS 26.0, *) {
-            tabBarMinimizeBehavior(.onScrollDown)
+            // A minimized icon-only bar conceals the other destinations.
+            tabBarMinimizeBehavior(.never)
         } else {
             self
         }
