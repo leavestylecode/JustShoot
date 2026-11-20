@@ -117,7 +117,7 @@ final class FilmTileLayoutTests: XCTestCase {
         for preset in FilmPreset.allCases {
             let title = preset.tileTitle
             let titleWidth = (title as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: titleSize, weight: .semibold)]).width
-            let subtitleWidth = (preset.sceneSubtitle(locale: locale) as NSString)
+            let subtitleWidth = (preset.sceneSubtitles(locale: locale).compact as NSString)
                 .size(withAttributes: [.font: UIFont.systemFont(ofSize: subtitleSize)]).width
             if visibility.showsTitle {
                 XCTAssertLessThanOrEqual(ceil(titleWidth), width, "\(locale.identifier) \(title)", file: file, line: line)

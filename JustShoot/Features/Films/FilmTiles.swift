@@ -27,7 +27,7 @@ struct FilmPresetTile: View {
     }
 
     var body: some View {
-        let subtitle = preset.sceneSubtitle(locale: locale)
+        let subtitles = preset.sceneSubtitles(locale: locale)
 
         return VStack(alignment: .leading, spacing: 8) {
             coverArt
@@ -46,18 +46,21 @@ struct FilmPresetTile: View {
                     }
 
                     if textVisibility.showsSubtitle {
-                        Text(verbatim: subtitle)
-                            .font(.system(size: (sizeClass == .regular ? 12 : 11) * captionScale))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        ViewThatFits(in: .horizontal) {
+                            Text(verbatim: subtitles.full).fixedSize()
+                            Text(verbatim: subtitles.compact)
+                        }
+                        .font(.system(size: (sizeClass == .regular ? 12 : 11) * captionScale))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(preset.rawSimulation != nil ? Text(verbatim: preset.displayName) : Text("\(preset.displayName), ISO \(Int(preset.iso))"))
-        .accessibilityValue(Text(verbatim: subtitle))
+        .accessibilityValue(Text(verbatim: subtitles.full))
         .accessibilityHint("Start shooting with this film")
     }
 
@@ -80,7 +83,7 @@ struct FilmPresetTile: View {
 }
 
 enum FilmTileLayout {
-    /// Wider cells keep the full English recommendations on one line at 11 pt.
+    /// Allow room for complete scene names in English at the grid's caption size.
     static func minimumWidth(locale: Locale, textVisibility: FilmTileTextVisibility = .init()) -> CGFloat {
         if textVisibility.showsSubtitle, locale.language.languageCode?.identifier != "zh" { return 160 }
         // Keep CLASSIC CHROME complete at the minimum 11 pt title size.

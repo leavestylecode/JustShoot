@@ -2,19 +2,20 @@ import Foundation
 
 /// Shared scene vocabulary. Keep identifiers independent of translated display names.
 enum FilmSceneTag: String, CaseIterable, Identifiable, Sendable {
-    case sunny, cloudy, rainy
+    case cloudy, rainy
     case sunrise, sunset, night
     case backlight, neon
-    case portrait, street, landscape, architecture, stillLife, flowers, food, travel
-    case indoor, forest, beach, snow
+    case portrait, street, landscape, architecture, stillLife, flowers, food
+    case forest, beach, snow
 
-    case documentary, family, fashion, wedding, sports
+    case documentary, fashion, wedding, sports
+    case familyPortrait, childPortrait, indoorPortrait, festival, teaCeremony
+    case trains, roadside, seascape, streetscape, market, harvest
 
     var id: String { rawValue }
 
     var title: LocalizedStringResource {
         switch self {
-        case .sunny: return "Sunny"
         case .cloudy: return "Cloudy"
         case .rainy: return "Rainy"
         case .sunrise: return "Sunrise"
@@ -29,16 +30,24 @@ enum FilmSceneTag: String, CaseIterable, Identifiable, Sendable {
         case .stillLife: return "Still life"
         case .flowers: return "Flowers"
         case .food: return "Food"
-        case .travel: return "Travel"
-        case .indoor: return "Indoor"
         case .forest: return "Forest"
         case .beach: return "Beach"
         case .snow: return "Snow"
         case .documentary: return "Documentary"
-        case .family: return "Family"
         case .fashion: return "Fashion"
         case .wedding: return "Wedding"
         case .sports: return "Sports"
+        case .familyPortrait: return .init("Family portrait", table: "FilmIntroductions")
+        case .childPortrait: return .init("Child portrait", table: "FilmIntroductions")
+        case .indoorPortrait: return .init("Indoor portrait", table: "FilmIntroductions")
+        case .festival: return .init("Festivals", table: "FilmIntroductions")
+        case .teaCeremony: return .init("Tea ceremony", table: "FilmIntroductions")
+        case .trains: return .init("Trains", table: "FilmIntroductions")
+        case .roadside: return .init("Roadside", table: "FilmIntroductions")
+        case .seascape: return .init("Seascape", table: "FilmIntroductions")
+        case .streetscape: return .init("Streetscape", table: "FilmIntroductions")
+        case .market: return .init("Market", table: "FilmIntroductions")
+        case .harvest: return .init("Harvest", table: "FilmIntroductions")
         }
     }
 
@@ -50,8 +59,8 @@ enum FilmSceneTag: String, CaseIterable, Identifiable, Sendable {
 }
 
 extension FilmPreset {
-    /// The compact home tile shows the three lead subjects from the full guide.
-    func sceneSubtitle(locale: Locale) -> String {
-        recommendations.prefix(3).map { $0.tag.localizedTitle(locale: locale) }.joined(separator: " · ")
+    func sceneSubtitles(locale: Locale) -> (full: String, compact: String) {
+        let titles = recommendations.prefix(3).map { $0.tag.localizedTitle(locale: locale) }
+        return (titles.joined(separator: " · "), titles.prefix(2).joined(separator: " · "))
     }
 }

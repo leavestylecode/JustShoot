@@ -63,60 +63,60 @@ extension FilmPreset {
         switch self {
         case .fujiRawVelvia:
             [.init(.landscape, .fuji), .init(.forest, .bamboo), .init(.sunset, .seaSunset),
-             .init(.flowers, .hydrangea), .init(.travel, .torii)]
+             .init(.flowers, .hydrangea), .init(.architecture, .torii)]
         case .fujiRawASTIA:
-            [.init(.portrait, .park), .init(.fashion, .kimono), .init(.indoor, .teaMaster),
-             .init(.wedding, .wedding), .init(.family, .ceremony)]
+            [.init(.portrait, .park), .init(.fashion, .kimono), .init(.teaCeremony, .teaMaster),
+             .init(.wedding, .wedding), .init(.childPortrait, .ceremony)]
         case .fujiRawClassicChrome:
-            [.init(.documentary, .fishMarket), .init(.street, .shoppingStreet), .init(.travel, .train),
+            [.init(.documentary, .fishMarket), .init(.street, .shoppingStreet), .init(.trains, .train),
              .init(.architecture, .torii), .init(.portrait, .teaPortrait)]
         case .fujiRawClassicNeg:
-            [.init(.street, .train), .init(.family, .festival), .init(.travel, .asakusa),
+            [.init(.trains, .train), .init(.festival, .festival), .init(.streetscape, .asakusa),
              .init(.documentary, .fishMarket), .init(.portrait, .park)]
         case .fujiRawACROS:
             [.init(.street, .asakusa), .init(.portrait, .teaPortrait), .init(.architecture, .torii),
-             .init(.documentary, .fishMarket), .init(.indoor, .teaMaster)]
+             .init(.documentary, .fishMarket), .init(.teaCeremony, .teaMaster)]
         case .fujiC200:
-            [.init(.sunny, .asakusa), .init(.portrait, .park), .init(.landscape, .fuji),
-             .init(.travel, .train), .init(.flowers, .hydrangea)]
+            [.init(.streetscape, .asakusa), .init(.portrait, .park), .init(.landscape, .fuji),
+             .init(.trains, .train), .init(.flowers, .hydrangea)]
         case .fujiPro400H:
             [.init(.portrait, .teaPortrait), .init(.wedding, .wedding), .init(.fashion, .kimono),
-             .init(.family, .ceremony), .init(.flowers, .hydrangea)]
+             .init(.childPortrait, .ceremony), .init(.flowers, .hydrangea)]
         case .fujiProvia100F:
-            [.init(.travel, .train), .init(.portrait, .park), .init(.landscape, .torii),
+            [.init(.trains, .train), .init(.portrait, .park), .init(.landscape, .torii),
              .init(.architecture, .asakusa), .init(.stillLife, .wagashi)]
         case .kodakPortra400:
-            [.init(.portrait, .quilter), .init(.fashion, .hats), .init(.travel, .roadside),
-             .init(.family, .fair), .init(.indoor, .diner)]
+            [.init(.portrait, .quilter), .init(.fashion, .hats), .init(.roadside, .roadside),
+             .init(.familyPortrait, .fair), .init(.indoorPortrait, .diner)]
         case .kodakGold200:
-            [.init(.family, .fair), .init(.sunny, .pinkDiner), .init(.travel, .roadside),
+            [.init(.familyPortrait, .fair), .init(.streetscape, .pinkDiner), .init(.roadside, .roadside),
              .init(.portrait, .quilter), .init(.landscape, .ranch)]
         case .kodakEktar100:
-            [.init(.landscape, .ranch), .init(.travel, .pinkDiner), .init(.stillLife, .boots),
-             .init(.architecture, .roadside), .init(.food, .fruitStand)]
+            [.init(.landscape, .ranch), .init(.streetscape, .pinkDiner), .init(.stillLife, .boots),
+             .init(.architecture, .roadside), .init(.market, .fruitStand)]
         case .kodakPortra800:
-            [.init(.portrait, .quilter), .init(.indoor, .diner), .init(.night, .motel),
+            [.init(.portrait, .quilter), .init(.indoorPortrait, .diner), .init(.neon, .motel),
              .init(.documentary, .fruitStand), .init(.sports, .ballpark)]
         case .fujiSuperiaXTRA400:
-            [.init(.street, .shoppingStreet), .init(.family, .ceremony), .init(.travel, .torii),
-             .init(.indoor, .fishMarket), .init(.documentary, .festival)]
+            [.init(.street, .shoppingStreet), .init(.childPortrait, .ceremony), .init(.architecture, .torii),
+             .init(.market, .fishMarket), .init(.documentary, .festival)]
         case .fujiVelvia50:
             [.init(.landscape, .fuji), .init(.flowers, .hydrangea), .init(.forest, .bamboo),
-             .init(.sunset, .seaSunset), .init(.travel, .torii)]
+             .init(.sunset, .seaSunset), .init(.architecture, .torii)]
         case .fujiSlideProvia100F:
             [.init(.landscape, .seaSunset), .init(.portrait, .park), .init(.stillLife, .wagashi),
              .init(.architecture, .torii), .init(.flowers, .hydrangea)]
         case .kodakKodachrome64:
-            [.init(.travel, .roadside), .init(.street, .fruitStand), .init(.landscape, .ranch),
-             .init(.sunny, .pinkDiner), .init(.portrait, .quilter)]
+            [.init(.roadside, .roadside), .init(.market, .fruitStand), .init(.landscape, .ranch),
+             .init(.streetscape, .pinkDiner), .init(.portrait, .quilter)]
         case .kodakTriX400:
-            [.init(.street, .fruitStand), .init(.documentary, .fair), .init(.sports, .ballpark),
-             .init(.portrait, .quilter), .init(.indoor, .diner)]
+            [.init(.market, .fruitStand), .init(.documentary, .fair), .init(.sports, .ballpark),
+             .init(.portrait, .quilter), .init(.indoorPortrait, .diner)]
         case .ilfordHP5Plus400:
-            [.init(.documentary, .foodStall), .init(.indoor, .borough), .init(.travel, .pier),
+            [.init(.documentary, .foodStall), .init(.market, .borough), .init(.seascape, .pier),
              .init(.street, .lambStreet), .init(.architecture, .cullumStreet)]
         case .kodakTMax100:
-            [.init(.architecture, .pinkDiner), .init(.stillLife, .boots), .init(.sunny, .orchard),
+            [.init(.architecture, .pinkDiner), .init(.stillLife, .boots), .init(.harvest, .orchard),
              .init(.landscape, .ranch), .init(.portrait, .quilter)]
         }
     }

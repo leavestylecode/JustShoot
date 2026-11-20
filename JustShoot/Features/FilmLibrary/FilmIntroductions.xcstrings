@@ -1,6 +1,116 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Child portrait" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "儿童人像"
+          }
+        }
+      }
+    },
+    "Family portrait" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "亲子合影"
+          }
+        }
+      }
+    },
+    "Festivals" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "节庆"
+          }
+        }
+      }
+    },
+    "Harvest" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "秋收"
+          }
+        }
+      }
+    },
+    "Indoor portrait" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "室内人像"
+          }
+        }
+      }
+    },
+    "Market" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "市集"
+          }
+        }
+      }
+    },
+    "Roadside" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "公路沿线"
+          }
+        }
+      }
+    },
+    "Seascape" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "海景"
+          }
+        }
+      }
+    },
+    "Streetscape" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "街景"
+          }
+        }
+      }
+    },
+    "Tea ceremony" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "茶道"
+          }
+        }
+      }
+    },
+    "Trains" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "列车"
+          }
+        }
+      }
+    },
     "asakusa" : {
       "extractionState" : "manual",
       "localizations" : {

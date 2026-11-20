@@ -55,6 +55,9 @@ final class FilmPresetCatalogTests: XCTestCase {
             XCTAssertEqual(tags.count, 5, preset.rawValue)
             XCTAssertEqual(Set(tags).count, tags.count, preset.rawValue)
             XCTAssertTrue(Set(tags).isSubset(of: vocabulary), preset.rawValue)
+            for locale in [Locale(identifier: "en"), Locale(identifier: "zh-Hans")] {
+                XCTAssertEqual(Set(tags.map { $0.localizedTitle(locale: locale) }).count, 5, preset.id)
+            }
         }
     }
 
@@ -109,8 +112,9 @@ final class FilmPresetCatalogTests: XCTestCase {
             XCTAssertFalse(chineseTitle.isEmpty, tag.rawValue)
             XCTAssertNotEqual(englishTitle, chineseTitle, tag.rawValue)
         }
-        XCTAssertEqual(FilmPreset.fujiRawVelvia.sceneSubtitle(locale: english), "Landscape · Forest · Sunset")
-        XCTAssertEqual(FilmPreset.fujiRawVelvia.sceneSubtitle(locale: chinese), "风光 · 森林 · 日落")
-        XCTAssertEqual(FilmPreset.kodakPortra400.sceneSubtitle(locale: chinese), "人像 · 时装 · 旅行")
+        XCTAssertEqual(FilmPreset.fujiRawVelvia.sceneSubtitles(locale: english).full, "Landscape · Forest · Sunset")
+        XCTAssertEqual(FilmPreset.fujiRawVelvia.sceneSubtitles(locale: chinese).full, "风光 · 森林 · 日落")
+        XCTAssertEqual(FilmPreset.kodakGold200.sceneSubtitles(locale: chinese).full, "亲子合影 · 街景 · 公路沿线")
+        XCTAssertEqual(FilmPreset.kodakGold200.sceneSubtitles(locale: english).compact, "Family portrait · Streetscape")
     }
 }

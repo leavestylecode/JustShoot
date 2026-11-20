@@ -163,17 +163,11 @@ struct FilmCardDetailView: View {
         let recommendations = preset.recommendations
         return VStack(alignment: .leading, spacing: 12) {
             if let selection = recommendations.first(where: { $0.tag == selectedTag }) ?? recommendations.first {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Recommended scenes")
-                        .font(.subheadline.weight(.semibold))
-                        .tracking(0.6)
-                        .foregroundStyle(Color.primary.opacity(0.74))
-                        .accessibilityAddTraits(.isHeader)
-
-                    FilmSceneTagLayout {
-                        sceneButtons(recommendations, selected: selection.tag)
-                    }
+                FilmSceneTagLayout {
+                    sceneButtons(recommendations, selected: selection.tag)
                 }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Recommended scenes")
 
                 let scene = selection.scene
                 let filename = scene.filename(gradedWith: showsOriginal ? nil : preset)
