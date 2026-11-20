@@ -2,10 +2,10 @@ import XCTest
 @testable import JustShoot
 
 final class FilmLUTCatalogTests: XCTestCase {
-    func testEveryBundledCaptureLUTHasOneEntryAndAnAvailableCover() throws {
+    func testCatalogHasSeventeenSelectableLooksWithAvailableCovers() throws {
         let catalog = try XCTUnwrap(FilmLUTCatalog.availablePresets())
-        XCTAssertEqual(catalog.count, 19)
-        XCTAssertEqual(Set(catalog), Set(FilmPreset.allCases))
+        XCTAssertEqual(catalog.count, 17)
+        XCTAssertEqual(Set(catalog), Set(FilmPreset.allCases).subtracting([.fujiVelvia50, .fujiSlideProvia100F]))
         XCTAssertEqual(catalog.prefix(9), FilmPagePreferences.defaultPresets[...])
         for preset in catalog {
             let filename = try XCTUnwrap(preset.libraryCardImage)
@@ -19,8 +19,9 @@ final class FilmLUTCatalogTests: XCTestCase {
         XCTAssertTrue(FilmLUTCatalog.presets(withLUTs: []).isEmpty)
     }
 
-    func testCameraSimulationsKeepDistinctCoversFromPhysicalFilms() {
-        XCTAssertNotEqual(FilmPreset.fujiVelvia50.libraryCardImage, FilmPreset.fujiRawVelvia.libraryCardImage)
-        XCTAssertNotEqual(FilmPreset.fujiSlideProvia100F.libraryCardImage, FilmPreset.fujiProvia100F.libraryCardImage)
+    func testOnlySelectedVelviaAndProviaAppearEvenWithLegacyTablesBundled() {
+        let films = FilmLUTCatalog.presets(withLUTs: ["FujiRawVelvia", "FujiVelvia50", "FujiRawPROVIA", "FujiProvia100F"])
+        XCTAssertEqual(films, [.fujiRawVelvia, .fujiProvia100F])
+        XCTAssertTrue(FilmLUTCatalog.presets(withLUTs: ["FujiVelvia50", "FujiProvia100F"]).isEmpty)
     }
 }

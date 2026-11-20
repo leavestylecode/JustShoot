@@ -16,7 +16,7 @@ final class FilmPageSettingsTests: XCTestCase {
 
     private func settingsShowingAllPresets(_ defaults: UserDefaults) -> FilmPageSettings {
         let settings = FilmPageSettings(defaults: defaults)
-        settings.preferences.addedPresetIDs = Set(FilmPreset.allCases.map(\.rawValue))
+        settings.preferences.addedPresetIDs = Set(FilmPagePreferences.catalogPresets.map(\.id))
         return settings
     }
 
@@ -155,6 +155,42 @@ final class FilmPageSettingsTests: XCTestCase {
             settings.preferences.addedPresetIDs = []
             XCTAssertTrue(FilmPageSettings(defaults: defaults).preferences.addedPresetIDs.isEmpty)
         }
+    }
+
+    func testSlideSelectionMigratesToOneLookPerFamilyAndKeepsMixedOrder() throws {
+        try withDefaults { defaults in
+            let imported = custom()
+            let payload = try JSONSerialization.data(withJSONObject: [
+                "addedPresetIDs": ["fujiVelvia50", "fujiProvia100F", "fujiSlideProvia100F"],
+                "orderedFilmIDs": ["fujiSlideProvia100F", imported.id, "fujiVelvia50", "fujiProvia100F"]
+            ])
+            defaults.set(payload, forKey: FilmPageSettings.storageKey)
+            let settings = FilmPageSettings(defaults: defaults)
+            let sources = FilmPreset.allCases.map(FilmSource.preset) + [imported]
+            let expected: [FilmSource] = [.preset(.fujiProvia100F), imported, .preset(.fujiRawVelvia)]
+            XCTAssertEqual(settings.preferences.orderedFilmIDs, expected.map(\.id))
+            XCTAssertEqual(settings.preferences.addedPresetIDs, ["fujiRawVelvia", "fujiProvia100F"])
+            XCTAssertEqual(settings.preferences.ordered(sources).filter(settings.preferences.isVisible), expected)
+            XCTAssertEqual(settings.preferences.cameraSources(sources, current: .preset(.fujiVelvia50)), expected)
+            XCTAssertEqual(FilmPageSettings(defaults: defaults).preferences, settings.preferences)
+        }
+    }
+
+    func testOrderedButUnaddedVariantsStayUnaddedAfterMigration() throws {
+        let payload = Data(#"{"addedPresetIDs":[],"orderedFilmIDs":["fujiVelvia50","fujiSlideProvia100F"]}"#.utf8)
+        let preferences = try JSONDecoder().decode(FilmPagePreferences.self, from: payload)
+        XCTAssertTrue(preferences.addedPresets.isEmpty)
+        XCTAssertEqual(preferences.orderedFilmIDs, ["fujiRawVelvia", "fujiProvia100F"])
+    }
+
+    func testHiddenVariantsDoNotMoveTheVisibleFilmAheadOfAnImport() throws {
+        let imported = custom()
+        let payload = try JSONSerialization.data(withJSONObject: [
+            "addedPresetIDs": ["fujiRawVelvia", "fujiSlideProvia100F"],
+            "orderedFilmIDs": ["fujiVelvia50", "fujiProvia100F", imported.id, "fujiSlideProvia100F", "fujiRawVelvia"]
+        ])
+        let preferences = try JSONDecoder().decode(FilmPagePreferences.self, from: payload)
+        XCTAssertEqual(preferences.orderedFilmIDs, [imported.id, "fujiProvia100F", "fujiRawVelvia"])
     }
 
     func testLegacySelectionAndOrderAreMigratedWithoutReseedingNineFilms() throws {

@@ -3,11 +3,18 @@ import Combine
 
 /// Membership and ordering use stable IDs, independently of packaging-card variants.
 struct FilmPagePreferences: Codable, Equatable, Sendable {
+    // Keep the original preset IDs and LUTs readable for photos and frozen capture recipes.
+    private static let replacements: [String: FilmPreset] = [
+        FilmPreset.fujiVelvia50.id: .fujiRawVelvia,
+        FilmPreset.fujiSlideProvia100F.id: .fujiProvia100F
+    ]
     static let defaultPresets: [FilmPreset] = [
         .kodakPortra400, .kodakGold200, .fujiPro400H, .fujiC200, .kodakEktar100,
-        .fujiVelvia50, .ilfordHP5Plus400, .kodakTriX400, .fujiRawClassicChrome
+        .fujiRawVelvia, .ilfordHP5Plus400, .kodakTriX400, .fujiRawClassicChrome
     ]
-    static let catalogPresets = defaultPresets + FilmPreset.allCases.filter { !defaultPresets.contains($0) }
+    static let catalogPresets = defaultPresets + FilmPreset.allCases.filter {
+        replacements[$0.id] == nil && !defaultPresets.contains($0)
+    }
     private static let legacyPresets: [FilmPreset] = [
         .fujiRawVelvia, .fujiRawASTIA, .fujiRawClassicChrome, .fujiRawClassicNeg,
         .fujiRawACROS, .fujiC200, .fujiPro400H, .fujiProvia100F, .kodakPortra400
@@ -39,7 +46,20 @@ struct FilmPagePreferences: Codable, Equatable, Sendable {
             let savedOrder = Set(orderedFilmIDs)
             orderedFilmIDs += Self.legacyPresets.map(\.rawValue).filter { !savedOrder.contains($0) }
         }
+        // A hidden variant can still have a saved position. Prefer the first visible
+        // variant's position so merging the pair preserves the order the user saw.
+        let orderedSelections = Set(orderedFilmIDs.filter(addedPresetIDs.contains).map(Self.catalogID))
+        var seen = Set<String>()
+        orderedFilmIDs = orderedFilmIDs.compactMap { id in
+            let retained = Self.catalogID(id)
+            guard addedPresetIDs.contains(id) || !orderedSelections.contains(retained),
+                  seen.insert(retained).inserted else { return nil }
+            return retained
+        }
+        addedPresetIDs = Set(addedPresetIDs.map(Self.catalogID))
     }
+
+    fileprivate static func catalogID(_ id: String) -> String { replacements[id]?.id ?? id }
 
     func encode(to encoder: any Encoder) throws {
         var values = encoder.container(keyedBy: CodingKeys.self)
@@ -74,7 +94,8 @@ struct FilmPagePreferences: Codable, Equatable, Sendable {
     func cameraSources(_ sources: [FilmSource], current: FilmSource) -> [FilmSource] {
         let visible = ordered(sources).filter(isVisible)
         // A film opened directly from the catalog remains selectable for this camera visit.
-        return visible.contains(where: { $0.id == current.id }) ? visible : visible + [current]
+        let selection = Self.replacements[current.id].map(FilmSource.preset) ?? current
+        return visible.contains(where: { $0.id == selection.id }) ? visible : visible + [selection]
     }
 }
 
@@ -105,8 +126,9 @@ final class FilmPageSettings: ObservableObject {
     }
 
     func setVisible(_ preset: FilmPreset, _ visible: Bool) {
-        if visible { preferences.addedPresetIDs.insert(preset.rawValue) }
-        else { preferences.addedPresetIDs.remove(preset.rawValue) }
+        let id = FilmPagePreferences.catalogID(preset.id)
+        if visible { preferences.addedPresetIDs.insert(id) }
+        else { preferences.addedPresetIDs.remove(id) }
     }
 
     func move(from offsets: IndexSet, to destination: Int, in sources: [FilmSource]) {
