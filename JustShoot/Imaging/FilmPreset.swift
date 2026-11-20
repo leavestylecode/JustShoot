@@ -13,18 +13,22 @@ enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 
     var displayName: String {
-        if let simulation = rawSimulation { return "FUJIFILM " + simulation.displayName }
+        if let simulation = rawSimulation {
+            switch simulation {
+            case .classicChrome, .classicNeg: return "FUJIFILM " + simulation.displayName
+            default: return simulation.displayName
+            }
+        }
         switch self {
         case .fujiC200: return "Fuji C200"
         case .fujiPro400H: return "Fuji Pro 400H"
-        case .fujiProvia100F: return "Fuji Provia 100F"
         case .kodakPortra400: return "Kodak Portra 400"
         case .kodakGold200: return "Kodak Gold 200"
         case .kodakEktar100: return "Kodak Ektar 100"
         case .kodakPortra800: return "Kodak Portra 800"
         case .fujiSuperiaXTRA400: return "Fuji Superia X-TRA 400"
-        case .fujiVelvia50: return "Fuji Velvia 50"
-        case .fujiSlideProvia100F: return "Fuji Provia 100F"
+        case .fujiVelvia50: return FujifilmSimulation.velvia.displayName
+        case .fujiSlideProvia100F: return FujifilmSimulation.provia.displayName
         case .kodakKodachrome64: return "Kodak Kodachrome 64"
         case .kodakTriX400: return "Kodak Tri-X 400"
         case .ilfordHP5Plus400: return "Ilford HP5 Plus 400"
@@ -57,8 +61,6 @@ enum FilmPreset: String, CaseIterable, Identifiable, Sendable {
         case .kodakEktar100: return "Ektar 100"
         case .kodakPortra800: return "Portra 800"
         case .fujiSuperiaXTRA400: return "Superia X-TRA 400"
-        case .fujiVelvia50: return "Velvia 50"
-        case .fujiSlideProvia100F: return "Provia 100F"
         case .kodakKodachrome64: return "Kodachrome 64"
         case .kodakTriX400: return "Tri-X 400"
         case .ilfordHP5Plus400: return "HP5 Plus 400"

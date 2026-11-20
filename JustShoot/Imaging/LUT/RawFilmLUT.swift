@@ -7,7 +7,13 @@ enum FujifilmSimulation: String, CaseIterable, Codable, Sendable {
     case classicChrome = "CLASSIC-CHROME", classicNeg = "CLASSIC-Neg.", acros = "ACROS"
 
     var displayName: String {
-        rawValue.replacingOccurrences(of: "-", with: " ")
+        switch self {
+        case .velvia: "Velvia 50"
+        case .astia: "ASTIA 100F"
+        case .acros: "ACROS 100II"
+        case .provia: "PROVIA 100F"
+        case .classicChrome, .classicNeg: rawValue.replacingOccurrences(of: "-", with: " ")
+        }
     }
 
     /// Dedicated capture covers adapted from the stocks' packaging and official mode artwork.

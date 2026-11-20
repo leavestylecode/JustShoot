@@ -32,6 +32,29 @@ final class FilmPresetCatalogTests: XCTestCase {
         XCTAssertNotEqual(FilmPreset.fujiSlideProvia100F.lutResourceName, FilmPreset.fujiProvia100F.lutResourceName)
     }
 
+    func testFujifilmNamesMatchAcrossTheVaultFilmsCameraAndPhotoInfo() throws {
+        let names: [(FilmPreset, String, String)] = [
+            (.fujiRawVelvia, "Velvia 50", "FujiRawVelvia"),
+            (.fujiRawASTIA, "ASTIA 100F", "FujiRawASTIA"),
+            (.fujiRawACROS, "ACROS 100II", "FujiRawACROS"),
+            (.fujiProvia100F, "PROVIA 100F", "FujiRawPROVIA")
+        ]
+        let catalog = try XCTUnwrap(FilmLUTCatalog.availablePresets())
+        for (preset, name, resource) in names {
+            let source = FilmSource.preset(preset)
+            XCTAssertEqual(preset.tileTitle, name)
+            XCTAssertEqual(preset.coverTitle, name)
+            XCTAssertEqual(source.filmPageTitle, name)
+            XCTAssertEqual(source.displayName, name)
+            let photo = Photo(assetLocalIdentifier: nil, imageData: nil, filmPresetName: preset.id)
+            XCTAssertEqual(photo.filmDisplayName, name)
+            XCTAssertEqual(preset.lutResourceName, resource)
+            XCTAssertEqual(catalog.filter { $0.tileTitle == name }, [preset])
+        }
+        XCTAssertEqual(FilmPreset.fujiVelvia50.displayName, FilmPreset.fujiRawVelvia.displayName)
+        XCTAssertEqual(FilmPreset.fujiSlideProvia100F.displayName, FilmPreset.fujiProvia100F.displayName)
+    }
+
     func testBlackAndWhiteStocksNeverAddColoredGrainOrHalation() {
         for preset in FilmPreset.allCases where preset.isMonochrome {
             XCTAssertEqual(preset.renderProfile.grain.chroma, 0, preset.rawValue)

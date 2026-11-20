@@ -43,9 +43,10 @@ New LUTs are precompiled 33-point sRGB tables loaded on demand through the exist
 Sources, redistribution licenses, reproduction commands and the 53-test simulator result are in
 [the catalog integration review](research/mainstream-films-2026-11-04/REVIEW.txt).
 
-The Film Vault lists 17 selectable looks, including the FUJIFILM Velvia and PROVIA camera
-simulations. Add a look from its detail page to use it on the Films page and in the camera picker.
-A new library starts with Portra 400, Gold 200, Pro 400H, C200, Ektar 100, Velvia, HP5 Plus 400,
+The Film Vault lists 17 selectable looks, including the Fujifilm camera simulations displayed as
+Velvia 50, ASTIA 100F, ACROS 100II and PROVIA 100F. Add a look from its detail page to use it
+on the Films page and in the camera picker.
+A new library starts with Portra 400, Gold 200, Pro 400H, C200, Ektar 100, Velvia 50, HP5 Plus 400,
 Tri-X 400 and Classic Chrome. Saved Velvia 50 and Provia 100F selections carry over to the
 corresponding camera simulations in their saved order. Previously captured photos retain their
 original preset identifiers.
