@@ -7,7 +7,7 @@ struct FilmCardDetailView: View {
     @ObservedObject private var settings: FilmPageSettings
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var pageScheme
+    @Environment(\.colorScheme) private var appScheme
 
     init(preset: FilmPreset, settings: FilmPageSettings? = nil) {
         self.preset = preset
@@ -24,6 +24,10 @@ struct FilmCardDetailView: View {
 
     private var detail: some View {
         let packaging = preset.coverDetails
+        let coverColor = packaging.color
+        let statusColor = packaging.statusBarColor(in: appScheme)
+        let scheme = packaging.contentScheme
+        let shade: Color = scheme == .dark ? .black : .white
         return GeometryReader { geometry in
             let wide = PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular)
             let pageWidth = wide ? PageLayout.browseWidth
@@ -54,40 +58,31 @@ struct FilmCardDetailView: View {
             let header = navigationHeader
                 .padding(.horizontal, Self.pageInset)
                 .frame(maxWidth: pageWidth)
+                .frame(maxWidth: .infinity)
+                .background {
+                    LinearGradient(stops: [
+                        .init(color: statusColor, location: 0.40),
+                        .init(color: coverColor.opacity(0.96), location: 0.75),
+                        .init(color: coverColor.opacity(0), location: 1)
+                    ], startPoint: .top, endPoint: .bottom)
+                    .ignoresSafeArea(edges: .top)
+                }
 
             if #available(iOS 26.0, *) {
                 scroll
-                    .safeAreaBar(edge: .top, spacing: 0) {
-                        header
-                            .frame(maxWidth: .infinity)
-                            .background {
-                                let base: Color = pageScheme == .dark ? .black : .white
-                                LinearGradient(stops: [
-                                    .init(color: base.opacity(0.82), location: 0),
-                                    .init(color: base.opacity(0.64), location: 0.72),
-                                    .init(color: .clear, location: 1)
-                                ], startPoint: .top, endPoint: .bottom)
-                                .ignoresSafeArea(edges: .top)
-                            }
-                            .environment(\.colorScheme, pageScheme)
-                    }
+                    .safeAreaBar(edge: .top, spacing: 0) { header }
                     .scrollEdgeEffectStyle(.soft, for: .top)
             } else {
-                scroll.safeAreaInset(edge: .top, spacing: 0) {
-                    header.frame(maxWidth: .infinity).background(.thinMaterial)
-                }
+                scroll.safeAreaInset(edge: .top, spacing: 0) { header }
             }
         }
         .background {
-            Color(.systemBackground)
-                .overlay {
-                    LinearGradient(stops: [
-                        .init(color: packaging.color.opacity(0.14), location: 0),
-                        .init(color: .clear, location: 0.65)
-                    ], startPoint: .top, endPoint: .bottom)
-                }
-                .ignoresSafeArea()
+            coverColor.overlay {
+                LinearGradient(colors: [.clear, shade.opacity(0.16)], startPoint: .top, endPoint: .bottom)
+            }
+            .ignoresSafeArea()
         }
+        .environment(\.colorScheme, scheme)
         .navigationTitle(Text(verbatim: preset.coverTitle))
         .toolbar(.hidden, for: .navigationBar, .tabBar)
     }
@@ -135,7 +130,6 @@ struct FilmCardDetailView: View {
                 Text(verbatim: packaging.brand.uppercased())
                     .font(.caption.weight(.bold))
                     .tracking(1.8)
-                    .foregroundStyle(.secondary)
                 Text(verbatim: preset.coverTitle)
                     .font(.system(.largeTitle, design: .serif, weight: .semibold))
                     .fixedSize(horizontal: false, vertical: true)
@@ -147,7 +141,6 @@ struct FilmCardDetailView: View {
                 let specs = ["ISO \(Int(preset.iso))", packaging.format, packaging.process].compactMap { $0 }
                 Text(verbatim: specs.joined(separator: "  ·  "))
                     .font(.caption.monospaced().weight(.medium))
-                    .foregroundStyle(.secondary)
             }
 
             Text(preset.introduction)
@@ -245,7 +238,7 @@ private struct FilmSceneGallery: View {
                 Text(item.tag.title)
                     .font(.subheadline.weight(active ? .semibold : .regular))
                     .fixedSize(horizontal: false, vertical: true)
-                    .foregroundStyle(Color.primary.opacity(active ? 1 : 0.70))
+                    .foregroundStyle(.primary)
                     .padding(.vertical, 6)
                     .overlay(alignment: .bottom) {
                         if active {

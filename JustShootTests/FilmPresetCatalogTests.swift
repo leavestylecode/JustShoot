@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import JustShoot
 
@@ -84,6 +85,29 @@ final class FilmPresetCatalogTests: XCTestCase {
             XCTAssertEqual(details.format, stock?.format, preset.id)
             XCTAssertEqual(details.process, stock?.process, preset.id)
             XCTAssertTrue(preset.displayName.hasSuffix(preset.coverTitle), preset.id)
+        }
+    }
+
+    func testCoverBackgroundUsesOpaquePackagingColorWithReadableText() {
+        func contrast(of rgb: Color.Resolved, in scheme: ColorScheme) -> Float {
+            let luminance = 0.2126 * rgb.linearRed + 0.7152 * rgb.linearGreen + 0.0722 * rgb.linearBlue
+            return scheme == .light ? (luminance + 0.05) / 0.05 : 1.05 / (luminance + 0.05)
+        }
+
+        for preset in FilmPreset.allCases {
+            let details = preset.coverDetails
+            let rgb = details.color.resolve(in: EnvironmentValues())
+            XCTAssertEqual(rgb.opacity, 1, preset.id)
+            let swatch = UInt32((rgb.red * 255).rounded()) << 16
+                | UInt32((rgb.green * 255).rounded()) << 8
+                | UInt32((rgb.blue * 255).rounded())
+            XCTAssertEqual(swatch, details.swatch, preset.id)
+
+            XCTAssertGreaterThanOrEqual(contrast(of: rgb, in: details.contentScheme), 4.5, preset.id)
+            for scheme in [ColorScheme.light, .dark] {
+                let statusColor = details.statusBarColor(in: scheme).resolve(in: EnvironmentValues())
+                XCTAssertGreaterThanOrEqual(contrast(of: statusColor, in: scheme), 4.5, preset.id)
+            }
         }
     }
 

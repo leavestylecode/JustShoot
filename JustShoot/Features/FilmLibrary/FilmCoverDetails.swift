@@ -8,11 +8,39 @@ struct FilmCoverDetails {
     var format: String?
     var process: String?
 
-    private var red: Double { Double((swatch >> 16) & 255) / 255 }
-    private var green: Double { Double((swatch >> 8) & 255) / 255 }
-    private var blue: Double { Double(swatch & 255) / 255 }
+    private var resolvedSwatch: Color.Resolved {
+        Color.Resolved(red: Float((swatch >> 16) & 255) / 255,
+                       green: Float((swatch >> 8) & 255) / 255,
+                       blue: Float(swatch & 255) / 255)
+    }
 
-    var color: Color { Color(red: red, green: green, blue: blue) }
+    var color: Color { Color(resolvedSwatch) }
+
+    private var luminance: Float {
+        let rgb = resolvedSwatch
+        return 0.2126 * rgb.linearRed + 0.7152 * rgb.linearGreen + 0.0722 * rgb.linearBlue
+    }
+
+    var contentScheme: ColorScheme {
+        // WCAG contrast of black and white against the unmodified cover color.
+        let blackContrast = (luminance + 0.05) / 0.05
+        let whiteContrast = 1.05 / (luminance + 0.05)
+        return blackContrast >= whiteContrast ? .light : .dark
+    }
+
+    /// The hidden navigation bar leaves the status icons in the app's appearance.
+    func statusBarColor(in appScheme: ColorScheme) -> Color {
+        let level = luminance
+        let target = appScheme == .dark ? min(level, 0.15) : max(level, 0.22)
+        guard target != level else { return color }
+        let endpoint: Float = appScheme == .dark ? 0 : 1
+        let amount = (target - level) / (endpoint - level)
+        var rgb = resolvedSwatch
+        rgb.linearRed += (endpoint - rgb.linearRed) * amount
+        rgb.linearGreen += (endpoint - rgb.linearGreen) * amount
+        rgb.linearBlue += (endpoint - rgb.linearBlue) * amount
+        return Color(rgb)
+    }
 }
 
 extension FilmPreset {
