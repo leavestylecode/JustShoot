@@ -116,6 +116,7 @@ struct VaultImage: View {
     let maxPixel: Int
     var gradedWith: FilmPreset?
     var isHero = false
+    var placeholderSystemImage = "photo"
     @State private var image: UIImage?
     @State private var failed = false
     @State private var attempt = 0
@@ -138,7 +139,7 @@ struct VaultImage: View {
                 } else if isHero {
                     ProgressView().accessibilityLabel("Loading sample")
                 } else {
-                    Image(systemName: "photo").foregroundStyle(.secondary)
+                    Image(systemName: placeholderSystemImage).foregroundStyle(.secondary)
                 }
             }
             .clipped()

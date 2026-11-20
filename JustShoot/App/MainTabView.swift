@@ -2,7 +2,8 @@ import SwiftUI
 import SwiftData
 
 struct MainTabView: View {
-    let home: HomePreparationSnapshot
+    let customFilters: [HomeCustomFilter]
+    let isRevealed: Bool
     @SceneStorage("selectedTab") private var selectedTab = MainTab.films
     @Environment(\.modelContext) private var modelContext
     @ObservedObject private var capturePipeline = CapturePipeline.shared
@@ -15,9 +16,9 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            FilmHomeView(preparedHome: home)
+            FilmHomeView(customFilters: customFilters)
                 .mainTabItem(.films)
-            NavigationStack { GalleryView() }
+            NavigationStack { GalleryView(isRevealed: isRevealed) }
                 .mainTabItem(.photos)
             NavigationStack { FilmCardLibraryView() }
                 .mainTabItem(.library)
@@ -32,9 +33,6 @@ struct MainTabView: View {
             ImageLoader.shared.clearCache()
             AssetImageLoader.shared.clearCache()
         }
-        // 启动时注册系统相册变化观察者：app 前台时在「照片」里删图会实时同步剪掉本地索引。
-        // 随后跑一次启动维护（@ModelActor 后台执行，不占主线程）：清 tmp 残留视频/分享导出、
-        // 磁盘缓存与 CustomLUTs 目录的孤儿文件对账。
         .alert("Photo saving", isPresented: Binding(
             get: { capturePipeline.lastError != nil },
             set: { if !$0 { capturePipeline.lastError = nil } }
@@ -46,20 +44,26 @@ struct MainTabView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .background {
                 Task { await capturePipeline.enterBackground() }
-            } else if phase == .active {
-                Task {
+            } else if phase == .active, isRevealed {
+                Task(priority: .utility) {
                     await CapturePipeline.shared.retryPending()
-                    await PhotoLibrarySync.shared.reconcile()
+                    await PhotoLibrarySync.shared.reconcile(container: modelContext.container)
                 }
             }
         }
-        .task {
+        .onChange(of: isRevealed, initial: true) { _, revealed in
+            if revealed { DiagnosticTrace(id: "startup").event("app_home_interactive") }
+        }
+        .task(id: isRevealed, priority: .utility) {
+            guard isRevealed else { return }
             await CapturePipeline.shared.configure(container: modelContext.container)
             await PhotoLibrarySync.shared.bootstrap(container: modelContext.container)
         }
-        .task {
-            // Start the shared CIContext after home appears, without extending launch readiness.
-            // A fast camera entry joins the same protected initialization in the background.
+        .task(id: isRevealed, priority: .utility) {
+            guard isRevealed else { return }
+            // A fast camera entry awaits the same shared resources in its own preparation.
+            try? await PreviewMetalResources.warmUp()
+            guard !Task.isCancelled else { return }
             try? await FilmProcessor.shared.warmUpForCapture()
         }
     }

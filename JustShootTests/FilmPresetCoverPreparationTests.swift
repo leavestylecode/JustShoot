@@ -3,30 +3,25 @@ import UIKit
 @testable import JustShoot
 
 final class FilmPresetCoverPreparationTests: XCTestCase {
-    func testSelectedHomeAndPickerCoversExcludeUnaddedFilmsAndDeduplicateRequests() async throws {
+    func testSelectedPickerCoversExcludeUnaddedFilmsAndDeduplicateRequests() async throws {
         let presets: [FilmPreset] = [.kodakPortra400, .kodakGold200, .kodakPortra400]
-        let home = try await FilmPresetCoverPreparation.prepareHome(presets: presets, displayScale: 2)
         let picker = try await FilmPresetCoverPreparation.preparePicker(presets: presets, displayScale: 2)
-        XCTAssertEqual(Set(home.keys), Set(presets))
         XCTAssertEqual(Set(picker.keys), Set(presets))
-        XCTAssertNil(home[.kodakPortra800])
         XCTAssertNil(picker[.kodakPortra800])
     }
 
-    func testEmptyLibraryNeedsNoHomeOrPickerCovers() async throws {
-        let home = try await FilmPresetCoverPreparation.prepareHome(presets: [], displayScale: 2)
+    func testEmptyLibraryNeedsNoPickerCovers() async throws {
         let picker = try await FilmPresetCoverPreparation.preparePicker(presets: [], displayScale: 2)
-        XCTAssertTrue(home.isEmpty)
         XCTAssertTrue(picker.isEmpty)
     }
 
-    func testAwaitedHomePreparationReturnsEveryBundledCoverAtDisplaySize() async throws {
-        let covers = try await FilmPresetCoverPreparation.prepareHome(displayScale: 2)
-        XCTAssertEqual(Set(covers.keys), Set(FilmPreset.allCases))
-        let maximum = FilmCardImageCache.pixelSize(for: FilmPresetCoverPreparation.homePixel(displayScale: 2))
+    func testEachHomeCoverLoadsIndependentlyAtDisplaySize() async throws {
+        let requested = FilmPresetCoverPreparation.homePixel(displayScale: 2)
+        let maximum = FilmCardImageCache.pixelSize(for: requested)
         for preset in FilmPreset.allCases {
-            guard let imageName = preset.libraryCardImage else { continue }
-            let image = try XCTUnwrap(covers[preset])
+            let imageName = try XCTUnwrap(preset.libraryCardImage)
+            let loaded = await FilmCardImageCache.shared.loadImage(imageName: imageName, maxPixel: requested)
+            let image = try XCTUnwrap(loaded)
             let cg = try XCTUnwrap(image.cgImage)
             XCTAssertGreaterThan(cg.width, 0)
             XCTAssertGreaterThan(cg.height, 0)
@@ -58,7 +53,7 @@ final class FilmPresetCoverPreparationTests: XCTestCase {
         let result = await Task {
             withUnsafeCurrentTask { $0?.cancel() }
             do {
-                _ = try await FilmPresetCoverPreparation.prepareHome(displayScale: 2)
+                _ = try await FilmPresetCoverPreparation.preparePicker(displayScale: 2)
                 return false
             } catch is CancellationError { return true }
             catch { return false }

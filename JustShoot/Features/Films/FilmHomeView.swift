@@ -4,12 +4,10 @@ import AVFoundation
 import UniformTypeIdentifiers
 
 struct FilmHomeView: View {
-    let preparedHome: HomePreparationSnapshot
     @StateObject private var settings: FilmPageSettings
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.locale) private var locale
-    @Environment(\.displayScale) private var displayScale
     @ScaledMetric(relativeTo: .body) private var gridScale = 1.0
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @State private var showFileImporter = false
@@ -27,7 +25,6 @@ struct FilmHomeView: View {
     @State private var usesLiveCustomFilters = false
     @State private var showsManagement = false
     @State private var showsCatalog = false
-    @State private var presetCovers: [FilmPreset: UIImage]
     @State private var pendingDelete: FilmSource?
 
     private var textVisibility: FilmTileTextVisibility { settings.textVisibility }
@@ -39,11 +36,9 @@ struct FilmHomeView: View {
         return Array(repeating: GridItem(.flexible(), spacing: 14, alignment: .top), count: count)
     }
 
-    init(preparedHome: HomePreparationSnapshot, settings: FilmPageSettings? = nil) {
-        self.preparedHome = preparedHome
+    init(customFilters: [HomeCustomFilter], settings: FilmPageSettings? = nil) {
         _settings = StateObject(wrappedValue: settings ?? .shared)
-        _presetCovers = State(initialValue: preparedHome.presetCovers)
-        _initialCustomFilters = State(initialValue: preparedHome.customFilters)
+        _initialCustomFilters = State(initialValue: customFilters)
     }
 
     private var visibleCustomFilters: [HomeCustomFilter] {
@@ -76,10 +71,10 @@ struct FilmHomeView: View {
                                     NavigationLink(value: source) {
                                         switch source {
                                         case .preset(let preset):
-                                            FilmPresetTile(preset: preset, image: presetCovers[preset], textVisibility: textVisibility)
+                                            FilmPresetTile(preset: preset, textVisibility: textVisibility)
                                         case .custom(let id, let name, let iso, let fileName):
                                             CustomLUTTile(lut: HomeCustomFilter(id: id, displayName: name, iso: iso, fileName: fileName),
-                                                image: preparedHome.customCover, textVisibility: textVisibility)
+                                                textVisibility: textVisibility)
                                         }
                                     }
                                     .buttonStyle(.plain)
@@ -156,8 +151,7 @@ struct FilmHomeView: View {
                     .onDisappear { if !isImporting { cancelImport() } }
                 }
                 .sheet(isPresented: $showsManagement) {
-                    FilmManagementView(settings: settings, sources: sources,
-                        presetCovers: presetCovers, onDelete: deleteCustomLUT)
+                    FilmManagementView(settings: settings, sources: sources, onDelete: deleteCustomLUT)
                 }
                 .sheet(isPresented: $showsCatalog) {
                     NavigationStack {
@@ -177,21 +171,6 @@ struct FilmHomeView: View {
                 }
             }
             .mainTabRoot(.films)
-        }
-        .task(id: settings.preferences.addedPresetIDs) {
-            let presets = settings.preferences.addedPresets
-            presetCovers = presetCovers.filter { settings.preferences.addedPresetIDs.contains($0.key.rawValue) }
-            let missing = presets.filter { presetCovers[$0] == nil }
-            guard !missing.isEmpty else { return }
-            do {
-                let covers = try await FilmPresetCoverPreparation.prepareHome(presets: missing, displayScale: displayScale)
-                try Task.checkCancellation()
-                presetCovers.merge(covers) { _, new in new }
-            } catch is CancellationError {
-                return
-            } catch {
-                Diagnostics.emit("film_home_covers_failed", fields: Diagnostics.errorFields(error))
-            }
         }
         .task {
             // Keep the prepared rows until the live query actually has a result. An initial

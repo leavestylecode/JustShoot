@@ -19,8 +19,6 @@ final class IPadBrowsingLayoutTests: XCTestCase {
         let library = FilmCurveLibrary(defaults: defaults)
         let container = try ModelContainer(for: Photo.self, CustomLUT.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
-        let covers = try await FilmPresetCoverPreparation.prepareHome(displayScale: window.screen.scale)
-        let home = HomePreparationSnapshot(customFilters: [], presetCovers: covers, customCover: nil)
         await FilmCardLibrary.shared.loadIfNeeded()
         let preset = try XCTUnwrap(FilmCardLibrary.shared.presets.first)
         let photo = try samplePhoto()
@@ -34,7 +32,7 @@ final class IPadBrowsingLayoutTests: XCTestCase {
             ImageLoader.shared.removeDiskCache(for: photo.id)
         }
         let pages: [(String, AnyView)] = [
-            ("films", AnyView(FilmHomeView(preparedHome: home))),
+            ("films", AnyView(FilmHomeView(customFilters: []))),
             ("library", AnyView(NavigationStack { FilmCardLibraryView() })),
             ("film-detail", AnyView(NavigationStack { FilmCardDetailView(preset: preset) })),
             ("settings", AnyView(SettingsView())),

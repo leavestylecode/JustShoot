@@ -14,15 +14,14 @@ struct FilmTileTextVisibility: Equatable, Sendable {
 /// bundled film-card library via `FilmPreset.libraryCardImage`.
 struct FilmPresetTile: View {
     let preset: FilmPreset
-    let image: UIImage?
     let textVisibility: FilmTileTextVisibility
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.locale) private var locale
+    @Environment(\.displayScale) private var displayScale
     @ScaledMetric(relativeTo: .caption) private var captionScale = 1.0
 
-    init(preset: FilmPreset, image: UIImage?, textVisibility: FilmTileTextVisibility = .init()) {
+    init(preset: FilmPreset, textVisibility: FilmTileTextVisibility = .init()) {
         self.preset = preset
-        self.image = image
         self.textVisibility = textVisibility
     }
 
@@ -33,6 +32,7 @@ struct FilmPresetTile: View {
             coverArt
                 .aspectRatio(1, contentMode: .fit)
                 .frame(maxWidth: .infinity)
+                .clipShape(.rect(cornerRadius: 10))
 
             if textVisibility.showsText {
                 VStack(alignment: .leading, spacing: 3) {
@@ -64,21 +64,18 @@ struct FilmPresetTile: View {
         .accessibilityHint("Start shooting with this film")
     }
 
-    private var coverArt: some View {
-        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-        return ZStack {
-            Color.primary.opacity(0.05)
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
+    @ViewBuilder private var coverArt: some View {
+        if let filename = preset.libraryCardImage {
+            VaultImage(filename: filename, maxPixel: FilmPresetCoverPreparation.homePixel(displayScale: displayScale),
+                placeholderSystemImage: "film")
+                .font(.title3)
+        } else {
+            Rectangle().fill(.primary.opacity(0.05)).overlay {
                 Image(systemName: "film")
                     .font(.title3)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
-        .clipShape(shape)
     }
 }
 
@@ -99,16 +96,14 @@ enum FilmTileLayout {
 /// render an accent-tinted icon in the same square cell shape.
 struct CustomLUTTile: View {
     let lut: HomeCustomFilter
-    let image: UIImage?
     let textVisibility: FilmTileTextVisibility
     @Environment(\.horizontalSizeClass) private var sizeClass
     @ScaledMetric(relativeTo: .caption) private var captionScale = 1.0
 
     private static let accent = Color(red: 0.6, green: 0.5, blue: 0.8)
 
-    init(lut: HomeCustomFilter, image: UIImage?, textVisibility: FilmTileTextVisibility = .init()) {
+    init(lut: HomeCustomFilter, textVisibility: FilmTileTextVisibility = .init()) {
         self.lut = lut
-        self.image = image
         self.textVisibility = textVisibility
     }
 
@@ -136,14 +131,9 @@ struct CustomLUTTile: View {
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         return ZStack {
             Self.accent.opacity(0.18)
-            if let image {
-                Image(uiImage: image).renderingMode(.template)
-                    .foregroundColor(Self.accent)
-            } else {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 26, weight: .medium))
-                    .foregroundColor(Self.accent)
-            }
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 26, weight: .medium))
+                .foregroundColor(Self.accent)
         }
         .clipShape(shape)
     }

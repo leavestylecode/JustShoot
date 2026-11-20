@@ -3,10 +3,10 @@ import SwiftUI
 struct FilmManagementView: View {
     @ObservedObject var settings: FilmPageSettings
     let sources: [FilmSource]
-    let presetCovers: [FilmPreset: UIImage]
     let onDelete: (UUID) throws -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.displayScale) private var displayScale
     @State private var pendingDelete: FilmSource?
 
     var body: some View {
@@ -100,8 +100,8 @@ struct FilmManagementView: View {
     private func cover(_ source: FilmSource) -> some View {
         ZStack {
             Color.primary.opacity(0.08)
-            if case .preset(let preset) = source, let image = presetCovers[preset] {
-                Image(uiImage: image).resizable().scaledToFill()
+            if case .preset(let preset) = source, let filename = preset.libraryCardImage {
+                VaultImage(filename: filename, maxPixel: Int(40 * displayScale), placeholderSystemImage: "film")
             } else {
                 Image(systemName: "slider.horizontal.3").foregroundStyle(.secondary)
             }

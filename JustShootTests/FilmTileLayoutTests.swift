@@ -82,7 +82,7 @@ final class FilmTileLayoutTests: XCTestCase {
         for width in [CGFloat(106), 160, 214] {
             var heights: [CGFloat] = []
             for visibility in visibilityOptions {
-                let tile = FilmPresetTile(preset: .fujiRawClassicChrome, image: nil, textVisibility: visibility)
+                let tile = FilmPresetTile(preset: .fujiRawClassicChrome, textVisibility: visibility)
                 let height = fittingHeight(tile, width: width)
                 heights.append(height)
                 if visibility.showsText {
@@ -91,7 +91,7 @@ final class FilmTileLayoutTests: XCTestCase {
                     XCTAssertEqual(height, width, accuracy: 0.5, "Cover-only tiles must remain square")
                 }
 
-                let customHeight = fittingHeight(CustomLUTTile(lut: custom, image: nil, textVisibility: visibility), width: width)
+                let customHeight = fittingHeight(CustomLUTTile(lut: custom, textVisibility: visibility), width: width)
                 if visibility.showsTitle {
                     XCTAssertGreaterThan(customHeight, width + 8)
                 } else {

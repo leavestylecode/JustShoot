@@ -1,6 +1,5 @@
 import XCTest
 import SwiftData
-import UIKit
 import os
 @testable import JustShoot
 
@@ -37,21 +36,21 @@ final class AppStartupPreparationTests: XCTestCase {
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
     }
 
-    private func snapshot() -> HomePreparationSnapshot {
-        HomePreparationSnapshot(customFilters: [],
-            presetCovers: Dictionary(uniqueKeysWithValues: FilmPreset.allCases.map { ($0, UIImage()) }), customCover: nil)
+    private func filter(_ name: String) -> HomeCustomFilter {
+        let id = UUID()
+        return HomeCustomFilter(id: id, displayName: name, iso: 200, fileName: "\(id.uuidString).cube")
     }
 
-    func testReadyWaitsForPreparedResourcesAndRepeatedCallsShareOneAttempt() async throws {
+    func testReadyWaitsForCustomFilterMetadataAndRepeatedCallsShareOneAttempt() async throws {
         let store = try container()
-        let home = snapshot()
+        let customFilter = filter("Prepared")
         let gate = StartupTestGate()
         let opens = OSAllocatedUnfairLock(initialState: 0)
         let model = AppStartupPreparation(openStorage: { opens.withLock { $0 += 1 }; return store },
-            prepareHome: { _, _ in await gate.wait(); return home })
-        let first = Task { await model.prepare(displayScale: 2) }
+            loadCustomFilters: { _ in await gate.wait(); return [customFilter] })
+        let first = Task { await model.prepare() }
         await gate.waitUntilStarted()
-        let second = Task { await model.prepare(displayScale: 2) }
+        let second = Task { await model.prepare() }
         XCTAssertNil(model.ready)
         XCTAssertTrue(model.isPreparing)
         await gate.release()
@@ -59,49 +58,47 @@ final class AppStartupPreparationTests: XCTestCase {
         await second.value
         XCTAssertEqual(opens.withLock { $0 }, 1)
         XCTAssertTrue(model.ready?.container === store)
-        XCTAssertEqual(model.ready?.home.presetCovers.count, FilmPreset.allCases.count)
+        XCTAssertEqual(model.ready?.customFilters.map(\.id), [customFilter.id])
         XCTAssertFalse(model.isPreparing)
         XCTAssertFalse(model.hasFailed)
     }
 
     func testCancelledAttemptCannotReplaceANewerReadySnapshot() async throws {
         let store = try container()
-        let oldImage = UIImage(), newImage = UIImage()
-        let old = HomePreparationSnapshot(customFilters: [], presetCovers: [.fujiC200: oldImage], customCover: nil)
-        let latest = HomePreparationSnapshot(customFilters: [], presetCovers: [.fujiC200: newImage], customCover: nil)
+        let old = filter("Old")
+        let latest = filter("Latest")
         let gate = StartupTestGate()
         let calls = OSAllocatedUnfairLock(initialState: 0)
-        let model = AppStartupPreparation(openStorage: { store }, prepareHome: { _, _ in
+        let model = AppStartupPreparation(openStorage: { store }, loadCustomFilters: { _ in
             let attempt = calls.withLock { $0 += 1; return $0 }
-            if attempt == 1 { await gate.wait(); return old }
-            return latest
+            if attempt == 1 { await gate.wait(); return [old] }
+            return [latest]
         })
-        let first = Task { await model.prepare(displayScale: 2) }
+        let first = Task { await model.prepare() }
         await gate.waitUntilStarted()
         model.cancel()
-        await model.prepare(displayScale: 2)
-        XCTAssertTrue(model.ready?.home.presetCovers[.fujiC200] === newImage)
+        await model.prepare()
+        XCTAssertEqual(model.ready?.customFilters.map(\.id), [latest.id])
         await gate.release()
         await first.value
-        XCTAssertTrue(model.ready?.home.presetCovers[.fujiC200] === newImage)
+        XCTAssertEqual(model.ready?.customFilters.map(\.id), [latest.id])
         XCTAssertFalse(model.hasFailed)
     }
 
-    func testResourceFailureRetriesWithoutReopeningTheSuccessfulStore() async throws {
+    func testMetadataFailureRetriesWithoutReopeningTheSuccessfulStore() async throws {
         let store = try container()
-        let home = snapshot()
         let opens = OSAllocatedUnfairLock(initialState: 0)
         let calls = OSAllocatedUnfairLock(initialState: 0)
         let model = AppStartupPreparation(openStorage: { opens.withLock { $0 += 1 }; return store },
-            prepareHome: { _, _ in
+            loadCustomFilters: { _ in
                 let attempt = calls.withLock { $0 += 1; return $0 }
                 if attempt == 1 { throw CocoaError(.fileReadCorruptFile) }
-                return home
+                return []
             })
-        await model.prepare(displayScale: 2)
+        await model.prepare()
         XCTAssertTrue(model.hasFailed)
         XCTAssertNil(model.ready)
-        await model.retry(displayScale: 2)
+        await model.retry()
         XCTAssertFalse(model.hasFailed)
         XCTAssertNotNil(model.ready)
         XCTAssertEqual(opens.withLock { $0 }, 1)
@@ -109,7 +106,6 @@ final class AppStartupPreparationTests: XCTestCase {
 
     func testAnUninterruptibleStoreOpenIsReusedAfterCancellation() async throws {
         let store = try container()
-        let home = snapshot()
         let started = StartupTestGate()
         let releaseOpen = DispatchSemaphore(value: 0)
         let opens = OSAllocatedUnfairLock(initialState: 0)
@@ -118,11 +114,11 @@ final class AppStartupPreparationTests: XCTestCase {
             Task { await started.release() }
             _ = releaseOpen.wait(timeout: .now() + 2)
             return store
-        }, prepareHome: { _, _ in home })
-        let first = Task { await model.prepare(displayScale: 2) }
+        }, loadCustomFilters: { _ in [] })
+        let first = Task { await model.prepare() }
         await started.wait()
         model.cancel()
-        let second = Task { await model.prepare(displayScale: 2) }
+        let second = Task { await model.prepare() }
         await Task.yield()
         releaseOpen.signal()
         await first.value
@@ -131,13 +127,12 @@ final class AppStartupPreparationTests: XCTestCase {
         XCTAssertTrue(model.ready?.container === store)
     }
 
-    func testDeadlineFailsIndependentlyOfAnUnresponsiveResourceWaiter() async throws {
+    func testDeadlineFailsIndependentlyOfAnUnresponsiveMetadataWaiter() async throws {
         let store = try container()
-        let home = snapshot()
         let gate = StartupTestGate()
         let model = AppStartupPreparation(timeout: .milliseconds(40), openStorage: { store },
-            prepareHome: { _, _ in await gate.wait(); return home })
-        let attempt = Task { await model.prepare(displayScale: 2) }
+            loadCustomFilters: { _ in await gate.wait(); return [] })
+        let attempt = Task { await model.prepare() }
         await gate.waitUntilStarted()
         try await Task.sleep(for: .milliseconds(100))
         XCTAssertTrue(model.hasFailed)
@@ -151,11 +146,10 @@ final class AppStartupPreparationTests: XCTestCase {
 
     func testBackgroundTimeDoesNotTriggerTheForegroundDeadlineAndResumeRestartsIt() async throws {
         let store = try container()
-        let home = snapshot()
         let gate = StartupTestGate()
         let model = AppStartupPreparation(timeout: .milliseconds(80), openStorage: { store },
-            prepareHome: { _, _ in await gate.wait(); return home })
-        let attempt = Task { await model.prepare(displayScale: 2) }
+            loadCustomFilters: { _ in await gate.wait(); return [] })
+        let attempt = Task { await model.prepare() }
         await gate.waitUntilStarted()
         model.setActive(false)
         try await Task.sleep(for: .milliseconds(160))
@@ -168,6 +162,24 @@ final class AppStartupPreparationTests: XCTestCase {
         await attempt.value
         XCTAssertNotNil(model.ready)
         XCTAssertFalse(model.hasFailed)
+    }
+
+    func testDefaultPreparationReturnsExistingFiltersInNewestFirstOrder() async throws {
+        let store = try container()
+        let older = CustomLUT(displayName: "Older", fileName: "older.cube", iso: 100, dimension: 2)
+        older.createdAt = Date(timeIntervalSince1970: 10)
+        let newer = CustomLUT(displayName: "Newer", fileName: "newer.cube", iso: 400, dimension: 2)
+        newer.createdAt = Date(timeIntervalSince1970: 20)
+        store.mainContext.insert(older)
+        store.mainContext.insert(newer)
+        try store.mainContext.save()
+
+        let model = AppStartupPreparation(openStorage: { store })
+        await model.prepare()
+
+        let filters = try XCTUnwrap(model.ready?.customFilters)
+        XCTAssertEqual(filters.map(\.id), [newer.id, older.id])
+        XCTAssertEqual(filters.map(\.fileName), ["newer.cube", "older.cube"])
     }
 
     func testPreparedCustomFilterCanBeDeletedBeforeTheLiveQueryArrives() throws {

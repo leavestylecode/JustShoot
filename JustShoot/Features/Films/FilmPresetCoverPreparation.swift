@@ -1,6 +1,6 @@
 import UIKit
 
-/// Await the bundled presets needed by the home grid or camera picker.
+/// Size bundled covers and await the snapshot needed by the camera picker.
 /// The returned snapshot owns its images even if NSCache evicts an entry before first display.
 enum FilmPresetCoverPreparation {
     enum PreparationError: Error { case missingCover(FilmPreset) }
@@ -11,10 +11,6 @@ enum FilmPresetCoverPreparation {
 
     static func pickerPixel(displayScale: CGFloat) -> Int {
         max(Int(72 * scale(displayScale) * 1.5), 100)
-    }
-
-    static func prepareHome(presets: [FilmPreset] = FilmPreset.allCases, displayScale: CGFloat) async throws -> [FilmPreset: UIImage] {
-        try await prepare(presets: presets, maxPixel: homePixel(displayScale: displayScale))
     }
 
     static func preparePicker(presets: [FilmPreset] = FilmPreset.allCases, displayScale: CGFloat) async throws -> [FilmPreset: UIImage] {

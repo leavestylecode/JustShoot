@@ -55,7 +55,6 @@ private struct AppStartupContent: View {
     let curveLibrary: FilmCurveLibrary
     let isRunningUnitTests: Bool
     @Binding var introFinished: Bool
-    @Environment(\.displayScale) private var displayScale
 
     private var showsIntro: Bool {
         !startup.hasFailed && (!introFinished || startup.ready == nil)
@@ -67,14 +66,14 @@ private struct AppStartupContent: View {
         } else {
             ZStack {
                 if let ready = startup.ready {
-                    MainTabView(home: ready.home)
+                    MainTabView(customFilters: ready.customFilters, isRevealed: !showsIntro)
                         .environmentObject(curveLibrary)
                         .modelContainer(ready.container)
                         .allowsHitTesting(!showsIntro)
                         .accessibilityHidden(showsIntro)
                 } else if startup.hasFailed {
                     PreparationErrorScreen(title: "Your library could not be prepared", message: startup.failureMessage,
-                        onAction: { Task { await startup.retry(displayScale: displayScale) } })
+                        onAction: { Task { await startup.retry() } })
                 } else if introFinished {
                     AppPageBackground()
                         .zIndex(0.5)
@@ -91,7 +90,7 @@ private struct AppStartupContent: View {
             .onChange(of: startup.hasFailed) { _, failed in
                 if failed { introFinished = true }
             }
-            .task { await startup.prepare(displayScale: displayScale) }
+            .task { await startup.prepare() }
         }
     }
 }

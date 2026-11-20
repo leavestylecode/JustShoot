@@ -13,6 +13,8 @@ import ImageIO
 // 本文件保留 SwiftUI 外壳：导航标题、选择模式工具栏（Select / Select All / xmark / Download /
 // Delete）、tab 栏隐藏、批量保存/删除、详情呈现。选择状态通过 @Binding 与 PhotoGridView 双向同步。
 struct GalleryView: View {
+    var isRevealed = true
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.capsuleTabSelection) private var capsuleTabSelection
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -132,10 +134,10 @@ struct GalleryView: View {
         // 冷同步：进画廊时与系统相册对账——剪掉「app 关闭期间在系统相册被删」的索引行 +
         // 回填相簿里有资产但索引缺行的孤儿（索引写入失败 / 另一台设备 iCloud 同入的照片）。
         // app 前台时的实时同步由 PhotoLibrarySync 观察者负责（见 MainTabView）。
-        .task {
-            PhotoLibrarySync.shared.start(container: modelContext.container)
+        .task(id: isRevealed, priority: .utility) {
+            guard isRevealed else { return }
             await CapturePipeline.shared.retryPending()
-            await PhotoLibrarySync.shared.reconcile()
+            await PhotoLibrarySync.shared.reconcile(container: modelContext.container)
         }
         .background {
             PhotoDetailPresentation(selection: $selectedDetail, source: transitionSource,

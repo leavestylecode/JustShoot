@@ -1,4 +1,5 @@
-import SwiftUI
+import Combine
+import Foundation
 import SwiftData
 
 struct HomeCustomFilter: Identifiable, Sendable {
@@ -24,52 +25,15 @@ struct HomeCustomFilter: Identifiable, Sendable {
     var source: FilmSource { .custom(id: id, displayName: displayName, iso: iso, fileName: fileName) }
 }
 
-/// Only the home catalog is retained. Historical photos and their image data are never fetched.
-struct HomePreparationSnapshot: Sendable {
-    let customFilters: [HomeCustomFilter]
-    let presetCovers: [FilmPreset: UIImage]
-    let customCover: UIImage?
-
-    static func prepare(container: ModelContainer, displayScale: CGFloat) async throws -> Self {
-        async let metadata = Task.detached(priority: .userInitiated) {
-            let context = ModelContext(container)
-            let descriptor = FetchDescriptor<CustomLUT>(sortBy: [SortDescriptor(\CustomLUT.createdAt, order: .reverse)])
-            return try context.fetch(descriptor).map(HomeCustomFilter.init)
-        }.value
-        let presets = await MainActor.run { FilmPageSettings.shared.preferences.addedPresets }
-        async let covers = FilmPresetCoverPreparation.prepareHome(presets: presets, displayScale: displayScale)
-        async let preview: Void = PreviewMetalResources.warmUp()
-        let (customFilters, presetCovers, _) = try await (metadata, covers, preview)
-        try Task.checkCancellation()
-        let customCover: UIImage?
-        if customFilters.isEmpty {
-            customCover = nil
-        } else {
-            customCover = await BlockingImageWork.shared.run {
-                let image = UIImage(systemName: "slider.horizontal.3", withConfiguration: UIImage.SymbolConfiguration(pointSize: 26, weight: .medium))
-                return image?.preparingForDisplay() ?? image
-            }
-        }
-        try Task.checkCancellation()
-        await MainActor.run {
-            let observer = DiagnosticTrace(id: "startup").span("startup_photos_observer")
-            PhotoLibrarySync.shared.start(container: container)
-            observer.end()
-        }
-        try Task.checkCancellation()
-        return Self(customFilters: customFilters, presetCovers: presetCovers, customCover: customCover)
-    }
-}
-
 @MainActor
 final class AppStartupPreparation: ObservableObject {
     struct Ready {
         let container: ModelContainer
-        let home: HomePreparationSnapshot
+        let customFilters: [HomeCustomFilter]
     }
 
     typealias OpenStorage = @Sendable () throws -> ModelContainer
-    typealias PrepareHome = @Sendable (ModelContainer, CGFloat) async throws -> HomePreparationSnapshot
+    typealias LoadCustomFilters = @Sendable (ModelContainer) async throws -> [HomeCustomFilter]
 
     @Published private(set) var ready: Ready?
     @Published private(set) var isPreparing = false
@@ -77,7 +41,7 @@ final class AppStartupPreparation: ObservableObject {
     @Published private(set) var failureMessage: String?
 
     private let openStorage: OpenStorage
-    private let prepareHome: PrepareHome
+    private let loadCustomFilters: LoadCustomFilters
     private let timeout: Duration
     private var container: ModelContainer?
     private var openingStorage: Task<ModelContainer, any Error>?
@@ -89,13 +53,13 @@ final class AppStartupPreparation: ObservableObject {
 
     init(timeout: Duration = .seconds(20),
          openStorage: @escaping OpenStorage = AppStartupPreparation.openDefaultStorage,
-         prepareHome: @escaping PrepareHome = HomePreparationSnapshot.prepare) {
+         loadCustomFilters: @escaping LoadCustomFilters = AppStartupPreparation.loadDefaultCustomFilters) {
         self.timeout = timeout
         self.openStorage = openStorage
-        self.prepareHome = prepareHome
+        self.loadCustomFilters = loadCustomFilters
     }
 
-    func prepare(displayScale: CGFloat) async {
+    func prepare() async {
         guard ready == nil else { return }
         if let preparation { await preparation.value; return }
         Diagnostics.start()
@@ -110,11 +74,11 @@ final class AppStartupPreparation: ObservableObject {
             do {
                 let container = try await self.openContainer()
                 try Task.checkCancellation()
-                let home = try await self.prepareHome(container, displayScale)
+                let customFilters = try await self.loadCustomFilters(container)
                 try Task.checkCancellation()
                 guard self.generation == request else { span.end("superseded"); return }
                 self.cancelDeadline()
-                self.ready = Ready(container: container, home: home)
+                self.ready = Ready(container: container, customFilters: customFilters)
                 self.isPreparing = false
                 self.preparation = nil
                 span.end()
@@ -133,9 +97,9 @@ final class AppStartupPreparation: ObservableObject {
         await operation.value
     }
 
-    func retry(displayScale: CGFloat) async {
+    func retry() async {
         cancel()
-        await prepare(displayScale: displayScale)
+        await prepare()
     }
 
     func cancel() {
@@ -208,5 +172,15 @@ final class AppStartupPreparation: ObservableObject {
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         try FileManager.default.createDirectory(at: configuration.url.deletingLastPathComponent(), withIntermediateDirectories: true)
         return try ModelContainer(for: schema, migrationPlan: JustShootMigrationPlan.self, configurations: [configuration])
+    }
+
+    nonisolated private static func loadDefaultCustomFilters(container: ModelContainer) async throws -> [HomeCustomFilter] {
+        try await Task.detached(priority: .userInitiated) {
+            try DiagnosticTrace(id: "startup").measure("startup_custom_filters") {
+                let context = ModelContext(container)
+                let descriptor = FetchDescriptor<CustomLUT>(sortBy: [SortDescriptor(\CustomLUT.createdAt, order: .reverse)])
+                return try context.fetch(descriptor).map(HomeCustomFilter.init)
+            }
+        }.value
     }
 }
