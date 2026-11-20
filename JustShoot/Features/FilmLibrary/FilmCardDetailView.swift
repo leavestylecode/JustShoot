@@ -224,9 +224,9 @@ private struct FilmSceneGallery: View {
                 .accessibilityLabel("Recommended scenes")
 
                 let scene = selection.scene
-                let filename = scene.filename(gradedWith: showsOriginal ? nil : preset)
-                VaultImage(filename: filename, maxPixel: 1024, isHero: true)
-                    .id(filename)
+                VaultImage(filename: scene.filename, maxPixel: 1024, gradedWith: showsOriginal ? nil : preset, isHero: true)
+                    .id(scene)
+                    .id(showsOriginal)
                     .aspectRatio(1.5, contentMode: .fit)
                     .clipShape(.rect(cornerRadius: 12))
                     .accessibilityLabel(Text(scene.title))

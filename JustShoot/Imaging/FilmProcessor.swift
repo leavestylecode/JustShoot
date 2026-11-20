@@ -105,6 +105,20 @@ final class FilmProcessor: Sendable {
         }
     }
 
+    /// A display-sized sRGB sample uses the capture LUT without optical effects or grain.
+    func gradedPreview(_ original: CGImage, preset: FilmPreset) -> CGImage? {
+        do {
+            let lut = try loadLUT(source: .preset(preset))
+            guard let stages = FilmImagePipeline.stages(for: CIImage(cgImage: original), lut: lut,
+                chromaticGain: .one, optics: .disabled, grain: .disabled, grainSeed: 1) else { return nil }
+            return renderingContext().createCGImage(stages.graded, from: stages.graded.extent,
+                format: .RGBA8, colorSpace: srgbColorSpace, deferred: false)
+        } catch {
+            Log.lut.error("film_preview_lut_failed preset=\(preset.rawValue, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
     /// 首屏完成后由启动编排在后台调用。若已准备好则近似零开销。
     func prepareRendering() {
         let timer = Log.perf("film_render_prepare", logger: Log.lut)

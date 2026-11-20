@@ -4,41 +4,46 @@ import XCTest
 @testable import JustShoot
 
 final class FilmSampleGalleryTests: XCTestCase {
-    /// Set JUSTSHOOT_SAMPLE_EXPORT to a writable directory on the simulator host
-    /// to regenerate the graded HEIC files after a look or source photograph changes.
-    func testSamplesMatchTheirBundledFilmLook() throws {
-        let export = ProcessInfo.processInfo.environment["JUSTSHOOT_SAMPLE_EXPORT"].map {
-            URL(fileURLWithPath: $0, isDirectory: true)
-        }
-        if let export { try FileManager.default.createDirectory(at: export, withIntermediateDirectories: true) }
-
+    func testAllScenePreviewsMatchTheCaptureLUTAtDisplayResolution() async throws {
         let space = FilmImagePipeline.colorSpace
         let context = CIContext(options: [.workingColorSpace: space, .outputColorSpace: space,
             .cacheIntermediates: false])
         let processor = FilmProcessor()
+        let cache = FilmCardImageCache()
         for preset in FilmPreset.allCases {
-            let scenes = preset.recommendations.map(\.scene)
             let lut = try processor.loadLUT(source: .preset(preset))
-            for scene in scenes {
+            for entry in preset.recommendations {
+                let filename = entry.scene.filename
+                let preview = await cache.loadImage(imageName: filename, maxPixel: 1024, gradedWith: preset)
                 try autoreleasepool {
-                    let original = try bundledImage(scene.filename())
-                    let stages = try XCTUnwrap(FilmImagePipeline.stages(for: original, lut: lut,
-                        chromaticGain: .one, optics: .disabled, grain: .disabled, grainSeed: 1))
-                    let filename = scene.filename(gradedWith: preset)
-                    if let export {
-                        try context.writeHEIFRepresentation(of: stages.graded, to: export.appendingPathComponent(filename), format: .RGBA8,
-                            colorSpace: space, options: [CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String): 0.72])
-                    } else {
-                        let sample = try bundledImage(filename)
-                        XCTAssertEqual(sample.extent, original.extent, filename)
-                        let actual = thumbnailPixels(sample, context: context)
-                        let expected = thumbnailPixels(stages.graded, context: context)
-                        let error = zip(actual, expected).reduce(0) { $0 + abs(Int($1.0) - Int($1.1)) }
-                        XCTAssertLessThan(Double(error) / Double(actual.count), 2, filename)
-                    }
+                    let actual = CIImage(cgImage: try XCTUnwrap(preview?.cgImage))
+                    let original = try bundledImage(filename)
+                    let expected = try XCTUnwrap(FilmImagePipeline.stages(for: original, lut: lut,
+                        chromaticGain: .one, optics: .disabled, grain: .disabled, grainSeed: 1)).graded
+                    let label = "\(preset.id) · \(filename)"
+                    XCTAssertEqual(actual.extent, expected.extent, label)
+                    let pixels = thumbnailPixels(actual, context: context)
+                    let reference = thumbnailPixels(expected, context: context)
+                    let error = zip(pixels, reference).reduce(0) { $0 + abs(Int($1.0) - Int($1.1)) }
+                    XCTAssertLessThan(Double(error) / Double(reference.count), 2, label)
                 }
             }
         }
+    }
+
+    func testOriginalAndPresetVariantsShareOnlyMatchingCacheEntries() async throws {
+        let cache = FilmCardImageCache()
+        let filename = FilmSampleScene.quilter.filename
+        let color = await cache.loadImage(imageName: filename, maxPixel: 600, gradedWith: .kodakPortra400)
+        let mono = await cache.loadImage(imageName: filename, maxPixel: 540, gradedWith: .kodakTriX400)
+        let original = try XCTUnwrap(cache.cachedImage(imageName: filename, maxPixel: 640))
+        let colorImage = try XCTUnwrap(color)
+        let monoImage = try XCTUnwrap(mono)
+        XCTAssertFalse(original === colorImage)
+        XCTAssertFalse(colorImage === monoImage)
+        XCTAssertEqual(colorImage.cgImage?.width, 640)
+        let revisited = await cache.loadImage(imageName: filename, maxPixel: 640, gradedWith: .kodakPortra400)
+        XCTAssertTrue(revisited === colorImage)
     }
 
     func testEachFilmPairsDistinctRegionalPhotographsWithItsRecommendedScenes() {

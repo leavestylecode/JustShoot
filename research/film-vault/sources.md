@@ -42,6 +42,6 @@
 
 39 幅样片由 JustShoot 使用 OpenAI ImageGen 生成。富士、柯达和伊尔福分别取景于虚构的日本、美国和英国日常场景。画面参考 iPhone 主摄的视角、景深与自然曝光。题材和光线是逐张指定的；生成的影像使用中性 sRGB 色彩。详情页为每幅图标注 AI 来源。[生成提示词](sample-prompts.md)
 
-源文件的 8 位 sRGB 通道经逆传递函数转换为 16 位线性 RGB，保存为 DNG 1.4（LinearRaw，D65 白点）。这些合成母版保留生成图的色阶、原始尺寸和构图。文件标注合成来源；真实 iPhone 的传感器采集、多帧融合和额外 RAW 高光信息仅存在于相机拍摄的数据中。
+母版采用 DNG 1.4（LinearRaw，D65 白点）。源图的 8 位 sRGB 数值用无损 JPEG 编码，DNG LinearizationTable 的 256 个表项将它们精确还原为原母版的 16 位线性 RGB 数值。39 张母版在 Apple Core Image 和 LibRaw 中分别与原始未压缩 DNG 解码比对，逐像素一致。DNG 是供外部 RAW 编辑器使用的可选导出文件，构建、展示与发布均只使用项目内的资源。
 
-应用随包提供从母版转换的 3:2 sRGB JPEG。每种预设的五张效果图都以对应的 JPEG 为输入，经实际 LUT 和 `FilmImagePipeline` 离线渲染为 HEIC。安装包只携带显示所需的分辨率，DNG 母版另行打包。自动测试逐张比对全部 95 张效果图。[导出与对照测试](../../JustShootTests/FilmSampleGalleryTests.swift)
+应用内保留 39 张原分辨率的 3:2 sRGB JPEG。详情页按需在后台对同一画幅应用预设 LUT，沿用拍摄管线的调色阶段。原图与效果图共用有容量上限的内存缓存，离开场景时可以取消尚在排队的请求。回归测试逐项对照 95 个场景与胶片组合。[效果对照测试](../../JustShootTests/FilmSampleGalleryTests.swift)

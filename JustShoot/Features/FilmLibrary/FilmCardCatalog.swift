@@ -31,22 +31,39 @@ final class FilmCardImageCache: @unchecked Sendable {
         return 1024
     }
 
-    func cachedImage(imageName: String, maxPixel: Int) -> UIImage? {
-        cache.object(forKey: "\(imageName)_\(Self.pixelSize(for: maxPixel))" as NSString)
+    private static func key(_ imageName: String, pixel: Int, preset: FilmPreset? = nil) -> String {
+        let original = "\(imageName)_\(pixel)"
+        return preset.map { "\(original)/\($0.rawValue)" } ?? original
     }
 
-    /// Decode a bundled cover or scene on the shared, bounded image worker.
-    func loadImage(imageName: String, maxPixel: Int) async -> UIImage? {
+    func cachedImage(imageName: String, maxPixel: Int, gradedWith preset: FilmPreset? = nil) -> UIImage? {
+        cache.object(forKey: Self.key(imageName, pixel: Self.pixelSize(for: maxPixel), preset: preset) as NSString)
+    }
+
+    func loadImage(imageName: String, maxPixel: Int, gradedWith preset: FilmPreset? = nil) async -> UIImage? {
         guard !Task.isCancelled else { return nil }
-        let maxPixel = Self.pixelSize(for: maxPixel)
-        let key = "\(imageName)_\(maxPixel)"
+        let pixel = Self.pixelSize(for: maxPixel)
+        let key = Self.key(imageName, pixel: pixel, preset: preset)
         if let cached = cache.object(forKey: key as NSString) { return cached }
 
+        let original = await image(for: Self.key(imageName, pixel: pixel)) { [decode] in
+            decode(imageName, pixel)
+        }
+        guard let preset else { return original }
+        guard let input = original?.cgImage, !Task.isCancelled else { return nil }
+        return await image(for: key) {
+            guard let output = FilmProcessor.shared.gradedPreview(input, preset: preset) else { return nil }
+            return UIImage(cgImage: output)
+        }
+    }
+
+    /// Decode and grade on the bounded worker. Both stages share requests and the same memory budget.
+    private func image(for key: String, load: @escaping @Sendable () -> UIImage?) async -> UIImage? {
+        if let cached = cache.object(forKey: key as NSString) { return cached }
         return await requests.image(for: key) { [weak self] in
             guard let self else { return nil }
             if let cached = self.cache.object(forKey: key as NSString) { return cached }
-
-            guard let image = self.decode(imageName, maxPixel) else { return nil }
+            guard let image = load() else { return nil }
             self.cache.setObject(image, forKey: key as NSString, cost: self.memoryCost(of: image))
             return image
         }

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Each scene names an ungraded sRGB preview and its bundled LUT renderings.
+/// Each scene names one bundled sRGB preview shared by its recommended looks.
 enum FilmSampleScene: String, CaseIterable, Sendable {
     case quilter, ranch, roadside, fair, diner, motel
     case ballpark, fruitStand, pinkDiner, boots, orchard
@@ -16,10 +16,7 @@ enum FilmSampleScene: String, CaseIterable, Sendable {
         LocalizedStringResource(String.LocalizationValue(stringLiteral: rawValue), table: "FilmIntroductions")
     }
 
-    func filename(gradedWith preset: FilmPreset? = nil) -> String {
-        if let preset { return "vault-\(rawValue)-\(preset.rawValue).heic" }
-        return "vault-\(rawValue).jpg"
-    }
+    var filename: String { "vault-\(rawValue).jpg" }
 }
 
 struct FilmRecommendation: Identifiable {

@@ -114,6 +114,7 @@ enum VaultMembershipStyle {
 struct VaultImage: View {
     let filename: String
     let maxPixel: Int
+    var gradedWith: FilmPreset?
     var isHero = false
     @State private var image: UIImage?
     @State private var failed = false
@@ -122,13 +123,14 @@ struct VaultImage: View {
     private struct Request: Hashable {
         let filename: String
         let maxPixel: Int
+        let preset: FilmPreset?
         let attempt: Int
     }
 
     var body: some View {
         Rectangle().fill(.primary.opacity(0.05))
             .overlay {
-                if let image = image ?? FilmCardImageCache.shared.cachedImage(imageName: filename, maxPixel: maxPixel) {
+                if let image = image ?? FilmCardImageCache.shared.cachedImage(imageName: filename, maxPixel: maxPixel, gradedWith: gradedWith) {
                     Image(uiImage: image).resizable().scaledToFill()
                 } else if isHero && failed {
                     PageNotice(title: "Preview unavailable", systemImage: "photo",
@@ -140,9 +142,9 @@ struct VaultImage: View {
                 }
             }
             .clipped()
-            .task(id: Request(filename: filename, maxPixel: maxPixel, attempt: attempt)) {
+            .task(id: Request(filename: filename, maxPixel: maxPixel, preset: gradedWith, attempt: attempt)) {
                 failed = false
-                let result = await FilmCardImageCache.shared.loadImage(imageName: filename, maxPixel: maxPixel)
+                let result = await FilmCardImageCache.shared.loadImage(imageName: filename, maxPixel: maxPixel, gradedWith: gradedWith)
                 guard !Task.isCancelled else { return }
                 image = result
                 failed = result == nil

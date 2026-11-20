@@ -2,4 +2,4 @@ Film Vault — Sample image provenance
 
 JustShoot created the 39 source illustrations with OpenAI ImageGen. People, activities and locations depict fictional scenes inspired by everyday settings in Japan, the United States and Britain.
 
-The generated sRGB images were converted to 16-bit linear RGB DNG files. The source signal has 8-bit sRGB precision. Each unfiltered in-app JPEG is an sRGB rendering of the corresponding DNG. The comparison HEIC applies the selected JustShoot LUT to that same JPEG crop.
+The DNG masters preserve the generated 8-bit sRGB levels with a 16-bit linearization table and lossless JPEG compression. Each unfiltered in-app JPEG is an sRGB rendering of the corresponding DNG. The app applies the selected JustShoot LUT to that JPEG when displaying a film look.
