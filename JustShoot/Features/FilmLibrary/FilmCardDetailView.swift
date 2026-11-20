@@ -165,7 +165,9 @@ struct FilmCardDetailView: View {
             if let selection = recommendations.first(where: { $0.tag == selectedTag }) ?? recommendations.first {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Recommended scenes")
-                        .font(.headline)
+                        .font(.subheadline.weight(.semibold))
+                        .tracking(0.6)
+                        .foregroundStyle(Color.primary.opacity(0.74))
                         .accessibilityAddTraits(.isHeader)
 
                     FilmSceneTagLayout {
