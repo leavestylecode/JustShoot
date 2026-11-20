@@ -47,17 +47,21 @@ final class FilmTileLayoutTests: XCTestCase {
         }
     }
 
-    func testDetailSceneTagsWrapOnlyWhenTheNextTagDoesNotFit() {
+    func testDetailSceneTagsFillOneRowAndBalanceTwoRowsWhenTheyFit() {
         let widths: [CGFloat] = [72, 60, 88, 64, 56]
         let host = UIHostingController(rootView: FilmSceneTagLayout {
             ForEach(widths, id: \.self) { width in
                 Color.clear.frame(width: width, height: 44)
             }
         })
-        let cases: [(CGFloat, CGFloat)] = [(364, 44), (363, 90), (164, 136), (90, 228)]
-        for (width, height) in cases {
+        // At 363 pt, all five miss fitting by one point. Three on the first row measure 232 pt.
+        let cases: [(CGFloat, CGFloat, CGFloat)] = [
+            (402, 402, 44), (375, 375, 44), (364, 364, 44),
+            (363, 232, 90), (164, 158, 136), (90, 88, 228)
+        ]
+        for (width, usedWidth, height) in cases {
             let size = host.sizeThatFits(in: CGSize(width: width, height: 1000))
-            XCTAssertLessThanOrEqual(size.width, width)
+            XCTAssertEqual(size.width, usedWidth, accuracy: 0.5)
             XCTAssertEqual(size.height, height, accuracy: 0.5)
         }
     }

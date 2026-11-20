@@ -163,12 +163,14 @@ struct FilmCardDetailView: View {
         let recommendations = preset.recommendations
         return VStack(alignment: .leading, spacing: 12) {
             if let selection = recommendations.first(where: { $0.tag == selectedTag }) ?? recommendations.first {
-                Text("Recommended scenes")
-                    .font(.title3.weight(.semibold))
-                    .accessibilityAddTraits(.isHeader)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Recommended scenes")
+                        .font(.headline)
+                        .accessibilityAddTraits(.isHeader)
 
-                FilmSceneTagLayout {
-                    sceneButtons(recommendations, selected: selection.tag)
+                    FilmSceneTagLayout {
+                        sceneButtons(recommendations, selected: selection.tag)
+                    }
                 }
 
                 let scene = selection.scene
@@ -199,13 +201,18 @@ struct FilmCardDetailView: View {
             let active = item.tag == selected
             Button { selectedTag = item.tag } label: {
                 Text(item.tag.title)
-                    .font(.subheadline.weight(active ? .semibold : .regular))
+                    .font(.subheadline.weight(.medium))
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .foregroundStyle(active ? Color(.systemBackground) : .primary)
-                    .background(active ? Color.primary : Color.primary.opacity(0.06), in: Capsule())
-                    .frame(minHeight: 44)
+                    .foregroundStyle(Color.primary.opacity(active ? 1 : 0.70))
+                    .padding(.vertical, 6)
+                    .overlay(alignment: .bottom) {
+                        if active {
+                            Capsule().fill(.primary).frame(height: 2)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .padding(.horizontal, 6)
+                    .frame(minWidth: 44, maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -284,7 +291,7 @@ struct FilmCardDetailView: View {
     }
 }
 
-/// Place tags at their natural widths and wrap in reading order as text grows.
+/// Spread one row across the sample. Wrapped rows keep their natural widths and reading order.
 struct FilmSceneTagLayout: Layout {
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let frames = frames(for: subviews, width: proposal.width ?? .infinity)
@@ -299,18 +306,31 @@ struct FilmSceneTagLayout: Layout {
     }
 
     private func frames(for subviews: Subviews, width: CGFloat) -> [CGRect] {
+        let spacing: CGFloat = 6
+        let sizes = subviews.map { subview in
+            let ideal = subview.sizeThatFits(.unspecified)
+            return ideal.width > width
+                ? subview.sizeThatFits(ProposedViewSize(width: width, height: nil)) : ideal
+        }
+        func rowWidth(_ row: ArraySlice<CGSize>) -> CGFloat {
+            row.reduce(CGFloat(max(0, row.count - 1)) * spacing) { $0 + $1.width }
+        }
+        let naturalWidth = rowWidth(sizes[...])
+        let fitsOneRow = width.isFinite && naturalWidth <= width && !sizes.isEmpty
+        let extraWidth = fitsOneRow ? (width - naturalWidth) / CGFloat(sizes.count) : 0
+        let middle = (sizes.count + 1) / 2
+        let balancesTwoRows = naturalWidth > width
+            && rowWidth(sizes[..<middle]) <= width && rowWidth(sizes[middle...]) <= width
         var origin = CGPoint.zero
         var rowBottom: CGFloat = 0
-        return subviews.map { subview in
-            let ideal = subview.sizeThatFits(.unspecified)
-            let size = ideal.width > width
-                ? subview.sizeThatFits(ProposedViewSize(width: width, height: nil)) : ideal
-            if origin.x > 0, origin.x + size.width > width {
+        return sizes.enumerated().map { index, size in
+            let startsNextRow = (balancesTwoRows && index == middle) || origin.x + size.width > width
+            if !fitsOneRow, origin.x > 0, startsNextRow {
                 origin = CGPoint(x: 0, y: rowBottom + 2)
             }
-            let frame = CGRect(origin: origin, size: size)
+            let frame = CGRect(origin: origin, size: CGSize(width: size.width + extraWidth, height: size.height))
             rowBottom = max(rowBottom, frame.maxY)
-            origin.x = frame.maxX + 6
+            origin.x = frame.maxX + spacing
             return frame
         }
     }
