@@ -209,7 +209,7 @@ struct FilmCardDetailView: View {
 
 private struct FilmSceneGallery: View {
     let preset: FilmPreset
-    @ScaledMetric(relativeTo: .subheadline) private var minimumCaptionWidth: CGFloat = 132
+    @ScaledMetric(relativeTo: .subheadline) private var comparisonWidth: CGFloat = 168
     @State private var selectedTag: FilmSceneTag?
     @State private var showsOriginal = false
 
@@ -231,17 +231,9 @@ private struct FilmSceneGallery: View {
                     .clipShape(.rect(cornerRadius: 12))
                     .accessibilityLabel(Text(scene.title))
 
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 14) {
-                        caption(for: scene)
-                            .frame(minWidth: minimumCaptionWidth, maxWidth: .infinity, alignment: .leading)
-                        comparison.fixedSize()
-                    }
-                    VStack(alignment: .leading, spacing: 12) {
-                        caption(for: scene)
-                        comparison
-                    }
-                }
+                comparison
+                    .frame(maxWidth: comparisonWidth)
+                    .frame(maxWidth: .infinity)
             }
         }
     }
@@ -269,17 +261,6 @@ private struct FilmSceneGallery: View {
             .accessibilityAddTraits(active ? .isSelected : [])
             .accessibilityIdentifier("filmLibrary.scene.\(item.tag.rawValue)")
         }
-    }
-
-    private func caption(for scene: FilmSampleScene) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(scene.title)
-                .font(.subheadline.weight(.semibold))
-            Text("JustShoot · AI-generated", tableName: "FilmIntroductions")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .accessibilityElement(children: .combine)
     }
 
     private var comparison: some View {

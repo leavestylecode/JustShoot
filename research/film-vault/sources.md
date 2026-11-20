@@ -4,7 +4,7 @@
 
 中英文介绍和场景标签根据厂商资料与摄影者的使用记录编写。色彩描述同时参考 App 的实际渲染结果。
 
-标签回答「拍什么」和「在什么光线或天气下拍」。题材用风光、人像、街拍、纪实、建筑、婚礼、静物，光线和天气用晴天、阴天、雨天、日落、夜景、雪景。街拍侧重公共空间里的瞬间，纪实侧重人物活动与事件。地点和具体对象留在照片标题里。每款五项的取舍和顺序由项目编辑，首项是打开详情时展示的场景。[逐款场景与配图](../../JustShoot/Features/FilmLibrary/FilmSampleScene.swift)
+标签回答「拍什么」和「在什么光线或天气下拍」。题材用风光、人像、街拍、纪实、建筑、婚礼、静物，光线和天气用晴天、阴天、雨天、日落、夜景、雪景。街拍侧重公共空间里的瞬间，纪实侧重人物活动与事件。读屏时可听到每张样片的简短描述。每款五项的取舍和顺序由项目编辑，首项是打开详情时展示的场景。[逐款场景与配图](../../JustShoot/Features/FilmLibrary/FilmSampleScene.swift)
 
 - 富士的六款数码模拟参考 X 系列使用指南、Imaging Resource 的实拍对照，以及 Measuring Light 的台湾街拍记录。PROVIA 相机模拟和 Provia 100F 反转片各用对应资料。[富士指南](https://www.fujifilm-x.com/en-gb/learning-centre/get-to-grips-with-film-simulation-modes/) · [实拍对照](https://www.imaging-resource.com/news/fujifilm-film-simulations-definitive-guide/) · [街拍记录](https://measuringlight.com/2024/02/26/trips-23-taiwan-with-fuji-x-pro3-pro-photographers/)
 - 富士、柯达实体片逐款查阅技术资料。The Darkroom 的冲扫观察与投稿实拍补充肤色、常见用光和拍摄题材。Kodachrome 64 的技术资料采用存档的柯达 E-88，并参考 Casual Photophile 的原片回顾。[富士资料目录](https://www.fujifilm.com/sg/en/consumer/support/films/negative-and-reversal) · [柯达资料目录](https://kodakprofessional.com/photographers/resources) · [The Darkroom](https://thedarkroom.com/film-index/) · [Kodachrome 回顾](https://casualphotophile.com/2017/10/04/kodachrome-retrospective-film-profile/)
@@ -40,7 +40,7 @@
 
 ## 样片原图
 
-39 幅样片由 JustShoot 使用 OpenAI ImageGen 生成。富士、柯达和伊尔福分别取景于虚构的日本、美国和英国日常场景。画面参考 iPhone 主摄的视角、景深与自然曝光。题材和光线是逐张指定的；生成的影像使用中性 sRGB 色彩。详情页为每幅图标注 AI 来源。[生成提示词](sample-prompts.md)
+39 幅样片由 JustShoot 使用 OpenAI ImageGen 生成。富士、柯达和伊尔福分别取景于虚构的日本、美国和英国日常场景。画面参考 iPhone 主摄的视角、景深与自然曝光。生成原图采用中性 sRGB 色彩。人像用侧逆光勾勒轮廓，街拍用侧光呈现建筑与行人的投影，风光与静物分别用斜射的阳光表现远近层次和表面纹理。照片的来源记录在项目内。[生成提示词](sample-prompts.md)
 
 母版采用 DNG 1.4（LinearRaw，D65 白点）。源图的 8 位 sRGB 数值用无损 JPEG 编码，DNG LinearizationTable 的 256 个表项将它们精确还原为原母版的 16 位线性 RGB 数值。39 张母版在 Apple Core Image 和 LibRaw 中分别与原始未压缩 DNG 解码比对，逐像素一致。DNG 是供外部 RAW 编辑器使用的可选导出文件，构建、展示与发布均只使用项目内的资源。
 

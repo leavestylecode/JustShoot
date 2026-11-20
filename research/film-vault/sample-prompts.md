@@ -10,11 +10,11 @@ Use case: photorealistic-natural. Create a single original horizontal 3:2 photog
 
 ### On the porch (`quilter`)
 
-Close environmental portrait on a shaded Alabama porch: an adult Black woman with silver hair cut short, wearing a plain denim work shirt, her eyes toward the camera, relaxed face, her faded red cotton quilt draped over the back of a porch chair at the edge of the frame. Diffuse daylight shows natural warm brown skin, light grey clapboard, a quiet side of the house. One person, no hands needed in frame.
+Environmental portrait on a modest American porch, of a Black woman in her early sixties with short silver hair and a dark indigo cotton shirt. She is seated sideways in the chair and turns gently toward the camera. Late-afternoon sun enters from behind at camera left, grazing one cheek and lighting a fine rim of silver curls; soft light reflected from the pale porch floor keeps both eyes and deep brown skin legible. A sunlit strip of clapboard and the soft dark porch recess create two simple depth planes, one folded quilt at the side. Step back a few feet for a natural, quiet waist-up portrait. Spare, unposed composition. No haze or artificial glow.
 
 ### Pasture and ridgeline (`ranch`)
 
-Open Colorado foothill pasture in late summer. Two tracks in the tawny grass lead to a low pale green farm shed against distant blue foothills, horizontal bands of pasture, trees and sky with a few low clouds. Broad clear daylight, uncluttered rural American landscape, no people, believable atmospheric depth.
+A Colorado pasture with low foothills. Slanting sun from behind and to one side lights the fine tips of tall dry grass along the bottom edge; a modest pale farm shed and a dark line of cottonwoods sit in the middle distance, with cooler mountain ridges in the distance. Horizontal layers are immediately legible. The sun is out of frame, sky is light blue, pasture a believable mix of straw and green. Wide ordinary Western landscape with calm measured proportions, fresh air, no intense sunset colours or exaggerated sunbeams.
 
 ### Corner service station (`roadside`)
 
@@ -38,7 +38,7 @@ An in-between documentary moment at a modest American community baseball field. 
 
 ### Corner fruit stand (`fruitStand`)
 
-Candid American street photograph: a pedestrian in a plain blue shirt crosses the frame in front of an outdoor produce stand, red tomatoes in a couple of wooden crates, old brick corner building and narrow awning. View from across the sidewalk, sun patches and shade, spontaneous body language, no posed subjects, no legible signs.
+An unposed American sidewalk in late-morning sun. Seen from the shade of a dark green produce awning, a pedestrian in a blue work shirt has just stepped into a clean shaft of sunshine on the pavement, a few crates of red tomatoes in side light at the shop entrance. A cream brick building farther back reflects light into the shadow. Three distinct natural planes from dark foreground to bright pedestrian to quieter background. Keep framing spare, activity spontaneous and anatomy plausible; realistic highlight detail, no artificial haze.
 
 ### Diner in sunlight (`pinkDiner`)
 
@@ -62,7 +62,7 @@ A northern California beach at sunset, one low triangular headland, thin white b
 
 ### After the ceremony (`timesSquareWedding`)
 
-An intimate candid daytime wedding outside a small American city hall: a newlywed couple steps out together smiling at each other, bride in a plain ivory dress with a small loose bouquet, groom in a charcoal suit. Pale stone steps, warm tan brick in distance, a single soft out-of-focus guest at the edge. Overcast-bright windowlike daylight, natural skin, reportage distance, no fashion posing.
+A newly married couple outside an ordinary American brick city hall. She wears an ivory dress and he a dark suit; they turn toward each other with a small spontaneous smile as they step onto the pavement. Late-afternoon sun from behind and to the right softly outlines her hair and the translucent edge of her short veil. Warm light touches one shoulder; their faces are naturally lit by open sky and stone steps, and both white fabric texture and the dark suit remain readable. Background one plain stone doorway in shade, no other subjects in focus. Candid environmental framing, natural phone-camera perspective, no cinematic flare, no orange cast.
 
 ### An overcast block (`yorkvilleClouds`)
 
@@ -70,11 +70,11 @@ Overcast New York residential block. Unbroken grey cloud fills the upper third, 
 
 ### Portrait by the pond (`park`)
 
-Candid environmental portrait of a Japanese woman in her thirties near a small Kyoto park pond. Shoulder-length straight hair, pale blue cotton blouse, she glances up toward the camera, one smooth plane of reflected green water and far reeds behind. Framing from the waist up, open shade, natural Japanese skin tone, no makeup advertising, no kimono or tourist pose.
+An unposed portrait of a Japanese woman in her thirties with shoulder-length hair on a path by a modest park pond, wearing a soft pale-blue shirt. Off-axis early afternoon sun comes through a small tree from behind her on the right, lights a fine edge around her hair and shoulders and sparkles very selectively on the water. Keep her face in even open shade with clear eyes and faithful skin, without distracting speckles across the face. Show a little foreground grass and shaded bank behind her for depth. Waist-up natural perspective, restrained greens, steady realistic exposure.
 
 ### Passing through the lane (`kimono`)
 
-Unposed Japanese street scene: a woman in a subtle indigo everyday yukata and simple sandals walks past the warm timber facade of an ordinary Kyoto side street. A single bicycle leans against the opposite wall. Her three-quarter back view is caught mid-stride, plausible gait, generous breathing room. Daylight and open shadows, contemporary place without crowds or text.
+One Japanese woman in an indigo summer yukata walks away along a quiet ordinary Kyoto lane, a wicker bag by her side. A low sun outside the frame catches the left edge of the sleeve and sends her clearly connected long shadow diagonally over pale paving. The near timber facade is in cool shade; warm light glances across a second facade a little way down the street. The main light is directional and clear. A spare eye-level everyday street photograph with believable architecture, no crowds, no cinematic fill or orange wash.
 
 ### Courtyard wedding (`wedding`)
 
@@ -98,11 +98,11 @@ A middle-aged Japanese woman with short grey-streaked hair in a plain dark rust-
 
 ### Matcha and wagashi (`wagashi`)
 
-Japanese still life on a plain pale wood table: a dark unglazed ceramic bowl filled with green matcha and one small pale pink wagashi on a folded white paper square. Side-on three-quarter close view from slightly above, indirect window daylight and delicate cast shadows, room to breathe on three sides, only these two items, fine real textures.
+Japanese tabletop still life with one dark ceramic matcha bowl and one pale-pink wagashi on a small piece of folded white paper. A low side window throws a clearly directional band of morning sun over part of a pale wood table. Light skims the ridged ceramic rim and fine sugar texture; the folded paper casts a delicate defined shadow toward the camera. The soft reflected light in the room reveals the bowl in shadow. Composition from slightly above with a little negative space, realistic green tea and neutral paper, no ornamental props.
 
 ### Path through the bamboo (`bamboo`)
 
-Quiet Japanese bamboo grove in green summer. Slender upright stems at staggered distances, pale dirt footpath curving once through the lower third, filtered morning light on a few green stems and the forest floor. Balanced exposure, native leaf greens, no people, no tourist barriers, deep enough focus to read the landscape.
+A quiet Japanese forest path bending through a grove of bamboo in the morning. Low diagonal backlight through a natural gap illuminates the edges of a few near bamboo trunks and translucent leaves; the other trunks stay darker in believable open shade. A clear pool of sunlight crosses the otherwise shady path in the middle distance. Give the bamboo natural irregular spacing and a genuinely photographic sense of foreground, middle and background. Normal greens and a neutral white balance, no theatrical fog, no volumetric rays.
 
 ### Sunset over the bay (`seaSunset`)
 
@@ -146,11 +146,11 @@ Overcast afternoon in Japan. Low traditional timber houses and tiled eaves of a 
 
 ### Before opening (`foodStall`)
 
-London neighbourhood documentary photograph: a stallholder in a dark work apron pulling a plain ivory canvas cover off his produce stall as the day begins, crates of green leeks and carrots, brick arches behind. Eye level from the pavement, intelligible quiet work gesture, diffuse morning light and lived-in detail, no readable signs.
+A London food stall beneath an ordinary railway arch. An adult stallholder in a plain navy apron is lifting an old canvas flap before opening. Low morning sunlight enters from outside the arch, illuminating the upper edge of the canvas and one side of his face; light catches translucent leek tops in the foreground and drops off into the darker brickwork behind. Natural British daylight, believable working gesture, medium environmental view, uncluttered documentary frame. Shadows have readable detail, no logos or readable signage.
 
 ### Seaside pier (`pier`)
 
-A British south-coast seaside landscape, one long old pier on dark iron piers crossing into the pale green sea, a simple white pavilion at its far end. View from shingle beach, gentle waves, sea and sky have distinct soft tones, natural morning light. No people in foreground, no signage, level horizon.
+British south-coast seaside landscape in full afternoon light. A long modest Victorian pier crosses the composition from one side at an angle, its slender backlit iron supports repeating against sunlit pale-green water. A bright strip of breaking wave foams across the pebbled foreground; softer blue horizon beyond. The sun is out of frame behind the pier and a little to the side, sparkle is restrained, and supports retain visible texture. Simple level coastal photograph with clear tonal layering suited to monochrome as well as colour, no dramatic storm or sunset.
 
 ### Crossing the street (`lambStreet`)
 

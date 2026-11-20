@@ -1,16 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "JustShoot · AI-generated" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JustShoot · AI 生成"
-          }
-        }
-      }
-    },
     "asakusa" : {
       "extractionState" : "manual",
       "localizations" : {
