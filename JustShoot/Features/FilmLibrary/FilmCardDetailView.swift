@@ -8,8 +8,6 @@ struct FilmCardDetailView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var pageScheme
-    @State private var selectedTag: FilmSceneTag?
-    @State private var showsOriginal = false
 
     init(preset: FilmPreset, settings: FilmPageSettings? = nil) {
         self.preset = preset
@@ -39,7 +37,7 @@ struct FilmCardDetailView: View {
                             .frame(maxWidth: wide ? PageLayout.detailCoverWidth : .infinity)
                         VStack(alignment: .leading, spacing: 30) {
                             filmInfo(packaging)
-                            gallery
+                            FilmSceneGallery(preset: preset)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -159,84 +157,6 @@ struct FilmCardDetailView: View {
         }
     }
 
-    private var gallery: some View {
-        let recommendations = preset.recommendations
-        return VStack(alignment: .leading, spacing: 12) {
-            if let selection = recommendations.first(where: { $0.tag == selectedTag }) ?? recommendations.first {
-                FilmSceneTagLayout {
-                    sceneButtons(recommendations, selected: selection.tag)
-                }
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel("Recommended scenes")
-
-                let scene = selection.scene
-                let filename = scene.filename(gradedWith: showsOriginal ? nil : preset)
-                VaultImage(filename: filename, maxPixel: 1024, isHero: true)
-                    .id(filename)
-                    .aspectRatio(1.5, contentMode: .fit)
-                    .clipShape(.rect(cornerRadius: 12))
-                    .accessibilityLabel(Text(scene.title))
-
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 14) {
-                        caption(for: scene).fixedSize(horizontal: true, vertical: false)
-                        Spacer(minLength: 0)
-                        comparison.fixedSize()
-                    }
-                    VStack(alignment: .leading, spacing: 12) {
-                        caption(for: scene)
-                        comparison
-                    }
-                }
-            }
-        }
-    }
-
-    private func sceneButtons(_ recommendations: [FilmRecommendation], selected: FilmSceneTag) -> some View {
-        ForEach(recommendations) { item in
-            let active = item.tag == selected
-            Button { selectedTag = item.tag } label: {
-                Text(item.tag.title)
-                    .font(.subheadline.weight(.medium))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .foregroundStyle(Color.primary.opacity(active ? 1 : 0.70))
-                    .padding(.vertical, 6)
-                    .overlay(alignment: .bottom) {
-                        if active {
-                            Capsule().fill(.primary).frame(height: 2)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    .padding(.horizontal, 6)
-                    .frame(minWidth: 44, maxWidth: .infinity, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityAddTraits(active ? .isSelected : [])
-            .accessibilityIdentifier("filmLibrary.scene.\(item.tag.rawValue)")
-        }
-    }
-
-    private func caption(for scene: FilmSampleScene) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(scene.title)
-                .font(.subheadline.weight(.semibold))
-            Text(verbatim: scene.credit)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private var comparison: some View {
-        Picker("Sample appearance", selection: $showsOriginal) {
-            Text("Unfiltered").tag(true)
-            Text("Film look").tag(false)
-        }
-        .pickerStyle(.segmented)
-        .accessibilityIdentifier("filmLibrary.compare")
-    }
-
     @ViewBuilder
     private var membership: some View {
         if settings.preferences.isVisible(.preset(preset)) {
@@ -284,6 +204,91 @@ struct FilmCardDetailView: View {
             }
         }
         .accessibilityIdentifier("filmLibrary.use.\(preset.id)")
+    }
+}
+
+private struct FilmSceneGallery: View {
+    let preset: FilmPreset
+    @ScaledMetric(relativeTo: .subheadline) private var minimumCaptionWidth: CGFloat = 132
+    @State private var selectedTag: FilmSceneTag?
+    @State private var showsOriginal = false
+
+    var body: some View {
+        let recommendations = preset.recommendations
+        return VStack(alignment: .leading, spacing: 12) {
+            if let selection = recommendations.first(where: { $0.tag == selectedTag }) ?? recommendations.first {
+                FilmSceneTagLayout {
+                    sceneButtons(recommendations, selected: selection.tag)
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Recommended scenes")
+
+                let scene = selection.scene
+                let filename = scene.filename(gradedWith: showsOriginal ? nil : preset)
+                VaultImage(filename: filename, maxPixel: 1024, isHero: true)
+                    .id(filename)
+                    .aspectRatio(1.5, contentMode: .fit)
+                    .clipShape(.rect(cornerRadius: 12))
+                    .accessibilityLabel(Text(scene.title))
+
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 14) {
+                        caption(for: scene)
+                            .frame(minWidth: minimumCaptionWidth, maxWidth: .infinity, alignment: .leading)
+                        comparison.fixedSize()
+                    }
+                    VStack(alignment: .leading, spacing: 12) {
+                        caption(for: scene)
+                        comparison
+                    }
+                }
+            }
+        }
+    }
+
+    private func sceneButtons(_ recommendations: [FilmRecommendation], selected: FilmSceneTag) -> some View {
+        ForEach(recommendations) { item in
+            let active = item.tag == selected
+            Button { selectedTag = item.tag } label: {
+                Text(item.tag.title)
+                    .font(.subheadline.weight(active ? .semibold : .regular))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .foregroundStyle(Color.primary.opacity(active ? 1 : 0.70))
+                    .padding(.vertical, 6)
+                    .overlay(alignment: .bottom) {
+                        if active {
+                            Capsule().fill(.primary).frame(height: 2)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .padding(.horizontal, 6)
+                    .frame(minWidth: 44, maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(active ? .isSelected : [])
+            .accessibilityIdentifier("filmLibrary.scene.\(item.tag.rawValue)")
+        }
+    }
+
+    private func caption(for scene: FilmSampleScene) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(scene.title)
+                .font(.subheadline.weight(.semibold))
+            Text(verbatim: scene.credit)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var comparison: some View {
+        Picker("Sample appearance", selection: $showsOriginal) {
+            Text("Unfiltered").tag(true)
+            Text("Film look").tag(false)
+        }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("filmLibrary.compare")
     }
 }
 

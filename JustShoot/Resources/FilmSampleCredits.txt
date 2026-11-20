@@ -56,12 +56,6 @@ Carol M. Highsmith
 https://www.loc.gov/item/2018702857/
 Public domain  https://www.loc.gov/rr/print/res/482_high.html
 
-hats — Scottsdale · Hats at the polo grounds
-Like famous horseraces (the Kentucky Derby comes to mind), many polo matches are not just competitions but also venues at which spectators show off their finery. There's a little less of that in often brutally hot Arizona, but at the Bentley Polo Championship event in Scottsdale " which is held in relatively cooler November " fancy women's hats are available for sale in the event
-Carol M. Highsmith
-https://www.loc.gov/item/2018702225/
-Public domain  https://www.loc.gov/rr/print/res/482_high.html
-
 boots — San Antonio · Western boots
 Fancy cowboy boots for sale at the San Antonio Stock Show and Rodeo in San Antonio, Texas
 Carol M. Highsmith
@@ -134,12 +128,6 @@ Maarten Heerlien  from Voorschoten, The Netherlands
 https://commons.wikimedia.org/wiki/File:Sunset_at_Enoshima_(9409544613).jpg
 CC BY 2.0  https://creativecommons.org/licenses/by/2.0
 
-hydrangea — Kamakura · Hydrangea
-Hydrangea Macrophylla In Kamakura Japan.jpg
-Man On Mission
-https://commons.wikimedia.org/wiki/File:Hydrangea_Macrophylla_In_Kamakura_Japan.jpg
-CC BY-SA 3.0  https://creativecommons.org/licenses/by-sa/3.0
-
 fuji — Lake Kawaguchi · Mount Fuji
 Mount Fuji behind Ubuyagasaki, Fujikawaguchiko, 2016.jpg
 DimiTalen
@@ -182,12 +170,6 @@ Andy Li
 https://commons.wikimedia.org/wiki/File:OKAN_at_SH%C5%8CTENGAI_Pan-Asian_Market,_Lower_Stable_Street,_London_2025-09-18.jpg
 CC0  http://creativecommons.org/publicdomain/zero/1.0/deed.en
 
-borough — London · Borough Market
-Borough Market in London.jpg
-Jeong seolah
-https://commons.wikimedia.org/wiki/File:Borough_Market_in_London.jpg
-CC0  http://creativecommons.org/publicdomain/zero/1.0/deed.en
-
 pier — Brighton · Palace Pier
 Brighton Palace Pier viewed from Madeira Drive 2025-04-01.jpg
 Andy Li
@@ -205,3 +187,51 @@ Cullum Street in the City of London, next to the Leadenhall Market.jpg
 Robert von Oliva (naruciakk)
 https://commons.wikimedia.org/wiki/File:Cullum_Street_in_the_City_of_London,_next_to_the_Leadenhall_Market.jpg
 CC0  http://creativecommons.org/publicdomain/zero/1.0/deed.en
+
+rainCyclist — Japan · Cycling in the rain
+Umbrella and a bike 2022 July 14 05-39PM.jpeg
+Nesnad
+https://commons.wikimedia.org/wiki/File:Umbrella_and_a_bike_2022_July_14_05-39PM.jpeg
+CC0  http://creativecommons.org/publicdomain/zero/1.0/deed.en
+
+shirakawaSnow — Shirakawa · Snow-covered village
+Shirakawa in winter; Gifu Prefecture; February 2018 (14).jpg
+雷太
+https://commons.wikimedia.org/wiki/File:Shirakawa_in_winter;_Gifu_Prefecture;_February_2018_(14).jpg
+CC BY 2.0  https://creativecommons.org/licenses/by/2.0
+
+suttonRain — Sutton · High Street in the rain
+High St in the rain, SUTTON, Surrey, Greater London.jpg
+A P Monblat
+https://commons.wikimedia.org/wiki/File:High_St_in_the_rain,_SUTTON,_Surrey,_Greater_London.jpg
+CC BY-SA 4.0  https://creativecommons.org/licenses/by-sa/4.0
+
+haydenSnow — Yellowstone · Winter in Hayden Valley
+Lone tree and snowy hills in Hayden Valley.jpg
+Jacob W. Frank
+https://commons.wikimedia.org/wiki/File:Lone_tree_and_snowy_hills_in_Hayden_Valley.jpg
+Public domain
+
+trinidadSunset — California · Sunset at Trinidad Beach
+Sunset on Trinidad State Beach, California 2019-09-27-1.jpg
+Alexey Komarov
+https://commons.wikimedia.org/wiki/File:Sunset_on_Trinidad_State_Beach,_California_2019-09-27-1.jpg
+CC BY-SA 4.0  https://creativecommons.org/licenses/by-sa/4.0
+
+timesSquareWedding — New York · Just married in Times Square
+US Navy 090611-F-1942W-237 Lt. Kelly Lanning and his new wife, Megan O'Brien, enjoy a pedi cab ride following their wedding ceremony on Military Island in Times Square.jpg
+Cpt. Angela Webb, U.S. Air Force
+https://commons.wikimedia.org/wiki/File:US_Navy_090611-F-1942W-237_Lt._Kelly_Lanning_and_his_new_wife,_Megan_O%27Brien,_enjoy_a_pedi_cab_ride_following_their_wedding_ceremony_on_Military_Island_in_Times_Square.jpg
+Public domain
+
+yorkvilleClouds — New York · Clouds over Yorkville
+Yorkville NYC from 87th St.jpg
+Leif Knutsen
+https://commons.wikimedia.org/wiki/File:Yorkville_NYC_from_87th_St.jpg
+CC BY-SA 3.0  http://creativecommons.org/licenses/by-sa/3.0/
+
+asakusaClouds — Asakusa · Overcast at Hōzōmon
+Hozomon on an overcast day dllu.jpg
+Daniel L. Lu
+https://commons.wikimedia.org/wiki/File:Hozomon_on_an_overcast_day_dllu.jpg
+CC BY-SA 4.0  https://creativecommons.org/licenses/by-sa/4.0

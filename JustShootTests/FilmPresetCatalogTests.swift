@@ -49,12 +49,14 @@ final class FilmPresetCatalogTests: XCTestCase {
     }
 
     func testEveryCapturePresetHasFiveDistinctSceneRecommendations() {
-        let vocabulary = Set(FilmSceneTag.allCases)
+        let vocabulary: Set<FilmSceneTag> = [.landscape, .portrait, .street, .documentary, .architecture,
+            .wedding, .stillLife, .sunny, .cloudy, .rainy, .snow, .sunset, .night]
+        XCTAssertEqual(vocabulary, Set(FilmSceneTag.allCases))
+        XCTAssertEqual(vocabulary, Set(FilmPreset.allCases.flatMap { $0.recommendations.map(\.tag) }))
         for preset in FilmPreset.allCases {
             let tags = preset.recommendations.map(\.tag)
             XCTAssertEqual(tags.count, 5, preset.rawValue)
             XCTAssertEqual(Set(tags).count, tags.count, preset.rawValue)
-            XCTAssertTrue(Set(tags).isSubset(of: vocabulary), preset.rawValue)
             for locale in [Locale(identifier: "en"), Locale(identifier: "zh-Hans")] {
                 XCTAssertEqual(Set(tags.map { $0.localizedTitle(locale: locale) }).count, 5, preset.id)
             }
@@ -112,9 +114,9 @@ final class FilmPresetCatalogTests: XCTestCase {
             XCTAssertFalse(chineseTitle.isEmpty, tag.rawValue)
             XCTAssertNotEqual(englishTitle, chineseTitle, tag.rawValue)
         }
-        XCTAssertEqual(FilmPreset.fujiRawVelvia.sceneSubtitles(locale: english).full, "Landscape · Forest · Sunset")
-        XCTAssertEqual(FilmPreset.fujiRawVelvia.sceneSubtitles(locale: chinese).full, "风光 · 森林 · 日落")
-        XCTAssertEqual(FilmPreset.kodakGold200.sceneSubtitles(locale: chinese).full, "亲子合影 · 街景 · 公路沿线")
-        XCTAssertEqual(FilmPreset.kodakGold200.sceneSubtitles(locale: english).compact, "Family portrait · Streetscape")
+        XCTAssertEqual(FilmPreset.fujiRawVelvia.sceneSubtitles(locale: english).full, "Landscape · Sunset · Sunny")
+        XCTAssertEqual(FilmPreset.fujiRawVelvia.sceneSubtitles(locale: chinese).full, "风光 · 日落 · 晴天")
+        XCTAssertEqual(FilmPreset.kodakGold200.sceneSubtitles(locale: chinese).full, "晴天 · 人像 · 日落")
+        XCTAssertEqual(FilmPreset.kodakGold200.sceneSubtitles(locale: english).compact, "Sunny · Portrait")
     }
 }

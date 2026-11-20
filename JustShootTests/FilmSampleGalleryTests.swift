@@ -43,11 +43,12 @@ final class FilmSampleGalleryTests: XCTestCase {
 
     func testEachFilmPairsDistinctRegionalPhotographsWithItsRecommendedScenes() {
         let usa: Set<FilmSampleScene> = [.quilter, .ranch, .roadside, .fair, .diner, .motel,
-            .ballpark, .fruitStand, .pinkDiner, .hats, .boots, .orchard]
-        let britain: Set<FilmSampleScene> = [.foodStall, .borough, .pier, .lambStreet, .cullumStreet]
+            .ballpark, .fruitStand, .pinkDiner, .boots, .orchard,
+            .haydenSnow, .trinidadSunset, .timesSquareWedding, .yorkvilleClouds]
+        let britain: Set<FilmSampleScene> = [.foodStall, .pier, .lambStreet, .cullumStreet, .suttonRain]
         let japan: Set<FilmSampleScene> = [.park, .kimono, .wedding, .festival, .ceremony, .teaMaster,
-            .teaPortrait, .wagashi, .bamboo, .seaSunset, .hydrangea, .fuji, .shoppingStreet, .asakusa,
-            .train, .torii, .fishMarket]
+            .teaPortrait, .wagashi, .bamboo, .seaSunset, .fuji, .shoppingStreet, .asakusa,
+            .train, .torii, .fishMarket, .rainCyclist, .shirakawaSnow, .asakusaClouds]
         var used = Set<FilmSampleScene>()
         for preset in FilmPreset.allCases {
             let entries = preset.recommendations
@@ -74,6 +75,25 @@ final class FilmSampleGalleryTests: XCTestCase {
             title.locale = Locale(identifier: "zh-Hans")
             XCTAssertNotEqual(String(localized: title), english, scene.rawValue)
             XCTAssertNotEqual(english, scene.rawValue)
+        }
+    }
+
+    func testWeatherAndWeddingTagsShowTheCorrespondingConditions() {
+        let subjects: [FilmSceneTag: Set<FilmSampleScene>] = [
+            .sunny: [.asakusa, .train, .pinkDiner, .orchard],
+            .cloudy: [.asakusaClouds, .yorkvilleClouds, .fair],
+            .rainy: [.rainCyclist, .suttonRain],
+            .snow: [.shirakawaSnow, .haydenSnow],
+            .sunset: [.seaSunset, .trinidadSunset],
+            .night: [.motel],
+            .wedding: [.wedding, .timesSquareWedding]
+        ]
+        for preset in FilmPreset.allCases {
+            for entry in preset.recommendations {
+                if let candidates = subjects[entry.tag] {
+                    XCTAssertTrue(candidates.contains(entry.scene), "\(preset.id) · \(entry.tag) · \(entry.scene)")
+                }
+            }
         }
     }
 

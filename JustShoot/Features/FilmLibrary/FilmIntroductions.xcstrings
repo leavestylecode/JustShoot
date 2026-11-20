@@ -1,116 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Child portrait" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "儿童人像"
-          }
-        }
-      }
-    },
-    "Family portrait" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "亲子合影"
-          }
-        }
-      }
-    },
-    "Festivals" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "节庆"
-          }
-        }
-      }
-    },
-    "Harvest" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "秋收"
-          }
-        }
-      }
-    },
-    "Indoor portrait" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "室内人像"
-          }
-        }
-      }
-    },
-    "Market" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "市集"
-          }
-        }
-      }
-    },
-    "Roadside" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "公路沿线"
-          }
-        }
-      }
-    },
-    "Seascape" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "海景"
-          }
-        }
-      }
-    },
-    "Streetscape" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "街景"
-          }
-        }
-      }
-    },
-    "Tea ceremony" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "茶道"
-          }
-        }
-      }
-    },
-    "Trains" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "列车"
-          }
-        }
-      }
-    },
     "asakusa" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -124,6 +14,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "浅草 · 仲见世街"
+          }
+        }
+      }
+    },
+    "asakusaClouds" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asakusa · Overcast at Hōzōmon"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浅草 · 阴天的宝藏门"
           }
         }
       }
@@ -175,23 +82,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "圣安东尼奥 · 牛仔靴"
-          }
-        }
-      }
-    },
-    "borough" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "London · Borough Market"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "伦敦 · 博罗市场"
           }
         }
       }
@@ -536,36 +426,19 @@
         }
       }
     },
-    "hats" : {
+    "haydenSnow" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Scottsdale · Hats at the polo grounds"
+            "value" : "Yellowstone · Winter in Hayden Valley"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "斯科茨代尔 · 马球场的礼帽"
-          }
-        }
-      }
-    },
-    "hydrangea" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kamakura · Hydrangea"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "镰仓 · 绣球花"
+            "value" : "黄石 · 海登谷冬景"
           }
         }
       }
@@ -842,6 +715,23 @@
         }
       }
     },
+    "rainCyclist" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Japan · Cycling in the rain"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日本 · 雨中骑行"
+          }
+        }
+      }
+    },
     "ranch" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -893,6 +783,23 @@
         }
       }
     },
+    "shirakawaSnow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shirakawa · Snow-covered village"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "白川村 · 雪中的村落"
+          }
+        }
+      }
+    },
     "shoppingStreet" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -906,6 +813,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "东京 · 巢鸭商店街"
+          }
+        }
+      }
+    },
+    "suttonRain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sutton · High Street in the rain"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "萨顿 · 雨中的高街"
           }
         }
       }
@@ -944,6 +868,23 @@
         }
       }
     },
+    "timesSquareWedding" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New York · Just married in Times Square"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "纽约 · 时代广场上的新人"
+          }
+        }
+      }
+    },
     "torii" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -978,6 +919,23 @@
         }
       }
     },
+    "trinidadSunset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "California · Sunset at Trinidad Beach"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加利福尼亚 · 特立尼达海滩日落"
+          }
+        }
+      }
+    },
     "wagashi" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1008,6 +966,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "东京 · 神社婚礼"
+          }
+        }
+      }
+    },
+    "yorkvilleClouds" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New York · Clouds over Yorkville"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "纽约 · 云下的约克维尔"
           }
         }
       }
