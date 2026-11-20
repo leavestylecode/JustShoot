@@ -40,6 +40,8 @@
 
 ## 样片原图
 
-柯达预设采用美国实拍，包含纽约婚礼、加州日落与黄石雪景。富士预设采用日本实拍，包含浅草阴天、白川村雪景与雨中骑行。伊尔福 HP5 Plus 采用英国街头与海滨照片。每款预设的五个推荐题材各自对应一张照片，跨预设可复用同一原图作比较。首页胶片卡按宽度展示前两项或前三项的完整名称。每张照片均记录作者、作品来源、许可和裁切调色说明。[样片署名](../../JustShoot/Resources/FilmSampleCredits.txt)
+39 幅样片由 JustShoot 使用 OpenAI ImageGen 生成。富士、柯达和伊尔福分别取景于虚构的日本、美国和英国日常场景。画面参考 iPhone 主摄的视角、景深与自然曝光。题材和光线是逐张指定的；生成的影像使用中性 sRGB 色彩。详情页为每幅图标注 AI 来源。[生成提示词](sample-prompts.md)
 
-有内嵌色彩配置的原图转为 sRGB，其余按发布版 JPEG 的 sRGB 色彩解读，保留拍摄现场的光色，仅做定向、裁切和缩放。预览使用同一幅构图，经实际预设和 `FilmImagePipeline` 的调色阶段离线渲染。自动测试逐张比对 95 张效果图和当前管线的输出。[导出与对照测试](../../JustShootTests/FilmSampleGalleryTests.swift)
+源文件的 8 位 sRGB 通道经逆传递函数转换为 16 位线性 RGB，保存为 DNG 1.4（LinearRaw，D65 白点）。这些合成母版保留生成图的色阶、原始尺寸和构图。文件标注合成来源；真实 iPhone 的传感器采集、多帧融合和额外 RAW 高光信息仅存在于相机拍摄的数据中。
+
+应用随包提供从母版转换的 3:2 sRGB JPEG。每种预设的五张效果图都以对应的 JPEG 为输入，经实际 LUT 和 `FilmImagePipeline` 离线渲染为 HEIC。安装包只携带显示所需的分辨率，DNG 母版另行打包。自动测试逐张比对全部 95 张效果图。[导出与对照测试](../../JustShootTests/FilmSampleGalleryTests.swift)

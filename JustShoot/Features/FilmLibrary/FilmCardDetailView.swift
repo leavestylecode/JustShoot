@@ -275,7 +275,7 @@ private struct FilmSceneGallery: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(scene.title)
                 .font(.subheadline.weight(.semibold))
-            Text(verbatim: scene.credit)
+            Text("JustShoot · AI-generated", tableName: "FilmIntroductions")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
