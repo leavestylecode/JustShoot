@@ -40,8 +40,6 @@ struct FilmCardDetailView: View {
                         VStack(alignment: .leading, spacing: 30) {
                             filmInfo(packaging)
                             gallery
-                            FilmToneCurveSection(preset: preset)
-                                .id(preset)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -283,41 +281,6 @@ struct FilmCardDetailView: View {
             }
         }
         .accessibilityIdentifier("filmLibrary.use.\(preset.id)")
-    }
-}
-
-private struct FilmToneCurveSection: View {
-    let preset: FilmPreset
-    @State private var data: CurvePreviewData?
-    @State private var failed = false
-    @State private var attempt = 0
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Tone Curve")
-                .font(.title3.weight(.semibold))
-                .accessibilityAddTraits(.isHeader)
-            if let data {
-                CurveResponsePreview(data: data)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(Text("Tone Curve"))
-                    .accessibilityValue(Text(verbatim: preset.displayName))
-            } else if failed {
-                PageNotice(title: "Preview unavailable", systemImage: "waveform.path",
-                           action: .init(title: "Retry", icon: "arrow.clockwise") { attempt += 1 })
-            } else {
-                ProgressView().frame(maxWidth: .infinity, minHeight: 90)
-            }
-        }
-        .task(id: attempt) {
-            do {
-                let preview = try await FilmToneCurveCatalog.shared.preview(for: preset)
-                try Task.checkCancellation()
-                data = preview
-            } catch {
-                if !Task.isCancelled { failed = true }
-            }
-        }
     }
 }
 

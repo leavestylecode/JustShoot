@@ -127,7 +127,6 @@ struct CurveOutputStrip: View {
     }
 }
 
-/// Both the curve library and the film guide use the same graph and output scale.
 struct CurveResponsePreview: View {
     let data: CurvePreviewData
 
