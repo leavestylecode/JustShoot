@@ -2,41 +2,20 @@ import SwiftUI
 
 struct PreparationErrorScreen: View {
     let title: LocalizedStringKey
+    let systemImage: String
     var message: String? = nil
-    var actionTitle: LocalizedStringKey = "Try Again"
+    var actionTitle: LocalizedStringKey = "Retry"
+    var actionIcon = "arrow.clockwise"
     let onAction: () -> Void
 
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
-                VStack(spacing: 14) {
-                    Image(systemName: "exclamationmark.circle")
-                        .font(.system(size: 48, weight: .light))
-                        .accessibilityHidden(true)
-
-                    Text(title)
-                        .font(.title2.weight(.semibold))
-                        .accessibilityAddTraits(.isHeader)
-
-                    if let message {
-                        Text(message)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Button(actionTitle, action: onAction)
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .tint(.primary)
-                        .foregroundStyle(Color(uiColor: .systemBackground))
-                        .padding(.top, 6)
-                }
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 320)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 32)
-                .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+                PageNotice(title: title, systemImage: systemImage, message: message,
+                    action: .init(title: actionTitle, icon: actionIcon, perform: onAction))
+                    .frame(maxWidth: .infinity, minHeight: geometry.size.height)
             }
+            .scrollBounceBehavior(.basedOnSize)
             .scrollIndicators(.hidden)
         }
         .background(Color(uiColor: .systemBackground).ignoresSafeArea())

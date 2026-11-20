@@ -118,13 +118,13 @@ struct RecentPhotosBadge: View {
                                 .foregroundStyle(.secondary)
                         }
                 }
-                if isShutterBusy || isProcessing {
+                if isProcessing {
                     ProgressView()
-                        .controlSize(.mini)
+                        .controlSize(.small)
                         .tint(.white)
-                        .padding(3)
+                        .padding(4)
                         .background(.black.opacity(0.65), in: Circle())
-                        .frame(width: badgeSize, height: badgeSize, alignment: .bottomTrailing)
+                        .accessibilityHidden(true)
                 }
             }
             .rotationEffect(controlRotationAngle)
@@ -134,7 +134,7 @@ struct RecentPhotosBadge: View {
             if let id { DiagnosticTrace(id: id.uuidString).event("capture_badge_displayed") }
         }
         .accessibilityLabel("Most recent photo")
-        .accessibilityValue(isShutterBusy ? Text("Capturing") : isProcessing ? Text("Saving…") : Text(""))
+        .accessibilityValue(isProcessing ? Text("Saving…") : Text(""))
         .accessibilityHint(pendingPreview != nil ? Text("Preview while saving")
             : photos.isEmpty && currentHint == nil ? Text("No photos yet") : Text("Open larger view"))
         // 仅在快门 race 窗口禁用，让详情页可以在后处理进行中正常打开历史照片。
@@ -299,36 +299,45 @@ struct CapturePreviewReview: View {
         VStack(spacing: 12) {
             Spacer()
             if pipeline.isProcessing(preview.id) || isRetrying {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                        .tint(.white)
-                    phaseText
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.white)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(.black.opacity(0.55), in: Capsule())
-                if showsSlowNotice {
-                    Text("This photo is taking longer than usual to save. It stays on this device and finishes on its own.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                }
-            } else {
-                Text("Saving paused")
-                    .foregroundStyle(.secondary)
-                Button("Retry") {
-                    isRetrying = true
-                    Task { @MainActor in
-                        defer { isRetrying = false }
-                        loadCommittedPhoto(pipeline.lastCompletion)
-                        if saved == nil { await pipeline.retryPending() }
-                        loadCommittedPhoto(pipeline.lastCompletion)
+                VStack(spacing: 4) {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(.white)
+                            .accessibilityHidden(true)
+                        phaseText.font(.footnote.weight(.medium))
+                    }
+                    if showsSlowNotice {
+                        Text("You can close this preview while saving.")
+                            .font(.footnote)
+                            .multilineTextAlignment(.center)
                     }
                 }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 16))
+            } else {
+                HStack(spacing: 12) {
+                    Text("Saving paused")
+                    Button("Retry") {
+                        isRetrying = true
+                        Task { @MainActor in
+                            defer { isRetrying = false }
+                            loadCommittedPhoto(pipeline.lastCompletion)
+                            if saved == nil { await pipeline.retryPending() }
+                            loadCommittedPhoto(pipeline.lastCompletion)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                }
+                .font(.subheadline)
+                .foregroundStyle(.white)
+                .padding(.leading, 14)
+                .padding(.trailing, 6)
+                .padding(.vertical, 6)
+                .background(.black.opacity(0.65), in: Capsule())
             }
             if !latestPhotos.isEmpty {
                 Button("All Photos", systemImage: "photo.stack") { openSavedPhotos() }

@@ -793,9 +793,11 @@ struct CameraView: View {
         if let failure = cameraManager.entryPreparation.failure {
             PreparationErrorScreen(
                 title: cameraPreparationTitle,
+                systemImage: "camera.viewfinder",
                 message: failure == .permissionDenied
                     ? String(localized: "Allow camera access in Settings.") : nil,
-                actionTitle: failure == .permissionDenied ? "Open Settings" : "Try Again",
+                actionTitle: failure == .permissionDenied ? "Open Settings" : "Retry",
+                actionIcon: failure == .permissionDenied ? "arrow.up.forward" : "arrow.clockwise",
                 onAction: {
                     if failure == .permissionDenied { openAppSettings() }
                     else { retryCameraEntry() }

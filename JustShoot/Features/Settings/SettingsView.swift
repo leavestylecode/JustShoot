@@ -71,9 +71,8 @@ struct SettingsView: View {
             preparingShare = false
         }
         .alert("Log export failed", isPresented: $diagnosticExportFailed) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Please try exporting the diagnostic log again.")
+            Button("Retry", action: exportDiagnosticLog)
+            Button("Cancel", role: .cancel) {}
         }
         .sheet(item: $recoveryExport) { export in
             RecoveryOriginalShareSheet(url: export.url)
@@ -117,24 +116,10 @@ struct SettingsView: View {
 
     private var diagnosticsSection: some View {
         sectionCard {
-            Button {
-                exportingDiagnostics = true
-                Task {
-                    defer { exportingDiagnostics = false }
-                    DiagnosticWatchdog.shared.flushCameras(reason: "export")
-                    Diagnostics.emit("log_export_requested", fields: Diagnostics.resourceFields())
-                    do {
-                        let url = try await DiagnosticLogStore.shared.export()
-                        SharePresenter.presentDiagnosticLog(url)
-                    } catch {
-                        Diagnostics.emit("log_export_failed", fields: Diagnostics.errorFields(error))
-                        diagnosticExportFailed = true
-                    }
-                }
-            } label: {
+            Button(action: exportDiagnosticLog) {
                 HStack {
                     SettingRow(icon: SettingsIcon("list.bullet.circle.fill", color: .gray), title: "Export Diagnostic Log")
-                    if exportingDiagnostics { ProgressView() }
+                    if exportingDiagnostics { ProgressView().controlSize(.small) }
                 }
             }
             .buttonStyle(.plain)
@@ -164,12 +149,33 @@ struct SettingsView: View {
         }
     }
 
+    private func exportDiagnosticLog() {
+        guard !exportingDiagnostics else { return }
+        exportingDiagnostics = true
+        Task {
+            defer { exportingDiagnostics = false }
+            DiagnosticWatchdog.shared.flushCameras(reason: "export")
+            Diagnostics.emit("log_export_requested", fields: Diagnostics.resourceFields())
+            do {
+                let url = try await DiagnosticLogStore.shared.export()
+                SharePresenter.presentDiagnosticLog(url)
+            } catch {
+                Diagnostics.emit("log_export_failed", fields: Diagnostics.errorFields(error))
+                diagnosticExportFailed = true
+            }
+        }
+    }
+
     private var pendingPhotosSection: some View {
         sectionCard {
             VStack(alignment: .leading, spacing: 12) {
-                Label { Text("Photos waiting to save") } icon: { SettingsIcon("photo.circle.fill", color: .blue) }
+                LabeledContent {
+                    Text(capturePipeline.pendingCount + capturePipeline.retainedCount, format: .number)
+                        .monospacedDigit()
+                } label: {
+                    Label { Text("Photos waiting to save") } icon: { SettingsIcon("photo.circle.fill", color: .blue) }
+                }
                     .font(.headline)
-                Text("\(capturePipeline.pendingCount + capturePipeline.retainedCount) photos are waiting to save.")
                 Text("Your original photos and Live Photo videos are kept on this device.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -189,9 +195,12 @@ struct SettingsView: View {
     private var recoveryPhotosSection: some View {
         sectionCard {
             VStack(alignment: .leading, spacing: 12) {
-                Label { Text("Photos needing attention") } icon: { SettingsIcon("exclamationmark.circle.fill", color: .orange) }
+                LabeledContent {
+                    Text(capturePipeline.recoveryIssues.count, format: .number).monospacedDigit()
+                } label: {
+                    Label { Text("Photos needing attention") } icon: { SettingsIcon("exclamationmark.circle.fill", color: .orange) }
+                }
                     .font(.headline)
-                Text("\(capturePipeline.recoveryIssues.count) photos need recovery attention.")
                 Text("These files are kept on this device. You can retry recovery or export the original before deleting them.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

@@ -57,13 +57,9 @@ struct FilmHomeView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 14) {
                         if visibleFilms.isEmpty {
-                            ContentUnavailableView {
-                                Label("No films shown", systemImage: "camera.filters")
-                            } actions: {
-                                Button("Add Films") { showsCatalog = true }
-                                    .buttonStyle(.bordered)
-                            }
-                            .frame(minHeight: 300)
+                            PageNotice(title: "No films shown", systemImage: "camera.filters",
+                                action: .init(title: "Add Films") { showsCatalog = true })
+                                .frame(maxWidth: .infinity)
                         } else {
                             LazyVGrid(columns: gridColumns(availableWidth: geometry.size.width, textVisibility: gridTextVisibility),
                                 spacing: FilmTileLayout.rowSpacing(showsText: gridTextVisibility.showsText)) {
@@ -98,6 +94,7 @@ struct FilmHomeView: View {
                     .padding(.top, 8)
                     .padding(.bottom, 20)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(minHeight: visibleFilms.isEmpty ? geometry.size.height : nil)
                 }
                 .appPageBackground()
                 .navigationTitle("Films")

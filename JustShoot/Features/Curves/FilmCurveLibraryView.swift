@@ -18,6 +18,7 @@ struct FilmCurveLibraryView: View {
             if let error = library.storageError {
                 Section {
                     Text(error)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }

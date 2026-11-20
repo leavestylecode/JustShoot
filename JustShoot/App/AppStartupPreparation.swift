@@ -89,7 +89,7 @@ final class AppStartupPreparation: ObservableObject {
                 self.isPreparing = false
                 self.preparation = nil
                 self.hasFailed = !(error is CancellationError)
-                self.failureMessage = self.hasFailed ? String(localized: "Your photos and filters have been kept. Please try again.") : nil
+                self.failureMessage = self.hasFailed ? String(localized: "Your photos and filters are kept on this device.") : nil
             }
         }
         preparation = operation
@@ -162,7 +162,7 @@ final class AppStartupPreparation: ObservableObject {
                   self.generation == request, self.deadlineGeneration == deadlineID else { return }
             self.cancel()
             self.hasFailed = true
-            self.failureMessage = String(localized: "Your library is taking longer than expected. Please try again.")
+            self.failureMessage = String(localized: "Opening the library timed out.")
             Diagnostics.emit("app_startup_timeout")
         }
     }

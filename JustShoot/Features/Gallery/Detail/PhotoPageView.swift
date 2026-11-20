@@ -85,7 +85,7 @@ struct PagerImage: View {
                     Color.black
                     VStack(spacing: 12) {
                         if !loadFailed {
-                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            ProgressView().controlSize(.small).tint(.white)
                                 .accessibilityLabel("Loading photo…")
                         } else {
                             PhotoLoadRetry(label: "Unable to load photo") { loadAttempt += 1 }
@@ -162,8 +162,6 @@ private struct LivePhotoPage: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 if isCurrent, liveLoadFailed {
                     PhotoLoadRetry(label: "Unable to load Live Photo") { loadAttempt += 1 }
-                    .padding(12)
-                    .background(.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 12))
                     .frame(maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, 20)
                 }
@@ -172,7 +170,7 @@ private struct LivePhotoPage: View {
                     if stillLoadFailed {
                         PhotoLoadRetry(label: "Unable to load photo") { loadAttempt += 1 }
                     } else {
-                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        ProgressView().controlSize(.small).tint(.white)
                             .accessibilityLabel("Loading photo…")
                     }
                 }
@@ -211,9 +209,10 @@ private struct PhotoLoadRetry: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "arrow.clockwise")
-                .font(.title2)
+                .font(.body.weight(.medium))
                 .frame(width: 44, height: 44)
-                .background(.white.opacity(0.12), in: Circle())
+                .background(.black.opacity(0.65), in: Circle())
+                .overlay { Circle().strokeBorder(.white.opacity(0.25)) }
         }
         .tint(.white)
         .accessibilityLabel(label)

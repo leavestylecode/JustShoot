@@ -72,7 +72,7 @@ private struct AppStartupContent: View {
                         .allowsHitTesting(!showsIntro)
                         .accessibilityHidden(showsIntro)
                 } else if startup.hasFailed {
-                    PreparationErrorScreen(title: "Your library could not be prepared", message: startup.failureMessage,
+                    PreparationErrorScreen(title: "Your library could not be prepared", systemImage: "photo.stack", message: startup.failureMessage,
                         onAction: { Task { await startup.retry() } })
                 } else if introFinished {
                     AppPageBackground()

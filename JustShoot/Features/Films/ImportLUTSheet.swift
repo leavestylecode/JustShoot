@@ -40,12 +40,14 @@ struct ImportLUTSheet: View {
                         .disabled(isImporting)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Import", action: onConfirm)
-                        .bold()
-                        .disabled(isImporting)
+                    if isImporting {
+                        ProgressView().controlSize(.small)
+                            .accessibilityLabel("Import LUT")
+                    } else {
+                        Button("Import", action: onConfirm).bold()
+                    }
                 }
             }
-            .overlay { if isImporting { ProgressView() } }
             .alert("LUT compatibility", isPresented: $showCompatibility) {
                 Button("OK", role: .cancel) {}
             } message: {

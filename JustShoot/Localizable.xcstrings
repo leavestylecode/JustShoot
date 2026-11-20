@@ -5937,6 +5937,17 @@
         }
       }
     },
+    "Opening the library timed out." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开图库超时。"
+          }
+        }
+      }
+    },
     "Your library is taking longer than expected. Please try again." : {
       "localizations" : {
         "en" : {
@@ -5971,6 +5982,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "照片已保存在此设备上，返回应用时会重试保存。"
+          }
+        }
+      }
+    },
+    "Your photos and filters are kept on this device." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片和滤镜仍保留在此设备上。"
           }
         }
       }
@@ -6685,6 +6707,17 @@
       }
     }
 ,
+    "You can close this preview while saving." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存期间可以关闭预览。"
+          }
+        }
+      }
+    },
     "This photo is taking longer than usual to save. It stays on this device and finishes on its own." : {
       "extractionState" : "manual",
       "localizations" : {

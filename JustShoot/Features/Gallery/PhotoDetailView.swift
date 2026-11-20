@@ -146,14 +146,9 @@ struct PhotoDetailView: View {
             Color.black.opacity(1 - dismissProgress * 0.6).ignoresSafeArea()
 
             if photos.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "photo")
-                        .font(.system(size: 80))
-                        .foregroundColor(.gray.opacity(0.5))
-                    Text("No photos")
-                        .font(.title3)
-                        .foregroundColor(.gray)
-                }
+                Text("No photos")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             } else {
                 // 内容整体随下拉做 offset + scale（drag-to-dismiss）。包一层 ZStack 让全屏主图 + 渐变 +
                 // chrome 作为一个单位一起变换。
