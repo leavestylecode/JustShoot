@@ -81,7 +81,8 @@ struct FilmCardLibraryView: View {
                 Text(verbatim: preset.tileTitle)
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.primary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .contentShape(Rectangle())
