@@ -34,7 +34,7 @@ final class AppSupportLinksTests: XCTestCase {
 
         XCTAssertEqual(links.reviewURL?.path, "/app/id123456789")
         XCTAssertEqual(links.shareURL.absoluteString, "https://apps.apple.com/app/id123456789")
-        XCTAssertEqual(links.feedbackURL?.path, "old@justshoot.test")
+        XCTAssertEqual(links.feedbackURL?.absoluteString, "mailto:old@justshoot.test?subject=OOO%20Feedback")
     }
 
     func testValidNewValuesTakePrecedenceOverLegacyValues() {
@@ -47,7 +47,7 @@ final class AppSupportLinksTests: XCTestCase {
 
         XCTAssertEqual(links.reviewURL?.path, "/app/id987654321")
         XCTAssertEqual(links.shareURL.absoluteString, "https://apps.apple.com/app/id987654321")
-        XCTAssertEqual(links.feedbackURL?.path, "new@justshoot.test")
+        XCTAssertEqual(links.feedbackURL?.absoluteString, "mailto:new@justshoot.test?subject=OOO%20Feedback")
     }
 
     func testInvalidNewValueFallsBackIndependently() {
@@ -59,7 +59,7 @@ final class AppSupportLinksTests: XCTestCase {
         ])
 
         XCTAssertEqual(links.reviewURL?.path, "/app/id987654321")
-        XCTAssertEqual(links.feedbackURL?.path, "old@justshoot.test")
+        XCTAssertEqual(links.feedbackURL?.absoluteString, "mailto:old@justshoot.test?subject=OOO%20Feedback")
     }
 
     func testInvalidAddressesCannotAddRecipientsOrQueryParameters() {
