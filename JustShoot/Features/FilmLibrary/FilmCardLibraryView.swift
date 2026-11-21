@@ -2,16 +2,20 @@ import SwiftUI
 
 struct FilmCardLibraryView: View {
     @StateObject private var settings: FilmPageSettings
-    @State private var library = FilmCardLibrary.shared
+    private let library: FilmCardLibrary
     @Environment(\.horizontalSizeClass) private var sizeClass
     @ScaledMetric(relativeTo: .body) private var gridScale = 1.0
     @Namespace private var zoomNamespace
 
-    init(settings: FilmPageSettings? = nil) {
+    init(settings: FilmPageSettings? = nil, library: FilmCardLibrary = .shared) {
         _settings = StateObject(wrappedValue: settings ?? .shared)
+        self.library = library
     }
 
     var body: some View {
+        // Register these dependencies before SwiftUI evaluates the deferred layout closures.
+        let loadState = library.loadState
+        let presets = library.presets
         GeometryReader { geometry in
             let regular = sizeClass == .regular
             let inset: CGFloat = regular ? 24 : 14
@@ -21,7 +25,7 @@ struct FilmCardLibraryView: View {
             let columns = Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: count)
             ScrollView {
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
-                    ForEach(library.presets) { preset in
+                    ForEach(presets) { preset in
                         tile(preset)
                     }
                 }
@@ -32,13 +36,13 @@ struct FilmCardLibraryView: View {
             }
             .scrollIndicators(.hidden)
             .overlay {
-                switch library.loadState {
+                switch loadState {
                 case .loading:
                     ProgressView().accessibilityLabel("Loading films")
                 case .failed:
                     PageNotice(title: "Film Vault unavailable", systemImage: "shippingbox",
                         action: .init(title: "Retry", icon: "arrow.clockwise") { Task { await library.loadIfNeeded() } })
-                case .ready where library.presets.isEmpty:
+                case .ready where presets.isEmpty:
                     PageNotice(title: "No films available", systemImage: "film")
                 case .ready:
                     EmptyView()
