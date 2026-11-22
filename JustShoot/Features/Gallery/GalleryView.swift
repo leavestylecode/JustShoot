@@ -8,10 +8,7 @@ import ImageIO
 
 // MARK: - 相册视图（SwiftUI 外壳 + UIKit 网格）
 //
-// 网格本体（滚动 / cell / 预取 / 原生两指拖动多选）在 PhotoGridView.swift（UICollectionView）——
-// SwiftUI LazyVGrid + 自定义手势在大网格下既卡顿、又无法与滚动共存（详见 PhotoGridView 顶部注释）。
-// 本文件保留 SwiftUI 外壳：导航标题、选择模式工具栏（Select / Select All / xmark / Download /
-// Delete）、tab 栏隐藏、批量保存/删除、详情呈现。选择状态通过 @Binding 与 PhotoGridView 双向同步。
+// SwiftUI 管理导航、批量操作和详情呈现，UIKit 网格管理滚动、缩放和缩略图复用。
 struct GalleryView: View {
     var isRevealed = true
 
@@ -28,9 +25,7 @@ struct GalleryView: View {
     @State private var isPreparingShare = false
     @State private var isVisible = false
 
-    // 网格布局（左上角菜单切换，持久化）
-    @AppStorage("gallery.density") private var density: GalleryDensity = .standard
-    @AppStorage("gallery.shape") private var shape: GalleryShape = .rounded
+    @AppStorage("gallery.density") private var zoomColumns = 0
 
     var body: some View {
         ZStack {
@@ -41,9 +36,9 @@ struct GalleryView: View {
                 GeometryReader { geometry in
                     PhotoGridView(
                         photos: photos,
-                        columns: density.columns(forWidth: geometry.size.width,
+                        defaultColumns: SquareGridLayout.defaultColumns(forWidth: geometry.size.width,
                             isRegular: sizeClass == .regular, accessibilitySize: dynamicTypeSize.isAccessibilitySize),
-                        cornerRadius: shape.cornerRadius,
+                        zoomColumns: $zoomColumns,
                         isSelecting: $isSelecting,
                         selectedPhotos: $selectedPhotos,
                         onOpen: { photo in
@@ -76,8 +71,6 @@ struct GalleryView: View {
                     }
                     .accessibilityLabel("Select All")
                     .accessibilityValue(Text("\(selectedPhotos.count) selected"))
-                } else if !photos.isEmpty {
-                    layoutMenu
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -143,24 +136,6 @@ struct GalleryView: View {
             PhotoDetailPresentation(selection: $selectedDetail, source: transitionSource,
                 container: modelContext.container)
         }
-    }
-
-    /// 左上角网格布局切换：Menu + 两个 inline Picker（密度 + 形状）。切换后 @AppStorage 落库、
-    /// PhotoGridView 平滑 reflow。
-    private var layoutMenu: some View {
-        Menu {
-            Picker("Grid size", selection: $density) {
-                ForEach(GalleryDensity.allCases) { d in Text(d.displayName).tag(d) }
-            }
-            .pickerStyle(.inline)
-            Picker("Corners", selection: $shape) {
-                ForEach(GalleryShape.allCases) { s in Text(s.displayName).tag(s) }
-            }
-            .pickerStyle(.inline)
-        } label: {
-            Image(systemName: "square.grid.2x2")
-        }
-        .accessibilityLabel("Grid layout options")
     }
 
     // MARK: - Actions

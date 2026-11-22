@@ -1871,9 +1871,6 @@
         }
       }
     },
-    "Corners" : {
-
-    },
     "Could not delete filter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2904,26 +2901,6 @@
         }
       }
     },
-    "Grid layout options" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "网格布局选项"
-          }
-        }
-      }
-    },
-    "Grid size" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "网格大小"
-          }
-        }
-      }
-    },
     "Head to the camera to start shooting" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3090,6 +3067,7 @@
       }
     },
     "Large" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -4629,16 +4607,6 @@
         }
       }
     },
-    "Rounded" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "圆角"
-          }
-        }
-      }
-    },
     "S-Curve" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -5035,6 +5003,7 @@
       }
     },
     "Small" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -5124,16 +5093,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "运动"
-          }
-        }
-      }
-    },
-    "Square" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "方形"
           }
         }
       }
@@ -7719,6 +7678,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "YouTube"
+          }
+        }
+      }
+    },
+    "Zoom In" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放大网格"
+          }
+        }
+      }
+    },
+    "Zoom Out" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缩小网格"
           }
         }
       }

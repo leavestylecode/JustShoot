@@ -158,6 +158,29 @@ final class PhotoImageLoadingTests: XCTestCase {
         try container.mainContext.save()
     }
 
+    func testPhotoDeletedBeforeQueuedLoadDoesNotReadDetachedOriginal() async throws {
+        let directory = try root()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let container = try ModelContainer(for: Photo.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        defer { withExtendedLifetime(container) {} }
+        let photo = Photo(assetLocalIdentifier: nil, imageData: try jpeg())
+        let loader = ImageLoader(cacheDirectory: directory)
+        let standalone = await PhotoImage.thumbnail(for: photo, maxPixel: 96, loader: loader)
+        XCTAssertNotNil(standalone)
+        container.mainContext.insert(photo)
+        try container.mainContext.save()
+        container.mainContext.delete(photo)
+        try container.mainContext.save()
+
+        let thumbnail = await PhotoImage.thumbnail(for: photo, maxPixel: 320, loader: loader)
+        let preview = await PhotoImage.preview(for: photo, maxPixel: 256, loader: loader)
+        let exif = await PhotoImage.exifData(for: photo)
+        XCTAssertNil(thumbnail)
+        XCTAssertNil(preview)
+        XCTAssertNil(exif)
+    }
+
     func testClearingPreviewsKeepsGridThumbnailsAndPreventsLateCacheRepopulation() async throws {
         let directory = try root()
         defer { try? FileManager.default.removeItem(at: directory) }

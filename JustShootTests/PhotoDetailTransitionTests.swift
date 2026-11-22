@@ -18,7 +18,7 @@ final class PhotoDetailTransitionTests: XCTestCase {
     }
 
     private func grid(_ photos: [Photo], source: PhotoGridTransitionSource) -> (UICollectionView, PhotoGridView.Coordinator) {
-        let parent = PhotoGridView(photos: photos, columns: 4, cornerRadius: 8,
+        let parent = PhotoGridView(photos: photos, zoomColumns: .constant(0),
             isSelecting: .constant(false), selectedPhotos: .constant([]), onOpen: { _ in }, transitionSource: source)
         let coordinator = PhotoGridView.Coordinator(parent)
         let collection = UICollectionView(frame: CGRect(x: 0, y: 0, width: 390, height: 600),
@@ -49,10 +49,69 @@ final class PhotoDetailTransitionTests: XCTestCase {
         coordinator.apply(photos: [first], animating: false)
         collection.layoutIfNeeded()
         XCTAssertNil(source.sourceView, "A deleted source must fall back instead of zooming to a reused cell")
+        let offset = collection.contentOffset
+        source.revealCurrentPhotoIfNeeded()
+        XCTAssertEqual(collection.contentOffset, offset)
         source.currentPhotoID = first.id
         XCTAssertNotNil(source.sourceView)
         collection.contentOffset.y = 500
         XCTAssertNil(source.sourceView, "An offscreen source must not return an unrelated visible cell")
+    }
+
+    func testClosingDetailRevealsCurrentPhotoAndKeepsAnAlreadyVisiblePhotoInPlace() async throws {
+        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let first = try await makePhoto()
+        let last = try await makePhoto()
+        let cachedIDs = [first.id, last.id]
+        defer {
+            for id in cachedIDs { ImageLoader.shared.removeDiskCache(for: id) }
+            withExtendedLifetime(container) {}
+        }
+        let photos = [first] + (0..<40).map { _ in Photo(assetLocalIdentifier: nil, imageData: nil) } + [last]
+        for photo in photos { container.mainContext.insert(photo) }
+        try container.mainContext.save()
+
+        let source = PhotoGridTransitionSource()
+        let (collection, gridCoordinator) = grid(photos, source: source)
+        let anchor = PhotoPresentationAnchor()
+        let window = UIWindow(windowScene: try await TestWindowScene.foreground())
+        window.rootViewController = anchor
+        window.makeKeyAndVisible()
+        anchor.view.addSubview(collection)
+        defer { window.isHidden = true; window.rootViewController = nil }
+
+        var selection: PhotoDetailSelection?
+        let presentation = PhotoDetailPresentation(selection: Binding(get: { selection }, set: { selection = $0 }),
+            source: source, container: container)
+        let coordinator = PhotoDetailPresentation.Coordinator(presentation)
+        let initialOffset = collection.contentOffset
+        XCTAssertNotNil(source.cell(for: first.id))
+        XCTAssertNil(source.cell(for: last.id))
+
+        for (start, current, useCloseButton) in [(first, first, true), (first, last, true), (last, first, false)] {
+            selection = PhotoDetailSelection(startPhoto: start, photos: photos)
+            coordinator.update(in: anchor)
+            try await waitFor {
+                guard let host = coordinator.host else { return false }
+                return host.presentingViewController != nil && !host.isBeingPresented && host.transitionCoordinator == nil
+            }
+            let host = try XCTUnwrap(coordinator.host)
+            let offsetBeforeClose = collection.contentOffset
+            source.currentPhotoID = current.id
+            if useCloseButton { try tapClose(in: host) }
+            else { host.dismiss(animated: true) }
+            try await waitFor { coordinator.host == nil }
+            XCTAssertNil(selection)
+            XCTAssertNotNil(source.cell(for: current.id))
+            if start === current {
+                XCTAssertEqual(collection.contentOffset, offsetBeforeClose)
+            } else {
+                XCTAssertNotEqual(collection.contentOffset.y, offsetBeforeClose.y)
+            }
+            XCTAssertEqual(collection.contentOffset.x, initialOffset.x)
+        }
+        withExtendedLifetime(gridCoordinator) {}
     }
 
     func testCoveredGridKeepsVisibleTransitionImagesButOrdinaryHidingReleasesThem() async throws {
@@ -379,6 +438,10 @@ final class PhotoDetailTransitionTests: XCTestCase {
     }
 
     func testGalleryToolbarStaysUnchangedWhileOpeningAndClosingPhoto() async throws {
+        let suite = "gallery-toolbar-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defaults.set(3, forKey: "gallery.density")
+        defer { defaults.removePersistentDomain(forName: suite) }
         let container = try ModelContainer(for: Photo.self, CustomLUT.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         let photo = try await makePhoto()
@@ -389,7 +452,7 @@ final class PhotoDetailTransitionTests: XCTestCase {
         let root = UIHostingController(rootView: TabView {
             NavigationStack { GalleryView() }.tabItem { Label("Photos", systemImage: "photo.stack") }
             Color.black.tabItem { Label("Films", systemImage: "camera.filters") }
-        }.modelContainer(container).tint(.white).preferredColorScheme(.dark))
+        }.defaultAppStorage(defaults).modelContainer(container).tint(.white).preferredColorScheme(.dark))
         window.rootViewController = root
         window.makeKeyAndVisible()
         defer {
@@ -402,7 +465,7 @@ final class PhotoDetailTransitionTests: XCTestCase {
         let navigation = try XCTUnwrap(viewControllers(in: root).compactMap { $0 as? UINavigationController }
             .first { collection.isDescendant(of: $0.view) })
         let originalButtons = toolbarSignature(navigation)
-        XCTAssertEqual(toolbarItems(navigation).count, 2, "The fixture must show the gallery's layout and selection buttons")
+        XCTAssertEqual(toolbarItems(navigation).count, 1, "The gallery should only show the selection button")
         for _ in 0..<2 {
             collection.delegate?.collectionView?(collection, didSelectItemAt: IndexPath(item: 0, section: 0))
             try await assertToolbar(navigation, remains: originalButtons)
@@ -425,6 +488,10 @@ final class PhotoDetailTransitionTests: XCTestCase {
     }
 
     func testGalleryCloseButtonAndNativeDismissalAllowImmediateSingleTapReopening() async throws {
+        let suite = "gallery-reopen-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defaults.set(9, forKey: "gallery.density")
+        defer { defaults.removePersistentDomain(forName: suite) }
         let container = try ModelContainer(for: Photo.self, CustomLUT.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         let photo = try await makePhoto()
@@ -433,7 +500,7 @@ final class PhotoDetailTransitionTests: XCTestCase {
         try container.mainContext.save()
         let window = UIWindow(windowScene: try await TestWindowScene.foreground())
         let root = UIHostingController(rootView: NavigationStack { GalleryView() }
-            .modelContainer(container).tint(.white).preferredColorScheme(.dark))
+            .defaultAppStorage(defaults).modelContainer(container).tint(.white).preferredColorScheme(.dark))
         window.rootViewController = root
         window.makeKeyAndVisible()
         defer {
@@ -444,6 +511,15 @@ final class PhotoDetailTransitionTests: XCTestCase {
         }
         try await waitFor { self.photoGrid(in: root.view)?.numberOfItems(inSection: 0) == 1 }
         let collection = try XCTUnwrap(photoGrid(in: root.view))
+        let layout = try XCTUnwrap(collection.collectionViewLayout as? SquareGridLayout)
+        let coordinator = try XCTUnwrap(collection.delegate as? PhotoGridView.Coordinator)
+        let path = IndexPath(item: 0, section: 0)
+        XCTAssertEqual(layout.columns, 9)
+        collection.layoutIfNeeded()
+        coordinator.collectionView(collection, didSelectItemAt: path)
+        XCTAssertNil(root.presentedViewController)
+        try await waitFor { layout.columns == 3 && !coordinator.zoom.isZooming }
+        XCTAssertNotNil(collection.cellForItem(at: path))
         for cycle in 0..<4 {
             // One user selection only. Do not manually refresh the representable/coordinator.
             collection.delegate?.collectionView?(collection, didSelectItemAt: IndexPath(item: 0, section: 0))

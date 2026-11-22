@@ -1,53 +1,6 @@
 import SwiftUI
 import UIKit
-import Photos
 
-// MARK: - 网格布局选项（左上角菜单切换，@AppStorage 持久化）
-enum GalleryDensity: Int, CaseIterable, Identifiable {
-    case large = 3       // 3 列，大图
-    case standard = 4    // 4 列（默认）
-    case small = 5       // 5 列，小图
-    var id: Int { rawValue }
-    var columns: Int { rawValue }
-    func columns(forWidth width: CGFloat, isRegular: Bool, accessibilitySize: Bool) -> Int {
-        guard isRegular else { return accessibilitySize ? min(columns, 2) : columns }
-        let minimum: CGFloat
-        switch self {
-        case .large: minimum = 200
-        case .standard: minimum = 144
-        case .small: minimum = 112
-        }
-        return PageLayout.gridColumns(width: width - 28, minimum: minimum,
-            spacing: PhotoGridView.spacing, maximum: accessibilitySize ? 2 : 9)
-    }
-    var displayName: LocalizedStringKey {
-        switch self {
-        case .large:    return "Large"
-        case .standard: return "Standard"
-        case .small:    return "Small"
-        }
-    }
-}
-
-enum GalleryShape: String, CaseIterable, Identifiable {
-    case rounded
-    case square
-    var id: String { rawValue }
-    var displayName: LocalizedStringKey { self == .rounded ? "Rounded" : "Square" }
-    var cornerRadius: CGFloat { self == .rounded ? 8 : 0 }
-}
-
-// MARK: - 相册网格（UICollectionView，UIViewRepresentable 桥接）
-//
-// 为什么用 UIKit 而不是 SwiftUI LazyVGrid（调研结论，2024-2025 WWDC + Apple 论坛）：
-//   1. 滚动流畅度：UICollectionView 的 cell 复用 + DataSourcePrefetching 后台预解码是十几年
-//      打磨的成熟方案；LazyVGrid 在数百+ cell 时依赖图要 eager 追踪全部行，滚动掉帧。
-//   2. 选择交互：进入编辑模式后用系统原生 allowsMultipleSelectionDuringEditing 管理多选，
-//      手势/选中态由系统维护；SwiftUI 自定义 DragGesture/LongPress 必然和 ScrollView 抢手势
-//      （要么误选、要么卡死滚动）。（两指平移直接起手多选已禁用——见 shouldBegin… 返回 false。）
-//
-// 与 SwiftUI 外壳的分工：网格滚动/cell/预取/多选在这里（UIKit）；选择状态、工具栏、tab 栏
-// 隐藏、下载/删除、详情呈现仍在 GalleryView（SwiftUI），通过 @Binding 双向同步。
 struct PhotoGridItemRevision: Equatable {
     let assetID: String?
     let isLive: Bool
@@ -58,39 +11,42 @@ struct PhotoGridItemRevision: Equatable {
 }
 
 struct PhotoGridView: UIViewRepresentable {
+    fileprivate static let thumbnailSizes = [96, 160, 256, 320, 384, 512, 768, 1024, 1536, 2048]
     let photos: [Photo]
-    let columns: Int            // 网格列数（密度）——左上角菜单切换
-    let cornerRadius: CGFloat   // cell 圆角（直角 0 / 圆角 8）
+    var defaultColumns = 4
+    @Binding var zoomColumns: Int
     @Binding var isSelecting: Bool
     @Binding var selectedPhotos: Set<UUID>
     let onOpen: (Photo) -> Void
     var isActive = true
     var transitionSource: PhotoGridTransitionSource?
 
-    nonisolated static let spacing: CGFloat = 6
-    static let sectionInsets = UIEdgeInsets(top: 8, left: 14, bottom: 20, right: 14)
+    private var preferredColumns: Int {
+        SquareGridLayout.columnRange.contains(zoomColumns) ? zoomColumns : defaultColumns
+    }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeUIView(context: Context) -> UICollectionView {
-        let layout = SquareGridLayout()
-        layout.columns = CGFloat(columns)
-        let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        let layout = SquareGridLayout(columns: preferredColumns)
+        let cv = PhotoGridCollectionView(frame: .zero, collectionViewLayout: layout)
         cv.accessibilityIdentifier = "gallery.grid"
         cv.backgroundColor = .clear
         cv.alwaysBounceVertical = true
         cv.allowsSelection = true
+        cv.allowsSelectionDuringEditing = true
         cv.allowsMultipleSelectionDuringEditing = true
         cv.delegate = context.coordinator
         cv.prefetchDataSource = context.coordinator
         cv.contentInsetAdjustmentBehavior = .automatic
+        cv.contentInset.bottom = SquareGridLayout.bottomPadding
         if #available(iOS 26.0, *) {
             cv.topEdgeEffect.style = .soft
             cv.bottomEdgeEffect.style = .soft
         }
         transitionSource?.collectionView = cv
         cv.register(PhotoCell.self, forCellWithReuseIdentifier: PhotoCell.reuseID)
-        context.coordinator.cornerRadius = cornerRadius
+        context.coordinator.installZoom(in: cv, layout: layout)
         context.coordinator.makeDataSource(for: cv)
         context.coordinator.apply(photos: photos, animating: false)
         return cv
@@ -102,18 +58,10 @@ struct PhotoGridView: UIViewRepresentable {
         transitionSource?.collectionView = cv
         coord.apply(photos: photos, animating: true)
         coord.setActive(isActive, in: cv)
-        // 形状切换：动画更新可见 cell 圆角
-        if coord.cornerRadius != cornerRadius {
-            coord.cornerRadius = cornerRadius
-            coord.applyCornerRadius(cv, radius: cornerRadius)
-        }
-        // 密度切换：改列数 → 平滑 reflow → 按新尺寸重载可见缩略图
-        if let layout = cv.collectionViewLayout as? SquareGridLayout, Int(layout.columns) != columns {
-            layout.columns = CGFloat(columns)
-            coord.animateColumnChange(cv)
-        }
+        coord.syncPreferredColumns(preferredColumns)
         // 同步编辑模式（isSelecting）→ 刷新可见 cell 的角标 + 选中暗化
         if cv.isEditing != isSelecting {
+            coord.zoom.completeImmediately()
             cv.isEditing = isSelecting
             coord.refreshEditingVisual(cv)
         }
@@ -122,6 +70,8 @@ struct PhotoGridView: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ cv: UICollectionView, coordinator: Coordinator) {
+        coordinator.finishPendingUpdates()
+        coordinator.zoom.uninstall()
         coordinator.cancelPrefetches()
         for case let cell as PhotoCell in cv.visibleCells { cell.suspendLoading() }
         cv.prefetchDataSource = nil
@@ -131,17 +81,55 @@ struct PhotoGridView: UIViewRepresentable {
     // MARK: - Coordinator
     final class Coordinator: NSObject, UICollectionViewDelegate, UICollectionViewDataSourcePrefetching {
         var parent: PhotoGridView
-        var cornerRadius: CGFloat = 8
+        let zoom = PhotoGridZoom()
         private var dataSource: UICollectionViewDiffableDataSource<Int, UUID>!
         private var photoByID: [UUID: Photo] = [:]
         private var lastIDs: [UUID] = []
         private var lastRevisions: [UUID: PhotoGridItemRevision] = [:]
         private var prefetches: [UUID: (token: UUID, task: Task<Void, Never>)] = [:]
         private var isActive: Bool
+        private var defersSharpThumbnails = false
+        private var pendingColumns: Int?
+        private var idleUpdate: Task<Void, Never>?
 
         init(_ parent: PhotoGridView) {
             self.parent = parent
             isActive = parent.isActive
+        }
+
+        func installZoom(in cv: PhotoGridCollectionView, layout: SquareGridLayout) {
+            zoom.install(in: cv, layout: layout)
+            zoom.setActive(isActive)
+            zoom.onBegin = { [weak self] in
+                self?.deferSharpThumbnails()
+                self?.cancelPrefetches()
+            }
+            zoom.onEnd = { [weak self, weak cv] in
+                guard let self, let cv else { return }
+                refreshThumbnailSizes(in: cv)
+                scheduleIdleUpdate(in: cv)
+            }
+            zoom.onChooseColumns = { [weak self, weak cv] columns in
+                guard let self, let cv else { return }
+                pendingColumns = columns
+                scheduleIdleUpdate(in: cv)
+            }
+            zoom.photoAt = { [weak self, weak cv] index in
+                guard let self, let cv,
+                      let id = dataSource.itemIdentifier(for: IndexPath(item: index, section: 0)),
+                      let photo = photoByID[id] else { return nil }
+                return PhotoGridZoomOverlay.PhotoContent(photo: photo,
+                    isSelected: cv.isEditing && parent.selectedPhotos.contains(id))
+            }
+            zoom.thumbnailPixels = { [weak self, weak cv] in
+                guard let self, let cv else { return 256 }
+                return self.thumbnailPixels(for: cv)
+            }
+            cv.onViewportWidthChange = { [weak self, weak cv] in
+                guard let self, let cv else { return }
+                if zoom.isZooming { zoom.completeImmediately() }
+                else { refreshThumbnailSizes(in: cv) }
+            }
         }
 
         func makeDataSource(for cv: UICollectionView) {
@@ -150,9 +138,12 @@ struct PhotoGridView: UIViewRepresentable {
                 let cell = cv.dequeueReusableCell(withReuseIdentifier: PhotoCell.reuseID, for: indexPath) as! PhotoCell
                 guard let self, let photo = self.photoByID[id] else { return cell }
                 cell.configure(photo: photo, editing: cv.isEditing,
-                               maxPixel: self.thumbPixel(for: cv), cornerRadius: self.cornerRadius,
-                               isActive: self.parent.isActive,
+                               maxPixel: self.thumbnailPixels(for: cv),
+                               isActive: self.isActive && !self.zoom.isPresentingOverlay,
                                retainingImage: self.parent.transitionSource?.currentPhotoID != nil)
+                cell.onZoom = { [weak self] cell, delta in
+                    self?.zoom.adjust(in: cell, by: delta) ?? false
+                }
                 return cell
             }
         }
@@ -174,7 +165,9 @@ struct PhotoGridView: UIViewRepresentable {
             snapshot.appendItems(ids)
             let existingIDs = Set(dataSource.snapshot().itemIdentifiers)
             snapshot.reconfigureItems(changedIDs.filter { existingIDs.contains($0) })
-            dataSource.apply(snapshot, animatingDifferences: animating)
+            let wasZooming = zoom.isZooming
+            zoom.completeImmediately()
+            dataSource.apply(snapshot, animatingDifferences: animating && !wasZooming)
         }
 
         /// 把 cv 的选中态调整到与 binding 一致（外部变更驱动）。didSelect/didDeselect 反向已即时更新
@@ -198,53 +191,107 @@ struct PhotoGridView: UIViewRepresentable {
             }
         }
 
-        /// 形状切换：动画更新可见 cell 圆角（新 dequeue 的 cell 由 configure 直接拿）。
-        func applyCornerRadius(_ cv: UICollectionView, radius: CGFloat) {
-            UIView.animate(withDuration: 0.2) {
-                for case let cell as PhotoCell in cv.visibleCells {
-                    cell.contentView.layer.cornerRadius = radius
+        func syncPreferredColumns(_ columns: Int) {
+            if pendingColumns == nil { zoom.syncPreferredColumns(columns) }
+        }
+
+        private func deferSharpThumbnails() {
+            idleUpdate?.cancel()
+            defersSharpThumbnails = true
+        }
+
+        private func scheduleIdleUpdate(in cv: UICollectionView) {
+            guard isActive, defersSharpThumbnails || pendingColumns != nil else { return }
+            idleUpdate?.cancel()
+            idleUpdate = Task { @MainActor [weak self, weak cv] in
+                // Avoid resizing visible images and invalidating SwiftUI while the next flick starts.
+                guard (try? await Task.sleep(for: .milliseconds(180))) != nil,
+                      let self, let cv, !zoom.isZooming, !cv.isDragging, !cv.isDecelerating else { return }
+                idleUpdate = nil
+                defersSharpThumbnails = false
+                cancelPrefetches()
+                refreshThumbnailSizes(in: cv)
+                if let columns = pendingColumns {
+                    pendingColumns = nil
+                    if parent.zoomColumns != columns { parent.zoomColumns = columns }
                 }
             }
         }
 
-        /// 密度切换：invalidate 触发平滑 reflow，完成后按新尺寸 reconfigure 可见缩略图（放大不糊）。
-        func animateColumnChange(_ cv: UICollectionView) {
-            cancelPrefetches()
-            cv.performBatchUpdates({
-                cv.collectionViewLayout.invalidateLayout()
-            }, completion: { [weak self] _ in
-                self?.reloadVisibleThumbnails(cv)
-            })
+        func finishPendingUpdates() {
+            idleUpdate?.cancel()
+            idleUpdate = nil
+            defersSharpThumbnails = false
+            guard let columns = pendingColumns else { return }
+            let density = parent.$zoomColumns
+            // SwiftUI may call this during a representable update or dismantle.
+            DispatchQueue.main.async { [weak self] in
+                if let self {
+                    guard pendingColumns == columns else { return }
+                    pendingColumns = nil
+                }
+                if density.wrappedValue != columns { density.wrappedValue = columns }
+            }
         }
 
-        private func reloadVisibleThumbnails(_ cv: UICollectionView) {
-            let ids = cv.indexPathsForVisibleItems.compactMap { dataSource.itemIdentifier(for: $0) }
-            guard !ids.isEmpty else { return }
-            var snap = dataSource.snapshot()
-            snap.reconfigureItems(ids)
-            dataSource.apply(snap, animatingDifferences: false)
+        private func refreshThumbnailSizes(in cv: UICollectionView) {
+            guard isActive, !zoom.isZooming else { return }
+            let pixels = thumbnailPixels(for: cv)
+            for case let cell as PhotoCell in cv.visibleCells {
+                cell.setThumbnailSize(pixels)
+                cell.resumeLoading()
+            }
         }
 
-        func thumbPixel(for cv: UICollectionView) -> Int {
-            let side = (cv.collectionViewLayout as? SquareGridLayout)?.itemSize.width ?? 96
+        private func thumbnailPixels(for cv: UICollectionView) -> Int {
+            let side = (cv.collectionViewLayout as? SquareGridLayout)?.tileSide ?? 96
             let scale = cv.traitCollection.displayScale > 0 ? cv.traitCollection.displayScale : 2
-            return max(96, Int(side * scale))
+            let pixels = Int(ceil(side * scale))
+            // Keep cache keys stable across minor size and orientation changes.
+            let bucket = PhotoGridView.thumbnailSizes.first { $0 >= pixels } ?? 2048
+            return defersSharpThumbnails ? min(bucket, 320) : bucket
+        }
+
+        func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+            deferSharpThumbnails()
+            if scrollView.panGestureRecognizer.numberOfTouches == 1 { zoom.completeImmediately() }
+        }
+
+        func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+            if !decelerate, let cv = scrollView as? UICollectionView { scheduleIdleUpdate(in: cv) }
+        }
+
+        func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+            if let cv = scrollView as? UICollectionView { scheduleIdleUpdate(in: cv) }
         }
 
         func setActive(_ active: Bool, in cv: UICollectionView) {
             guard isActive != active else { return }
             isActive = active
-            if !active { cancelPrefetches() }
+            zoom.setActive(active)
+            if !active {
+                cancelPrefetches()
+                finishPendingUpdates()
+            }
             for case let cell as PhotoCell in cv.visibleCells {
-                if active { cell.resumeLoading() }
-                else { cell.suspendLoading(retainingImage: parent.transitionSource?.currentPhotoID != nil) }
+                if active {
+                    cell.setThumbnailSize(thumbnailPixels(for: cv))
+                    cell.resumeLoading()
+                } else {
+                    cell.suspendLoading(retainingImage: parent.transitionSource?.currentPhotoID != nil)
+                }
             }
         }
 
         func collectionView(_ cv: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
             guard let cell = cell as? PhotoCell else { return }
-            if isActive { cell.resumeLoading() }
-            else { cell.suspendLoading(retainingImage: parent.transitionSource?.currentPhotoID != nil) }
+            cell.setZoomCovered(zoom.isPresentingOverlay)
+            if isActive && !zoom.isPresentingOverlay {
+                cell.setThumbnailSize(thumbnailPixels(for: cv))
+                cell.resumeLoading()
+            } else {
+                cell.suspendLoading(retainingImage: zoom.isPresentingOverlay || parent.transitionSource?.currentPhotoID != nil)
+            }
         }
 
         func collectionView(_ cv: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
@@ -252,13 +299,22 @@ struct PhotoGridView: UIViewRepresentable {
         }
 
         // MARK: Tap / selection
+        func collectionView(_ cv: UICollectionView, shouldSelectItemAt indexPath: IndexPath) -> Bool {
+            !zoom.isZooming
+        }
+
+        func collectionView(_ cv: UICollectionView, shouldDeselectItemAt indexPath: IndexPath) -> Bool {
+            !zoom.isZooming
+        }
+
         func collectionView(_ cv: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-            guard let id = dataSource.itemIdentifier(for: indexPath) else { return }
+            guard !zoom.isZooming, let id = dataSource.itemIdentifier(for: indexPath) else { return }
             if cv.isEditing {
                 parent.selectedPhotos.insert(id)
                 UISelectionFeedbackGenerator().selectionChanged()
             } else {
                 cv.deselectItem(at: indexPath, animated: false)
+                if zoom.handleBrowseTap(at: indexPath) { return }
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 if let photo = photoByID[id] { parent.onOpen(photo) }
             }
@@ -278,14 +334,14 @@ struct PhotoGridView: UIViewRepresentable {
 
         // MARK: Prefetch
         func collectionView(_ cv: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
-            guard isActive else { return }
-            let px = thumbPixel(for: cv)
+            guard isActive, !zoom.isZooming else { return }
+            let px = min(thumbnailPixels(for: cv), 320)
             // Bound speculative requests. Visible cells keep their own independent demand.
-            for ip in indexPaths.prefix(max(0, 24 - prefetches.count)) {
+            for ip in indexPaths.prefix(max(0, 8 - prefetches.count)) {
                 guard let id = dataSource.itemIdentifier(for: ip), let photo = photoByID[id] else { continue }
                 guard prefetches[id] == nil else { continue }
                 let token = UUID()
-                let task = Task { @MainActor [weak self] in
+                let task = Task(priority: .utility) { @MainActor [weak self] in
                     _ = await PhotoImage.thumbnail(for: photo, maxPixel: px)
                     guard self?.prefetches[id]?.token == token else { return }
                     self?.prefetches[id] = nil
@@ -308,134 +364,107 @@ struct PhotoGridView: UIViewRepresentable {
     }
 }
 
-// MARK: - 方形等距网格布局（4 列，自动按宽度算 cell 边长）
-final class SquareGridLayout: UICollectionViewFlowLayout {
-    var columns: CGFloat = 4
+final class PhotoGridCollectionView: UICollectionView {
+    var onViewportWidthChange: (() -> Void)?
+    private var viewportWidth: CGFloat = 0
 
-    override func prepare() {
-        super.prepare()
-        guard let cv = collectionView else { return }
-        let cols = columns
-        let spacing = PhotoGridView.spacing
-        minimumInteritemSpacing = spacing
-        minimumLineSpacing = spacing
-        sectionInset = PhotoGridView.sectionInsets
-        let available = cv.bounds.width - sectionInset.left - sectionInset.right - spacing * (cols - 1)
-        let side = max(1, floor(available / cols))
-        itemSize = CGSize(width: side, height: side)
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let width = bounds.width - adjustedContentInset.left - adjustedContentInset.right
+        guard viewportWidth != width else { return }
+        viewportWidth = width
+        onViewportWidthChange?()
     }
 
-    override func shouldInvalidateLayout(forBoundsChange newBounds: CGRect) -> Bool {
-        collectionView?.bounds.width != newBounds.width
+    override func adjustedContentInsetDidChange() {
+        super.adjustedContentInsetDidChange()
+        let width = bounds.width - adjustedContentInset.left - adjustedContentInset.right
+        if viewportWidth != width { collectionViewLayout.invalidateLayout() }
     }
 }
 
 // MARK: - 缩略图 cell
 final class PhotoCell: UICollectionViewCell {
     static let reuseID = "PhotoCell"
-
-    private let imageView = UIImageView()
-    var transitionImage: UIImage? { imageView.image }
-    private let dimOverlay = UIView()
-    private let badge = UIImageView()
-    /// Live Photo 角标（左上，仿系统相册）。与右上的选择角标分居两角，不冲突。
-    private let liveBadge = UIImageView()
-    private var isLive = false
+    private let thumbnail = PhotoGridThumbnailView()
+    var transitionImage: UIImage? { thumbnail.image }
     private var loadToken = UUID()
-    private var assetRequestID: PHImageRequestID = PHInvalidImageRequestID
     private var loadTask: Task<Void, Never>?
     private var configuredPhoto: Photo?
     private var maxPixel = 96
     private var isSuspended = true
 
-    var isEditingMode = false { didSet { updateSelectionVisual() } }
-    override var isSelected: Bool { didSet { updateSelectionVisual() } }
+    var onZoom: ((PhotoCell, Int) -> Bool)?
+    var isEditingMode = false {
+        didSet {
+            if oldValue != isEditingMode { updateSelectionVisual() }
+        }
+    }
+    override var isSelected: Bool {
+        didSet {
+            if oldValue != isSelected { updateSelectionVisual() }
+        }
+    }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
+        contentView.layer.cornerCurve = .continuous
+        thumbnail.frame = contentView.bounds
+        thumbnail.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        contentView.addSubview(thumbnail)
+    }
+
+    private func configureAccessibility() {
+        guard accessibilityCustomActions == nil else { return }
         isAccessibilityElement = true
-        accessibilityTraits = .button
-        contentView.clipsToBounds = true
-        contentView.layer.cornerCurve = .continuous   // 圆角值由 configure(cornerRadius:) 设置
-        contentView.backgroundColor = UIColor.secondarySystemFill
-
-        imageView.contentMode = .scaleAspectFill
-        imageView.clipsToBounds = true
-        imageView.frame = contentView.bounds
-        imageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        contentView.addSubview(imageView)
-
-        dimOverlay.backgroundColor = UIColor.black.withAlphaComponent(0.4)
-        dimOverlay.frame = contentView.bounds
-        dimOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        dimOverlay.isHidden = true
-        contentView.addSubview(dimOverlay)
-
-        badge.contentMode = .center
-        badge.translatesAutoresizingMaskIntoConstraints = false
-        badge.isHidden = true
-        badge.layer.shadowColor = UIColor.black.cgColor
-        badge.layer.shadowOpacity = 0.35
-        badge.layer.shadowRadius = 2
-        badge.layer.shadowOffset = CGSize(width: 0, height: 1)
-        contentView.addSubview(badge)
-        NSLayoutConstraint.activate([
-            badge.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
-            badge.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
-        ])
-
-        liveBadge.contentMode = .center
-        liveBadge.accessibilityIdentifier = "photo.liveBadge"
-        liveBadge.isAccessibilityElement = true
-        liveBadge.accessibilityLabel = String(localized: "Live Photo")
-        liveBadge.translatesAutoresizingMaskIntoConstraints = false
-        liveBadge.isHidden = true
-        liveBadge.image = UIImage(systemName: "livephoto",
-                                  withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold))?
-            .withTintColor(.white, renderingMode: .alwaysOriginal)
-        liveBadge.layer.shadowColor = UIColor.black.cgColor
-        liveBadge.layer.shadowOpacity = 0.4
-        liveBadge.layer.shadowRadius = 2
-        liveBadge.layer.shadowOffset = CGSize(width: 0, height: 1)
-        contentView.addSubview(liveBadge)
-        NSLayoutConstraint.activate([
-            liveBadge.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
-            liveBadge.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 6),
-        ])
+        accessibilityTraits.insert(.button)
+        accessibilityCustomActions = [
+            UIAccessibilityCustomAction(name: String(localized: "Zoom In")) { [weak self] _ in
+                guard let self else { return false }
+                return onZoom?(self, -1) ?? false
+            },
+            UIAccessibilityCustomAction(name: String(localized: "Zoom Out")) { [weak self] _ in
+                guard let self else { return false }
+                return onZoom?(self, 1) ?? false
+            }
+        ]
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        contentView.layer.cornerRadius = PhotoGridThumbnailView.cornerRadius(for: contentView.bounds.width)
+    }
 
     override func prepareForReuse() {
         super.prepareForReuse()
         cancelLoading()
         configuredPhoto = nil
+        onZoom = nil
+        setZoomCovered(false)
         isSuspended = true
-        imageView.image = nil
-        isLive = false
-        liveBadge.isHidden = true
+        thumbnail.image = nil
         isEditingMode = false
     }
 
     func cancelLoading() {
         loadTask?.cancel()
         loadTask = nil
-        AssetImageLoader.shared.cancel(assetRequestID)
-        assetRequestID = PHInvalidImageRequestID
         loadToken = UUID()
     }
 
-    func configure(photo: Photo, editing: Bool, maxPixel: Int, cornerRadius: CGFloat, isActive: Bool = true,
+    func configure(photo: Photo, editing: Bool, maxPixel: Int, isActive: Bool = true,
                    retainingImage: Bool = false) {
-        if configuredPhoto?.id != photo.id { imageView.image = nil }
+        if configuredPhoto?.id != photo.id { thumbnail.image = nil }
         configuredPhoto = photo
         self.maxPixel = maxPixel
+        configureAccessibility()
         accessibilityIdentifier = "photo.\(photo.id.uuidString)"
         accessibilityLabel = photo.timestamp.formatted(date: .abbreviated, time: .shortened)
         accessibilityValue = photo.isLivePhoto ? String(localized: "Live Photo") : nil
-        contentView.layer.cornerRadius = cornerRadius
-        isLive = photo.isLivePhoto
         isEditingMode = editing
+        updateSelectionVisual()
         if isActive {
             isSuspended = false
             loadThumbnail(photo: photo, maxPixel: maxPixel)
@@ -444,10 +473,37 @@ final class PhotoCell: UICollectionViewCell {
         }
     }
 
+    func seedZoomThumbnail(_ image: UIImage?) {
+        if thumbnail.image == nil { thumbnail.image = image }
+    }
+
+    func seedCachedTransitionImage() {
+        guard thumbnail.image == nil, let photo = configuredPhoto, !photo.isDeleted else { return }
+        if let assetID = photo.assetLocalIdentifier {
+            thumbnail.image = AssetImageLoader.shared.cachedThumbnail(id: assetID, maxPixel: maxPixel)
+                ?? AssetImageLoader.shared.cachedThumbnail(id: assetID, maxPixel: PhotoDetailView.placeholderMaxPixel)
+        } else {
+            thumbnail.image = ImageLoader.shared.anyCachedThumbnail(for: photo.id)
+        }
+    }
+
+    func setZoomCovered(_ covered: Bool) {
+        contentView.isHidden = covered
+    }
+
+    func setThumbnailSize(_ maxPixel: Int) {
+        guard self.maxPixel != maxPixel else { return }
+        let enlarging = maxPixel > self.maxPixel
+        self.maxPixel = maxPixel
+        if !isSuspended, let photo = configuredPhoto, enlarging || thumbnail.image == nil {
+            loadThumbnail(photo: photo, maxPixel: maxPixel)
+        }
+    }
+
     func suspendLoading(retainingImage: Bool = false) {
         isSuspended = true
         cancelLoading()
-        if !retainingImage { imageView.image = nil }
+        if !retainingImage { thumbnail.image = nil }
     }
 
     func resumeLoading() {
@@ -462,33 +518,50 @@ final class PhotoCell: UICollectionViewCell {
         // otherwise a callback for the previous configuration can overwrite the new image.
         cancelLoading()
         let token = loadToken
-        guard !photo.isDeleted else { imageView.image = nil; return }
+        guard !photo.isDeleted else { thumbnail.image = nil; return }
         let id = photo.id
 
-        // 资产路径（真相源在系统相册）：同步缓存命中即零延迟；否则 PHImageManager opportunistic
-        // 渐进交付（先糊后清），cell 复用时用 assetRequestID 取消。
         if let aid = photo.assetLocalIdentifier {
-            if let img = AssetImageLoader.shared.cachedThumbnail(id: aid, maxPixel: maxPixel) {
-                imageView.image = img
-                return
+            let loader = AssetImageLoader.shared
+            for size in PhotoGridView.thumbnailSizes where size >= maxPixel {
+                if let image = loader.cachedThumbnail(id: aid, maxPixel: size) {
+                    thumbnail.image = image
+                    return
+                }
             }
-            assetRequestID = AssetImageLoader.shared.requestThumbnail(id: aid, maxPixel: maxPixel) { [weak self] img in
-                guard let self, self.loadToken == token, let img else { return }
-                self.imageView.image = img
+            if thumbnail.image == nil {
+                for size in PhotoGridView.thumbnailSizes.reversed() where size < maxPixel {
+                    if let image = loader.cachedThumbnail(id: aid, maxPixel: size) {
+                        thumbnail.image = image
+                        break
+                    }
+                }
+            }
+            loadTask = Task { @MainActor [weak self] in
+                let image = await loader.thumbnail(id: aid, maxPixel: maxPixel, onDegraded: { [weak self] preview in
+                    Task { @MainActor in
+                        guard let self, self.loadToken == token, self.thumbnail.image == nil else { return }
+                        self.thumbnail.image = preview
+                    }
+                })
+                guard !Task.isCancelled, let self, self.loadToken == token, let image else { return }
+                self.thumbnail.image = image
             }
             return
         }
 
         // 遗留内部字节路径（迁移完成前）：缓存→磁盘→fault 原图，逐级降级，token 防错位。
-        if let img = ImageLoader.shared.cachedThumbnail(for: id, maxPixel: maxPixel)
-            ?? ImageLoader.shared.anyCachedThumbnail(for: id) {
-            imageView.image = img
+        if let img = ImageLoader.shared.cachedThumbnail(for: id, maxPixel: maxPixel) {
+            thumbnail.image = img
             return
+        }
+        if thumbnail.image == nil {
+            thumbnail.image = ImageLoader.shared.anyCachedThumbnail(for: id)
         }
         loadTask = Task { @MainActor [weak self] in
             let img = await PhotoImage.thumbnail(for: photo, maxPixel: maxPixel)
             guard !Task.isCancelled, let self, self.loadToken == token, let img else { return }
-            self.imageView.image = img
+            self.thumbnail.image = img
         }
     }
 
@@ -496,18 +569,77 @@ final class PhotoCell: UICollectionViewCell {
     private func updateSelectionVisual() {
         if isSelected { accessibilityTraits.insert(.selected) }
         else { accessibilityTraits.remove(.selected) }
-        badge.isHidden = !isEditingMode
-        // Live 角标只在非编辑态显示——编辑态让位给选择角标 + 暗化，保持与系统相册一致的简洁。
-        liveBadge.isHidden = !isLive || isEditingMode
-        dimOverlay.isHidden = !(isEditingMode && isSelected)
-        guard isEditingMode else { return }
-        let base = UIImage.SymbolConfiguration(pointSize: 22, weight: .regular)
-        if isSelected {
-            let palette = base.applying(UIImage.SymbolConfiguration(paletteColors: [.white, .systemBlue]))
-            badge.image = UIImage(systemName: "checkmark.circle.fill", withConfiguration: palette)
-        } else {
-            badge.image = UIImage(systemName: "circle", withConfiguration: base)?
-                .withTintColor(.white, renderingMode: .alwaysOriginal)
+        thumbnail.setSelection(editing: isEditingMode, selected: isSelected)
+    }
+}
+
+/// Shared by the resting cells and the zoom preview.
+final class PhotoGridThumbnailView: UIView {
+    private static let configuration = UIImage.SymbolConfiguration(pointSize: 22, weight: .regular)
+    private static let unselectedSymbol = UIImage(systemName: "circle", withConfiguration: configuration)?
+        .withTintColor(.white, renderingMode: .alwaysOriginal)
+    private static let selectedSymbol = UIImage(systemName: "checkmark.circle.fill",
+        withConfiguration: configuration.applying(UIImage.SymbolConfiguration(paletteColors: [.white, .systemBlue])))
+
+    private let imageView = UIImageView()
+    private let dimOverlay = UIView()
+    private let badge = UIImageView()
+
+    var image: UIImage? {
+        get { imageView.image }
+        set { imageView.image = newValue }
+    }
+
+    static func cornerRadius(for side: CGFloat) -> CGFloat {
+        min(SquareGridLayout.cornerRadius, side * 0.12)
+    }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        clipsToBounds = true
+        layer.cornerCurve = .continuous
+        backgroundColor = .secondarySystemFill
+
+        imageView.contentMode = .scaleAspectFill
+        addSubview(imageView)
+
+        dimOverlay.backgroundColor = UIColor.black.withAlphaComponent(0.4)
+        dimOverlay.isHidden = true
+        addSubview(dimOverlay)
+
+        badge.contentMode = .scaleAspectFit
+        badge.isHidden = true
+        badge.layer.shadowColor = UIColor.black.cgColor
+        badge.layer.shadowOpacity = 0.35
+        badge.layer.shadowRadius = 2
+        badge.layer.shadowOffset = CGSize(width: 0, height: 1)
+        addSubview(badge)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let side = bounds.width
+        imageView.frame = bounds
+        layer.cornerRadius = Self.cornerRadius(for: side)
+        guard !badge.isHidden else { return }
+        dimOverlay.frame = bounds
+        let size = badge.image?.size ?? .zero
+        let scale = min(1, side / 52)
+        let width = size.width * scale
+        let height = size.height * scale
+        let padding: CGFloat = 5
+        let x = effectiveUserInterfaceLayoutDirection == .rightToLeft ? padding : bounds.width - width - padding
+        badge.frame = CGRect(x: x, y: padding, width: width, height: height)
+    }
+
+    func setSelection(editing: Bool, selected: Bool) {
+        badge.isHidden = !editing
+        dimOverlay.isHidden = !(editing && selected)
+        if editing {
+            badge.image = selected ? Self.selectedSymbol : Self.unselectedSymbol
+            setNeedsLayout()
         }
     }
 }

@@ -4,18 +4,13 @@ import UIKit
 /// PhotoKit handles size caching and iCloud fetches. The small memory cache also supplies
 /// synchronous first-frame placeholders when cells are reused.
 final class AssetImageLoader: @unchecked Sendable {
-    /// PhotoKit owns callback scheduling; these values only bridge that callback API.
-    private final class Box<Value>: @unchecked Sendable {
-        var value: Value
-        init(_ value: Value) { self.value = value }
-    }
-
     static let shared = AssetImageLoader()
     private let manager = PHCachingImageManager()
     private let cache = NSCache<NSString, UIImage>()
 
     private init() {
-        cache.countLimit = 120
+        // Nine-column grids can show more than 120 small thumbnails at once.
+        cache.countLimit = 360
         let mem = Int(ProcessInfo.processInfo.physicalMemory)
         cache.totalCostLimit = min(128 * 1024 * 1024, mem / 32)
     }
@@ -34,49 +29,13 @@ final class AssetImageLoader: @unchecked Sendable {
         cache.object(forKey: "\(id)_\(maxPixel)" as NSString)
     }
 
-    /// UIKit cell 用：opportunistic 渐进交付（先糊后清），completion 可能被多次回调（PHImageManager
-    /// 在主线程回调）。返回 PHImageRequestID 供 cell 复用时 cancel。
-    ///
-    /// 12s 超时兜底：PhotoKit 在授权边缘态/库索引异常时可能**完全不回调**，cell 永远停在黑块。
-    /// 超时补发一次 nil（仅在从未收到 final 交付时），让 UI 落到失败态而不是无限等待。
-    @discardableResult
-    func requestThumbnail(id: String, maxPixel: Int, completion: @escaping (UIImage?) -> Void) -> PHImageRequestID {
-        guard let asset = asset(id: id) else { completion(nil); return PHInvalidImageRequestID }
-        let opts = PHImageRequestOptions()
-        opts.deliveryMode = .opportunistic
-        opts.resizeMode = .fast
-        opts.isNetworkAccessAllowed = true
-        let size = CGSize(width: maxPixel, height: maxPixel)
-        let key = "\(id)_\(maxPixel)" as NSString
-        let delivered = Box(false)
-        let completionBox = Box(completion)
-        let requestID = manager.requestImage(for: asset, targetSize: size, contentMode: .aspectFill, options: opts) { [weak self] image, info in
-            let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
-            if let image, !degraded, let self {
-                self.cache.setObject(image, forKey: key, cost: self.cost(image))
-                delivered.value = true
-            }
-            completion(image)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
-            guard let self, !delivered.value, requestID != PHInvalidImageRequestID else { return }
-            self.manager.cancelImageRequest(requestID)
-            Log.gallery.error("asset_thumbnail_timeout id=\(id, privacy: .public) max=\(maxPixel) authorization=\(PHPhotoLibrary.authorizationStatus(for: .readWrite).rawValue)")
-            completionBox.value(nil)
-        }
-        return requestID
-    }
-
-    func cancel(_ requestID: PHImageRequestID) {
-        guard requestID != PHInvalidImageRequestID else { return }
-        manager.cancelImageRequest(requestID)
-    }
-
-    /// async 单发缩略图（取最终高质量版本一次返回）。aspectFill 方形。
-    func thumbnail(id: String, maxPixel: Int, trace: DiagnosticTrace? = nil) async -> UIImage? {
+    /// Grid cells can display an opportunistic preview while waiting for the cacheable image.
+    func thumbnail(id: String, maxPixel: Int, trace: DiagnosticTrace? = nil,
+                   onDegraded: (@Sendable (UIImage) -> Void)? = nil) async -> UIImage? {
         if let cached = cachedThumbnail(id: id, maxPixel: maxPixel) { return cached }
         let img = await requestImage(id: id, targetSize: CGSize(width: maxPixel, height: maxPixel),
-                                     contentMode: .aspectFill, resize: .fast, trace: trace, kind: "thumbnail")
+                                     contentMode: .aspectFill, resize: .fast, trace: trace, kind: "thumbnail",
+                                     onDegraded: onDegraded)
         if let img { cache.setObject(img, forKey: "\(id)_\(maxPixel)" as NSString, cost: cost(img)) }
         return img
     }
@@ -88,7 +47,8 @@ final class AssetImageLoader: @unchecked Sendable {
     }
 
     private func requestImage(id: String, targetSize: CGSize, contentMode: PHImageContentMode,
-                              resize: PHImageRequestOptionsResizeMode, trace: DiagnosticTrace?, kind: String) async -> UIImage? {
+                              resize: PHImageRequestOptionsResizeMode, trace: DiagnosticTrace?, kind: String,
+                              onDegraded: (@Sendable (UIImage) -> Void)? = nil) async -> UIImage? {
         let request = trace?.span("photo_asset_request", "kind=\(kind) max_pixel=\(Int(max(targetSize.width, targetSize.height)))")
         guard !Task.isCancelled else { request?.end("cancelled"); return nil }
         guard let asset = asset(id: id) else {
@@ -96,10 +56,10 @@ final class AssetImageLoader: @unchecked Sendable {
             return nil
         }
         let opts = PHImageRequestOptions()
-        opts.deliveryMode = .highQualityFormat
+        opts.deliveryMode = onDegraded == nil ? .highQualityFormat : .opportunistic
         opts.resizeMode = resize
         opts.isNetworkAccessAllowed = true
-        return await performRequest(span: request) { handler in
+        return await performRequest(span: request, onDegraded: onDegraded) { handler in
             manager.requestImage(for: asset, targetSize: targetSize, contentMode: contentMode, options: opts, resultHandler: handler)
         }
     }
@@ -110,32 +70,34 @@ final class AssetImageLoader: @unchecked Sendable {
     /// 落定,span 记录 timeout + 当前授权状态,`loadFailed` 得以置位,UI 显示失败态 + 可重试。
     private func performRequest<Value: Sendable>(span: DiagnosticSpan?,
         timeout: TimeInterval = 12,
+        onDegraded: (@Sendable (Value) -> Void)? = nil,
         start: (@escaping (Value?, [AnyHashable: Any]?) -> Void) -> PHImageRequestID) async -> Value? {
         let state = PhotoRequestState<Value>()
+        let timeoutTask = Task(priority: .utility) {
+            guard (try? await Task.sleep(for: .seconds(timeout))) != nil else { return }
+            let cancellation = state.cancel()
+            if cancellation.requestID != PHInvalidImageRequestID { manager.cancelImageRequest(cancellation.requestID) }
+            if cancellation.didFinish {
+                span?.end("timeout", "authorization=\(PHPhotoLibrary.authorizationStatus(for: .readWrite).rawValue)")
+            }
+        }
+        defer { timeoutTask.cancel() }
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 guard state.install(continuation) else { return }
                 let requestID = start { value, info in
                     let cancelled = (info?[PHImageCancelledKey] as? Bool) == true
                     let error = info?[PHImageErrorKey] as? NSError
-                    if !cancelled, error == nil, (info?[PHImageResultIsDegradedKey] as? Bool) == true { return }
+                    if !cancelled, error == nil, (info?[PHImageResultIsDegradedKey] as? Bool) == true {
+                        if let value, !state.isFinished { onDegraded?(value) }
+                        return
+                    }
                     let result = cancelled || error != nil ? nil : value
                     guard state.finish(result) else { return }
                     span?.end(cancelled ? "cancelled" : error != nil ? "error" : value == nil ? "empty" : "ok",
                         error.map { Diagnostics.errorFields($0) } ?? "")
                 }
                 if state.register(requestID) { manager.cancelImageRequest(requestID) }
-                Task { [weak self] in
-                    try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                    guard !state.isFinished, let self else { return }
-                    let cancellation = state.cancel()
-                    if cancellation.requestID != PHInvalidImageRequestID {
-                        self.manager.cancelImageRequest(cancellation.requestID)
-                    }
-                    if cancellation.didFinish {
-                        span?.end("timeout", "authorization=\(PHPhotoLibrary.authorizationStatus(for: .readWrite).rawValue)")
-                    }
-                }
             }
         } onCancel: {
             let cancellation = state.cancel()

@@ -142,9 +142,9 @@ final class LibraryFlowTests: XCTestCase {
         XCTAssertTrue(PhotoGridItemRevision.changedIDs(from: after, to: [:]).isEmpty)
     }
 
-    func testGridSnapshotRefreshesLiveStateWithoutChangingPhotoIdentity() throws {
+    func testGridRefreshesLiveAccessibilityWithoutShowingAnIcon() throws {
         let photo = Photo(assetLocalIdentifier: nil, imageData: nil)
-        let grid = PhotoGridView(photos: [photo], columns: 3, cornerRadius: 8,
+        let grid = PhotoGridView(photos: [photo], defaultColumns: 3, zoomColumns: .constant(0),
             isSelecting: .constant(false), selectedPhotos: .constant([]), onOpen: { _ in })
         let coordinator = PhotoGridView.Coordinator(grid)
         let collection = UICollectionView(frame: CGRect(x: 0, y: 0, width: 390, height: 600), collectionViewLayout: SquareGridLayout())
@@ -155,12 +155,12 @@ final class LibraryFlowTests: XCTestCase {
         XCTAssertEqual(dataSource?.snapshot().itemIdentifiers, [photo.id])
         collection.layoutIfNeeded()
         let cell = try XCTUnwrap(collection.cellForItem(at: IndexPath(item: 0, section: 0)))
-        let badge = try XCTUnwrap(cell.contentView.subviews.first { $0.accessibilityIdentifier == "photo.liveBadge" })
-        XCTAssertTrue(badge.isHidden)
+        XCTAssertNil(cell.accessibilityValue)
         photo.isLivePhoto = true
         coordinator.apply(photos: [photo], animating: false)
         collection.layoutIfNeeded()
-        XCTAssertFalse(badge.isHidden)
+        XCTAssertEqual(cell.accessibilityValue, String(localized: "Live Photo"))
+        XCTAssertNil(cell.contentView.subviews.first { $0.accessibilityIdentifier == "photo.liveBadge" })
         XCTAssertTrue(cell === collection.cellForItem(at: IndexPath(item: 0, section: 0)))
     }
 

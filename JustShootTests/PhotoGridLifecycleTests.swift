@@ -15,36 +15,51 @@ final class PhotoGridLifecycleTests: XCTestCase {
         return photo
     }
 
-    private func image(in cell: PhotoCell) -> UIImage? {
-        (cell.contentView.subviews.first as? UIImageView)?.image
-    }
-
     func testOffscreenCellDropsItsImageAndCanResumeWithoutReuse() async throws {
         let photo = try await preparedPhoto()
         let cell = PhotoCell(frame: .zero)
-        cell.configure(photo: photo, editing: false, maxPixel: 120, cornerRadius: 8)
-        XCTAssertNotNil(image(in: cell))
+        cell.configure(photo: photo, editing: false, maxPixel: 120)
+        XCTAssertNotNil(cell.transitionImage)
         cell.suspendLoading()
-        XCTAssertNil(image(in: cell))
+        XCTAssertNil(cell.transitionImage)
         cell.resumeLoading()
-        XCTAssertNotNil(image(in: cell))
+        XCTAssertNotNil(cell.transitionImage)
         cell.prepareForReuse()
         cell.resumeLoading()
-        XCTAssertNil(image(in: cell))
+        XCTAssertNil(cell.transitionImage)
         ImageLoader.shared.removeDiskCache(for: photo.id)
     }
 
     func testHiddenGridDoesNotLoadUntilVisibleAndReuseCannotShowThePreviousPhoto() async throws {
         let photo = try await preparedPhoto()
         let cell = PhotoCell(frame: .zero)
-        cell.configure(photo: photo, editing: false, maxPixel: 120, cornerRadius: 8, isActive: false)
-        XCTAssertNil(image(in: cell))
+        cell.configure(photo: photo, editing: false, maxPixel: 120, isActive: false)
+        XCTAssertNil(cell.transitionImage)
         cell.resumeLoading()
-        XCTAssertNotNil(image(in: cell))
+        XCTAssertNotNil(cell.transitionImage)
         let missing = Photo(assetLocalIdentifier: nil, imageData: nil)
-        cell.configure(photo: missing, editing: false, maxPixel: 120, cornerRadius: 8)
-        XCTAssertNil(image(in: cell))
+        cell.configure(photo: missing, editing: false, maxPixel: 120)
+        XCTAssertNil(cell.transitionImage)
         cell.suspendLoading()
         ImageLoader.shared.removeDiskCache(for: photo.id)
+    }
+
+    func testZoomKeepsTheCurrentThumbnailWhileLoadingASharperOne() async throws {
+        let photo = try await preparedPhoto()
+        defer { ImageLoader.shared.removeDiskCache(for: photo.id) }
+        let cell = PhotoCell(frame: .zero)
+        cell.configure(photo: photo, editing: false, maxPixel: 120)
+        let initial = try XCTUnwrap(cell.transitionImage)
+        cell.setThumbnailSize(192)
+        XCTAssertTrue(cell.transitionImage === initial)
+
+        let deadline = ProcessInfo.processInfo.systemUptime + 3
+        while cell.transitionImage === initial, ProcessInfo.processInfo.systemUptime < deadline {
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        let enlarged = try XCTUnwrap(cell.transitionImage)
+        XCTAssertEqual(enlarged.cgImage?.width, 192)
+        cell.setThumbnailSize(120)
+        XCTAssertTrue(cell.transitionImage === enlarged)
     }
 }

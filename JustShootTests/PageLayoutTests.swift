@@ -29,16 +29,15 @@ final class PageLayoutTests: XCTestCase {
         XCTAssertFalse(PageLayout.usesLandscapeColumns(in: CGSize(width: 1194, height: 744), isRegular: false))
     }
 
-    func testPhotoDensityUsesAvailableWidthAndStaysMonotonic() {
-        for width in [CGFloat(600), 834, 880] {
-            let large = GalleryDensity.large.columns(forWidth: width, isRegular: true, accessibilitySize: false)
-            let standard = GalleryDensity.standard.columns(forWidth: width, isRegular: true, accessibilitySize: false)
-            let small = GalleryDensity.small.columns(forWidth: width, isRegular: true, accessibilitySize: false)
-            XCTAssertLessThanOrEqual(large, standard)
-            XCTAssertLessThanOrEqual(standard, small)
-            XCTAssertLessThanOrEqual(GalleryDensity.small.columns(forWidth: width, isRegular: true, accessibilitySize: true), 2)
+    @MainActor
+    func testPhotoGridDefaultAdaptsToWidthAndAccessibilitySize() {
+        for (width, columns) in [(CGFloat(600), 3), (834, 5), (1194, 7)] {
+            XCTAssertEqual(SquareGridLayout.defaultColumns(forWidth: width, isRegular: true,
+                accessibilitySize: false), columns)
+            XCTAssertEqual(SquareGridLayout.defaultColumns(forWidth: width, isRegular: true,
+                accessibilitySize: true), 2)
         }
-        XCTAssertEqual(GalleryDensity.standard.columns(forWidth: 393, isRegular: false, accessibilitySize: false), 4)
+        XCTAssertEqual(SquareGridLayout.defaultColumns(forWidth: 393, isRegular: false, accessibilitySize: false), 4)
         XCTAssertEqual(PageLayout.gridColumns(width: 0, minimum: 100, spacing: 10, maximum: 4), 1)
         XCTAssertEqual(PageLayout.gridColumns(width: .nan, minimum: 100, spacing: 10, maximum: 4), 1)
     }

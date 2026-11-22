@@ -34,6 +34,21 @@ final class PhotoGridTransitionSource {
               cell.transitionImage != nil else { return nil }
         return cell.contentView
     }
+
+    func revealCurrentPhotoIfNeeded() {
+        guard let currentPhotoID, let collectionView,
+              let dataSource = collectionView.dataSource as? UICollectionViewDiffableDataSource<Int, UUID>,
+              let indexPath = dataSource.indexPath(for: currentPhotoID) else { return }
+        collectionView.layoutIfNeeded()
+        let viewport = collectionView.bounds.inset(by: collectionView.adjustedContentInset)
+        guard !viewport.isEmpty,
+              let frame = collectionView.layoutAttributesForItem(at: indexPath)?.frame else { return }
+        if !frame.intersects(viewport) {
+            collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+            collectionView.layoutIfNeeded()
+        }
+        cell(for: currentPhotoID)?.seedCachedTransitionImage()
+    }
 }
 
 /// UIKit supplies the grid's real source view without replacing reusable cells with
@@ -176,6 +191,9 @@ struct PhotoDetailPresentation: UIViewControllerRepresentable {
                 self.host = nil
                 self.presentedSelectionID = nil
                 self.dismissedSelectionID = selection.id
+                // A native swipe can finish without the close button. Wait until it
+                // succeeds so cancelling the gesture leaves the grid where it was.
+                if self.isActive { source.revealCurrentPhotoIfNeeded() }
                 source.currentPhotoID = nil
                 if self.requestedSelection?.id == selection.id { self.requestedSelection = nil }
                 if self.parent.selection?.id == selection.id { self.parent.selection = nil }
@@ -189,6 +207,7 @@ struct PhotoDetailPresentation: UIViewControllerRepresentable {
 
         private func dismiss(_ controller: PhotoDetailHostingController) {
             guard !controller.isBeingPresented, !controller.isBeingDismissed else { return }
+            parent.source.revealCurrentPhotoIfNeeded()
             controller.dismiss(animated: true) { [weak controller] in
                 controller?.completeDismissalIfDetached()
             }

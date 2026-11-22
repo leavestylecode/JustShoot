@@ -10,8 +10,10 @@ enum PhotoImage {
     @MainActor
     private static func isAvailable(_ photo: Photo, in context: ModelContext?) -> Bool {
         guard !Task.isCancelled, !photo.isDeleted else { return false }
+        // A saved deletion can detach the model before this request starts. Only
+        // a model that has never been associated with a store can load without a context.
+        guard let context else { return photo.persistentModelID.storeIdentifier == nil }
         // iOS 17 does not reliably set isDeleted until a pending deletion is saved.
-        guard let context else { return true }
         return photo.modelContext != nil && !context.deletedModelsArray.contains { $0 === photo }
     }
 
