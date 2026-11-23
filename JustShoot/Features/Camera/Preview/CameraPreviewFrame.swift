@@ -15,6 +15,7 @@ struct CameraPreviewFrame: @unchecked Sendable {
     let outputSize: CGSize
     let grainSeed: UInt32
     var chromaticGain = SIMD3<Float>(repeating: 1)
+    var lutIntensity: Float = 1
     var focalSequence: UInt64 = 0
     var sourceRevision: UInt64 = 0
     var presentedAt: TimeInterval? = nil

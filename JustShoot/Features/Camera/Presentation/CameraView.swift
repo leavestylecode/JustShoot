@@ -471,6 +471,7 @@ struct CameraView: View {
                         lutCacheKey: preparedLUT?.texture.key ?? colorLUTKey,
                         presentedLookKey: preparedLUT?.key ?? previewLUTKey,
                         preparedLUT: preparedLUT?.texture,
+                        lutIntensity: CameraCapturePolicy.defaultLUTIntensity,
                         grain: preparedLUT?.profile.grain ?? source.captureRenderProfile(simulationGrain: simulationGrain).grain,
                         optics: preparedLUT?.profile.optics ?? source.captureRenderProfile.optics,
                         chromatic: preparedLUT?.profile.effectiveChromatic ?? source.captureRenderProfile.effectiveChromatic,
@@ -858,7 +859,7 @@ struct CameraView: View {
         let selection = preparedLUT.map {
             CameraCaptureSelection(source: source, lutKey: $0.key, lut: $0.lut, profile: $0.profile,
                 adjustment: $0.adjustment, plan: capturePlan, curveFields: curveDiagnosticFields(selectedCurve),
-                colorFields: colorAdjustmentDiagnosticFields)
+                colorFields: colorAdjustmentDiagnosticFields, lutIntensity: CameraCapturePolicy.defaultLUTIntensity)
         }
         await coordinator.capture(selection: selection, currentLookKey: { previewLUTKey },
             isSceneActive: { scenePhase == .active }, onAccepted: {

@@ -26,6 +26,7 @@ enum CapturePreviewRenderer {
             let profile = recipe?.profile
             let chromatic = profile?.effectiveChromatic ?? .neutral
             guard let stages = FilmImagePipeline.stages(for: input, lut: lut,
+                lutIntensity: frame.lutIntensity,
                 chromaticGain: frame.chromaticGain,
                 protectChromaticHighlights: chromatic.protectsHighlights,
                 optics: profile?.optics ?? .disabled, grain: profile?.grain ?? .disabled,

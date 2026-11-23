@@ -225,6 +225,7 @@ struct RealtimePreviewView: UIViewRepresentable {
     let lutCacheKey: String
     var presentedLookKey: String? = nil
     let preparedLUT: PreviewLUTTexture?
+    var lutIntensity: Float = 1
     let grain: FilmGrainParameters
     let optics: FilmOpticsParameters
     let chromatic: FilmChromaticResponseParameters
@@ -275,6 +276,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         context.coordinator.presentedLookKey = presentedLookKey ?? lutCacheKey
         context.coordinator.lutCacheKey = lutCacheKey
         context.coordinator.preparedLUT = preparedLUT
+        context.coordinator.lutIntensity = lutIntensity
         context.coordinator.grain = grain
         context.coordinator.optics = optics
         context.coordinator.chromatic = chromatic
@@ -302,6 +304,7 @@ struct RealtimePreviewView: UIViewRepresentable {
         var presentedLookKey: String?
         var lutCacheKey: String = ""
         var preparedLUT: PreviewLUTTexture?
+        var lutIntensity: Float = 1
         var grain: FilmGrainParameters = .disabled
         var optics: FilmOpticsParameters = .disabled
         var chromatic: FilmChromaticResponseParameters = .neutral
@@ -420,6 +423,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             var materialToneCeiling: Float = 0.6
             var materialGrainScale: Float = 1
             var materialIdentityFlags: UInt32 = 0
+            var lutIntensity: Float = 1
         }
 
         /// 色温响应增益的低通平滑：WB 读数 0.5s 采样 + 100K 量化，直接跳变会在预览上
@@ -689,6 +693,7 @@ struct RealtimePreviewView: UIViewRepresentable {
                 chromaticHighlightProtection: chromatic.protectsHighlights ? 1 : 0,
                 grainResponse: grain.shaderResponse
             )
+            params.lutIntensity = lutIntensity
 
             if let material = preparedLUT.material {
                 params.materialDensityDimension = Float(material.density.width)
@@ -761,6 +766,7 @@ struct RealtimePreviewView: UIViewRepresentable {
             composite.setTexture(optics.halationAmount > 0.0001 ? targets.halation : targets.energy, index: 1)
             composite.setTexture(optics.bloomAmount > 0.0001 ? targets.bloom : targets.energy, index: 2)
             composite.setTexture(drawable.texture, index: 3)
+            composite.setTexture(inputTexture, index: 7)
             composite.setBytes(&params, length: MemoryLayout<PreviewParams>.size, index: 0)
             composite.dispatchThreads(gridSize, threadsPerThreadgroup: threadsPerGroup)
             composite.endEncoding()
@@ -778,7 +784,8 @@ struct RealtimePreviewView: UIViewRepresentable {
             let renderedFrame = CameraPreviewFrame(buffer: pixelBuffer, generation: generation,
                 frameID: frameId, capturedAt: capturedAt, lutKey: lookKey, rotation: rotation,
                 crop: transitionPlan.crop, outputSize: CGSize(width: outW, height: outH), grainSeed: params.grainSeed,
-                chromaticGain: chromaticGain, focalSequence: focalSequence, sourceRevision: sourceRevision)
+                chromaticGain: chromaticGain, lutIntensity: params.lutIntensity,
+                focalSequence: focalSequence, sourceRevision: sourceRevision)
             let presentationLease = CameraPreviewPresentationLease(renderedFrame)
             if firstSubmission {
                 firstPresentationRegistered = true

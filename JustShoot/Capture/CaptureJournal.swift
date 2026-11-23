@@ -66,6 +66,10 @@ struct CaptureRecipe: Codable, Sendable {
     var preservesSourceFocalLength: Bool? = nil
     var metadataFocalLength: Int? { preservesSourceFocalLength == true ? nil : focalLength }
 
+    /// Older captures used the full look.
+    var lutIntensity: Float? = nil
+    var resolvedLUTIntensity: Float { lutIntensity ?? 1 }
+
     var requiresRawLUT: Bool { raw?.requiresRawLUT == true }
 
     func withPhotoDisplayTime(_ time: Double?) -> Self {
@@ -74,7 +78,7 @@ struct CaptureRecipe: Codable, Sendable {
             location: location, lutDimension: lutDimension, chromaticSceneCCT: chromaticSceneCCT,
             photoDisplayTime: time, raw: raw, plan: plan, materialSHA256: materialSHA256,
             colorAdjustment: colorAdjustment, frozenChromaticGain: frozenChromaticGain,
-            preservesSourceFocalLength: preservesSourceFocalLength)
+            preservesSourceFocalLength: preservesSourceFocalLength, lutIntensity: lutIntensity)
     }
 }
 

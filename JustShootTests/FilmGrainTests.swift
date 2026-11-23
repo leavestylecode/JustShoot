@@ -327,8 +327,12 @@ final class FilmGrainTests: XCTestCase {
             withBytes: $0.baseAddress!, bytesPerRow: 2) }
         let ciSource = CIImage(bitmapData: source.withUnsafeBufferPointer { Data(buffer: $0) },
             bytesPerRow: width * 8, size: CGSize(width: width, height: height), format: .RGBAh, colorSpace: space)
-        for grain in [legacy, FilmPreset.kodakPortra400.renderProfile.grain,
-                      FilmPreset.kodakPortra400.renderProfile.grain.forUnifiedCapture] {
+        let portra = FilmPreset.kodakPortra400.renderProfile.grain
+        let cases: [(grain: FilmGrainParameters, intensity: Float)] = [
+            (legacy, 1), (portra, 1), (portra.forUnifiedCapture, 1),
+            (portra.forUnifiedCapture, CameraCapturePolicy.defaultLUTIntensity)
+        ]
+        for (grain, intensity) in cases {
             var params = RealtimePreviewView.Coordinator.PreviewParams(scale: 1, offsetX: 0, offsetY: 0,
                 inputWidth: UInt32(width), inputHeight: UInt32(height), rotation: 0, lutDimension: 2,
                 grainAmount: grain.renderAmount(forLongEdge: CGFloat(width)), grainSize: grain.pixelSize(forLongEdge: CGFloat(width)),
@@ -337,7 +341,7 @@ final class FilmGrainTests: XCTestCase {
                 bloomAmount: 0, bloomRadiusPx: 0, highlightThreshold: 0.72,
                 headroomAmount: 0, headroomShoulder: 0.7,
                 chromaticGainR: 1, chromaticGainG: 1, chromaticGainB: 1,
-                chromaticHighlightProtection: 0, grainResponse: grain.shaderResponse)
+                chromaticHighlightProtection: 0, grainResponse: grain.shaderResponse, lutIntensity: intensity)
             let command = try XCTUnwrap(queue.makeCommandBuffer())
             let encoder = try XCTUnwrap(command.makeComputeCommandEncoder())
             encoder.setComputePipelineState(pipeline)
@@ -345,6 +349,7 @@ final class FilmGrainTests: XCTestCase {
             encoder.setTexture(energy, index: 1)
             encoder.setTexture(energy, index: 2)
             encoder.setTexture(output, index: 3)
+            encoder.setTexture(graded, index: 7)
             encoder.setBytes(&params, length: MemoryLayout.size(ofValue: params), index: 0)
             encoder.dispatchThreads(MTLSize(width: width, height: height, depth: 1),
                 threadsPerThreadgroup: MTLSize(width: pipeline.threadExecutionWidth, height: 1, depth: 1))
@@ -361,7 +366,9 @@ final class FilmGrainTests: XCTestCase {
             // readback rows compares the same grain coordinates and source RGB.
             let maximumError = preview.indices.map { index -> Float in
                 let row = index / (width * 4), column = index % (width * 4)
-                return abs(Float(preview[index]) - still[(height - 1 - row) * width * 4 + column])
+                let full = still[(height - 1 - row) * width * 4 + column]
+                let original = Float(source[index])
+                return abs(Float(preview[index]) - (original + (full - original) * intensity))
             }.max() ?? 0
             print("grain_preview_check response=\(grain.responseIdentifier) maximum_error=\(maximumError)")
             XCTAssertLessThan(maximumError, 0.0015, "Preview and export must share the same pattern and response")

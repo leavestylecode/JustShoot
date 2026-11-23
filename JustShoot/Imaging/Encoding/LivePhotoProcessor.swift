@@ -35,6 +35,7 @@ private final class PipelineBox: @unchecked Sendable {
     let stillGroup: AVTimedMetadataGroup
     let lut: CubeLUT?
     let lutFilter: FilmImagePipeline.LUTFilter?
+    let lutIntensity: Float
     let grain: FilmGrainParameters
     let optics: FilmOpticsParameters
     let chromaticGain: SIMD3<Float>
@@ -46,7 +47,7 @@ private final class PipelineBox: @unchecked Sendable {
          pixelAdaptor: AVAssetWriterInputPixelBufferAdaptor,
          audioOutput: AVAssetReaderTrackOutput?, audioInput: AVAssetWriterInput?,
          metadataInput: AVAssetWriterInput, metadataAdaptor: AVAssetWriterInputMetadataAdaptor, stillGroup: AVTimedMetadataGroup,
-         lut: CubeLUT?, grain: FilmGrainParameters, optics: FilmOpticsParameters,
+         lut: CubeLUT?, lutIntensity: Float, grain: FilmGrainParameters, optics: FilmOpticsParameters,
          chromaticGain: SIMD3<Float>, protectChromaticHighlights: Bool, grainBaseSeed: UInt32) {
         self.reader = reader
         self.writer = writer
@@ -59,6 +60,7 @@ private final class PipelineBox: @unchecked Sendable {
         self.metadataAdaptor = metadataAdaptor
         self.stillGroup = stillGroup
         self.lut = lut
+        self.lutIntensity = lutIntensity
         lutFilter = lut.flatMap(FilmImagePipeline.LUTFilter.init)
         self.grain = grain
         self.optics = optics
@@ -120,6 +122,7 @@ enum LivePhotoProcessor {
         sourceURL: URL,
         lutCacheKey: String,
         capturedLUT: CubeLUT? = nil,
+        lutIntensity: Float = 1,
         grain: FilmGrainParameters,
         optics: FilmOpticsParameters = .disabled,
         chromatic: FilmChromaticResponseParameters = .neutral,
@@ -289,6 +292,7 @@ enum LivePhotoProcessor {
                 audioInput: audioWriterInput,
                 metadataInput: metadataInput, metadataAdaptor: metadataAdaptor, stillGroup: stillGroup,
                 lut: lut,
+                lutIntensity: lutIntensity,
                 grain: grain,
                 optics: optics,
                 chromaticGain: chromaticGainOverride ?? chromatic.responseGain(sceneCCT: chromaticSceneCCT),
@@ -336,6 +340,7 @@ enum LivePhotoProcessor {
         _ srcPixel: CVPixelBuffer,
         lut: CubeLUT?,
         lutFilter: FilmImagePipeline.LUTFilter? = nil,
+        lutIntensity: Float = 1,
         grain: FilmGrainParameters,
         optics: FilmOpticsParameters,
         chromaticGain: SIMD3<Float>,
@@ -345,6 +350,7 @@ enum LivePhotoProcessor {
     ) -> CVPixelBuffer? {
         let srcImage = CIImage(cvPixelBuffer: srcPixel)
         guard let stages = FilmImagePipeline.stages(for: srcImage, lut: lut, lutFilter: lutFilter,
+            lutIntensity: lutIntensity,
             chromaticGain: chromaticGain, protectChromaticHighlights: protectChromaticHighlights,
             optics: optics, grain: grain,
             grainSeed: grainSeed) else { return nil }
@@ -462,7 +468,8 @@ private final class LivePhotoTranscode: @unchecked Sendable {
                 }
                 let timestamp = CMSampleBufferGetPresentationTimeStamp(sample)
                 let seed = FilmGrainRenderer.temporalSeed(base: box.grainBaseSeed, seconds: timestamp.seconds)
-                guard let output = LivePhotoProcessor.renderFrame(source, lut: box.lut, lutFilter: box.lutFilter, grain: box.grain,
+                guard let output = LivePhotoProcessor.renderFrame(source, lut: box.lut, lutFilter: box.lutFilter,
+                    lutIntensity: box.lutIntensity, grain: box.grain,
                     optics: box.optics, chromaticGain: box.chromaticGain,
                     protectChromaticHighlights: box.protectChromaticHighlights,
                     grainSeed: seed, pool: box.pixelAdaptor.pixelBufferPool) else {

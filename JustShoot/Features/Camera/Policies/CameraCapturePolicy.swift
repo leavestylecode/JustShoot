@@ -3,6 +3,7 @@ import AVFoundation
 /// One policy is used by session setup, prepared settings and actual captures.
 enum CameraCapturePolicy {
     static let qualityPrioritization: AVCapturePhotoOutput.QualityPrioritization = .quality
+    static let defaultLUTIntensity: Float = 0.88
 
     /// Keep the still framing at 4:3 and request the largest size the format can deliver.
     static func automaticPhotoDimensions(from dimensions: [CMVideoDimensions], allowsDeferredDelivery: Bool) -> CMVideoDimensions? {

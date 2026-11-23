@@ -329,7 +329,8 @@ final class FilmMaterialTests: XCTestCase {
         let source = root.appendingPathComponent("source.mov"), output = root.appendingPathComponent("output.mov")
         try await CapturePipelineTests.makeVideo(at: source)
         _ = try await LivePhotoProcessor.process(sourceURL: source, lutCacheKey: "frozen-material-only",
-            capturedLUT: lut, grain: profile.grain, optics: profile.optics, grainBaseSeed: 123,
+            capturedLUT: lut, lutIntensity: CameraCapturePolicy.defaultLUTIntensity,
+            grain: profile.grain, optics: profile.optics, grainBaseSeed: 123,
             photoDisplayTime: CMTime(value: 3, timescale: 30), outputURL: output)
         let tracks = try await AVURLAsset(url: output).loadTracks(withMediaType: .video)
         XCTAssertEqual(tracks.count, 1)
@@ -438,6 +439,7 @@ final class FilmMaterialTests: XCTestCase {
             let ciInput = CIImage(bitmapData: source.withUnsafeBufferPointer { Data(buffer: $0) }, bytesPerRow: width * 8,
                 size: CGSize(width: width, height: height), format: .RGBAh, colorSpace: space)
             let filter = try XCTUnwrap(FilmImagePipeline.LUTFilter(lut: lut))
+            let intensity: Float = index == 1 ? CameraCapturePolicy.defaultLUTIntensity : 1
             for grain in [FilmGrainParameters.disabled, FilmSource.preset(.kodakPortra400).captureRenderProfile.grain] {
                 var p = RealtimePreviewView.Coordinator.PreviewParams(scale: 1, offsetX: 0, offsetY: 0,
                     inputWidth: UInt32(width), inputHeight: UInt32(height), rotation: 0, lutDimension: UInt32(textures.dimension),
@@ -459,7 +461,7 @@ final class FilmMaterialTests: XCTestCase {
                     materialShadowLift: material.calibration?.shadowLift ?? 0,
                     materialToneCeiling: material.calibration?.toneCeiling ?? 0.6,
                     materialGrainScale: material.calibration?.grainScale ?? 1,
-                    materialIdentityFlags: material.identityFlags)
+                    materialIdentityFlags: material.identityFlags, lutIntensity: intensity)
                 let command = try XCTUnwrap(queue.makeCommandBuffer())
                 let first = try XCTUnwrap(command.makeComputeCommandEncoder())
                 first.setComputePipelineState(firstPipeline)
@@ -469,7 +471,7 @@ final class FilmMaterialTests: XCTestCase {
                 first.endEncoding()
                 let last = try XCTUnwrap(command.makeComputeCommandEncoder())
                 last.setComputePipelineState(finishPipeline)
-                for (i, t) in [exposed, energy, energy, output, material.density, material.paper, material.finish].enumerated() { last.setTexture(t, index: i) }
+                for (i, t) in [exposed, energy, energy, output, material.density, material.paper, material.finish, input].enumerated() { last.setTexture(t, index: i) }
                 last.setBytes(&p, length: MemoryLayout.size(ofValue: p), index: 0)
                 last.dispatchThreads(MTLSize(width: width, height: height, depth: 1), threadsPerThreadgroup: MTLSize(width: 16, height: 16, depth: 1))
                 last.endEncoding()
@@ -481,11 +483,22 @@ final class FilmMaterialTests: XCTestCase {
                 var gpu = [Float16](repeating: 0, count: source.count)
                 gpu.withUnsafeMutableBytes { output.getBytes($0.baseAddress!, bytesPerRow: width * 8,
                     from: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0) }
-                let still = render(try XCTUnwrap(FilmImagePipeline.stages(for: ciInput, lut: lut, chromaticGain: .one,
-                    optics: .disabled, grain: grain, grainSeed: 123)).final)
+                let still = render(try XCTUnwrap(FilmImagePipeline.stages(for: ciInput, lut: lut,
+                    lutIntensity: intensity, chromaticGain: .one, optics: .disabled, grain: grain, grainSeed: 123)).final)
                 let live = render(try XCTUnwrap(FilmImagePipeline.stages(for: ciInput, lut: nil, lutFilter: filter,
-                    chromaticGain: .one, optics: .disabled, grain: grain, grainSeed: 123)).final)
+                    lutIntensity: intensity, chromaticGain: .one, optics: .disabled, grain: grain, grainSeed: 123)).final)
                 XCTAssertEqual(still, live)
+                if intensity < 1 {
+                    let original = render(ciInput)
+                    let full = render(try XCTUnwrap(FilmImagePipeline.stages(for: ciInput, lut: lut,
+                        chromaticGain: .one, optics: .disabled, grain: grain, grainSeed: 123)).final)
+                    let blendError = still.indices.map { pixel -> Float in
+                        let expected = original[pixel] + (full[pixel] - original[pixel]) * intensity
+                        return abs(still[pixel] - expected)
+                    }.max() ?? 0
+                    XCTAssertLessThan(blendError, 0.001)
+                    XCTAssertGreaterThan(still.indices.map { abs(still[$0] - full[$0]) }.max() ?? 0, 0.01)
+                }
                 var maximum: Float = 0
                 for i in gpu.indices {
                     // Identical source colors in every row; match Core Image's bottom-up grain coordinates.

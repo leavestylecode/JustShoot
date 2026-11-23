@@ -54,8 +54,30 @@ struct PreviewParams {
     float materialToneCeiling;
     float materialGrainScale;
     uint materialIdentityFlags; // bit 0: input, bit 1: finish
+    float lutIntensity;
 };
 
+float2 previewSourcePosition(uint2 pixel, constant PreviewParams &params) {
+    float2 position = (float2(pixel) - float2(params.offsetX, params.offsetY)) / params.scale;
+    float inW = float(params.inputWidth), inH = float(params.inputHeight);
+    switch (params.rotation) {
+        case 1: return float2(position.y, inH - 1.0 - position.x);
+        case 2: return float2(inW - 1.0 - position.x, inH - 1.0 - position.y);
+        case 3: return float2(inW - 1.0 - position.y, position.x);
+        default: return position;
+    }
+}
+
+float3 applyingPreviewLUTIntensity(float3 looked, texture2d<float, access::sample> input,
+    uint2 pixel, constant PreviewParams &params) {
+    if (params.lutIntensity >= 1.0) return looked;
+    constexpr sampler linearSampler(filter::linear, address::clamp_to_edge);
+    float2 size = float2(params.inputWidth, params.inputHeight);
+    float2 source = previewSourcePosition(pixel, params);
+    float3 original = any(source < 0.0) || any(source >= size)
+        ? float3(0.0) : input.sample(linearSampler, (source + 0.5) / size).rgb;
+    return mix(original, looked, params.lutIntensity);
+}
 
 // Stage 1: geometry + material input mapping, or legacy RGB grading/headroom.
 // Extract highlight energy from that branch's output before spatial diffusion.
@@ -68,17 +90,9 @@ kernel void previewLUT(
     uint2 gid [[thread_position_in_grid]]
 ) {
     if (gid.x >= graded.get_width() || gid.y >= graded.get_height()) return;
-    float rx = (float(gid.x) - params.offsetX) / params.scale;
-    float ry = (float(gid.y) - params.offsetY) / params.scale;
-    float inW = float(params.inputWidth), inH = float(params.inputHeight);
-    float2 source;
-    switch (params.rotation) {
-        case 1: source = float2(ry, inH - 1.0 - rx); break;
-        case 2: source = float2(inW - 1.0 - rx, inH - 1.0 - ry); break;
-        case 3: source = float2(inW - 1.0 - ry, rx); break;
-        default: source = float2(rx, ry); break;
-    }
-    if (source.x < 0 || source.y < 0 || source.x >= inW || source.y >= inH) {
+    float2 source = previewSourcePosition(gid, params);
+    float2 size = float2(params.inputWidth, params.inputHeight);
+    if (any(source < 0.0) || any(source >= size)) {
         graded.write(half4(0, 0, 0, 1), gid);
         energy.write(half4(0), gid);
         return;
@@ -86,7 +100,7 @@ kernel void previewLUT(
     constexpr sampler linearSampler(filter::linear, address::clamp_to_edge);
     // Decode the 8-bit camera texture directly to float. Rounding it to half before
     // a steep shadow/toe LUT magnifies quantization, especially on night images.
-    float3 color = input.sample(linearSampler, (source + 0.5) / float2(inW, inH)).rgb;
+    float3 color = input.sample(linearSampler, (source + 0.5) / size).rgb;
     // 胶片色温响应先于 LUT：真实胶片是"乳剂先响应、显影定色"，校白模拟必须在色彩映射之前。
     color = justShootApplyChromaticGain(
         color,
@@ -113,6 +127,7 @@ kernel void previewMaterialFinish(
     texture3d<float, access::sample> density [[texture(4)]],
     texture3d<float, access::sample> paper [[texture(5)]],
     texture3d<float, access::sample> finish [[texture(6)]],
+    texture2d<float, access::sample> input [[texture(7)]],
     constant PreviewParams &p [[buffer(0)]], uint2 gid [[thread_position_in_grid]]) {
     if (gid.x >= output.get_width() || gid.y >= output.get_height()) return;
     constexpr sampler s(filter::linear, address::clamp_to_edge);
@@ -136,7 +151,8 @@ kernel void previewMaterialFinish(
     dim = p.materialFinishDimension;
     color = (p.materialIdentityFlags & 2u) != 0 ? clamp(color, 0.0, 1.0)
         : finish.sample(s, color * ((dim - 1.0) / dim) + 0.5 / dim).rgb;
-    output.write(half4(half3(justShootApplyHeadroom(color, p.headroomAmount, p.headroomShoulder)), 1), gid);
+    color = justShootApplyHeadroom(color, p.headroomAmount, p.headroomShoulder);
+    output.write(half4(half3(applyingPreviewLUTIntensity(color, input, gid, p)), 1), gid);
 }
 
 // Stage 2 follows the same Gaussian energy diffusion/composite/grain order as Core Image.
@@ -145,6 +161,7 @@ kernel void previewFinish(
     texture2d<half, access::sample> halation [[texture(1)]],
     texture2d<half, access::sample> bloom [[texture(2)]],
     texture2d<half, access::write> output [[texture(3)]],
+    texture2d<float, access::sample> input [[texture(7)]],
     constant PreviewParams &params [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]]
 ) {
@@ -156,5 +173,5 @@ kernel void previewFinish(
         params.halationAmount, params.halationHue, params.bloomAmount);
     float3 textured = justShootApplyFilmGrain(display, float2(gid) + 0.5,
         params.grainAmount, params.grainSize, params.grainChroma, params.grainSeed, params.grainResponse);
-    output.write(half4(half3(textured), 1), gid);
+    output.write(half4(half3(applyingPreviewLUTIntensity(textured, input, gid, params)), 1), gid);
 }

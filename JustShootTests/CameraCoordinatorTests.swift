@@ -58,7 +58,11 @@ private final class CaptureCameraStub: CameraCaptureControlling {
     func cancelCaptureAdmission(_ token: CameraCaptureAdmission.Token) -> Bool {
         admission.active != token || admission.cancel(token)
     }
-    func waitForCapturePreview(lutKey: String, admission: CameraCaptureAdmission.Token) async -> CameraPreviewFrame? { frame }
+    func waitForCapturePreview(lutKey: String, lutIntensity: Float,
+                               admission: CameraCaptureAdmission.Token) async -> CameraPreviewFrame? {
+        guard let frame, frame.lutIntensity == lutIntensity else { return nil }
+        return frame
+    }
     func capture(admission token: CameraCaptureAdmission.Token, live: Bool, previewFrame: CameraPreviewFrame,
                  trace: DiagnosticTrace, onWillCapture: @escaping () -> Void,
                  onExposureComplete: @escaping () -> Void, onShutterReady: @escaping () -> Void,
@@ -267,6 +271,26 @@ final class CameraCoordinatorTests: XCTestCase {
         XCTAssertEqual(pipeline.cancelled.count, 1)
         XCTAssertFalse(camera.admission.isBusy)
         XCTAssertFalse(coordinator.isShutterBusy)
+    }
+
+    func testCaptureUsesThePresentedLUTIntensity() async throws {
+        let camera = try CaptureCameraStub()
+        defer { camera.callbacks.removeAll() }
+        let pipeline = CapturePipelineStub()
+        let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
+        var selected = try selection()
+        selected.lutIntensity = CameraCapturePolicy.defaultLUTIntensity
+        await coordinator.capture(selection: selected, currentLookKey: { "film" },
+            isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
+        XCTAssertTrue(camera.callbacks.isEmpty)
+
+        camera.frame?.lutIntensity = 0.88
+        await coordinator.capture(selection: selected, currentLookKey: { "film" },
+            isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
+        let callbacks = try XCTUnwrap(camera.callbacks.first)
+        callbacks.exposed()
+        XCTAssertEqual(pipeline.preview?.lutIntensity, 0.88)
+        callbacks.ready()
     }
 
     func testBackgroundGenerationChangeRejectsWaitingShutter() async throws {

@@ -17,6 +17,7 @@ enum CapturePhotoRenderer {
         }
         return FilmProcessor.shared.applyLUTPreservingMetadata(
             imageData: source, lutCacheKey: recipe.filterName, capturedLUT: lut,
+            lutIntensity: recipe.resolvedLUTIntensity,
             rawRecipe: recipe.raw, rawLUT: rawLUT,
             grain: recipe.profile.grain, grainSeed: grainSeed, optics: recipe.profile.optics,
             chromatic: recipe.profile.effectiveChromatic, chromaticSceneCCT: recipe.chromaticSceneCCT,

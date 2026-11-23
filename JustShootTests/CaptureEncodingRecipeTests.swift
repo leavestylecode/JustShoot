@@ -31,6 +31,21 @@ final class CaptureEncodingRecipeTests: XCTestCase {
         }
     }
 
+    func testLUTIntensityPreservesLegacyDefaultsAndSurvivesLateMovieTiming() throws {
+        let legacy = recipe(quality: nil)
+        let decoder = JSONDecoder()
+        let encoder = JSONEncoder()
+        let restoredLegacy = try decoder.decode(CaptureRecipe.self, from: encoder.encode(legacy))
+        XCTAssertNil(restoredLegacy.lutIntensity)
+        XCTAssertEqual(restoredLegacy.resolvedLUTIntensity, 1)
+
+        var captured = legacy
+        captured.lutIntensity = CameraCapturePolicy.defaultLUTIntensity
+        let restored = try decoder.decode(CaptureRecipe.self, from: encoder.encode(captured))
+        XCTAssertEqual(restored.resolvedLUTIntensity, 0.88)
+        XCTAssertEqual(restored.withPhotoDisplayTime(0.5).resolvedLUTIntensity, 0.88)
+    }
+
     func testWhiteBalanceReferenceSurvivesRestartAndLateMovieTiming() throws {
         var frozen = recipe(quality: nil)
         frozen.colorAdjustment = ResolvedCameraColorAdjustment.resolve(temperature: .temperature(5_000),

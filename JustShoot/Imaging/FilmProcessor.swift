@@ -481,6 +481,7 @@ final class FilmProcessor: Sendable {
         imageData: Data,
         lutCacheKey: String,
         capturedLUT: CubeLUT? = nil,
+        lutIntensity: Float = 1,
         rawRecipe: RawCaptureRecipe? = nil,
         rawLUT: RawFilmLUT? = nil,
         grain: FilmGrainParameters = .disabled,
@@ -564,6 +565,7 @@ final class FilmProcessor: Sendable {
         }
 
         guard let stages = FilmImagePipeline.stages(for: ciInput, lut: rawRecipe?.requiresRawLUT == true ? nil : lut,
+            lutIntensity: lutIntensity,
             chromaticGain: chromaticGainOverride ?? chromatic.responseGain(sceneCCT: chromaticSceneCCT),
             protectChromaticHighlights: chromatic.protectsHighlights,
             optics: optics, grain: grain, grainSeed: grainSeed,

@@ -353,14 +353,14 @@ final class CameraManager: NSObject, ObservableObject {
         previewFrames.recordPresented(frame, at: presentedAt)
     }
 
-    func capturePreview(lutKey: String) -> CameraPreviewFrame? {
+    func capturePreview(lutKey: String, lutIntensity: Float = 1) -> CameraPreviewFrame? {
         guard isReadyToCapture, let settledAt = framingSettledAt,
               previewIsOpaque else { return nil }
         let generation = diagnosticGeneration
         let sourceRevision = lensSourceStability.withLock { $0.revision }
         let expectedCrop = previewZoomCrop()
         let now = ProcessInfo.processInfo.systemUptime
-        guard let frame = previewFrames.presentedFrame, frame.lutKey == lutKey,
+        guard let frame = previewFrames.presentedFrame, frame.lutKey == lutKey, frame.lutIntensity == lutIntensity,
                   frame.rotation == CameraOrientationPolicy.previewRotation(for: previewInterfaceOrientation),
                   abs(frame.outputSize.width / max(1, frame.outputSize.height) - previewAspectRatio) < 0.01,
                   CameraPreviewCapturePolicy.permits(frame: frame, generation: generation,
@@ -371,10 +371,11 @@ final class CameraManager: NSObject, ObservableObject {
 
     /// Acknowledged shutter presses may wait for the requested lens and its first
     /// visible frame; they never freeze an old view and capture the new focal length.
-    func waitForCapturePreview(lutKey: String, admission: CameraCaptureAdmission.Token) async -> CameraPreviewFrame? {
+    func waitForCapturePreview(lutKey: String, lutIntensity: Float = 1,
+                               admission: CameraCaptureAdmission.Token) async -> CameraPreviewFrame? {
         while !Task.isCancelled, isCaptureAdmissionValid(admission),
               !lensCaptureGate.hasFailed, !admission.deadline.hasExpired() {
-            if let frame = capturePreview(lutKey: lutKey) { return frame }
+            if let frame = capturePreview(lutKey: lutKey, lutIntensity: lutIntensity) { return frame }
             do { try await Task.sleep(for: .milliseconds(15)) } catch { return nil }
         }
         return nil

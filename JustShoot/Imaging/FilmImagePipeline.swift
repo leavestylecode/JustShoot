@@ -16,6 +16,16 @@ enum FilmImagePipeline {
         let graded: CIImage
         let optical: CIImage
         let final: CIImage
+
+        func applyingLUTIntensity(_ intensity: Float, to original: CIImage) -> Stages? {
+            guard intensity < 1 else { return self }
+            let blend = CIFilter.dissolveTransition()
+            blend.inputImage = original
+            blend.targetImage = final
+            blend.time = intensity
+            guard let output = blend.outputImage else { return nil }
+            return Stages(graded: graded, optical: optical, final: output)
+        }
     }
 
     /// Mutable and intentionally not Sendable. One transcode owns one instance, used only
@@ -58,6 +68,7 @@ enum FilmImagePipeline {
         for image: CIImage,
         lut: CubeLUT?,
         lutFilter: LUTFilter? = nil,
+        lutIntensity: Float = 1,
         chromaticGain: SIMD3<Float>,
         protectChromaticHighlights: Bool = false,
         optics: FilmOpticsParameters,
@@ -70,7 +81,8 @@ enum FilmImagePipeline {
                                                       protectHighlights: protectChromaticHighlights)
         if let material = lut?.material.map(FilmMaterialRenderer.Prepared.init) ?? lutFilter?.preparedMaterial {
             return FilmMaterialRenderer.stages(image: responded, prepared: material,
-                optics: optics, grain: grain, seed: grainSeed, cancellation: cancellation)
+                optics: optics, grain: grain, seed: grainSeed, cancellation: cancellation)?
+                .applyingLUTIntensity(lutIntensity, to: image)
         }
         let graded: CIImage
         if let lutFilter {
@@ -87,5 +99,6 @@ enum FilmImagePipeline {
         guard cancellation?.isCancelled != true else { return nil }
         let final = FilmGrainRenderer.applying(to: optical, parameters: grain, seed: grainSeed)
         return Stages(graded: graded, optical: optical, final: final)
+            .applyingLUTIntensity(lutIntensity, to: image)
     }
 }

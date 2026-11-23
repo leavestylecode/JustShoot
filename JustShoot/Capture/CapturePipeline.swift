@@ -915,7 +915,8 @@ private actor CaptureWorker {
             do {
                 let result = try await LivePhotoProcessor.process(
                     sourceURL: journal.file("source.mov", for: job.id), lutCacheKey: recipe.filterName,
-                    capturedLUT: lut, grain: recipe.profile.grain, optics: recipe.profile.optics,
+                    capturedLUT: lut, lutIntensity: recipe.resolvedLUTIntensity,
+                    grain: recipe.profile.grain, optics: recipe.profile.optics,
                     chromatic: recipe.profile.effectiveChromatic,
                     chromaticSceneCCT: recipe.chromaticSceneCCT,
                     chromaticGainOverride: recipe.frozenChromaticGain,

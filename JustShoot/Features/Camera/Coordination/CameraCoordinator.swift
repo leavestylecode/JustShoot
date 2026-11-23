@@ -20,7 +20,8 @@ protocol CameraCaptureControlling: AnyObject {
     func beginCaptureAdmission() -> CameraCaptureAdmission.Token?
     func isCaptureAdmissionValid(_ token: CameraCaptureAdmission.Token) -> Bool
     @discardableResult func cancelCaptureAdmission(_ token: CameraCaptureAdmission.Token) -> Bool
-    func waitForCapturePreview(lutKey: String, admission: CameraCaptureAdmission.Token) async -> CameraPreviewFrame?
+    func waitForCapturePreview(lutKey: String, lutIntensity: Float,
+                               admission: CameraCaptureAdmission.Token) async -> CameraPreviewFrame?
     func capture(admission: CameraCaptureAdmission.Token, live: Bool, previewFrame: CameraPreviewFrame,
                  trace: DiagnosticTrace, onWillCapture: @escaping () -> Void,
                  onExposureComplete: @escaping () -> Void, onShutterReady: @escaping () -> Void,
@@ -50,6 +51,7 @@ struct CameraCaptureSelection {
     let plan: PhotoCapturePlan
     let curveFields: String
     let colorFields: String
+    var lutIntensity: Float = 1
 }
 
 /// Owns one shutter admission across suspension points. Accepted native callbacks retain
@@ -169,7 +171,8 @@ final class CameraCoordinator: ObservableObject {
             cancel(captureID, admission: admission)
             return
         }
-        guard let frame = await camera.waitForCapturePreview(lutKey: selection.lutKey, admission: admission),
+        guard let frame = await camera.waitForCapturePreview(lutKey: selection.lutKey,
+                  lutIntensity: selection.lutIntensity, admission: admission),
               !attempt.expired, !Task.isCancelled, camera.isCaptureAdmissionValid(admission),
               !admission.deadline.hasExpired(),
               currentLookKey() == selection.lutKey else {
@@ -181,7 +184,7 @@ final class CameraCoordinator: ObservableObject {
             cancel(captureID, admission: admission)
             return
         }
-        trace.event("capture_framing", "frame_id=\(frame.frameID) focal_seq=\(frame.focalSequence) source_revision=\(frame.sourceRevision) preview_crop=\(frame.crop) frame_age_ms=\(Int((ProcessInfo.processInfo.systemUptime - frame.capturedAt) * 1_000)) \(frame.framingDiagnosticFields)")
+        trace.event("capture_framing", "frame_id=\(frame.frameID) focal_seq=\(frame.focalSequence) source_revision=\(frame.sourceRevision) preview_crop=\(frame.crop) lut_intensity=\(frame.lutIntensity) frame_age_ms=\(Int((ProcessInfo.processInfo.systemUptime - frame.capturedAt) * 1_000)) \(frame.framingDiagnosticFields)")
         let source = selection.source
         let displayLabel: String?
         if case .custom(_, let name, _, _) = source { displayLabel = name } else { displayLabel = nil }
@@ -191,7 +194,8 @@ final class CameraCoordinator: ObservableObject {
             profile: selection.profile, grainSeed: frame.grainSeed, location: location,
             lutDimension: selection.lut.dimension, chromaticSceneCCT: sceneCCT, photoDisplayTime: nil,
             plan: selection.plan, colorAdjustment: selection.adjustment, frozenChromaticGain: frame.chromaticGain,
-            preservesSourceFocalLength: camera.focalInfo.constituent(for: FocalLengthOption(admission.focalLength))?.calibrationSource == .fieldOfView)
+            preservesSourceFocalLength: camera.focalInfo.constituent(for: FocalLengthOption(admission.focalLength))?.calibrationSource == .fieldOfView,
+            lutIntensity: frame.lutIntensity)
         handedToCamera = true
         let pipeline = self.pipeline
         camera.capture(admission: admission, live: wantsLive, previewFrame: frame, trace: trace,
