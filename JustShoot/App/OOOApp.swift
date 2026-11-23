@@ -1,3 +1,4 @@
+import CloudKit
 import SwiftUI
 import SwiftData
 
@@ -46,6 +47,17 @@ struct OOOApp: App {
                 .dynamicTypeSize(.large)
                 .preferredColorScheme(appearance.scheme)
                 .onChange(of: scenePhase, initial: true) { _, phase in startup.setActive(phase == .active) }
+                .task(id: scenePhase, priority: .utility) {
+                    guard !isRunningUnitTests, scenePhase == .active else { return }
+                    let profile = SettingsProfileStore.shared
+                    profile.refresh()
+                    while (try? await Task.sleep(for: .seconds(30))) != nil {
+                        profile.retryPendingChanges()
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .CKAccountChanged)) { _ in
+                    if !isRunningUnitTests { SettingsProfileStore.shared.accountDidChange() }
+                }
         }
     }
 }

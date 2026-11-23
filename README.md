@@ -271,6 +271,12 @@ Custom curve tables are prepared once and reused by selection, graphs, gray samp
 
 Non-neutral compositions use at least a 33³ cube. A 2³ or 3³ identity import otherwise samples only the endpoints or midpoint, where Contrast and Soft are unchanged, and silently loses the requested curve. Low-dimensional sources are interpolated before curve baking; original source data stays intact, and the resulting roughly 562 KiB table remains inside the existing byte-budget caches. Higher-dimensional sources keep their resolution.
 
+## Profile sync
+
+The Settings profile syncs its nickname, motto and cropped avatar through the user's private CloudKit database. Local edits remain available offline and retry automatically. The app imports an existing local profile when the account has no cloud profile yet.
+
+For signing, associate `iCloud.leavestylecode.JustShoot` with the `leavestylecode.JustShoot` App ID and refresh the provisioning profile. Save a profile in a development-signed build to initialize the `SettingsProfile` record type with its encrypted `profileData` field. Deploy the development schema to production in CloudKit Console before distributing a build that uses profile sync.
+
 ## Validation
 
 The November 1, 2026 structure refactor used `JustShoot.xcodeproj` / `JustShoot` in Debug

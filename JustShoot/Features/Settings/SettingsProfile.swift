@@ -5,20 +5,26 @@ import SwiftUI
 import UIKit
 
 struct SettingsProfileCard: View {
-    @AppStorage("settings.profile.nickname") private var nickname = ""
-    @AppStorage("settings.profile.bio") private var motto = ""
-    @AppStorage("settings.profile.avatar") private var avatar = Data()
-    @State private var showsEditor = false
+    private struct EditSession: Identifiable {
+        let id = UUID()
+        let profile: SettingsProfile
+        let accountID: String?
+    }
+
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var store = SettingsProfileStore.shared
+    @State private var editSession: EditSession?
 
     var body: some View {
-        let name = nickname.isEmpty ? String(localized: "profile_set_nickname_prompt") : nickname
-        let description = motto.isEmpty ? String(localized: "profile_set_motto_prompt") : motto
+        let profile = store.profile
+        let name = profile.nickname.isEmpty ? String(localized: "profile_set_nickname_prompt") : profile.nickname
+        let description = profile.motto.isEmpty ? String(localized: "profile_set_motto_prompt") : profile.motto
 
         Button {
-            showsEditor = true
+            editSession = EditSession(profile: store.profile, accountID: store.accountID)
         } label: {
             HStack(spacing: 14) {
-                ProfileAvatar(data: avatar, size: 56)
+                ProfileAvatar(data: profile.avatar, size: 56)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(verbatim: name)
                         .font(.headline)
@@ -41,12 +47,19 @@ struct SettingsProfileCard: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: "\(name), \(description)"))
         .accessibilityHint("Edit Profile")
-        .sheet(isPresented: $showsEditor) {
-            ProfileEditor(nickname: nickname, motto: motto, avatar: avatar) { nickname, motto, avatar in
-                self.nickname = nickname
-                self.motto = motto
-                self.avatar = avatar
+        .sheet(item: $editSession) { session in
+            ProfileEditor(nickname: session.profile.nickname, motto: session.profile.motto, avatar: session.profile.avatar) {
+                store.save($0, editedFrom: session.profile, accountID: session.accountID)
             }
+        }
+        .onChange(of: store.accountID) { _, current in
+            if let openedAccount = editSession?.accountID, openedAccount != current { editSession = nil }
+        }
+        .task(id: scenePhase, priority: .utility) {
+            guard scenePhase == .active else { return }
+            repeat {
+                store.refresh()
+            } while (try? await Task.sleep(for: .seconds(30))) != nil
         }
     }
 }
@@ -67,7 +80,7 @@ private struct ProfileEditor: View {
     @State private var showsPhotoError = false
     @FocusState private var nicknameFocused: Bool
     @FocusState private var mottoFocused: Bool
-    let save: (String, String, Data) -> Void
+    let save: (SettingsProfile) -> Void
 
     private var isLoadingAvatar: Bool { pickedPhoto != nil || adjustsSavedPhoto }
 
@@ -95,8 +108,9 @@ private struct ProfileEditor: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        save(nickname.trimmingCharacters(in: .whitespacesAndNewlines),
-                             motto.trimmingCharacters(in: .whitespacesAndNewlines), avatar)
+                        save(SettingsProfile(nickname: nickname.trimmingCharacters(in: .whitespacesAndNewlines),
+                                             motto: motto.trimmingCharacters(in: .whitespacesAndNewlines),
+                                             avatar: avatar))
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                         dismiss()
                     } label: {
@@ -140,7 +154,7 @@ private struct ProfileEditor: View {
                         .padding(.horizontal)
                         .padding(.bottom)
                 } else {
-                    Text("Your profile is saved on this device.")
+                    Text("Your profile syncs automatically when iCloud is available.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)

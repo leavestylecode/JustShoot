@@ -169,7 +169,7 @@ final class AppStartupPreparation: ObservableObject {
 
     nonisolated private static func openDefaultStorage() throws -> ModelContainer {
         let schema = Schema(versionedSchema: SchemaV1.self)
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false, cloudKitDatabase: .none)
         try FileManager.default.createDirectory(at: configuration.url.deletingLastPathComponent(), withIntermediateDirectories: true)
         return try ModelContainer(for: schema, migrationPlan: JustShootMigrationPlan.self, configurations: [configuration])
     }

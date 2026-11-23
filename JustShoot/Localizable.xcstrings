@@ -7648,19 +7648,19 @@
         }
       }
     },
-    "Your profile is saved on this device." : {
+    "Your profile syncs automatically when iCloud is available." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your profile is saved on this device."
+            "value" : "Your profile syncs automatically when iCloud is available."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "个人资料保存在本机。"
+            "value" : "iCloud 可用时，个人资料会自动同步。"
           }
         }
       }
