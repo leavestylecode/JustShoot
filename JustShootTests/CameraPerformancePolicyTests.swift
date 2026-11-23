@@ -21,6 +21,32 @@ final class CameraPerformancePolicyTests: XCTestCase {
         XCTAssertTrue(intent.permitsStart(newStart))
     }
 
+    func testBackgroundInterruptionDoesNotBlockForegroundRestartWithoutAnEndNotification() {
+        var intent = CameraSessionIntent()
+        let firstStart = intent.request(running: true)
+        _ = intent.request(running: false)
+        XCTAssertFalse(intent.interrupt(reason: .videoDeviceNotAvailableInBackground))
+        XCTAssertFalse(intent.isInterrupted)
+
+        let resumedStart = intent.request(running: true)
+        XCTAssertFalse(intent.interrupt(reason: .videoDeviceNotAvailableInBackground))
+        XCTAssertFalse(intent.endInterruption())
+        XCTAssertFalse(intent.permitsStart(firstStart))
+        XCTAssertTrue(intent.permitsStart(resumedStart))
+    }
+
+    func testCameraInUseInterruptionInvalidatesQueuedStartAndWaitsForEnd() {
+        var intent = CameraSessionIntent()
+        let start = intent.request(running: true)
+        XCTAssertTrue(intent.interrupt(reason: .videoDeviceInUseByAnotherClient))
+        XCTAssertTrue(intent.isInterrupted)
+        XCTAssertFalse(intent.permitsStart(start))
+        XCTAssertFalse(intent.interrupt(reason: .videoDeviceNotAvailableInBackground))
+        XCTAssertTrue(intent.isInterrupted)
+        XCTAssertTrue(intent.endInterruption())
+        XCTAssertFalse(intent.isInterrupted)
+    }
+
     func testPreviewUsesBoundedVideoBuffersInsteadOfThePhotoProxy() {
         let output = AVCaptureVideoDataOutput()
         CameraPerformancePolicy.configurePreviewOutput(output, sourceDimensions: CMVideoDimensions(width: 4032, height: 3024))

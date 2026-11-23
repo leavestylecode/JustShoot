@@ -6,6 +6,7 @@ import Foundation
 struct CameraSessionIntent: Sendable {
     private(set) var generation: UInt64 = 0
     private(set) var wantsRunning = false
+    private(set) var isInterrupted = false
 
     mutating func request(running: Bool) -> UInt64 {
         generation &+= 1
@@ -14,6 +15,22 @@ struct CameraSessionIntent: Sendable {
     }
 
     func permitsStart(_ token: UInt64) -> Bool { wantsRunning && generation == token }
+
+    mutating func interrupt(reason: AVCaptureSession.InterruptionReason?) -> Bool {
+        // The scene lifecycle explicitly stops the session in the background.
+        // On iOS 17 that stop can prevent AVFoundation from posting interruptionEnded.
+        guard reason != .videoDeviceNotAvailableInBackground, !isInterrupted else { return false }
+        isInterrupted = true
+        _ = request(running: false)
+        return true
+    }
+
+    @discardableResult
+    mutating func endInterruption() -> Bool {
+        guard isInterrupted else { return false }
+        isInterrupted = false
+        return true
+    }
 }
 
 enum CameraPerformancePolicy {

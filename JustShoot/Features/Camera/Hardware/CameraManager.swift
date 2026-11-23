@@ -250,8 +250,7 @@ final class CameraManager: NSObject, ObservableObject {
     private var sessionConfigured: Bool = false
     /// 当前 session 周期是否已收到首帧。与 sessionConfigured + lensCaptureGate 共同决定 UI ready。
     private var hasReceivedPreviewFrame = false
-    /// 系统中断仍在进行中（来电/控制中心/录屏），interruptionEnded 后 resume
-    private var sessionInterrupted: Bool = false
+    private var sessionInterrupted: Bool { sessionIntent.withLock { $0.isInterrupted } }
 
     // 权限状态
     @Published private(set) var readiness: CameraReadiness = .idle
@@ -1376,12 +1375,8 @@ final class CameraManager: NSObject, ObservableObject {
             }
         }
 
-        // AVCaptureSession 中断 / 恢复 / runtime error 通知：
-        //   - WasInterrupted: 来电、控制中心录屏、Siri、其他 app 抢占摄像头
-        //     → 系统自动 stopRunning，记一下状态等 InterruptionEnded
-        //   - InterruptionEnded: 中断结束，需要手动 startRunning
-        //   - RuntimeError: 硬件错误、被高优先级 client 抢占等，AVF 已 fail，需重启 session
-        // 没有这套监听，回到前台只看到黑屏（pixelBuffer 是 stale 的）。
+        // Scene lifecycle owns background stop/restart. Other AVFoundation interruptions
+        // (e.g. camera in use by another client) wait for interruptionEnded.
         sessionInterruptionObserver = NotificationCenter.default.addObserver(
             forName: AVCaptureSession.wasInterruptedNotification,
             object: session,
@@ -1391,11 +1386,13 @@ final class CameraManager: NSObject, ObservableObject {
             // Swift 6 strict concurrency 会报 "sending 'note' risks causing data races"。
             let reason = note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int ?? -1
             Task { @MainActor in
-                guard let self else { return }
-                self.diagnostics.event("session_interrupted", "reason=\(reason)")
-                self.sessionInterrupted = true
+                guard let self, self.isCameraVisible else { return }
+                let shouldWait = self.sessionIntent.withLock {
+                    $0.interrupt(reason: AVCaptureSession.InterruptionReason(rawValue: reason))
+                }
+                self.diagnostics.event("session_interrupted", "reason=\(reason) waiting_for_end=\(shouldWait)")
+                guard shouldWait else { return }
                 self.finishLivePhotoRecording()
-                self.sessionIntent.withLock { _ = $0.request(running: false) }
                 self.cancelEntryPreparation()
                 self.cancelUnexposedCapture()
                 self.lensSettleTask?.cancel()
@@ -1410,9 +1407,8 @@ final class CameraManager: NSObject, ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                guard let self else { return }
+                guard let self, self.sessionIntent.withLock({ $0.endInterruption() }) else { return }
                 self.diagnostics.event("session_interruption_ended")
-                self.sessionInterrupted = false
                 Log.session.info("session_interruption_ended → resume")
                 self.resumeSessionIfPossible()
             }
@@ -2877,7 +2873,10 @@ final class CameraManager: NSObject, ObservableObject {
         systemControls = nil
         isCameraVisible = false
         finishLivePhotoRecording()
-        sessionIntent.withLock { _ = $0.request(running: false) }
+        sessionIntent.withLock {
+            _ = $0.request(running: false)
+            $0.endInterruption()
+        }
         cancelEntryPreparation()
         cancelUnexposedCapture()
         // 取消可能仍在 await configureAndStartSession 的启动任务,
@@ -2943,7 +2942,6 @@ final class CameraManager: NSObject, ObservableObject {
         usesDeferredPhotoDelivery = false
         photoDeliveryConfigurationPending = false
         photoDeliveryReconciliationPending = false
-        sessionInterrupted = false
         hasReceivedPreviewFrame = false
         previewFrames.resetFirstFrame()
         setReadiness(.idle)
