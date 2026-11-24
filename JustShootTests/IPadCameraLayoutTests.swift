@@ -108,9 +108,11 @@ final class IPadCameraLayoutTests: XCTestCase {
             XCTAssertLessThanOrEqual(picker.width, min(840, size.width - 32) + 1)
             XCTAssertEqual(picker.midX, size.width / 2, accuracy: 1)
             XCTAssertGreaterThanOrEqual(picker.minY, recentPhoto.maxY + 16)
-            for row in ["curves", "films"] {
-                XCTAssertTrue(picker.contains(try XCTUnwrap(state.frames[row])), "Both complete rows must fit inside the overlay")
-            }
+            let curves = try XCTUnwrap(state.frames["curves"])
+            let films = try XCTUnwrap(state.frames["films"])
+            XCTAssertTrue(picker.contains(curves) && picker.contains(films), "Both complete rows must fit inside the overlay")
+            XCTAssertEqual(curves.height, films.height, accuracy: 0.5)
+            XCTAssertEqual(curves.height, size.width >= 700 ? 80 : 70, accuracy: 0.5)
             try assertControlsRemainAccessible(state: state, host: host, bounds: bounds)
             let image = UIGraphicsImageRenderer(bounds: host.view.bounds).image { _ in
                 host.view.drawHierarchy(in: host.view.bounds, afterScreenUpdates: true)

@@ -13,11 +13,15 @@ struct IPadCameraLayoutGeometry {
     let picker: CGRect
     private let size: CGSize
 
+    fileprivate static let pickerRowSpacing: CGFloat = 10
+    fileprivate static let pickerVerticalPadding: CGFloat = 12
+
     static func pickerHeight(for sizeClass: UserInterfaceSizeClass?) -> CGFloat {
-        sizeClass == .regular ? 194 : 174
+        2 * (CameraPickerStyle.iPadOverlay.rowHeight(for: sizeClass) + pickerVerticalPadding) + pickerRowSpacing
     }
 
-    init(size: CGSize, aspect: CGFloat, pickerHeight: CGFloat = 194, toolCount: Int = 4, zoomCount: Int = 4) {
+    init(size: CGSize, aspect: CGFloat, pickerHeight: CGFloat = IPadCameraLayoutGeometry.pickerHeight(for: .regular),
+        toolCount: Int = 4, zoomCount: Int = 4) {
         self.size = size
         let bounds = CGRect(origin: .zero, size: size)
         preview = CameraFraming.centeredCrop(in: bounds, aspect: aspect)
@@ -154,11 +158,11 @@ struct IPadCameraLookPanel<Curves: View, Films: View>: View {
     @ViewBuilder var films: Films
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: IPadCameraLayoutGeometry.pickerRowSpacing) {
             curves
             films
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, IPadCameraLayoutGeometry.pickerVerticalPadding)
         .background(.black.opacity(0.24), in: .rect(cornerRadius: 24))
         .background(.ultraThinMaterial, in: .rect(cornerRadius: 24))
         .overlay {
