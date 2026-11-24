@@ -340,23 +340,6 @@
         }
       }
     },
-    "Grain for FUJIFILM simulations": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Grain for FUJIFILM simulations"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "为富士胶片模拟添加颗粒"
-          }
-        }
-      }
-    },
     "This photo could not be shared. Please try again.": {
       "extractionState": "manual",
       "localizations": {
@@ -2833,23 +2816,6 @@
         }
       }
     },
-    "FUJIFILM Grain" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FUJIFILM Grain"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "富士模拟颗粒"
-          }
-        }
-      }
-    },
     "Gallery" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2956,18 +2922,18 @@
         }
       }
     },
-    "Import a 3D .cube with a 0–1 input range. Input and output must both use the selected SDR color space. Camera Log, HDR and 1D shaper LUTs must first be converted to an sRGB-to-sRGB look in a color-managed editor. A .cube file cannot reliably identify its color space. Existing imports keep their sRGB interpretation." : {
+    "Import a 3D .cube with a 0–1 input range. Input and output must both use the selected SDR color space. Camera Log, HDR and 1D shaper LUTs must first be converted to an sRGB-to-sRGB look in a color-managed editor. A .cube file cannot reliably identify its color space. Existing imports keep their sRGB interpretation. Film grain uses ISO values from 50 to 3200." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Import a 3D .cube with a 0–1 input range. Input and output must both use the selected SDR color space. Camera Log, HDR and 1D shaper LUTs must first be converted to an sRGB-to-sRGB look in a color-managed editor. A .cube file cannot reliably identify its color space. Existing imports keep their sRGB interpretation."
+            "value" : "Import a 3D .cube with a 0–1 input range. Input and output must both use the selected SDR color space. Camera Log, HDR and 1D shaper LUTs must first be converted to an sRGB-to-sRGB look in a color-managed editor. A .cube file cannot reliably identify its color space. Existing imports keep their sRGB interpretation. Film grain uses ISO values from 50 to 3200."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请导入输入范围为 0–1 的 3D .cube，输入和输出均需使用所选 SDR 颜色空间。相机 Log、HDR 及带 1D 整形的 LUT，需先在支持色彩管理的编辑器中转换为 sRGB 输入、sRGB 输出的风格 LUT。仅凭 .cube 文件无法可靠识别颜色空间。已有导入继续按 sRGB 处理。"
+            "value" : "请导入输入范围为 0–1 的 3D .cube，输入和输出均需使用所选 SDR 颜色空间。相机 Log、HDR 及带 1D 整形的 LUT，需先在支持色彩管理的编辑器中转换为 sRGB 输入、sRGB 输出的风格 LUT。仅凭 .cube 文件无法可靠识别颜色空间。已有导入继续按 sRGB 处理。颗粒按 ISO 50–3200 计算，超出范围时取对应边界值。"
           }
         }
       }

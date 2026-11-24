@@ -16,7 +16,6 @@ struct CameraView: View {
     @ObservedObject private var filmSettings: FilmPageSettings
     /// Preserve the saved Live Photo preference; the still-photo format is automatic.
     @AppStorage("photoCaptureMode") private var captureModeValue = PhotoCaptureMode.quality.rawValue
-    @AppStorage(FilmSource.simulationGrainPreferenceKey) private var simulationGrain = false
     /// 曲线目录同时提供当前选择、默认曲线显隐及用户自定义曲线。
     @EnvironmentObject private var curveLibrary: FilmCurveLibrary
     /// Picker 候选列表里需要展示用户导入的自定义 LUT；CameraView 自己持有 @Query 直接喂给 strip。
@@ -151,8 +150,7 @@ struct CameraView: View {
             cameraManager.updateEntryLUT(expectedKey: key, preparedKey: preparedLUT?.key)
             guard preparedLUT?.key != key else { return }
             let requestedSource = source
-            let requestedProfile = source.captureRenderProfile(simulationGrain: simulationGrain)
-            let textureKey = colorLUTKey
+            let requestedProfile = requestedSource.captureRenderProfile
             let curve = selectedCurve
             let curveFields = curveDiagnosticFields(curve)
             let selection = colorControls.temperature
@@ -176,7 +174,7 @@ struct CameraView: View {
                 let adjustedLUT = try await ColorTemperatureLUT.shared.prepare(source: requestedSource, curve: curve, selection: selection, tint: tint, reference: reference)
                 let lut = try await FilmCapturePreparation.shared.prepareRendering(for: adjustedLUT)
                 try Task.checkCancellation()
-                let texture = try await PreviewLUTTextureCache.shared.prepare(key: textureKey, lut: lut)
+                let texture = try await PreviewLUTTextureCache.shared.prepare(key: key, lut: lut)
                 lutWait.end("ok", "cancelled=\(Task.isCancelled)")
                 guard !Task.isCancelled, key == previewLUTKey else { return }
                 let adjustment = selection.isAutomatic && tint.isAutomatic ? nil
@@ -449,7 +447,8 @@ struct CameraView: View {
     }
 
     private var viewfinder: some View {
-        GeometryReader { geometry in
+        let profile = preparedLUT?.profile ?? source.captureRenderProfile
+        return GeometryReader { geometry in
             ZStack(alignment: .bottom) {
                 // Keep the preview mounted and opaque while the independent entry
                 // cover is visible, so Metal can obtain and render its first drawable.
@@ -468,13 +467,13 @@ struct CameraView: View {
                     RealtimePreviewView(
                         manager: cameraManager,
                         resourcesReady: cameraManager.entryPreparation.resourcesReady,
-                        lutCacheKey: preparedLUT?.texture.key ?? colorLUTKey,
+                        lutCacheKey: preparedLUT?.texture.key ?? previewLUTKey,
                         presentedLookKey: preparedLUT?.key ?? previewLUTKey,
                         preparedLUT: preparedLUT?.texture,
                         lutIntensity: CameraCapturePolicy.defaultLUTIntensity,
-                        grain: preparedLUT?.profile.grain ?? source.captureRenderProfile(simulationGrain: simulationGrain).grain,
-                        optics: preparedLUT?.profile.optics ?? source.captureRenderProfile.optics,
-                        chromatic: preparedLUT?.profile.effectiveChromatic ?? source.captureRenderProfile.effectiveChromatic,
+                        grain: profile.grain,
+                        optics: profile.optics,
+                        chromatic: profile.effectiveChromatic,
                         isContentVisible: !isReviewingPhotos
                     )
                         .id(entryRetryRevision)
@@ -833,10 +832,6 @@ struct CameraView: View {
         cameraManager.setLivePhotoAudio(live: wantsLiveCapture)
     }
     private var previewLUTKey: String {
-        colorLUTKey + (simulationGrain && source.supportsSimulationGrain ? "#simulation-grain-v1" : "")
-    }
-
-    private var colorLUTKey: String {
         let baseKey = FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: selectedCurve)
         return ColorTemperatureLUT.cacheKey(baseKey: baseKey, selection: colorControls.temperature,
             tint: colorControls.tint, reference: cameraManager.automaticWhiteBalanceReading)

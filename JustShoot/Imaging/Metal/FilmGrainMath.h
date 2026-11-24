@@ -74,6 +74,27 @@ inline float justShootBalancedGrainChannel(float value, float noise, float ampli
     return bounded + noise * min(amplitude, capacity);
 }
 
+inline float3 justShootFujifilmGrain(
+    float3 color, float2 position, float amount, float size, float chroma, uint seed, float luminance,
+    float3 bandSampling
+) {
+    // Neighboring pixels share both grain bands on the film plane.
+    float4 broad = justShootGrainValueNoise(position / max(1.0, size) + bandSampling.x, seed);
+    float4 fine = justShootGrainValueNoise(position / max(1.0, size * 0.65) + bandSampling.y, seed ^ 0xA511E9B3u);
+    float4 pattern = broad * (1.0 - bandSampling.z) + fine * bandSampling.z;
+    float3 noise = mix(float3(pattern.x), pattern.yzw, chroma);
+
+    // Fade through the toe and shoulder with zero slope at each endpoint.
+    float shadows = smoothstep(0.015, 0.34, luminance);
+    float highlights = 1.0 - smoothstep(0.62, 1.0, luminance);
+    float amplitude = amount * shadows * highlights * 0.5;
+    float3 bounded = clamp(color, 0.0, 1.0);
+    float3 capacity = min(bounded, 1.0 - bounded);
+    // A symmetric soft limit keeps saturated channels in gamut without a clipping bias.
+    float3 variation = amplitude * capacity / (capacity + amplitude + 1e-6);
+    return bounded + noise * variation;
+}
+
 inline float3 justShootApplyFilmGrain(
     float3 color,
     float2 pixelPosition,
@@ -81,15 +102,19 @@ inline float3 justShootApplyFilmGrain(
     float grainSize,
     float chroma,
     uint seedValue,
-    float response
+    float response,
+    float3 bandSampling
 ) {
     if (amount <= 0.0001) return color;
 
     float luminance = dot(color, float3(0.2126, 0.7152, 0.0722));
+    uint seed = seedValue & 0x00FFFFFFu;
+    if (response > 1.5) {
+        return justShootFujifilmGrain(color, pixelPosition, amount, grainSize, chroma, seed, luminance, bandSampling);
+    }
     float density = clamp(4.0 * luminance * (1.0 - luminance), 0.0, 1.0);
     float visibility = 0.35 + 0.65 * sqrt(density);
 
-    uint seed = seedValue & 0x00FFFFFFu;
     float4 pattern = justShootGrainPattern(pixelPosition, grainSize, seed, response);
     float3 noise = mix(float3(pattern.x), pattern.yzw, chroma);
 

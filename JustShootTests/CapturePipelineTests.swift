@@ -133,9 +133,12 @@ final class CapturePipelineTests: XCTestCase {
         try await Task.detached(priority: .utility) { try await Self.makeVideo(at: source) }.value
         let output = root.appendingPathComponent("rendered.mov")
         let lut = try CubeLUT.parse(identityText)
+        // 120 ms falls between frames at 100 and 133 ms and is nearer the latter.
+        // The displayed frame is still the one at 100 ms.
+        let marker = CMTime(value: 72, timescale: 600)
         let result = try await Task.detached(priority: .utility) {
             try await LivePhotoProcessor.process(sourceURL: source, lutCacheKey: "test", capturedLUT: lut,
-                grain: .disabled, grainBaseSeed: 1, photoDisplayTime: CMTime(value: 3, timescale: 30), outputURL: output)
+                grain: .disabled, grainBaseSeed: 1, photoDisplayTime: marker, outputURL: output)
         }.value
         let verification = try await Task.detached(priority: .utility) {
             let asset = AVURLAsset(url: output)
@@ -163,20 +166,23 @@ final class CapturePipelineTests: XCTestCase {
         for (index, time) in verification.1.enumerated() {
             XCTAssertEqual(time, Double(index) / 30, accuracy: 0.001)
         }
+        let displayedTime = try XCTUnwrap(verification.1.last { $0 <= marker.seconds })
+        XCTAssertEqual(result.stillGrainSeed, FilmGrainRenderer.temporalSeed(base: 1, seconds: displayedTime))
+        XCTAssertNotEqual(result.stillGrainSeed, FilmGrainRenderer.temporalSeed(base: 1, seconds: marker.seconds))
         XCTAssertTrue(verification.2)
         XCTAssertEqual(verification.3, 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: source.path))
     }
 
-    static func makeVideo(at url: URL) async throws {
+    static func makeVideo(at url: URL, width: Int = 64, height: Int = 48) async throws {
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
-            AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: 64, AVVideoHeightKey: 48
+            AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: width, AVVideoHeightKey: height
         ])
         writer.add(input)
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input,
             sourcePixelBufferAttributes: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-                kCVPixelBufferWidthKey as String: 64, kCVPixelBufferHeightKey as String: 48])
+                kCVPixelBufferWidthKey as String: width, kCVPixelBufferHeightKey as String: height])
         XCTAssertTrue(writer.startWriting())
         writer.startSession(atSourceTime: .zero)
         let pool = try XCTUnwrap(adaptor.pixelBufferPool)

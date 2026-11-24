@@ -153,6 +153,9 @@ struct FilmGrainParameters: Sendable, Equatable, Codable {
     enum Response: String, Sendable, Codable {
         case balanced = "balanced_v2"
         case balancedAreaMatched = "balanced_area_v3"
+        case fujifilmFine = "fujifilm_fine_v1"
+        case balancedContinuous = "balanced_area_v4"
+        case fujifilmFineFiltered = "fujifilm_fine_v2"
     }
 
     let amount: Float
@@ -171,19 +174,36 @@ struct FilmGrainParameters: Sendable, Equatable, Codable {
     static let disabled = FilmGrainParameters(amount: 0, size: 1, chroma: 0)
 
     var isEnabled: Bool { amount > 0.0001 }
-    var shaderResponse: Float { response == nil ? 0 : 1 }
+    var shaderResponse: Float {
+        switch response {
+        case nil: return 0
+        case .balanced, .balancedAreaMatched, .balancedContinuous: return 1
+        case .fujifilmFine, .fujifilmFineFiltered: return 2
+        }
+    }
     var responseIdentifier: String { response?.rawValue ?? "legacy_v1" }
 
     /// New captures use zero-mean texture in shadows/skin and area-matched preview
     /// amplitude. Frozen v1/v2 journals keep both their old tone and sampling.
     var forUnifiedCapture: Self {
         guard isEnabled else { return self }
-        return Self(amount: amount, size: size, chroma: chroma, response: .balancedAreaMatched)
+        switch response {
+        case .fujifilmFine, .fujifilmFineFiltered: return self
+        default: return Self(amount: amount, size: size, chroma: chroma, response: .balancedContinuous)
+        }
     }
 
     func renderAmount(forLongEdge longEdge: CGFloat) -> Float {
-        guard isEnabled, response == .balancedAreaMatched else { return amount }
-        return amount * FilmGrainSampling.amplitudeScale(size: size, longEdge: longEdge)
+        amount * sampling(forLongEdge: longEdge).scale
+    }
+
+    func sampling(forLongEdge longEdge: CGFloat) -> FilmGrainSampling.Adjustment {
+        guard isEnabled, let response else { return .native }
+        switch response {
+        case .balanced: return .native
+        case .balancedAreaMatched, .fujifilmFine, .balancedContinuous, .fujifilmFineFiltered:
+            return FilmGrainSampling.adjustment(size: size, longEdge: longEdge, response: response)
+        }
     }
 
     /// 颗粒代表胶片画幅上的结构，而不是固定像素噪声。预览最小为 1px，完整照片随长边放大。
@@ -282,15 +302,17 @@ enum FilmGrainRenderer {
 
         let longEdge = max(image.extent.width, image.extent.height)
         let pixelSize = parameters.pixelSize(forLongEdge: longEdge)
+        let sampling = parameters.sampling(forLongEdge: longEdge)
         let floatSeed = Float(seed & 0x00FF_FFFF)
         return kernel.apply(
             extent: image.extent,
-            arguments: [image, parameters.renderAmount(forLongEdge: longEdge), pixelSize, parameters.chroma, floatSeed,
-                        parameters.shaderResponse]
+            arguments: [image, parameters.amount * sampling.scale, pixelSize, parameters.chroma, floatSeed,
+                        parameters.shaderResponse, CIVector(x: CGFloat(sampling.broadOffset),
+                            y: CGFloat(sampling.fineOffset), z: CGFloat(sampling.fineWeight))]
         ) ?? image
     }
 
-    /// Live Photo 使用 1/600 秒时间格生成 seed；静态帧与标记时刻的视频帧可得到同一颗粒。
+    /// Use the same video frame timestamp for its grain and the paired still's seed.
     static func temporalSeed(base: UInt32, seconds: Double) -> UInt32 {
         let safeSeconds = seconds.isFinite ? max(seconds, 0) : 0
         let tick = UInt32(truncatingIfNeeded: Int64((safeSeconds * 600).rounded()))

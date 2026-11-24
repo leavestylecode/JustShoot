@@ -51,7 +51,7 @@ struct ImportLUTSheet: View {
             .alert("LUT compatibility", isPresented: $showCompatibility) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("Import a 3D .cube with a 0–1 input range. Input and output must both use the selected SDR color space. Camera Log, HDR and 1D shaper LUTs must first be converted to an sRGB-to-sRGB look in a color-managed editor. A .cube file cannot reliably identify its color space. Existing imports keep their sRGB interpretation.")
+                Text("Import a 3D .cube with a 0–1 input range. Input and output must both use the selected SDR color space. Camera Log, HDR and 1D shaper LUTs must first be converted to an sRGB-to-sRGB look in a color-managed editor. A .cube file cannot reliably identify its color space. Existing imports keep their sRGB interpretation. Film grain uses ISO values from 50 to 3200.")
             }
         }
     }

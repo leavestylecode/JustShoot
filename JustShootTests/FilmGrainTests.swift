@@ -1,4 +1,5 @@
 import XCTest
+import AVFoundation
 import CoreImage
 import CoreVideo
 import Metal
@@ -38,6 +39,14 @@ final class FilmGrainTests: XCTestCase {
         let mean = values.reduce(0.0) { $0 + Double($1) } / Double(values.count)
         let variance = values.reduce(0.0) { $0 + pow(Double($1) - mean, 2) } / Double(values.count)
         return (mean, sqrt(variance))
+    }
+
+    private func retainedTexture(before: [Float], after: [Float],
+                                 source: (mean: Double, deviation: Double), outputMean: Double) -> Double {
+        let covariance = zip(before, after).reduce(0.0) {
+            $0 + (Double($1.0) - source.mean) * (Double($1.1) - outputMean)
+        } / Double(before.count)
+        return covariance / (source.deviation * source.deviation)
     }
 
     private var legacy: FilmGrainParameters {
@@ -168,25 +177,55 @@ final class FilmGrainTests: XCTestCase {
 
     func testAreaMatchedCaptureRecipeRoundTripsWithoutChangingOldRecipes() throws {
         let current = legacy.forUnifiedCapture
-        XCTAssertEqual(current.response, .balancedAreaMatched)
+        XCTAssertEqual(current.response, .balancedContinuous)
         XCTAssertEqual(current.shaderResponse, 1)
         XCTAssertEqual(current.renderAmount(forLongEdge: 4_032), legacy.amount)
         XCTAssertLessThan(current.renderAmount(forLongEdge: 1_000), legacy.amount)
         XCTAssertEqual(legacy.renderAmount(forLongEdge: 500), legacy.amount)
         XCTAssertEqual(try JSONDecoder().decode(FilmGrainParameters.self,
             from: JSONEncoder().encode(current)), current)
-        XCTAssertEqual(FilmGrainSampling.amplitudeScale(size: 1, longEdge: .nan), 0)
-        XCTAssertEqual(FilmGrainSampling.amplitudeScale(size: .infinity, longEdge: 1_000), 0)
-        XCTAssertEqual(FilmGrainSampling.amplitudeScale(size: 1, longEdge: 8_000), 1)
-        XCTAssertLessThan(FilmGrainSampling.amplitudeScale(size: 1, longEdge: 64),
-                          FilmGrainSampling.amplitudeScale(size: 1, longEdge: 500))
+        XCTAssertEqual(FilmGrainSampling.adjustment(size: 1, longEdge: .nan, response: .balancedContinuous).scale, 0)
+        XCTAssertEqual(FilmGrainSampling.adjustment(size: .infinity, longEdge: 1_000, response: .balancedContinuous).scale, 0)
+        XCTAssertEqual(current.sampling(forLongEdge: 8_000).scale, 1)
+        XCTAssertLessThan(current.sampling(forLongEdge: 64).scale, current.sampling(forLongEdge: 500).scale)
+    }
+
+    func testNewSamplingRejoinsNativeScaleAndKeepsFrozenFujifilmResponse() throws {
+        let previous = try JSONDecoder().decode(FilmGrainParameters.self,
+            from: Data(#"{"amount":0.042,"size":1.7,"chroma":0.025,"response":"fujifilm_fine_v1"}"#.utf8))
+        let current = FilmSource.preset(.fujiRawASTIA).captureRenderProfile.grain
+        XCTAssertEqual(previous.sampling(forLongEdge: 3_999).scale, 0.851, accuracy: 0.005)
+        XCTAssertEqual(previous.sampling(forLongEdge: 1_280).broadOffset, 0)
+        for grain in [legacy.forUnifiedCapture, current, FilmSource.preset(.fujiRawACROS).captureRenderProfile.grain] {
+            XCTAssertEqual(grain.sampling(forLongEdge: 3_999).scale, 1, accuracy: 0.00001)
+            XCTAssertEqual(grain.sampling(forLongEdge: 4_000).scale, 1)
+        }
+        let preview = current.sampling(forLongEdge: 1_280)
+        XCTAssertLessThan(preview.fineOffset, preview.broadOffset)
+        let source = image([SIMD3(repeating: 0.5)], width: 4_032, height: 8)
+        XCTAssertEqual(pixels(FilmGrainRenderer.applying(to: source, parameters: current, seed: seed)),
+                       pixels(FilmGrainRenderer.applying(to: source, parameters: previous, seed: seed)))
+    }
+
+    private func horizontalCorrelation(_ values: [Float], width: Int) -> Double {
+        let baseline = statistics(values)
+        let differences = (1..<values.count).compactMap { index in
+            index % width == 0 ? nil : values[index] - values[index - 1]
+        }
+        let ratio = statistics(differences).deviation / baseline.deviation
+        return 1 - 0.5 * ratio * ratio
     }
 
     func testPreviewTextureVarianceMatchesReducedFullResolutionPhoto() {
         let width = 4_000, height = 128
-        for size: Float in [1, 1.235, 2] {
-            let grain = FilmGrainParameters(amount: 0.046, size: size, chroma: 0.06,
-                response: .balancedAreaMatched)
+        let balancedGrains = ([1, 1.235, 2] as [Float]).map { size in
+            FilmGrainParameters(amount: 0.046, size: size, chroma: 0.06,
+                response: .balancedContinuous)
+        }
+        let fujifilmGrains = [FilmPreset.fujiRawASTIA, .fujiRawACROS].map {
+            FilmSource.preset($0).captureRenderProfile.grain
+        }
+        for grain in balancedGrains + fujifilmGrains {
             let full = luminance(pixels(FilmGrainRenderer.applying(
                 to: image([SIMD3(repeating: 0.5)], width: width, height: height),
                 parameters: grain, seed: seed)))
@@ -200,25 +239,31 @@ final class FilmGrainTests: XCTestCase {
                     }
                 }
                 let source = image([SIMD3(repeating: 0.5)], width: smallWidth, height: smallHeight)
-                let preview = statistics(luminance(pixels(FilmGrainRenderer.applying(
-                    to: source, parameters: grain, seed: seed))))
-                let unfiltered = FilmGrainParameters(amount: grain.amount, size: size,
-                    chroma: grain.chroma, response: .balanced)
-                let before = statistics(luminance(pixels(FilmGrainRenderer.applying(
-                    to: source, parameters: unfiltered, seed: seed))))
+                let previewPixels = luminance(pixels(FilmGrainRenderer.applying(
+                    to: source, parameters: grain, seed: seed)))
+                let preview = statistics(previewPixels)
                 let reference = statistics(reduced)
                 let ratio = preview.deviation / reference.deviation
                 XCTAssertEqual(preview.mean, 0.5, accuracy: 0.0003)
                 XCTAssertEqual(ratio, 1, accuracy: 0.18,
-                    "Preview should carry the variance of a photo reduced to the same size")
-                XCTAssertLessThan(abs(preview.deviation - reference.deviation),
-                    abs(before.deviation - reference.deviation) * 0.40)
-                print("grain_area_check size=\(size) reduction=\(reduction) old_ratio=\(before.deviation / reference.deviation) new_ratio=\(ratio)")
+                    "\(grain.responseIdentifier) should match the variance of a photo reduced to the same size")
+                if grain.response == .balancedContinuous {
+                    let unfiltered = FilmGrainParameters(amount: grain.amount, size: grain.size,
+                        chroma: grain.chroma, response: .balanced)
+                    let before = statistics(luminance(pixels(FilmGrainRenderer.applying(
+                        to: source, parameters: unfiltered, seed: seed))))
+                    XCTAssertLessThan(abs(preview.deviation - reference.deviation),
+                        abs(before.deviation - reference.deviation) * 0.40)
+                } else {
+                    XCTAssertEqual(horizontalCorrelation(previewPixels, width: smallWidth),
+                                   horizontalCorrelation(reduced, width: smallWidth), accuracy: 0.12)
+                }
+                print("grain_area_check response=\(grain.responseIdentifier) size=\(grain.size) reduction=\(reduction) variance_ratio=\(ratio)")
             }
         }
     }
 
-    func testNewCaptureGrainScaleAndSimulationChoiceAreFrozenInTheProfile() throws {
+    func testNewCaptureProfilesEnableFineGrainForEveryFujifilmSimulation() throws {
         let old = FilmPreset.kodakPortra400.renderProfile.grain.forUnifiedCapture
         let captured = FilmSource.preset(.kodakPortra400).captureRenderProfile.grain
         XCTAssertGreaterThan(captured.size, old.size)
@@ -226,19 +271,63 @@ final class FilmGrainTests: XCTestCase {
         XCTAssertEqual(captured.chroma, old.chroma)
         for preset in FilmPreset.allCases {
             let source = FilmSource.preset(preset)
-            let normal = source.captureRenderProfile.grain
-            let enabled = source.captureRenderProfile(simulationGrain: true).grain
+            let grain = source.captureRenderProfile.grain
             if preset.rawSimulation != nil {
-                XCTAssertFalse(normal.isEnabled)
-                XCTAssertTrue(enabled.isEnabled)
-                XCTAssertEqual(enabled.response, .balancedAreaMatched)
-                if preset.isMonochrome { XCTAssertEqual(enabled.chroma, 0) }
-            } else {
-                XCTAssertEqual(enabled, normal)
+                XCTAssertTrue(grain.isEnabled)
+                XCTAssertEqual(grain.response, .fujifilmFineFiltered)
+                XCTAssertEqual(grain.shaderResponse, 2)
+                if preset.isMonochrome {
+                    XCTAssertEqual(grain.chroma, 0)
+                    XCTAssertLessThan(grain.size, FilmSource.preset(.fujiRawASTIA).captureRenderProfile.grain.size)
+                } else {
+                    XCTAssertGreaterThan(grain.chroma, 0)
+                }
+            } else if preset != .kodakPortra400 {
+                XCTAssertEqual(grain, preset.renderProfile.grain.forUnifiedCapture)
             }
             let recovered = try JSONDecoder().decode(FilmGrainParameters.self,
-                from: JSONEncoder().encode(enabled))
-            XCTAssertEqual(recovered, enabled)
+                from: JSONEncoder().encode(grain))
+            XCTAssertEqual(recovered, grain)
+        }
+        let saved = Data(#"{"amount":0.032,"size":1.5,"chroma":0.04,"response":"balanced_area_v3"}"#.utf8)
+        let oldSimulation = try JSONDecoder().decode(FilmGrainParameters.self, from: saved)
+        XCTAssertEqual(oldSimulation.shaderResponse, 1)
+        XCTAssertEqual(oldSimulation.response, .balancedAreaMatched)
+    }
+
+    func testFujifilmGrainFadesThroughTonesAndKeepsFineSpatialTexture() {
+        let width = 4_000
+        let profile = FilmSource.preset(.fujiRawASTIA).captureRenderProfile
+        let previous = FilmGrainParameters(amount: 0.032, size: 1.5, chroma: 0.04,
+            response: .balancedAreaMatched)
+        func render(_ gray: Float, grain: FilmGrainParameters) -> [Float] {
+            let source = image([SIMD3(repeating: gray)], width: width, height: 64)
+            return luminance(pixels(FilmGrainRenderer.applying(to: source, parameters: grain, seed: seed)))
+        }
+        func roughness(_ values: [Float]) -> Double {
+            let differences = (1..<values.count).compactMap { index in
+                index % width == 0 ? nil : values[index] - values[index - 1]
+            }
+            return statistics(differences).deviation / statistics(values).deviation
+        }
+
+        let midtone = render(0.5, grain: profile.grain)
+        let oldMidtone = render(0.5, grain: previous)
+        let midtoneDeviation = statistics(midtone).deviation
+        XCTAssertGreaterThan(midtoneDeviation, statistics(oldMidtone).deviation)
+        XCTAssertLessThan(roughness(midtone), roughness(oldMidtone) * 0.95)
+        // Use a half-float-exact shoulder sample so the tone check measures
+        // bias from grain, rather than the GPU working format's rounding.
+        for (tone, maximum) in [(Float(0.06), 0.15), (0.20, 0.75), (0.84375, 0.5), (0.96, 0.08)] {
+            let patch = statistics(render(tone, grain: profile.grain))
+            XCTAssertEqual(patch.mean, Double(tone), accuracy: 0.00015)
+            XCTAssertGreaterThan(patch.deviation, 0)
+            XCTAssertLessThan(patch.deviation, midtoneDeviation * maximum)
+        }
+        for tone: Float in [0, 1] {
+            let patch = statistics(render(tone, grain: profile.grain))
+            XCTAssertEqual(patch.mean, Double(tone), accuracy: 0.00001)
+            XCTAssertEqual(patch.deviation, 0, accuracy: 0.00001)
         }
     }
 
@@ -248,7 +337,6 @@ final class FilmGrainTests: XCTestCase {
         for preset in FilmPreset.allCases {
             let grain = FilmSource.preset(preset).captureRenderProfile.grain
             guard grain.isEnabled else { continue }
-            XCTAssertEqual(grain.response, .balancedAreaMatched)
             for color in colors {
                 let output = pixels(FilmGrainRenderer.applying(
                     to: image([color], width: 1_000, height: 32), parameters: grain, seed: seed))
@@ -262,8 +350,79 @@ final class FilmGrainTests: XCTestCase {
         }
     }
 
-    func testLiveFrameMatchesStillWithBalancedGrainAndFrozenSeed() throws {
-        let width = 64, height = 16
+    func testPhotoEncodingPreservesFujifilmTextureInMidtones() throws {
+        let context = CIContext(options: [.workingColorSpace: space, .outputColorSpace: space])
+        let grain = FilmSource.preset(.fujiRawASTIA).captureRenderProfile.grain
+        let patches: [SIMD3<Float>] = [SIMD3(repeating: 0.5), SIMD3(0.67, 0.49, 0.39), SIMD3(0.38, 0.57, 0.76)]
+        for color in patches {
+            let input = image([color], width: 4_032, height: 128)
+            let textured = FilmGrainRenderer.applying(to: input, parameters: grain, seed: seed)
+            let encoded = try XCTUnwrap(PhotoImageEncoder.encode(textured, context: context,
+                colorSpace: space, mode: .quality))
+            let decoded = try XCTUnwrap(FilmImagePipeline.decodePhoto(encoded.data))
+            XCTAssertEqual(decoded.extent, textured.extent)
+            let before = luminance(pixels(textured)), after = luminance(pixels(decoded))
+            let source = statistics(before), output = statistics(after)
+            let retained = retainedTexture(before: before, after: after, source: source, outputMean: output.mean)
+            print("grain_photo_codec codec=\(encoded.decision.codec.rawValue) patch=\(color) retained=\(retained)")
+            XCTAssertGreaterThan(retained, 0.35)
+            XCTAssertEqual(output.mean, source.mean, accuracy: 0.006)
+        }
+    }
+
+    @MainActor
+    func testLiveEncodingMeasuresTextureAtThePairedFrame() async throws {
+        guard #available(iOS 18.0, *) else { throw XCTSkip("Live capture requires iOS 18") }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("source.mov"), output = root.appendingPathComponent("rendered.mov")
+        let grain = FilmSource.preset(.fujiRawASTIA).captureRenderProfile.grain
+        let timestamp = CMTime(value: 4, timescale: 30)
+        let seed = self.seed
+        let identity = FilmMaterial.identity().cube
+        let (rendered, decoded) = try await Task.detached(priority: .utility) {
+            try await CapturePipelineTests.makeVideo(at: source, width: 1_280, height: 960)
+            let result = try await LivePhotoProcessor.process(sourceURL: source, lutCacheKey: "identity",
+                capturedLUT: identity, lutIntensity: CameraCapturePolicy.defaultLUTIntensity, grain: grain,
+                grainBaseSeed: seed, photoDisplayTime: timestamp, outputURL: output)
+            let input = try await Self.videoFrame(at: timestamp, from: source)
+            let decoded = try await Self.videoFrame(at: timestamp, from: output)
+            XCTAssertEqual(decoded.extent, input.extent)
+            let rendered = try XCTUnwrap(FilmImagePipeline.stages(for: input, lut: identity,
+                lutIntensity: CameraCapturePolicy.defaultLUTIntensity, chromaticGain: .one,
+                optics: .disabled, grain: grain, grainSeed: result.stillGrainSeed)?.final)
+            return (rendered, decoded)
+        }.value
+        let before = luminance(pixels(rendered)), after = luminance(pixels(decoded))
+        let reference = statistics(before), encoded = statistics(after)
+        let retained = retainedTexture(before: before, after: after, source: reference, outputMean: encoded.mean)
+        print("grain_live_codec retained=\(retained) reference_sd=\(reference.deviation) decoded_sd=\(encoded.deviation)")
+        XCTAssertTrue(retained.isFinite)
+        XCTAssertEqual(encoded.mean, reference.mean, accuracy: 0.02)
+    }
+
+    private static func videoFrame(at timestamp: CMTime, from url: URL) async throws -> CIImage {
+        let asset = AVURLAsset(url: url)
+        let tracks = try await asset.loadTracks(withMediaType: .video)
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderTrackOutput(track: try XCTUnwrap(tracks.first),
+            outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
+        reader.add(output)
+        XCTAssertTrue(reader.startReading())
+        defer { reader.cancelReading() }
+        while let sample = output.copyNextSampleBuffer() {
+            if CMTimeCompare(CMSampleBufferGetPresentationTimeStamp(sample), timestamp) == 0,
+               let buffer = CMSampleBufferGetImageBuffer(sample) {
+                return CIImage(cvPixelBuffer: buffer)
+            }
+        }
+        XCTFail("Video encoder did not provide the requested fixture timestamp")
+        throw CocoaError(.fileReadCorruptFile)
+    }
+
+    func testLiveFrameMatchesStillWithFrozenGrainSeed() throws {
+        let width = 1_280, height = 16
         let attributes: [String: Any] = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
             kCVPixelBufferWidthKey as String: width, kCVPixelBufferHeightKey as String: height,
             kCVPixelBufferIOSurfacePropertiesKey as String: [:]]
@@ -278,8 +437,8 @@ final class FilmGrainTests: XCTestCase {
         let fixture = image([SIMD3(repeating: 0.08), SIMD3(0.55, 0.39, 0.30), SIMD3(repeating: 0.9)],
             width: width, height: height)
         context.render(fixture, to: source, bounds: fixture.extent, colorSpace: space)
-        for preset in [FilmPreset.kodakPortra400, .fujiPro400H] {
-            let profile = preset.renderProfile
+        for preset in [FilmPreset.kodakPortra400, .fujiPro400H, .fujiRawASTIA, .fujiRawACROS] {
+            let profile = preset.rawSimulation == nil ? preset.renderProfile : FilmSource.preset(preset).captureRenderProfile
             let lut = try FilmProcessor().loadCubeLUT(resourceName: preset.lutResourceName)
             let gain = profile.effectiveChromatic.responseGain(sceneCCT: 6_000)
             let frameSeed = FilmGrainRenderer.temporalSeed(base: seed, seconds: 0.75)
@@ -299,11 +458,17 @@ final class FilmGrainTests: XCTestCase {
 
     @MainActor
     func testMetalPreviewFinishMatchesCoreImageAtMatchingGrainCoordinates() throws {
+        try assertMetalPreviewMatchesCoreImage(width: 1_280)
+        try assertMetalPreviewMatchesCoreImage(width: 4_000)
+    }
+
+    @MainActor
+    private func assertMetalPreviewMatchesCoreImage(width: Int) throws {
         let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
         let library = try device.makeDefaultLibrary(bundle: .main)
         let pipeline = try device.makeComputePipelineState(function: XCTUnwrap(library.makeFunction(name: "previewFinish")))
         let queue = try XCTUnwrap(device.makeCommandQueue())
-        let width = 64, height = 16
+        let height = 16
         let colors: [SIMD3<Float>] = [SIMD3(repeating: 0.04), SIMD3(repeating: 0.14), SIMD3(repeating: 0.5),
             SIMD3(repeating: 0.92), SIMD3(0.55, 0.39, 0.30), SIMD3(1, 0, 0)]
         let source: [Float16] = (0..<(width * height)).flatMap { index -> [Float16] in
@@ -330,9 +495,12 @@ final class FilmGrainTests: XCTestCase {
         let portra = FilmPreset.kodakPortra400.renderProfile.grain
         let cases: [(grain: FilmGrainParameters, intensity: Float)] = [
             (legacy, 1), (portra, 1), (portra.forUnifiedCapture, 1),
-            (portra.forUnifiedCapture, CameraCapturePolicy.defaultLUTIntensity)
+            (portra.forUnifiedCapture, CameraCapturePolicy.defaultLUTIntensity),
+            (FilmSource.preset(.fujiRawASTIA).captureRenderProfile.grain, CameraCapturePolicy.defaultLUTIntensity),
+            (FilmSource.preset(.fujiRawACROS).captureRenderProfile.grain, CameraCapturePolicy.defaultLUTIntensity)
         ]
         for (grain, intensity) in cases {
+            let sampling = grain.sampling(forLongEdge: CGFloat(width))
             var params = RealtimePreviewView.Coordinator.PreviewParams(scale: 1, offsetX: 0, offsetY: 0,
                 inputWidth: UInt32(width), inputHeight: UInt32(height), rotation: 0, lutDimension: 2,
                 grainAmount: grain.renderAmount(forLongEdge: CGFloat(width)), grainSize: grain.pixelSize(forLongEdge: CGFloat(width)),
@@ -341,7 +509,9 @@ final class FilmGrainTests: XCTestCase {
                 bloomAmount: 0, bloomRadiusPx: 0, highlightThreshold: 0.72,
                 headroomAmount: 0, headroomShoulder: 0.7,
                 chromaticGainR: 1, chromaticGainG: 1, chromaticGainB: 1,
-                chromaticHighlightProtection: 0, grainResponse: grain.shaderResponse, lutIntensity: intensity)
+                chromaticHighlightProtection: 0, grainResponse: grain.shaderResponse, lutIntensity: intensity,
+                grainBroadOffset: sampling.broadOffset, grainFineOffset: sampling.fineOffset,
+                grainFineWeight: sampling.fineWeight)
             let command = try XCTUnwrap(queue.makeCommandBuffer())
             let encoder = try XCTUnwrap(command.makeComputeCommandEncoder())
             encoder.setComputePipelineState(pipeline)

@@ -218,6 +218,37 @@ final class FilmMaterialTests: XCTestCase {
         }
     }
 
+    func testPortraDensityGrainRetainsTextureAtPreviewSize() throws {
+        let material = try material()
+        let grain = FilmSource.preset(.kodakPortra400).captureRenderProfile.grain
+        let width = 4_000, height = 64, reduction = 4
+        for color in [CIColor(red: 0.45, green: 0.34, blue: 0.24), CIColor(red: 0.5, green: 0.5, blue: 0.5)] {
+            func texture(width: Int, height: Int) throws -> [Float] {
+                let input = CIImage(color: color).cropped(to: CGRect(x: 0, y: 0, width: width, height: height))
+                let rendered = render(try processed(input, material: material, grain: grain))
+                return stride(from: 0, to: rendered.count, by: 4).map {
+                    rendered[$0] * 0.2126 + rendered[$0 + 1] * 0.7152 + rendered[$0 + 2] * 0.0722
+                }
+            }
+            let full = try texture(width: width, height: height)
+            let preview = try texture(width: width / reduction, height: height / reduction)
+            var reduced = [Float](repeating: 0, count: preview.count)
+            for y in 0..<height {
+                for x in 0..<width {
+                    reduced[(y / reduction) * (width / reduction) + x / reduction]
+                        += full[y * width + x] / Float(reduction * reduction)
+                }
+            }
+            func deviation(_ values: [Float]) -> Double {
+                let mean = values.reduce(0.0) { $0 + Double($1) } / Double(values.count)
+                return sqrt(values.reduce(0.0) { $0 + pow(Double($1) - mean, 2) } / Double(values.count))
+            }
+            let ratio = deviation(preview) / deviation(reduced)
+            print("grain_material_preview ratio=\(ratio)")
+            XCTAssertEqual(ratio, 1, accuracy: 0.18)
+        }
+    }
+
     func testHalationAffectsSurroundingExposureBeforeFilmAndCancellationStopsRendering() throws {
         let width = 128
         var values = [Float](repeating: 0, count: width * width * 4)

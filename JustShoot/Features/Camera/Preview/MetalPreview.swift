@@ -424,6 +424,9 @@ struct RealtimePreviewView: UIViewRepresentable {
             var materialGrainScale: Float = 1
             var materialIdentityFlags: UInt32 = 0
             var lutIntensity: Float = 1
+            var grainBroadOffset: Float = 0
+            var grainFineOffset: Float = 0
+            var grainFineWeight: Float = 0.22
         }
 
         /// 色温响应增益的低通平滑：WB 读数 0.5s 采样 + 100K 量化，直接跳变会在预览上
@@ -658,6 +661,8 @@ struct RealtimePreviewView: UIViewRepresentable {
             // 色温响应增益每帧取一次：内部低通平滑消化 WB 读数的量化台阶。
             let chromaticGain = chromaticGainForFrame()
 
+            let longEdge = CGFloat(max(outW, outH))
+            let grainSampling = grain.sampling(forLongEdge: longEdge)
             var params = PreviewParams(
                 scale: Float(framing.scale),
                 offsetX: Float(framing.offset.x),
@@ -666,8 +671,8 @@ struct RealtimePreviewView: UIViewRepresentable {
                 inputHeight: UInt32(inH),
                 rotation: rotation,
                 lutDimension: UInt32(lutDim),
-                grainAmount: grain.renderAmount(forLongEdge: CGFloat(max(outW, outH))),
-                grainSize: grain.pixelSize(forLongEdge: CGFloat(max(outW, outH))),
+                grainAmount: grain.amount * grainSampling.scale,
+                grainSize: grain.pixelSize(forLongEdge: longEdge),
                 grainChroma: grain.chroma,
                 grainSeed: FilmGrainRenderer.mixedSeed(
                     base: 0x4A53_4752,
@@ -691,9 +696,12 @@ struct RealtimePreviewView: UIViewRepresentable {
                 chromaticGainG: chromaticGain.y,
                 chromaticGainB: chromaticGain.z,
                 chromaticHighlightProtection: chromatic.protectsHighlights ? 1 : 0,
-                grainResponse: grain.shaderResponse
+                grainResponse: grain.shaderResponse,
+                lutIntensity: lutIntensity,
+                grainBroadOffset: grainSampling.broadOffset,
+                grainFineOffset: grainSampling.fineOffset,
+                grainFineWeight: grainSampling.fineWeight
             )
-            params.lutIntensity = lutIntensity
 
             if let material = preparedLUT.material {
                 params.materialDensityDimension = Float(material.density.width)

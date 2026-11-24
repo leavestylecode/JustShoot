@@ -49,18 +49,9 @@ struct PhotoCapturePlan: Codable, Equatable, Sendable {
 extension FilmSource {
     var inputSpace: FilmInputSpace { .displaySRGB }
 
-    static let simulationGrainPreferenceKey = "simulationGrainEnabled"
-
-    var supportsSimulationGrain: Bool {
-        if case .preset(let preset) = self { return preset.rawSimulation != nil }
-        return false
-    }
-
-    var captureRenderProfile: FilmRenderProfile { captureRenderProfile(simulationGrain: false) }
-
     /// LUTs already define their color response. Retain film texture while removing
     /// the old, uncalibrated second illuminant-dependent color cast from new photos.
-    func captureRenderProfile(simulationGrain: Bool) -> FilmRenderProfile {
+    var captureRenderProfile: FilmRenderProfile {
         let profile = renderProfile
         var grain = profile.grain.forUnifiedCapture
         if case .preset(let preset) = self {
@@ -68,9 +59,10 @@ extension FilmSource {
                 // A broader density grain survives album downsampling at the same native amplitude.
                 grain = FilmGrainParameters(amount: grain.amount, size: grain.size * 1.4,
                     chroma: grain.chroma, response: grain.response)
-            } else if simulationGrain && supportsSimulationGrain {
-                grain = FilmGrainParameters(amount: 0.032, size: 1.5,
-                    chroma: preset.isMonochrome ? 0 : 0.04, response: .balancedAreaMatched)
+            } else if preset.rawSimulation != nil {
+                grain = preset.isMonochrome
+                    ? FilmGrainParameters(amount: 0.038, size: 1.45, chroma: 0, response: .fujifilmFineFiltered)
+                    : FilmGrainParameters(amount: 0.042, size: 1.70, chroma: 0.025, response: .fujifilmFineFiltered)
             }
         }
         return FilmRenderProfile(grain: grain, optics: profile.optics, chromatic: .neutral)

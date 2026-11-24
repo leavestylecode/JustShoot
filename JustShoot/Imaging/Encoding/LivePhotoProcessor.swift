@@ -96,7 +96,7 @@ enum LivePhotoProcessor {
 
     struct ProcessResult: Sendable {
         let contentIdentifier: String
-        /// 使用 still-image-time 派生的确定性 seed，供配对静态图复用。
+        /// Grain seed of the encoded video frame displayed at still-image-time.
         let stillGrainSeed: UInt32
     }
 
@@ -262,10 +262,6 @@ enum LivePhotoProcessor {
                 }
                 return CMTimeMultiplyByFloat64(duration, multiplier: 0.5)
             }()
-            let stillGrainSeed = FilmGrainRenderer.temporalSeed(
-                base: grainBaseSeed,
-                seconds: stillTime.seconds
-            )
             let fps = nominalFrameRate > 1 ? nominalFrameRate : 30
             let stillDuration = CMTime(value: 1, timescale: Int32(fps.rounded()))
             let stillGroup = AVTimedMetadataGroup(
@@ -309,6 +305,8 @@ enum LivePhotoProcessor {
                 operation.cancel()
             }
 
+            let stillGrainSeed = FilmGrainRenderer.temporalSeed(
+                base: grainBaseSeed, seconds: (operation.stillFrameTime ?? stillTime).seconds)
             timer.end("dims=\(width)x\(height) codec=\(codec.rawValue) audio=\(audioReaderOutput != nil) grain=\(String(format: "%.3f", grain.amount)) still_t=\(String(format: "%.2f", stillTime.seconds))s cid=\(contentIdentifier)")
             return ProcessResult(
                 contentIdentifier: contentIdentifier,
@@ -416,6 +414,7 @@ private final class LivePhotoTranscode: @unchecked Sendable {
         var finishedTracks: Set<Int> = []
         var videoFrames = 0
         var audioBuffers = 0
+        var stillFrameTime: CMTime?
     }
     private let state = OSAllocatedUnfairLock(initialState: State())
     private let box: PipelineBox
@@ -455,6 +454,7 @@ private final class LivePhotoTranscode: @unchecked Sendable {
 
     func cancel() { finish(.failure(CancellationError())) }
     private var isFinished: Bool { state.withLock { $0.result != nil } }
+    var stillFrameTime: CMTime? { state.withLock { $0.stillFrameTime } }
 
     private func pumpVideo() {
         while !isFinished && box.videoInput.isReadyForMoreMediaData {
@@ -478,7 +478,14 @@ private final class LivePhotoTranscode: @unchecked Sendable {
                 guard !isFinished, box.pixelAdaptor.append(output, withPresentationTime: timestamp) else {
                     fail("video_append"); return false
                 }
-                state.withLock { $0.videoFrames += 1 }
+                state.withLock {
+                    $0.videoFrames += 1
+                    // A frame remains visible until the next presentation timestamp.
+                    // If the marker precedes the first frame, use that first frame.
+                    if $0.stillFrameTime == nil || timestamp <= box.stillGroup.timeRange.start {
+                        $0.stillFrameTime = timestamp
+                    }
+                }
                 return true
             }
             if !appended { return }

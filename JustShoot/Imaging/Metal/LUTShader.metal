@@ -55,6 +55,9 @@ struct PreviewParams {
     float materialGrainScale;
     uint materialIdentityFlags; // bit 0: input, bit 1: finish
     float lutIntensity;
+    float grainBroadOffset;
+    float grainFineOffset;
+    float grainFineWeight;
 };
 
 float2 previewSourcePosition(uint2 pixel, constant PreviewParams &params) {
@@ -172,6 +175,7 @@ kernel void previewFinish(
         float(halation.sample(energySampler, coordinate).r), float(bloom.sample(energySampler, coordinate).r),
         params.halationAmount, params.halationHue, params.bloomAmount);
     float3 textured = justShootApplyFilmGrain(display, float2(gid) + 0.5,
-        params.grainAmount, params.grainSize, params.grainChroma, params.grainSeed, params.grainResponse);
+        params.grainAmount, params.grainSize, params.grainChroma, params.grainSeed, params.grainResponse,
+        float3(params.grainBroadOffset, params.grainFineOffset, params.grainFineWeight));
     output.write(half4(half3(applyingPreviewLUTIntensity(textured, input, gid, params)), 1), gid);
 }
