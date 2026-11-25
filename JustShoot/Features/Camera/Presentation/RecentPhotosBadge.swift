@@ -160,6 +160,7 @@ struct RecentPhotosBadge: View {
                     ToolbarItem(placement: .cancellationAction) {
                         Button { selectedReview = nil } label: {
                             Image(systemName: "xmark").fontWeight(.semibold)
+                                .toolbarControlSurface()
                         }
                         .accessibilityLabel("Close")
                     }

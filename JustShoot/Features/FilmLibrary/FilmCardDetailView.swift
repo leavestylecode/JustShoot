@@ -188,6 +188,7 @@ struct FilmCardDetailView: View {
             } else {
                 NavigationLink(value: FilmSource.preset(preset)) {
                     label
+                        .padding(.horizontal, 20)
                         .frame(minHeight: 50)
                         .cameraControlSurface()
                         .contentShape(.capsule)
@@ -257,11 +258,9 @@ private struct FilmSceneGallery: View {
     }
 
     private var comparison: some View {
-        Picker("Sample appearance", selection: $showsOriginal) {
-            Text("Unfiltered").tag(true)
-            Text("Film look").tag(false)
+        AppSegmentedPicker(title: "Sample appearance", selection: $showsOriginal, options: [true, false]) { original in
+            original ? Text("Unfiltered") : Text("Film look")
         }
-        .pickerStyle(.segmented)
         .accessibilityIdentifier("filmLibrary.compare")
     }
 }

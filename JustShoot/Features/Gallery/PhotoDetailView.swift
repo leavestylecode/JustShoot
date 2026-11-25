@@ -243,6 +243,7 @@ struct PhotoDetailView: View {
         // 下拉退出时把系统导航栏/底部工具栏一起隐藏，只留照片在动（与 iPhone 相册一致）。
         .toolbar(chromeVisible ? .visible : .hidden, for: .navigationBar)
         .toolbar(chromeVisible ? .visible : .hidden, for: .bottomBar)
+        .floatingBottomToolbar()
         .toolbar { navigationToolbar }
         .toolbar { bottomToolbar }
         .onAppear {
@@ -377,17 +378,20 @@ struct PhotoDetailView: View {
             }
         }
 
-        ToolbarItem(placement: .navigationBarTrailing) {
+        ToolbarItem(placement: .topBarTrailing) {
             // 一键分享当前照片到其他 app：导出全分辨率原图临时文件 → 系统分享面板。
             // 导出期间（异步取原始字节）显示 spinner 并禁用，防连点。
             Button {
                 shareCurrentPhoto()
             } label: {
-                if isPreparingShare {
-                    ProgressView()
-                } else {
-                    Image(systemName: "square.and.arrow.up")
+                Group {
+                    if isPreparingShare {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "square.and.arrow.up")
+                    }
                 }
+                .toolbarControlSurface()
             }
             .disabled(isPreparingShare || isDeleting || currentPhoto == nil)
             .accessibilityLabel("Share this photo")
@@ -402,6 +406,7 @@ struct PhotoDetailView: View {
             } label: {
                 Image(systemName: "info")
                     .fontWeight(showingInfo ? .bold : .regular)
+                    .toolbarControlSurface()
             }
             .tint(showingInfo ? .yellow : .white)
             .disabled(currentPhoto == nil)
@@ -425,8 +430,11 @@ struct PhotoDetailView: View {
                     deleteCurrentPhoto()
                 }
             } label: {
-                if isDeleting { ProgressView() }
-                else { Image(systemName: "trash") }
+                Group {
+                    if isDeleting { ProgressView() }
+                    else { Image(systemName: "trash") }
+                }
+                .toolbarControlSurface()
             }
             .disabled(isDeleting || isPreparingShare || currentPhoto == nil)
             .accessibilityLabel("Delete this photo")

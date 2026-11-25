@@ -103,6 +103,7 @@ private struct ProfileEditor: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
+                            .toolbarControlSurface()
                     }
                     .accessibilityLabel("Cancel")
                 }
@@ -115,6 +116,7 @@ private struct ProfileEditor: View {
                         dismiss()
                     } label: {
                         Image(systemName: "checkmark")
+                            .toolbarControlSurface()
                     }
                     .accessibilityLabel("Done")
                     .disabled(isLoadingAvatar)

@@ -37,9 +37,27 @@ extension View {
         if #available(iOS 26.0, *) {
             glassEffect(.regular, in: .capsule)
         } else {
-            background(.ultraThinMaterial, in: Capsule())
-                .overlay(Capsule().strokeBorder(.white.opacity(0.16)))
+            legacyGlassSurface(Capsule(), material: .ultraThinMaterial)
         }
+    }
+
+    @ViewBuilder
+    func settingsGlassCard(cornerRadius: CGFloat = 16, interactive: Bool = false) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius)
+        if #available(iOS 26.0, *) {
+            glassEffect(.regular.interactive(interactive), in: shape)
+        } else {
+            legacyGlassSurface(shape)
+                .shadow(color: .black.opacity(0.06), radius: 10, y: 4)
+        }
+    }
+
+    func legacyGlassSurface<S: InsettableShape>(_ shape: S, material: Material = .thinMaterial) -> some View {
+        background(material, in: shape)
+            .overlay {
+                shape.strokeBorder(.primary.opacity(0.12), lineWidth: 0.5)
+                    .allowsHitTesting(false)
+            }
     }
 
     @ViewBuilder

@@ -48,24 +48,22 @@ private struct MainTabRoot: ViewModifier {
         if let selection {
             // Install inside the root of each stack so pushes and interactive pops carry
             // the bar with the page. A library opened in a sheet has no tab bar of its own.
-            content
-                .environment(\.capsuleTabSelection, nil)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if !isHidden {
-                        CapsuleTabBar(selection: selection)
-                            .frame(maxWidth: 414)
-                            .frame(height: 44)
-                            // The native stacked items reserve space for a caption below the icon.
-                            .padding(.top, 8)
-                            .background(.bar, in: Capsule())
-                            .clipShape(Capsule())
-                            .shadow(color: .black.opacity(0.10), radius: 6, y: 2)
-                            .padding(.horizontal, 20)
-                            .padding(.top, 6)
-                            .padding(.bottom, 2)
+            GeometryReader { geometry in
+                content
+                    .environment(\.capsuleTabSelection, nil)
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        if !isHidden {
+                            let fitsBelowSafeArea = UIDevice.current.userInterfaceIdiom == .phone
+                                && geometry.safeAreaInsets.bottom >= 20
+                            CapsuleTabBar(selection: selection)
+                                .frame(maxWidth: 414)
+                                .padding(.horizontal, 20)
+                                .padding(.top, 6)
+                                .padding(.bottom, fitsBelowSafeArea ? -10 : 2)
+                        }
                     }
-                }
-                .toolbar(.hidden, for: .tabBar)
+            }
+            .toolbar(.hidden, for: .tabBar)
         } else if tab == .photos {
             content.toolbar(isHidden ? .hidden : .visible, for: .tabBar)
         } else {
@@ -74,27 +72,68 @@ private struct MainTabRoot: ViewModifier {
     }
 }
 
-private struct CapsuleTabBar: UIViewRepresentable {
+private struct CapsuleTabBar: View {
+    private static let itemInset: CGFloat = 10
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var indicator
+    @Binding var selection: MainTab
+
+    var body: some View {
+        ZStack {
+            HStack(spacing: 0) {
+                ForEach(MainTab.allCases, id: \.self) { tab in
+                    Color.clear.overlay {
+                        if selection == tab {
+                            Capsule()
+                                .fill(.primary.opacity(colorScheme == .dark ? 0.18 : 0.09))
+                                .padding(.horizontal, -5)
+                                .matchedGeometryEffect(id: "selection", in: indicator)
+                        }
+                    }
+                }
+            }
+            .frame(height: 52)
+            .padding(.horizontal, Self.itemInset)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.20), value: selection)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+
+            CapsuleTabItems(selection: $selection)
+                .frame(height: 44)
+                // UITabBar reserves space below the symbols for its usual captions.
+                .padding(.top, 12)
+                .padding(.horizontal, Self.itemInset)
+        }
+        .frame(height: 60)
+        .legacyGlassSurface(Capsule(), material: .bar)
+        .shadow(color: .black.opacity(0.10), radius: 8, y: 2)
+    }
+}
+
+private struct CapsuleTabItems: UIViewRepresentable {
     @Binding var selection: MainTab
 
     func makeUIView(context: Context) -> UITabBar {
         let bar = UITabBar()
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
+        for itemAppearance in [appearance.stackedLayoutAppearance, appearance.inlineLayoutAppearance,
+                               appearance.compactInlineLayoutAppearance] {
+            itemAppearance.normal.iconColor = .label
+            itemAppearance.selected.iconColor = .label
+        }
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
         bar.accessibilityIdentifier = "main.tabs"
         bar.itemPositioning = .fill
         // The floating bar stays compact even in a regular-width iPad window.
         bar.traitOverrides.horizontalSizeClass = .compact
-        bar.tintColor = .systemBlue
-        bar.unselectedItemTintColor = .secondaryLabel
+        bar.tintColor = .label
+        bar.unselectedItemTintColor = .label
         bar.items = MainTab.allCases.map { tab in
-            let image = UIImage(systemName: tab.symbol)
-            let selected = tab == .films
-                ? image?.applyingSymbolConfiguration(UIImage.SymbolConfiguration(weight: .semibold))
-                : UIImage(systemName: tab.symbol + ".fill")
-            let item = UITabBarItem(title: nil, image: image, selectedImage: selected)
+            let image = UIImage(systemName: tab == .films ? tab.symbol : tab.symbol + ".fill")
+            let item = UITabBarItem(title: nil, image: image, selectedImage: image)
             item.tag = tab.rawValue
             item.accessibilityLabel = String(localized: tab.title)
             return item

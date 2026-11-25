@@ -78,12 +78,15 @@ struct FilmCurveLibraryView: View {
         .appPageBackground()
         .navigationTitle("Film Curves")
         .navigationBarTitleDisplayMode(.inline)
+        .matchingNavigationBackButton()
         .softScrollEdges()
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
             if showsDoneButton {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button { dismiss() } label: {
+                        Text("Done").toolbarControlSurface(text: true)
+                    }
                 }
             }
             ToolbarItem(placement: .primaryAction) {
@@ -91,6 +94,7 @@ struct FilmCurveLibraryView: View {
                     FilmCurveEditorView(curve: nil)
                 } label: {
                     Image(systemName: "plus")
+                        .toolbarControlSurface()
                 }
                 .accessibilityLabel("Add Curve")
                 .disabled(!library.canEdit)
@@ -235,13 +239,16 @@ struct FilmCurveEditorView: View {
         .tint(.primary)
         .navigationTitle(isNew ? String(localized: "New Curve") : String(localized: "Edit Curve"))
         .navigationBarTitleDisplayMode(.inline)
+        .matchingNavigationBackButton()
         .softScrollEdges()
         .toolbar(.hidden, for: .tabBar)
         .onChange(of: channel) { _, _ in selectedPointIndex = nil }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save", action: save)
-                    .disabled(trimmedName.isEmpty || !library.canEdit)
+                Button(action: save) {
+                    Text("Save").toolbarControlSurface(text: true)
+                }
+                .disabled(trimmedName.isEmpty || !library.canEdit)
             }
         }
     }
@@ -258,12 +265,9 @@ struct FilmCurveEditorView: View {
     }
 
     private var channelPicker: some View {
-        Picker("Channel", selection: $channel) {
-            ForEach(CurveEditingChannel.allCases) { item in
-                Text(item.shortName).tag(item)
-            }
+        AppSegmentedPicker(title: "Channel", selection: $channel, options: CurveEditingChannel.allCases) { item in
+            Text(item.shortName)
         }
-        .pickerStyle(.segmented)
     }
 
     private var curveEditor: some View {

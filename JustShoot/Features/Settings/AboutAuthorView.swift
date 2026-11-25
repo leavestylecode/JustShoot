@@ -29,6 +29,7 @@ struct AboutAuthorView: View {
         .appPageBackground()
         .navigationTitle("About the Author")
         .navigationBarTitleDisplayMode(.inline)
+        .matchingNavigationBackButton()
         .softScrollEdges()
         .toolbar(.hidden, for: .tabBar)
         .sheet(isPresented: $isShowingMailCompose) {

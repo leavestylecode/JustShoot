@@ -36,15 +36,20 @@ struct ImportLUTSheet: View {
             .softScrollEdges()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
-                        .disabled(isImporting)
+                    Button(action: onCancel) {
+                        Text("Cancel").toolbarControlSurface(text: true)
+                    }
+                    .disabled(isImporting)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if isImporting {
                         ProgressView().controlSize(.small)
+                            .toolbarControlSurface()
                             .accessibilityLabel("Import LUT")
                     } else {
-                        Button("Import", action: onConfirm).bold()
+                        Button(action: onConfirm) {
+                            Text("Import").bold().toolbarControlSurface(text: true)
+                        }
                     }
                 }
             }

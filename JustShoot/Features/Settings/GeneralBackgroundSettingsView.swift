@@ -27,7 +27,7 @@ struct GeneralBackgroundSettingsView: View {
                 }
                 .tint(accent)
                 .padding(16)
-                .appearanceSettingsGlass()
+                .settingsGlassCard()
                 .contentShape(Rectangle())
                 // Treat a tap anywhere on the card as one switch activation.
                 .highPriorityGesture(TapGesture().onEnded { preferences.isEnabled.toggle() })
@@ -50,26 +50,24 @@ struct GeneralBackgroundSettingsView: View {
         .appPageBackground()
         .navigationTitle("General Page Background")
         .navigationBarTitleDisplayMode(.inline)
+        .matchingNavigationBackButton()
         .toolbar(.hidden, for: .tabBar)
     }
 
     private var styleCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             heading("Background Style", symbol: "circle.lefthalf.filled.righthalf.striped.horizontal.inverse")
-            Picker("Background Style", selection: preferences.$style) {
-                Text("Gradient").tag(BackgroundStyle.gradient)
-                Text("Custom Photo").tag(BackgroundStyle.photo)
+            AppSegmentedPicker(title: "Background Style", selection: preferences.$style,
+                options: [.gradient, .photo], size: .large) { style in
+                style == .gradient ? Text("Gradient") : Text("Custom Photo")
             }
-            .pickerStyle(.segmented)
-            .controlSize(.large)
-            .labelsHidden()
 
             if preferences.style == .photo {
                 BackgroundPhotoControls(blur: preferences.$blur, saturation: preferences.$saturation)
             }
         }
         .padding(16)
-        .appearanceSettingsGlass()
+        .settingsGlassCard()
     }
 
     private func slider(_ title: LocalizedStringKey, symbol: String, value: Binding<Double>) -> some View {
@@ -88,7 +86,7 @@ struct GeneralBackgroundSettingsView: View {
                 .accessibilityValue(Text(value.wrappedValue, format: .percent))
         }
         .padding(16)
-        .appearanceSettingsGlass()
+        .settingsGlassCard()
     }
 
     private func heading(_ title: LocalizedStringKey, symbol: String) -> some View {
@@ -117,7 +115,7 @@ private struct BackgroundPhotoControls: View {
                 levelPicker("Saturation", selection: $saturation)
             }
             .padding(16)
-            .appearanceSettingsGlass()
+            .settingsGlassCard()
 
             ZStack(alignment: .topTrailing) {
                 if let image = store.image {
@@ -157,7 +155,7 @@ private struct BackgroundPhotoControls: View {
                         .frame(maxWidth: .infinity, minHeight: 220)
                         .contentShape(Rectangle())
                     }
-                    .appearanceSettingsGlass(interactive: true)
+                    .settingsGlassCard(interactive: true)
                 }
             }
             .buttonStyle(.plain)
@@ -192,30 +190,10 @@ private struct BackgroundPhotoControls: View {
     private func levelPicker(_ title: LocalizedStringKey, selection: Binding<PhotoEffectLevel>) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(.subheadline).foregroundStyle(.secondary)
-            Picker(title, selection: selection) {
-                ForEach(PhotoEffectLevel.allCases, id: \.self) { level in
-                    Text(level.title).tag(level)
-                }
+            AppSegmentedPicker(title: title, selection: selection, options: PhotoEffectLevel.allCases, size: .small) { level in
+                Text(level.title)
             }
-            .pickerStyle(.segmented)
-            .controlSize(.small)
-            .labelsHidden()
         }
         .frame(maxWidth: .infinity)
-    }
-}
-
-extension View {
-    @ViewBuilder
-    func appearanceSettingsGlass(cornerRadius: CGFloat = 16, interactive: Bool = false) -> some View {
-        if #available(iOS 26, *) {
-            settingsGlassCard(cornerRadius: cornerRadius, interactive: interactive)
-        } else {
-            background(.ultraThinMaterial, in: .rect(cornerRadius: cornerRadius))
-                .overlay {
-                    RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(.primary.opacity(0.12), lineWidth: 0.5)
-                        .allowsHitTesting(false)
-                }
-        }
     }
 }

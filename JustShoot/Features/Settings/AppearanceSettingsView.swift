@@ -18,14 +18,10 @@ struct AppearanceSettingsView: View {
                 }
 
                 card("Settings Icons") {
-                    Picker("Settings Icons", selection: $iconStyle) {
-                        ForEach(SettingsIconStyle.allCases, id: \.self) { style in
-                            Text(style.title).tag(style)
-                        }
+                    AppSegmentedPicker(title: "Settings Icons", selection: $iconStyle,
+                        options: SettingsIconStyle.allCases, size: .large) { style in
+                        Text(style.title)
                     }
-                    .pickerStyle(.segmented)
-                    .controlSize(.large)
-                    .labelsHidden()
 
                     iconPreview
                 }
@@ -42,19 +38,14 @@ struct AppearanceSettingsView: View {
         .appPageBackground()
         .navigationTitle("Appearance Management")
         .navigationBarTitleDisplayMode(.inline)
+        .matchingNavigationBackButton()
         .toolbar(.hidden, for: .tabBar)
     }
 
     private func appearancePicker(_ title: LocalizedStringKey, selection: Binding<AppAppearance>) -> some View {
-        Picker(title, selection: selection) {
-            ForEach(AppAppearance.allCases, id: \.self) { option in
-                Text(option.title).tag(option)
-            }
+        AppSegmentedPicker(title: title, selection: selection, options: AppAppearance.allCases, size: .large) { option in
+            Text(option.title)
         }
-        .pickerStyle(.segmented)
-        .controlSize(.large)
-        .labelsHidden()
-        .accessibilityLabel(Text(title))
     }
 
     private var iconPreview: some View {
@@ -120,6 +111,6 @@ struct AppearanceSettingsView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .appearanceSettingsGlass(cornerRadius: 24)
+        .settingsGlassCard(cornerRadius: 24)
     }
 }

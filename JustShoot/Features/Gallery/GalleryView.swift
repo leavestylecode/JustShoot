@@ -64,19 +64,21 @@ struct GalleryView: View {
         .mainTabRoot(.photos, isHidden: isSelecting)
         .toolbar {
             // 全选放左上、xmark 放右上——两端分置，不挤在一起。
-            ToolbarItem(placement: .navigationBarLeading) {
+            ToolbarItem(placement: .topBarLeading) {
                 if isSelecting {
                     Button(action: toggleSelectAll) {
                         Image(systemName: selectedPhotos.count == photos.count ? "checkmark.circle.fill" : "checkmark.circle")
+                            .toolbarControlSurface()
                     }
                     .accessibilityLabel("Select All")
                     .accessibilityValue(Text("\(selectedPhotos.count) selected"))
                 }
             }
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
                 if isSelecting {
                     Button { exitSelection() } label: {
                         Image(systemName: "xmark")
+                            .toolbarControlSurface()
                     }
                     .accessibilityLabel("Done selecting")
                 } else if !photos.isEmpty {
@@ -84,28 +86,33 @@ struct GalleryView: View {
                         withAnimation(.easeInOut(duration: 0.25)) { isSelecting = true }
                     } label: {
                         Image(systemName: "checkmark.circle")
+                            .toolbarControlSurface()
                     }
                     .accessibilityLabel("Select")
                 }
             }
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
                 GallerySaveIndicator()
             }
         }
         .toolbar(isSelecting ? .visible : .hidden, for: .bottomBar)
+        .floatingBottomToolbar()
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 if isSelecting {
                     // 一键分享选中照片到其他 app：导出全分辨率原图临时文件 → 系统分享面板。
                     // 导出期间显示 spinner 并禁用，防连点。
                     Button(action: shareSelectedPhotos) {
-                        if isPreparingShare {
-                            ProgressView()
-                        } else {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 18))
-                                .foregroundColor(selectedPhotos.isEmpty ? .gray : .primary)
+                        Group {
+                            if isPreparingShare {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(selectedPhotos.isEmpty ? Color.gray : .primary)
+                            }
                         }
+                        .toolbarControlSurface()
                     }
                     .disabled(selectedPhotos.isEmpty || isPreparingShare)
                     .accessibilityLabel("Share")
@@ -114,10 +121,11 @@ struct GalleryView: View {
 
                     // 照片真相源已在系统相册（JustShoot 相簿），无需再「导出」。删除走 PhotoKit，
                     // 系统会弹原生删除确认，可在「最近删除」恢复。
-                    Button(action: deleteSelectedPhotos) {
+                    Button(role: .destructive, action: deleteSelectedPhotos) {
                         Image(systemName: "trash")
                             .font(.system(size: 18))
-                            .foregroundColor(selectedPhotos.isEmpty ? .gray : .red)
+                            .foregroundStyle(selectedPhotos.isEmpty ? Color.gray : .red)
+                            .toolbarControlSurface()
                     }
                     .disabled(selectedPhotos.isEmpty)
                     .accessibilityLabel("Delete")
@@ -221,6 +229,7 @@ private struct GallerySaveIndicator: View {
                     .accessibilityLabel("Saving…")
                     .accessibilityValue(Text(pipeline.pendingCount, format: .number))
             }
+            .toolbarControlSurface(text: true)
         }
     }
 }

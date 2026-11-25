@@ -38,7 +38,7 @@ struct BackgroundGradientOptions: View {
             content()
                 .padding(16)
                 .frame(maxWidth: .infinity)
-                .appearanceSettingsGlass()
+                .settingsGlassCard()
         }
     }
 

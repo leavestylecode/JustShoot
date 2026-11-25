@@ -137,6 +137,7 @@ struct AvatarCropView: View {
                             onCancel()
                         } label: {
                             Image(systemName: "xmark")
+                                .toolbarControlSurface()
                         }
                         .accessibilityLabel(Text("Cancel"))
                     }
@@ -145,6 +146,7 @@ struct AvatarCropView: View {
                             confirm(side: side, imageSize: image.size)
                         } label: {
                             Image(systemName: "checkmark")
+                                .toolbarControlSurface()
                         }
                         .accessibilityLabel(Text("Done"))
                         .disabled(pendingCrop != nil)

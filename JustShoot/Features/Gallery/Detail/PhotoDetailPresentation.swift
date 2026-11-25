@@ -157,8 +157,10 @@ struct PhotoDetailPresentation: UIViewControllerRepresentable {
                     }, onClose: close)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button(action: close) { Image(systemName: "xmark").fontWeight(.semibold) }
-                                .accessibilityLabel("Close")
+                            Button(action: close) {
+                                Image(systemName: "xmark").fontWeight(.semibold).toolbarControlSurface()
+                            }
+                            .accessibilityLabel("Close")
                         }
                     }
             }

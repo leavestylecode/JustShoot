@@ -322,21 +322,24 @@ struct CameraView: View {
 
                 // Keep the control visible while support/enablement is being negotiated.
                 // If availability is lost, an existing On preference can still be switched Off.
-                if LivePhotoEncoderConfiguration.isSupported {
-                    ToolbarItem(placement: .primaryAction) {
-                        livePhotoControl
-                    }
-                    if #available(iOS 26.0, *) {
+                if #available(iOS 26.0, *) {
+                    if LivePhotoEncoderConfiguration.isSupported {
+                        ToolbarItem(placement: .primaryAction) { livePhotoControl }
                         ToolbarSpacer(.fixed, placement: .primaryAction)
                     }
-                }
-
-                ToolbarItem(placement: .primaryAction) { flashControl }
-                if #available(iOS 26.0, *) {
+                    ToolbarItem(placement: .primaryAction) { flashControl }
                     ToolbarSpacer(.fixed, placement: .primaryAction)
+                    ToolbarItem(placement: .primaryAction) { colorControl }
+                } else {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        HStack(spacing: 6) {
+                            if LivePhotoEncoderConfiguration.isSupported { livePhotoControl }
+                            flashControl
+                            colorControl
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 }
-
-                ToolbarItem(placement: .primaryAction) { colorControl }
             }
         }
         .safeAreaInset(edge: .bottom, spacing: isIPad ? 0 : nil) {
@@ -641,6 +644,7 @@ struct CameraView: View {
                 .foregroundStyle(tint)
                 .rotationEffect(controlRotationAngle)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
+                .toolbarControlSurface(inToolbar: !isIPad)
         }
         .tint(tint)
         .disabled(cameraManager.readiness != .ready || coordinator.isShutterBusy)
@@ -662,6 +666,7 @@ struct CameraView: View {
                 .foregroundStyle(tint)
                 .rotationEffect(controlRotationAngle)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
+                .toolbarControlSurface(inToolbar: !isIPad)
         }
         .buttonBorderShape(.circle)
         .tint(tint)
@@ -738,6 +743,7 @@ struct CameraView: View {
                 .foregroundStyle(tint)
                 .rotationEffect(controlRotationAngle)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
+                .toolbarControlSurface(inToolbar: !isIPad)
         }
         .tint(tint)
         .disabled(cameraManager.readiness != .ready || coordinator.isShutterBusy)

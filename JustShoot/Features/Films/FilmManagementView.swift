@@ -53,7 +53,9 @@ struct FilmManagementView: View {
             .softScrollEdges()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button { dismiss() } label: {
+                        Text("Done").toolbarControlSurface(text: true)
+                    }
                 }
             }
             .modifier(FilmDeletionConfirmation(pending: $pendingDelete, onDelete: onDelete))

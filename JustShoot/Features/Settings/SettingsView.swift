@@ -316,14 +316,3 @@ struct SettingsView: View {
             .settingsGlassCard(cornerRadius: 24)
     }
 }
-
-extension View {
-    @ViewBuilder
-    func settingsGlassCard(cornerRadius: CGFloat, interactive: Bool = false) -> some View {
-        if #available(iOS 26, *) {
-            glassEffect(.regular.interactive(interactive), in: .rect(cornerRadius: cornerRadius))
-        } else {
-            background(Color.primary.opacity(0.08), in: .rect(cornerRadius: cornerRadius))
-        }
-    }
-}

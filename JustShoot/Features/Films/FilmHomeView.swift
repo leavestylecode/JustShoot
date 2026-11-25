@@ -104,6 +104,7 @@ struct FilmHomeView: View {
                     ToolbarItem(placement: .topBarLeading) {
                         Button { showsManagement = true } label: {
                             Image(systemName: "slider.horizontal.3")
+                                .toolbarControlSurface()
                         }
                         .accessibilityLabel("Manage Films")
                         .accessibilityIdentifier("films.manage")
@@ -119,6 +120,7 @@ struct FilmHomeView: View {
                         } label: {
                             Image(systemName: "plus")
                                 .font(.system(size: 17, weight: .medium))
+                                .toolbarControlSurface()
                         }
                         .accessibilityLabel("Add Films")
                         .accessibilityIdentifier("films.add")
@@ -155,7 +157,9 @@ struct FilmHomeView: View {
                         FilmCardLibraryView(settings: settings)
                             .toolbar {
                                 ToolbarItem(placement: .confirmationAction) {
-                                    Button("Done") { showsCatalog = false }
+                                    Button { showsCatalog = false } label: {
+                                        Text("Done").toolbarControlSurface(text: true)
+                                    }
                                 }
                             }
                     }
