@@ -868,6 +868,26 @@
         }
       }
     },
+    "Buy for %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买 · %@"
+          }
+        }
+      }
+    },
+    "Checking membership…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在检查会员状态…"
+          }
+        }
+      }
+    },
     "General Page Background" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2983,6 +3003,16 @@
         }
       }
     },
+    "In-app purchases are disabled on this device." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此设备已关闭 App 内购买功能。"
+          }
+        }
+      }
+    },
     "Input" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3061,6 +3091,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "左侧"
+          }
+        }
+      }
+    },
+    "Lifetime Membership" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "终身会员"
           }
         }
       }
@@ -3211,6 +3251,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "实况照片声音已关闭"
+          }
+        }
+      }
+    },
+    "Loading price…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载价格…"
           }
         }
       }
@@ -3395,6 +3445,36 @@
         }
       }
     },
+    "Member since %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入会日期 · %@"
+          }
+        }
+      }
+    },
+    "Membership" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "会员"
+          }
+        }
+      }
+    },
+    "Membership Active" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "终身会员已开通"
+          }
+        }
+      }
+    },
     "Microphone access is off. Turn it on in Settings to record sound." : {
       "localizations" : {
         "zh-Hans" : {
@@ -3570,6 +3650,16 @@
         }
       }
     },
+    "No lifetime membership purchase was found." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到终身会员购买记录。"
+          }
+        }
+      }
+    },
     "No matches" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3673,6 +3763,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "好"
+          }
+        }
+      }
+    },
+    "One-time purchase" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一次性购买"
           }
         }
       }
@@ -4209,6 +4309,26 @@
         }
       }
     },
+    "Purchases couldn’t be restored. Please try again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未能恢复购买，请重试。"
+          }
+        }
+      }
+    },
+    "Purchasing…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在购买…"
+          }
+        }
+      }
+    },
     "Purple" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4502,6 +4622,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重置曝光补偿"
+          }
+        }
+      }
+    },
+    "Restore on any device with the same Apple Account." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同一 Apple 账户可在其他设备恢复购买。"
+          }
+        }
+      }
+    },
+    "Restore Purchases" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "恢复购买"
+          }
+        }
+      }
+    },
+    "Restoring purchases…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在恢复购买…"
           }
         }
       }
@@ -5173,6 +5323,16 @@
         }
       }
     },
+    "Support the development of OOO Cam." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持 OOO Cam 持续开发。"
+          }
+        }
+      }
+    },
     "Switch film" : {
 
     },
@@ -5216,6 +5376,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "色温"
+          }
+        }
+      }
+    },
+    "Thank you for supporting OOO Cam." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "谢谢你支持 OOO Cam。"
           }
         }
       }
@@ -5300,6 +5470,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法保存照片，请重试。"
+          }
+        }
+      }
+    },
+    "The price is unavailable right now." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时无法获取价格。"
+          }
+        }
+      }
+    },
+    "The purchase couldn’t be completed. Please try again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未能完成购买，请重试。"
           }
         }
       }
@@ -5940,6 +6130,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "照片和滤镜均已保留，请重试。"
+          }
+        }
+      }
+    },
+    "Your purchase could not be verified. Try restoring purchases." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法验证购买记录，请尝试恢复购买。"
+          }
+        }
+      }
+    },
+    "Your purchase is pending. Membership activates after approval." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买正在等待批准。获批后将开通会员。"
           }
         }
       }

@@ -1,0 +1,35 @@
+{
+  "identifier" : "9AB55489-092B-475B-84A7-B4A15B2D6C7C",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : false,
+      "internalID" : "1000000001",
+      "localizations" : [
+        {
+          "description" : "One-time purchase of lifetime membership for OOO Cam.",
+          "displayName" : "Lifetime Membership",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "一次购买，开通 OOO Cam 终身会员。",
+          "displayName" : "终身会员",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "leavestylecode.JustShoot.membership.lifetime",
+      "referenceName" : "Lifetime Membership",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_locale" : "en_US",
+    "_storefront" : "USA"
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

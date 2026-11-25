@@ -22,6 +22,7 @@ enum Log {
     static let lut         = Logger(subsystem: subsystem, category: "photo.lut")
     static let save        = Logger(subsystem: subsystem, category: "photo.save")
     static let gallery     = Logger(subsystem: subsystem, category: "gallery")
+    static let membership  = Logger(subsystem: subsystem, category: "membership")
     static let ui          = Logger(subsystem: subsystem, category: "ui")
     static let diagnostics = Logger(subsystem: subsystem, category: "diagnostics")
 

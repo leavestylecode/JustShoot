@@ -28,6 +28,7 @@ struct OOOApp: App {
     @AppStorage(AppAppearance.key) private var appearance = AppAppearance.automatic
     @StateObject private var curveLibrary = FilmCurveLibrary()
     @StateObject private var startup = AppStartupPreparation()
+    @State private var membership = MembershipStore()
     @State private var introFinished = false
     @Environment(\.scenePhase) private var scenePhase
 
@@ -43,10 +44,16 @@ struct OOOApp: App {
         WindowGroup {
             AppStartupContent(startup: startup, curveLibrary: curveLibrary, isRunningUnitTests: isRunningUnitTests,
                               introFinished: $introFinished)
+                .environment(membership)
                 // Keep typography and scaled layout metrics at the design's default size.
                 .dynamicTypeSize(.large)
                 .preferredColorScheme(appearance.scheme)
                 .onChange(of: scenePhase, initial: true) { _, phase in startup.setActive(phase == .active) }
+                .task(id: scenePhase, priority: .utility) {
+                    guard !isRunningUnitTests else { return }
+                    membership.startTransactionListener()
+                    if scenePhase == .active { await membership.refreshEntitlement() }
+                }
                 .task(id: scenePhase, priority: .utility) {
                     guard !isRunningUnitTests, scenePhase == .active else { return }
                     let profile = SettingsProfileStore.shared

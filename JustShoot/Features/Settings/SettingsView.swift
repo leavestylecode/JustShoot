@@ -4,6 +4,7 @@ import UIKit
 struct SettingsView: View {
     @ObservedObject private var capturePipeline = CapturePipeline.shared
     @Environment(\.openURL) private var openURL
+    @Environment(MembershipStore.self) private var membership
     /// 逐阶段处理对照图（默认关）。与 FilmProcessor 共享同一 key：开 = 每次拍摄额外保留
     /// 原片与 LUT/光学/颗粒各阶段输出，用于定位细节在哪一步丢失。
     @AppStorage("processingStageDiagnostics") private var processingStageDiagnostics = false
@@ -47,6 +48,19 @@ struct SettingsView: View {
             .appPageBackground()
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        MembershipView()
+                    } label: {
+                        Image(systemName: membership.isLifetimeMember ? "crown.fill" : "crown")
+                            .toolbarControlSurface()
+                    }
+                    .accessibilityLabel("Lifetime Membership")
+                    .accessibilityValue(membership.isLifetimeMember ? Text("Membership Active") : Text(verbatim: ""))
+                    .accessibilityIdentifier("settings.membership")
+                }
+            }
             .softScrollEdges()
             .mainTabRoot(.settings)
         }

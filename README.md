@@ -55,6 +55,17 @@ Home and camera-picker covers prepare only the selected looks and load newly add
 Release bundles exclude textual `.cube` sources and retain their compiled `.jslut` resources.
 Debug bundles keep the sources for reference and hash tests. User `.cube` imports use the file-based loader.
 
+## Lifetime membership
+
+Open the crown in the upper-right corner of Settings to buy or restore lifetime membership.
+The shared `JustShoot` scheme uses `JustShootProducts.storekit` when run from Xcode. Use
+`MembershipStoreKitTests` to exercise local purchases, restores, approvals and refunds.
+
+For sandbox and release, configure the non-consumable `leavestylecode.JustShoot.membership.lifetime`
+for the app in App Store Connect. Set the storefront pricing, product localizations and review
+information there. The local StoreKit price is for testing. Before submitting the first in-app
+purchase with an app version, verify buying and restoring on a device through Sandbox or TestFlight.
+
 ## Interaction priorities
 
 Performance and fluid interaction take priority. Use visual previews and concise labels;
