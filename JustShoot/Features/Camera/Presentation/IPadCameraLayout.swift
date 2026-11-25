@@ -83,23 +83,6 @@ struct IPadCameraLayoutGeometry {
     }
 }
 
-struct IPadCameraBackButton: View {
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        Button { dismiss() } label: {
-            NavigationBackLabel()
-                .frame(width: 52, height: 52)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(CameraPalette.foreground(for: colorScheme))
-        .accessibilityIdentifier("camera.back")
-        .accessibilityLabel("Back")
-    }
-}
-
 struct IPadCameraLayout<Preview: View, Tools: View, Shutter: View, RecentPhoto: View, Zoom: View, Picker: View, Overlays: View>: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     let aspect: CGFloat
@@ -175,16 +158,5 @@ struct IPadCameraLookPanel<Curves: View, Films: View>: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .strokeBorder(.primary.opacity(0.12), lineWidth: 0.5)
         }
-        .shadow(color: .black.opacity(0.25), radius: 20, y: 6)
-    }
-}
-
-extension View {
-    func iPadCameraTool(compact: Bool = false) -> some View {
-        font(.system(size: compact ? 18 : 20, weight: .medium))
-            .buttonStyle(.plain)
-            .frame(width: compact ? 44 : 52, height: compact ? 44 : 52)
-            .cameraControlSurface()
-            .frame(width: compact ? 44 : 56, height: compact ? 44 : 56)
     }
 }

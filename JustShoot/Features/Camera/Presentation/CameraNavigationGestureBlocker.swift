@@ -5,36 +5,28 @@ extension View {
     /// Zoom transitions install their own interactive dismissal gestures, beyond
     /// UINavigationController's edge/content pans. Use the standard transition
     /// and block those pans together so only the camera's Back button exits.
-    func cameraButtonOnlyNavigation(customBackButton: Bool = false) -> some View {
-        modifier(CameraButtonOnlyNavigationModifier(customBackButton: customBackButton))
+    func cameraButtonOnlyNavigation() -> some View {
+        standardCameraTransition()
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
+            .background(CameraNavigationGestureBlocker())
     }
 }
 
-private struct CameraButtonOnlyNavigationModifier: ViewModifier {
+struct CameraBackButton: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
-    let customBackButton: Bool
 
-    func body(content: Content) -> some View {
-        content
-            .standardCameraTransition()
-            .navigationBarBackButtonHidden(true)
-            .toolbar(customBackButton ? .hidden : .visible, for: .navigationBar)
-            .background(CameraNavigationGestureBlocker())
-            .toolbar {
-                if !customBackButton {
-                    ToolbarItem(placement: .navigationBarLeading) { backButton }
-                }
-            }
-    }
+    var hitSize: CGFloat = 44
 
-    private var backButton: some View {
-        let tint = CameraPalette.foreground(for: colorScheme)
-        return Button { dismiss() } label: {
-            NavigationBackLabel(inToolbar: true)
-                .foregroundStyle(tint)
+    var body: some View {
+        Button { dismiss() } label: {
+            NavigationBackLabel()
+                .frame(width: hitSize, height: hitSize)
+                .contentShape(Circle())
         }
-        .tint(tint)
+        .buttonStyle(.plain)
+        .foregroundStyle(CameraPalette.foreground(for: colorScheme))
         .accessibilityIdentifier("camera.back")
         .accessibilityLabel("Back")
     }

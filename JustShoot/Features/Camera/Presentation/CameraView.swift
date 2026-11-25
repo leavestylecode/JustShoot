@@ -23,6 +23,7 @@ struct CameraView: View {
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var appColorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.displayScale) private var displayScale
     @Environment(\.horizontalSizeClass) private var sizeClass
     @StateObject private var cameraManager: CameraManager
@@ -73,24 +74,30 @@ struct CameraView: View {
     }
 
     var body: some View {
-        cameraContent
-        .allowsHitTesting(!cameraManager.entryPreparation.coversContent)
-        .accessibilityHidden(cameraManager.entryPreparation.coversContent)
-        .overlay {
-            if cameraManager.entryPreparation.coversContent {
-                cameraPreparationScreen
-                    .ignoresSafeArea()
-                    .zIndex(100)
+        Group {
+            if isIPad {
+                preparedCameraContent.overlay { iPadBackButton }
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: showFilmPicker)
+            } else {
+                IPhoneCameraPage(showsPicker: showFilmPicker, reduceMotion: reduceMotion,
+                    canHideTopBar: cameraManager.entryPreparation.isRevealed && cameraManager.readiness == .ready) {
+                    if !cameraManager.entryPreparation.coversContent {
+                        if showsPermissionControls {
+                            permissionControls
+                            Spacer(minLength: 0)
+                        }
+                        if LivePhotoEncoderConfiguration.isSupported { livePhotoControl(compact: true) }
+                        flashControl(compact: true)
+                        colorControl(compact: true)
+                    }
+                } content: {
+                    preparedCameraContent
+                }
             }
         }
-        // Keep Back outside the covered/disabled controls, including during camera preparation.
-        .cameraButtonOnlyNavigation(customBackButton: isIPad)
-        .overlay {
-            if isIPad { iPadBackButton }
-        }
+        .cameraButtonOnlyNavigation()
         .ignoresSafeArea(.container, edges: isIPad ? .all : [])
         .environment(\.colorScheme, cameraColorScheme)
-        .toolbarColorScheme(cameraColorScheme, for: .navigationBar)
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
         .onAppear {
@@ -255,6 +262,19 @@ struct CameraView: View {
         }
     }
 
+    private var preparedCameraContent: some View {
+        cameraContent
+            .allowsHitTesting(!cameraManager.entryPreparation.coversContent)
+            .accessibilityHidden(cameraManager.entryPreparation.coversContent)
+            .overlay {
+                if cameraManager.entryPreparation.coversContent {
+                    cameraPreparationScreen
+                        .ignoresSafeArea()
+                        .zIndex(100)
+                }
+            }
+    }
+
     private var cameraContent: some View {
         ZStack {
             cameraBackground.ignoresSafeArea()
@@ -308,51 +328,17 @@ struct CameraView: View {
         .animation(.easeOut(duration: 0.22), value: cameraManager.readiness)
         .navigationBarTitleDisplayMode(.inline)
         .softScrollEdges()
-        .toolbarBackground(.hidden, for: .navigationBar)
         // 全屏相机 push 时隐藏底部 tab 栏——否则 tab 栏会压在取景器/快门之上。
         .toolbar(.hidden, for: .tabBar)
-        .toolbar {
-            if !isIPad && !cameraManager.entryPreparation.coversContent {
-                if showsPermissionControls {
-                    ToolbarItem(placement: .principal) {
-                        permissionControls
-                    }
-                }
-
-                // Keep the control visible while support/enablement is being negotiated.
-                // If availability is lost, an existing On preference can still be switched Off.
-                if #available(iOS 26.0, *) {
-                    if LivePhotoEncoderConfiguration.isSupported {
-                        ToolbarItem(placement: .primaryAction) { livePhotoControl }
-                        ToolbarSpacer(.fixed, placement: .primaryAction)
-                    }
-                    ToolbarItem(placement: .primaryAction) { flashControl }
-                    ToolbarSpacer(.fixed, placement: .primaryAction)
-                    ToolbarItem(placement: .primaryAction) { colorControl }
-                } else {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        HStack(spacing: 6) {
-                            if LivePhotoEncoderConfiguration.isSupported { livePhotoControl }
-                            flashControl
-                            colorControl
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                }
-            }
-        }
-        .safeAreaInset(edge: .bottom, spacing: isIPad ? 0 : nil) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             if !isIPad {
-                HStack {
+                IPhoneCameraCaptureBar {
                     recentPhotosControl
-                    Spacer()
+                } shutter: {
                     shutterControl
-                    Spacer()
+                } filmPicker: {
                     filmPickerControl
                 }
-                .padding(.horizontal, 16)
-                .pageContentWidth(PageLayout.cameraControlsWidth)
-                .padding(.bottom, 10)
                 .disabled(cameraManager.readiness != .ready || coordinator.isShutterBusy)
                 .opacity(cameraManager.readiness == .ready ? 1 : 0.42)
                 .animation(.easeOut(duration: 0.2), value: cameraManager.readiness)
@@ -367,23 +353,14 @@ struct CameraView: View {
     private var controlAccent: Color { CameraPalette.accent(for: cameraColorScheme) }
 
     private var iPhoneCameraContent: some View {
-        VStack(spacing: 12) {
+        IPhoneCameraLayout(showsPicker: showFilmPicker) {
             viewfinder
-            focalLengthControl.padding(.horizontal, 16)
-            if showFilmPicker {
-                filmCurvePicker
-                    .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
-                    .padding(.horizontal, 16)
-                    .pageContentWidth(PageLayout.cameraControlsWidth)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                filmSourcePicker
-                    .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
-                    .padding(.horizontal, 16)
-                    .pageContentWidth(PageLayout.cameraControlsWidth)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+        } focalLengths: {
+            focalLengthControl
+        } pickerRows: {
+            filmCurvePicker
+            filmSourcePicker
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private var iPadBackButton: some View {
@@ -392,7 +369,7 @@ struct CameraView: View {
                 pickerHeight: IPadCameraLayoutGeometry.pickerHeight(for: sizeClass),
                 toolCount: iPadToolCount,
                 zoomCount: cameraManager.focalInfo.options.count)
-            IPadCameraBackButton().position(layout.back)
+            CameraBackButton(hitSize: 52).position(layout.back)
         }
     }
 
@@ -404,13 +381,14 @@ struct CameraView: View {
             viewfinder
         } tools: { axis in
             IPadCameraTools(axis: axis) {
-                flashControl.iPadCameraTool(compact: axis == .horizontal)
+                flashControl(compact: axis == .horizontal)
                 if LivePhotoEncoderConfiguration.isSupported {
-                    livePhotoControl.iPadCameraTool(compact: axis == .horizontal)
+                    livePhotoControl(compact: axis == .horizontal)
                 }
-                colorControl.iPadCameraTool(compact: axis == .horizontal)
+                colorControl(compact: axis == .horizontal)
                 filmPickerButton(size: axis == .horizontal ? 44 : 56)
             }
+            .buttonStyle(.plain)
         } shutter: {
             shutterControl
         } recentPhoto: {
@@ -524,7 +502,7 @@ struct CameraView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        // Match the full-width photo viewer as well as the still's aspect.
+        // Keep the preview aligned with the still's aspect at every display size.
         .aspectRatio(cameraManager.previewAspectRatio, contentMode: .fit)
     }
 
@@ -545,7 +523,7 @@ struct CameraView: View {
             current: selectedCurve,
             contentRotation: controlRotationAngle,
             orientation: cameraManager.controlsOrientation,
-            style: isIPad ? .iPadOverlay : .standard,
+            style: isIPad ? .iPadOverlay : .iPhoneCamera,
             onManage: { showCurveManager = true }
         ) { curve in
             guard curveLibrary.canEdit else {
@@ -566,7 +544,7 @@ struct CameraView: View {
             contentRotation: controlRotationAngle,
             orientation: cameraManager.controlsOrientation,
             preparedCovers: preparedPickerCovers,
-            style: isIPad ? .iPadOverlay : .standard
+            style: isIPad ? .iPadOverlay : .iPhoneCamera
         ) { newSource in
             if newSource.id != source.id {
                 cameraManager.hapticSoft.impactOccurred()
@@ -609,9 +587,7 @@ struct CameraView: View {
     private func filmPickerButton(size: CGFloat) -> some View {
         Button {
             cameraManager.hapticLight.impactOccurred()
-            withAnimation(.easeInOut(duration: 0.22)) {
-                showFilmPicker.toggle()
-            }
+            showFilmPicker.toggle()
         } label: {
             // 整块随设备方向旋转，与最近照片角标（RecentPhotosBadge）同款 rotationEffect
             // + 同款 spring，旋转手感完全一致。封面无 glass 描边，整块旋转也不会显得放大。
@@ -633,7 +609,7 @@ struct CameraView: View {
         .accessibilityHint(showFilmPicker ? Text("Tap to close film picker") : Text("Tap to pick another film"))
     }
 
-    private var flashControl: some View {
+    private func flashControl(compact: Bool) -> some View {
         let tint = cameraManager.flashMode == .on ? controlAccent : controlForeground
         return Button {
             cameraManager.toggleFlashMode()
@@ -642,7 +618,8 @@ struct CameraView: View {
                 .foregroundStyle(tint)
                 .rotationEffect(controlRotationAngle)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
-                .toolbarControlSurface(inToolbar: !isIPad)
+                .cameraTool(compact: compact)
+                .contentShape(.circle)
         }
         .tint(tint)
         .disabled(cameraManager.readiness != .ready || coordinator.isShutterBusy)
@@ -651,7 +628,7 @@ struct CameraView: View {
         .accessibilityHint("Toggle flash")
     }
 
-    private var colorControl: some View {
+    private func colorControl(compact: Bool) -> some View {
         let tint = colorControls.isVisible ? controlAccent : controlForeground
         return Button {
             cameraManager.hapticSoft.impactOccurred()
@@ -664,7 +641,8 @@ struct CameraView: View {
                 .foregroundStyle(tint)
                 .rotationEffect(controlRotationAngle)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
-                .toolbarControlSurface(inToolbar: !isIPad)
+                .cameraTool(compact: compact)
+                .contentShape(.circle)
         }
         .buttonBorderShape(.circle)
         .tint(tint)
@@ -727,7 +705,7 @@ struct CameraView: View {
         }
     }
 
-    private var livePhotoControl: some View {
+    private func livePhotoControl(compact: Bool) -> some View {
         let tint = wantsLiveCapture ? controlAccent : controlForeground
         return Button {
             cameraManager.hapticSoft.impactOccurred()
@@ -741,7 +719,8 @@ struct CameraView: View {
                 .foregroundStyle(tint)
                 .rotationEffect(controlRotationAngle)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
-                .toolbarControlSurface(inToolbar: !isIPad)
+                .cameraTool(compact: compact)
+                .contentShape(.circle)
         }
         .tint(tint)
         .disabled(cameraManager.readiness != .ready || coordinator.isShutterBusy)
@@ -789,10 +768,7 @@ struct CameraView: View {
         .accessibilityLabel(Text(label))
         .accessibilityHint(Text(hint))
 
-        return Group {
-            if isIPad { button.cameraControlSurface() }
-            else { button }
-        }
+        return button.cameraControlSurface()
     }
 
     private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }

@@ -229,7 +229,7 @@ private struct LayoutFixture: View {
                 ForEach(["bolt.slash.fill", "livephoto", "slider.horizontal.3", "camera.filters"], id: \.self) { icon in
                     Image(systemName: icon)
                         .foregroundStyle(icon == "slider.horizontal.3" ? Color.yellow : .white)
-                        .iPadCameraTool(compact: axis == .horizontal)
+                        .cameraTool(compact: axis == .horizontal)
                         .measure("tool.\(icon)")
                 }
             }
@@ -271,7 +271,7 @@ private struct LayoutFixture: View {
             ExposureCompensationControl(bias: 0.7) { _ in }
                 .measure("exposure")
                 .position(layout.exposurePosition(showsColorControls: true, showsPicker: state.showsPicker))
-            IPadCameraBackButton().measure("back").position(layout.back)
+            CameraBackButton(hitSize: 52).measure("back").position(layout.back)
             HStack(spacing: 4) {
                 ForEach(["location.slash.fill", "mic.slash.fill"], id: \.self) { icon in
                     Image(systemName: icon).foregroundStyle(.orange)

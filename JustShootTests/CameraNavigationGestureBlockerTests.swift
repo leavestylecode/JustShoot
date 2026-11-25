@@ -72,7 +72,6 @@ final class CameraNavigationGestureBlockerTests: XCTestCase {
         let content = try contentRecognizer(in: navigation)
 
         for entry in 1...2 {
-            state.customBackButton = entry == 2
             state.path = [entry]
             // SwiftUI publishes its destination before UIKit finishes applying the
             // destination controller's gesture policy on a loaded test host.
@@ -80,7 +79,7 @@ final class CameraNavigationGestureBlockerTests: XCTestCase {
                 navigation.viewControllers.count == 2 && state.dismiss != nil
                     && navigation.transitionCoordinator == nil && !edge.isEnabled && content?.isEnabled != true
             }
-            XCTAssertEqual(navigation.isNavigationBarHidden, state.customBackButton)
+            XCTAssertTrue(navigation.isNavigationBarHidden)
             if #available(iOS 18.0, *) {
                 XCTAssertNil(navigation.topViewController?.preferredTransition,
                              "Camera entry must not install zoom's independent dismissal gestures")
@@ -120,7 +119,6 @@ final class CameraNavigationGestureBlockerTests: XCTestCase {
 @MainActor
 private final class NavigationState: ObservableObject {
     @Published var path: [Int] = []
-    var customBackButton = false
     var dismiss: DismissAction?
 }
 
@@ -144,10 +142,8 @@ private struct NavigationTestCamera: View {
 
     var body: some View {
         Color.black
-            .cameraButtonOnlyNavigation(customBackButton: state.customBackButton)
-            .overlay {
-                if state.customBackButton { IPadCameraBackButton() }
-            }
+            .cameraButtonOnlyNavigation()
+            .overlay { CameraBackButton() }
             .onAppear { state.dismiss = dismiss }
     }
 }

@@ -3223,6 +3223,26 @@
         }
       }
     },
+    "In Dark mode, the viewfinder can extend to both edges of the screen." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深色模式下，取景框可延伸至屏幕两侧。"
+          }
+        }
+      }
+    },
+    "In Light mode, the viewfinder has a white margin on each side." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浅色模式下，取景框两侧留白。"
+          }
+        }
+      }
+    },
     "In-app purchases are disabled on this device." : {
       "localizations" : {
         "zh-Hans" : {

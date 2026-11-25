@@ -20,10 +20,20 @@ struct CameraAppearancePreviewSheet: View {
                     .accessibilityLabel("Camera Preview")
                     .accessibilityValue(scheme == .light ? Text("Light") : Text("Dark"))
 
-                AppSegmentedPicker(title: "Camera Appearance", selection: $scheme, options: [.light, .dark]) {
-                    $0 == .light ? Text("Light") : Text("Dark")
+                VStack(spacing: 8) {
+                    AppSegmentedPicker(title: "Camera Appearance", selection: $scheme, options: [.light, .dark]) {
+                        $0 == .light ? Text("Light") : Text("Dark")
+                    }
+                    .frame(maxWidth: 320)
+
+                    if UIDevice.current.userInterfaceIdiom == .phone {
+                        viewfinderDescription
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
-                .frame(maxWidth: 320)
             }
             .padding(16)
             .background(Color(.systemGroupedBackground))
@@ -39,6 +49,12 @@ struct CameraAppearancePreviewSheet: View {
             }
         }
     }
+
+    private var viewfinderDescription: Text {
+        scheme == .light
+            ? Text("In Light mode, the viewfinder has a white margin on each side.")
+            : Text("In Dark mode, the viewfinder can extend to both edges of the screen.")
+    }
 }
 
 /// A scaled illustration of the capture controls, backed by a bundled photo.
@@ -50,7 +66,9 @@ private struct CameraAppearanceSample: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let scale = min(geometry.size.width / max(canvas.width, 1), geometry.size.height / max(canvas.height, 1))
+            // A short sheet should scale the phone illustration without squeezing both viewfinders to the same width.
+            let height = isPad ? canvas.height : max(canvas.height, canvas.width * 2)
+            let scale = min(geometry.size.width / max(canvas.width, 1), geometry.size.height / max(height, 1))
             let outline = RoundedRectangle(cornerRadius: 22, style: .continuous)
 
             Group {
@@ -61,7 +79,7 @@ private struct CameraAppearanceSample: View {
                 }
             }
             .dynamicTypeSize(.large)
-            .frame(width: canvas.width, height: canvas.height)
+            .frame(width: canvas.width, height: height)
             .foregroundStyle(CameraPalette.foreground(for: scheme))
             .background(scheme == .light ? Color.white : .black)
             .clipShape(outline)
@@ -74,33 +92,33 @@ private struct CameraAppearanceSample: View {
     }
 
     private var phone: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 6) {
-                NavigationBackLabel()
-                Spacer()
-                if LivePhotoEncoderConfiguration.isSupported {
-                    Image(systemName: "livephoto.slash").iPadCameraTool(compact: true)
+        IPhoneCameraPage(showsPicker: false, reduceMotion: true) {
+            if LivePhotoEncoderConfiguration.isSupported {
+                Image(systemName: "livephoto.slash").cameraTool(compact: true)
+            }
+            Image(systemName: "bolt.slash.fill").cameraTool(compact: true)
+            Image(systemName: "drop.halffull").cameraTool(compact: true)
+        } content: {
+            VStack(spacing: 0) {
+                IPhoneCameraLayout(showsPicker: false) {
+                    viewfinder
+                        .aspectRatio(3.0 / 4, contentMode: .fit)
+                        .clipShape(.rect(cornerRadius: 12))
+                } focalLengths: {
+                    zoom(.horizontal)
+                } pickerRows: {
+                    EmptyView()
                 }
-                Image(systemName: "bolt.slash.fill").iPadCameraTool(compact: true)
-                Image(systemName: "drop.halffull").iPadCameraTool(compact: true)
+                IPhoneCameraCaptureBar {
+                    thumbnail
+                } shutter: {
+                    shutter
+                } filmPicker: {
+                    filmCover(size: 46)
+                }
             }
-            .padding(.horizontal, 16)
-            Spacer(minLength: 12)
-            VStack(spacing: 12) {
-                viewfinder.aspectRatio(3.0 / 4, contentMode: .fit)
-                zoom(.horizontal)
-            }
-            Spacer(minLength: 12)
-            HStack {
-                thumbnail
-                Spacer()
-                shutter
-                Spacer()
-                filmCover(size: 46)
-            }
-            .padding(.horizontal, 16)
         }
-        .padding(.vertical, 16)
+        .padding(.top, 16)
     }
 
     private func tablet(aspect: CGFloat) -> some View {
@@ -110,11 +128,11 @@ private struct CameraAppearanceSample: View {
         } tools: { axis in
             let compact = axis == .horizontal
             IPadCameraTools(axis: axis) {
-                Image(systemName: "bolt.slash.fill").iPadCameraTool(compact: compact)
+                Image(systemName: "bolt.slash.fill").cameraTool(compact: compact)
                 if LivePhotoEncoderConfiguration.isSupported {
-                    Image(systemName: "livephoto.slash").iPadCameraTool(compact: compact)
+                    Image(systemName: "livephoto.slash").cameraTool(compact: compact)
                 }
-                Image(systemName: "drop.halffull").iPadCameraTool(compact: compact)
+                Image(systemName: "drop.halffull").cameraTool(compact: compact)
                 filmCover(size: compact ? 44 : 56)
             }
         } shutter: {

@@ -192,7 +192,14 @@ private struct FocalStripSurface: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
         if axis == .horizontal {
-            content.padding(.horizontal, 6).padding(.vertical, 4).cameraControlSurface()
+            content
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(.primary.opacity(colorScheme == .light ? 0.045 : 0.10), in: Capsule())
+                .overlay {
+                    Capsule().strokeBorder(.primary.opacity(0.12), lineWidth: 0.5)
+                        .allowsHitTesting(false)
+                }
         } else {
             content.padding(4)
                 .background(colorScheme == .light ? .white.opacity(0.76) : .black.opacity(0.30), in: Capsule())
@@ -681,5 +688,15 @@ struct FilmSourceCoverThumbnail: View {
             image = loaded
         }
         .accessibilityLabel(Text("Current film: \(source.displayName)"))
+    }
+}
+
+extension View {
+    func cameraTool(compact: Bool = false) -> some View {
+        font(.system(size: compact ? 18 : 20, weight: .medium))
+            .buttonStyle(.plain)
+            .frame(width: compact ? 44 : 52, height: compact ? 44 : 52)
+            .cameraControlSurface()
+            .frame(width: compact ? 44 : 56, height: compact ? 44 : 56)
     }
 }

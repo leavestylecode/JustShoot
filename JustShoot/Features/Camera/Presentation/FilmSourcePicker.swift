@@ -3,11 +3,20 @@ import UIKit
 
 enum CameraPickerStyle {
     case standard
+    case iPhoneCamera
     case iPadOverlay
+
+    var rowHorizontalInset: CGFloat {
+        switch self {
+        case .standard: 12
+        case .iPhoneCamera: 0 // The camera layout aligns the rows with the capture bar.
+        case .iPadOverlay: 16
+        }
+    }
 
     func itemSize(for sizeClass: UserInterfaceSizeClass?) -> CGFloat {
         switch self {
-        case .standard: sizeClass == .regular ? 80 : 64
+        case .standard, .iPhoneCamera: sizeClass == .regular ? 80 : 64
         case .iPadOverlay: sizeClass == .regular ? 68 : 60
         }
     }
@@ -28,7 +37,7 @@ private struct CameraPickerRow<Content: View>: View {
                 HStack(spacing: style == .iPadOverlay ? 8 : 10) {
                     content(style.itemSize(for: sizeClass))
                 }
-                .padding(.horizontal, style == .iPadOverlay ? 16 : 12)
+                .padding(.horizontal, style.rowHorizontalInset)
                 .frame(minWidth: style == .iPadOverlay ? geometry.size.width : nil,
                     minHeight: geometry.size.height)
             }
@@ -43,6 +52,7 @@ private struct CameraPickerRow<Content: View>: View {
 /// 当前选中胶片用黄色描边标识；点击后通过 onSelect 更新预览，面板保持展开以便连续比较。
 /// 展开瞬间 ScrollViewReader 自动滚到当前胶片，便于看到"我现在在哪一张"。
 struct FilmSourcePickerStrip: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let current: FilmSource
     let sources: [FilmSource]
     let contentRotation: Angle
@@ -73,18 +83,12 @@ struct FilmSourcePickerStrip: View {
                     .id(source.id)
                 }
             }
-            .onAppear {
-                // 展开后下一帧滚到当前胶片，避免 ScrollView 还没布局完就 scrollTo 失效。
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 30_000_000)
-                    withAnimation(.easeOut(duration: 0.28)) {
-                        proxy.scrollTo(current.id, anchor: .center)
-                    }
-                }
+            .task {
+                proxy.scrollTo(current.id, anchor: .center)
             }
             .onChange(of: current.id) { _, newId in
                 // 预览区左右滑动切胶片时 picker 条同步把新选中胶片滚到中心。
-                withAnimation(.easeOut(duration: 0.22)) {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
                     proxy.scrollTo(newId, anchor: .center)
                 }
             }
@@ -107,6 +111,7 @@ struct FilmCurvePickerStrip: View {
     }
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let curves: [FilmCurve]
     let current: FilmCurve
     let contentRotation: Angle
@@ -145,8 +150,6 @@ struct FilmCurvePickerStrip: View {
             .task(id: presentation) {
                 switch presentation {
                 case .camera:
-                    try? await Task.sleep(for: .milliseconds(30))
-                    guard !Task.isCancelled else { return }
                     proxy.scrollTo(current.id, anchor: .center)
                 case .sortingPreview:
                     if let first = curves.first {
@@ -158,7 +161,7 @@ struct FilmCurvePickerStrip: View {
             }
             .onChange(of: current.id) { _, newID in
                 guard presentation == .camera else { return }
-                withAnimation(.easeOut(duration: 0.22)) {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
                     proxy.scrollTo(newID, anchor: .center)
                 }
             }
@@ -277,7 +280,7 @@ private struct CurveManagerPickerCell: View {
             VStack(spacing: 5) {
                 Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 19, weight: .semibold))
-                if style == .standard {
+                if style != .iPadOverlay {
                     Text("Manage")
                         .font(.system(size: size >= 68 ? 11 : 10, weight: .semibold, design: .rounded))
                         .lineLimit(1)
