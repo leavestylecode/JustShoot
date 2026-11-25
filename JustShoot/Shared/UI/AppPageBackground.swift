@@ -129,6 +129,7 @@ struct PageBackgroundPreferences: DynamicProperty {
 
 struct AppPageBackground: View {
     var lightBase = Color(uiColor: .systemBackground)
+    var showsGradient = true
     private var preferences = PageBackgroundPreferences()
     @Environment(\.colorScheme) private var scheme
 
@@ -138,8 +139,10 @@ struct AppPageBackground: View {
             if preferences.isEnabled {
                 switch preferences.style {
                 case .gradient:
-                    BackgroundGradient(palette: preferences.palette, origin: preferences.origin,
-                                       intensity: preferences.intensity, range: preferences.range)
+                    if showsGradient {
+                        BackgroundGradient(palette: preferences.palette, origin: preferences.origin,
+                                           intensity: preferences.intensity, range: preferences.range)
+                    }
                 case .photo:
                     CustomPhotoBackground(effect: BackgroundPhotoEffect(blur: preferences.blur.blur,
                                                                          saturation: preferences.saturation.saturation))
@@ -190,7 +193,7 @@ private struct CustomPhotoBackground: View {
 }
 
 extension View {
-    func appPageBackground() -> some View {
-        background { AppPageBackground() }
+    func appPageBackground(showsGradient: Bool = true) -> some View {
+        background { AppPageBackground(showsGradient: showsGradient) }
     }
 }

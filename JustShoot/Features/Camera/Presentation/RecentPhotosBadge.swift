@@ -260,7 +260,7 @@ struct CapturePreviewReview: View {
                     initialImage: initialImage, onClose: onClose)
             } else {
                 ZStack {
-                    AppPageBackground()
+                    AppPageBackground(showsGradient: false)
                     ZoomablePhotoView(image: reviewImage ?? preview.image, isCurrent: true, dismisser: dismisser)
                         .accessibilityLabel("Photo preview")
                     savingOverlay

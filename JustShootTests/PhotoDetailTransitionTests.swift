@@ -378,7 +378,7 @@ final class PhotoDetailTransitionTests: XCTestCase {
         XCTAssertEqual(root.view.traitCollection.userInterfaceStyle, .light)
     }
 
-    func testDetailDisplaysConfiguredBackgroundBehindTheFittedPhoto() async throws {
+    func testDetailKeepsItsAppearanceWhenThePageGradientIsEnabled() async throws {
         let defaults = UserDefaults.standard
         let preferences: [String: Any] = [
             "gallery.density": 3, AppAppearance.key: AppAppearance.light.rawValue,
@@ -455,15 +455,13 @@ final class PhotoDetailTransitionTests: XCTestCase {
         XCTAssertGreaterThan(Int(light[2]), 235)
         defaults.set(true, forKey: "appearance.background.enabled")
         try await Task.sleep(for: .milliseconds(200))
-        let gradient = try backgroundPixel("detail-gradient")
-        XCTAssertGreaterThan(Int(gradient[0]) - Int(gradient[1]), 30)
+        XCTAssertEqual(try backgroundPixel("detail-light-gradient-enabled"), light)
 
-        defaults.set(false, forKey: "appearance.background.enabled")
         defaults.set(AppAppearance.dark.rawValue, forKey: AppAppearance.key)
         root.rootView = gallery(.dark)
         try await waitFor { detail.view.traitCollection.userInterfaceStyle == .dark }
         try await Task.sleep(for: .milliseconds(200))
-        let dark = try backgroundPixel("detail-dark")
+        let dark = try backgroundPixel("detail-dark-gradient-enabled")
         XCTAssertLessThan(Int(dark[0]), 20)
         XCTAssertLessThan(Int(dark[2]), 20)
 

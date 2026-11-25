@@ -101,6 +101,10 @@ final class RecentPhotoReviewFlowTests: XCTestCase {
     func testPendingPreviewUsesAppAppearanceOverAnIndependentlyDarkCamera() async throws {
         let suite = "capture-preview-appearance-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defaults.set(true, forKey: "appearance.background.enabled")
+        defaults.set(BackgroundStyle.gradient.rawValue, forKey: "appearance.background.style")
+        defaults.set(BackgroundPalette.cyan.rawValue, forKey: "appearance.background.palette")
+        defaults.set(1.0, forKey: "appearance.background.intensity")
         defer { defaults.removePersistentDomain(forName: suite) }
         let container = try container()
         let sample = try XCTUnwrap(UIImage(systemName: "photo"))

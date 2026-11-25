@@ -142,7 +142,7 @@ struct PhotoDetailView: View {
         let previewRange = PhotoDetailImagePolicy.previewRange(count: photos.count, currentIndex: currentIndex)
         let previewIDs = limitsPreviewsToCurrent ? Set(currentPhotoID.map { [$0] } ?? []) : Set(photos[previewRange].map(\.id))
         ZStack {
-            AppPageBackground().opacity(1 - dismissProgress * 0.6)
+            AppPageBackground(showsGradient: false).opacity(1 - dismissProgress * 0.6)
 
             if photos.isEmpty {
                 Text("No photos")

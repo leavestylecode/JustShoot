@@ -85,7 +85,7 @@ struct PhotoInfoPanel: View {
             }
             .padding()
         }
-        .appPageBackground()
+        .appPageBackground(showsGradient: false)
         .tint(colorScheme == .dark ? .yellow : .primary)
         .task(id: photo.id) {
             // 资产照片从系统相册异步取原始字节再解析；遗留照片直接读内部 blob。
