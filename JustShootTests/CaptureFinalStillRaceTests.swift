@@ -109,7 +109,7 @@ final class CaptureFinalStillRaceTests: XCTestCase {
         let final = fixture.final
         let receipt = UUID().uuidString
         let pipeline = CapturePipeline(journal: journal, storeDeferredProxy: { _, recipe in
-            try journal.recordProxyPlaceholder(receipt, for: recipe.id)
+            try journal.recordAssetPlaceholder(receipt, for: recipe.id)
             _ = try await gate.wait(receipt)
             return receipt
         }, finalizeDeferredPhoto: { _, _ in final }, prepareDeferredEditingInput: { _ in nil },

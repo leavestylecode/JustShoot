@@ -2,6 +2,28 @@ import XCTest
 @testable import JustShoot
 
 final class PhotoLibraryCompatibilityTests: XCTestCase {
+    func testCameraNumberWidensWithoutReusingEarlierNames() {
+        XCTAssertEqual(CaptureFilename.stem(number: 1), "OOO_0001")
+        XCTAssertEqual(CaptureFilename.stem(number: 9999), "OOO_9999")
+        XCTAssertEqual(CaptureFilename.stem(number: 10000), "OOO_10000")
+        XCTAssertNil(PhotoLibrary.captureIdentifier(in: ["OOO_0001.HEIC"]))
+    }
+
+    func testSharingPreservesTheOriginalStemAndDisambiguatesDuplicateNames() throws {
+        let dir = try ShareExportDirectory.application.create()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let id = UUID(), date = Date()
+        let stem = PhotoShareExporter.shareStem(filename: "OOO_0042.HEIC", captureDate: date, photoID: id)
+        let first = try PhotoShareExporter.writeJPEG(Data([1]), stem: stem, into: dir)
+        let second = try PhotoShareExporter.writeJPEG(Data([2]), stem: stem, into: dir)
+        XCTAssertEqual(first.lastPathComponent, "OOO_0042.JPG")
+        XCTAssertEqual(second.lastPathComponent, "OOO_0042 (2).JPG")
+        XCTAssertEqual(try Data(contentsOf: first), Data([1]))
+        XCTAssertEqual(try Data(contentsOf: second), Data([2]))
+        let fallback = PhotoShareExporter.shareStem(filename: nil, captureDate: date, photoID: id)
+        XCTAssertEqual(PhotoShareExporter.shareStem(filename: "../escape.heic", captureDate: date, photoID: id), fallback)
+    }
+
     func testCaptureRecoveryRecognizesBothFilenamePrefixes() {
         let id = UUID()
 

@@ -1,5 +1,6 @@
 import Foundation
 import ImageIO
+import UniformTypeIdentifiers
 
 struct ParsedExifInfo: Sendable {
     let iso: String
@@ -14,6 +15,8 @@ struct ParsedExifInfo: Sendable {
     /// 像素尺寸——与其它 EXIF 字段同一次解析得到，省掉信息面板里另开一个 CGImageSource 读 blob。
     let pixelWidth: Int?
     let pixelHeight: Int?
+
+    var fileFormat: String?
 
     private static var unknownString: String { String(localized: "Unknown") }
     private static var unknownLensString: String { String(localized: "Unknown lens") }
@@ -148,7 +151,8 @@ struct ParsedExifInfo: Sendable {
             iso: iso, shutterSpeed: shutterSpeed, aperture: aperture,
             focalLength: focalLength, exposureMode: exposureMode, flashMode: flashMode,
             gpsInfo: gpsInfo, deviceInfo: deviceInfo, lensInfo: lensInfo,
-            pixelWidth: pixelWidth, pixelHeight: pixelHeight
+            pixelWidth: pixelWidth, pixelHeight: pixelHeight,
+            fileFormat: CGImageSourceGetType(imageSource).flatMap { UTType($0 as String)?.preferredFilenameExtension?.uppercased() }
         )
     }
 }

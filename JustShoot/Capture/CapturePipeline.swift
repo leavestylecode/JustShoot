@@ -72,8 +72,8 @@ final class CapturePipeline: ObservableObject {
         self.journal = journal
         self.storeDeferredProxy = storeDeferredProxy ?? { data, recipe in
             try await PhotoLibrary.saveDeferredProxy(data, recipe: recipe,
-                reservedAsset: try journal.proxyPlaceholder(for: recipe.id),
-                recordPlaceholder: { try journal.recordProxyPlaceholder($0, for: recipe.id) })
+                reservedAsset: try journal.assetPlaceholder(for: recipe.id),
+                recordPlaceholder: { try journal.recordAssetPlaceholder($0, for: recipe.id) })
         }
         self.finalizeDeferredPhoto = finalizeDeferredPhoto
         self.prepareDeferredEditingInput = prepareDeferredEditingInput
@@ -482,7 +482,7 @@ private actor CaptureWorker {
         // Keep awaitingCaptureCompletion set across this await so resume cannot import
         // or process a second copy of this native capture.
         if var deferred = job.deferredPhoto, deferred.assetIdentifier == nil {
-            deferred.assetIdentifier = try await storeDeferredProxy(result.imageData, recipe)
+            deferred.assetIdentifier = try await storeDeferredProxy(result.imageData, job.recipe)
             job.deferredPhoto = deferred
             try journal.update(job)
         }
@@ -551,16 +551,15 @@ private actor CaptureWorker {
     }
 
     func deletionCaptureIDs(rowIDs: Set<UUID>, assetIDs: Set<String>) throws -> Set<UUID> {
-        let jobs = try journal.jobs()
+        let inventory = try journal.inventory()
         var matches = PhotoLibrary.captureIdentifiers(from: Array(assetIDs))
         if !assetIDs.isEmpty {
-            for job in jobs where job.deferredPhoto != nil && job.deferredPhoto?.assetIdentifier == nil {
-                if let receipt = try journal.proxyPlaceholder(for: job.id), assetIDs.contains(receipt) {
-                    matches.insert(job.id)
-                }
+            let pendingIDs = Set(inventory.jobs.map(\.id)).union(inventory.issues.map(\.captureID))
+            for (id, receipt) in try journal.assetPlaceholders(for: pendingIDs) where assetIDs.contains(receipt) {
+                matches.insert(id)
             }
         }
-        return CaptureDeletionSelection.captureIDs(rowIDs: rowIDs, assetIDs: assetIDs, jobs: jobs,
+        return CaptureDeletionSelection.captureIDs(rowIDs: rowIDs, assetIDs: assetIDs, jobs: inventory.jobs,
             libraryCaptureIDs: matches)
     }
 
@@ -816,20 +815,12 @@ private actor CaptureWorker {
             let saving = trace.span("photos_save")
             do {
                 try checkPending(job.id)
-                if job.hasRenderedMovie {
-                    job.assetIdentifier = try await PhotoLibrary.saveLivePhoto(
-                        imageData: image, videoURL: journal.file("rendered.mov", for: job.id),
-                        creationDate: recipe.captureDate, latitude: recipe.location?.latitude,
-                        longitude: recipe.location?.longitude, altitude: recipe.location?.altitude,
-                        locationTimestamp: recipe.location?.timestamp, captureID: job.id,
-                        moveVideo: false)
-                } else {
-                    job.assetIdentifier = try await PhotoLibrary.save(
-                        imageData: image, creationDate: recipe.captureDate,
-                        latitude: recipe.location?.latitude, longitude: recipe.location?.longitude,
-                        altitude: recipe.location?.altitude, locationTimestamp: recipe.location?.timestamp,
-                        captureID: job.id)
-                }
+                job.assetIdentifier = try await PhotoLibrary.save(
+                    imageData: image, creationDate: recipe.captureDate,
+                    latitude: recipe.location?.latitude, longitude: recipe.location?.longitude,
+                    altitude: recipe.location?.altitude, locationTimestamp: recipe.location?.timestamp,
+                    captureID: job.id, fileNumber: recipe.fileNumber, journal: journal,
+                    pairedVideo: job.hasRenderedMovie ? journal.file("rendered.mov", for: job.id) : nil)
                 saving.end()
             } catch {
                 saving.end("error", Diagnostics.errorFields(error))

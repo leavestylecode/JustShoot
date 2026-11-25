@@ -61,6 +61,32 @@ struct ShareExportDirectory {
 }
 
 enum PhotoShareExporter {
+    static func shareStem(filename: String?, captureDate: Date, photoID: UUID) -> String {
+        if let filename, (filename as NSString).lastPathComponent == filename {
+            let stem = (filename as NSString).deletingPathExtension
+            if !stem.isEmpty, !stem.hasPrefix("."), stem.utf8.count <= 220,
+               stem.rangeOfCharacter(from: .controlCharacters) == nil,
+               !stem.contains(":"), !stem.contains("\\") { return stem }
+        }
+        let stamp = captureDate.formatted(.iso8601.year().month().day().dateSeparator(.dash))
+        return "OOO-\(stamp)-\(photoID.uuidString.prefix(8))"
+    }
+
+    /// Different devices can legitimately contribute the same camera filename.
+    static func writeJPEG(_ data: Data, stem: String, into directory: URL) throws -> URL {
+        var copy = 1
+        while true {
+            let name = copy == 1 ? stem : "\(stem) (\(copy))"
+            let url = directory.appendingPathComponent(name).appendingPathExtension("JPG")
+            do {
+                try data.write(to: url, options: .withoutOverwriting)
+                return url
+            } catch CocoaError.fileWriteFileExists {
+                copy += 1
+            }
+        }
+    }
+
     /// 导出一组照片为临时文件 URL（全分辨率原图字节）。失败的单张跳过，不阻断其余。
     @MainActor
     static func export(_ photos: [Photo]) async -> [URL] {
@@ -76,19 +102,27 @@ enum PhotoShareExporter {
 
     /// 导出单张照片为临时 JPEG 文件 URL（全分辨率，保留 EXIF/GPS/朝向）。失败返回 nil。
     @MainActor
-    static func export(_ photo: Photo) async -> URL? {
+    static func export(_ photo: Photo, journal: CaptureJournal? = nil) async -> URL? {
         guard let dir = try? ShareExportDirectory.application.create() else { return nil }
-        let result = await exportFile(photo, into: dir)
+        let result = await exportFile(photo, into: dir, journal: journal)
         if result == nil { try? FileManager.default.removeItem(at: dir) }
         return result
     }
 
     @MainActor
-    private static func exportFile(_ photo: Photo, into dir: URL) async -> URL? {
+    private static func exportFile(_ photo: Photo, into dir: URL, journal: CaptureJournal? = nil) async -> URL? {
         guard !photo.isDeleted, !Task.isCancelled else { return nil }
         // The model may be deleted by reconciliation while PhotoKit or encoding is suspended.
         let photoID = photo.id
         let captureDate = photo.timestamp
+        let file = PhotoFileReference(photo)
+        // Capture the local number before migration can retire its journal during JPEG encoding.
+        let localName: String?
+        if file.assetID == nil {
+            localName = await Task.detached(priority: .userInitiated) { file.filename(localExtension: "JPG", journal: journal) }.value
+        } else {
+            localName = nil
+        }
         guard let data = await PhotoImage.exifData(for: photo) else {
             Log.gallery.error("share_export_no_data id=\(photoID.uuidString, privacy: .public)")
             return nil
@@ -103,12 +137,14 @@ enum PhotoShareExporter {
             Log.gallery.error("share_export_transcode_failed id=\(photoID.uuidString, privacy: .public)")
             return nil
         }
-        // 文件名带日期前缀，分享出去的图在对方设备上更可读（不是一串 UUID）。
-        let stamp = captureDate.formatted(.iso8601.year().month().day().dateSeparator(.dash))
-        let url = dir.appendingPathComponent("OOO-\(stamp)-\(photoID.uuidString.prefix(8)).jpg")
+        guard !photo.isDeleted else { return nil }
+        let currentFile = PhotoFileReference(photo)
         do {
-            try await Task.detached(priority: .userInitiated) { try jpeg.write(to: url, options: .atomic) }.value
-            return url
+            return try await Task.detached(priority: .userInitiated) {
+                let name = currentFile.assetID == nil ? localName : currentFile.filename() ?? localName
+                let stem = shareStem(filename: name, captureDate: captureDate, photoID: photoID)
+                return try writeJPEG(jpeg, stem: stem, into: dir)
+            }.value
         } catch {
             Log.gallery.error("share_export_write_failed id=\(photoID.uuidString, privacy: .public) error=\(error.localizedDescription, privacy: .public)")
             return nil

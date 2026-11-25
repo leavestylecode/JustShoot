@@ -1,4 +1,5 @@
 import Foundation
+import Photos
 import SwiftData
 
 /// Reconciles the Photos source of truth with the lightweight local index.
@@ -39,15 +40,15 @@ actor PhotoLibraryReconciler {
     /// 把迁移产生的新资产误判成孤儿回填出重复行。
     private var isReconciling = false
 
-    func reconcileWithLibrary() async {
+    func reconcileWithLibrary(journal: CaptureJournal = .application) async {
         guard !isReconciling,
-              let inventory = try? CaptureJournal.application.inventory() else { return }
+              let inventory = try? journal.inventory() else { return }
         isReconciling = true
         defer { isReconciling = false }
         let pendingIDs = Set(inventory.jobs.map(\.id)).union(inventory.issues.map(\.captureID))
-        await migrateInternalPhotos(excluding: pendingIDs)
+        await migrateInternalPhotos(excluding: pendingIDs, journal: journal)
         pruneDeletedAssets()
-        backfillOrphanAssets(excluding: pendingIDs)
+        backfillOrphanAssets(excluding: pendingIDs, journal: journal)
     }
 
     /// 内部照片迁入系统相册（架构注释承诺的 "PhotoMigrator"）：兜底暂存（拍摄时相册写入失败）
@@ -59,7 +60,7 @@ actor PhotoLibraryReconciler {
     /// 行未更新」，下次 backfill 回填 + 本行重迁出现一张重复（概率极小，可手删）。
     /// 仅在已授权时工作（绝不从后台维护路径触发权限弹窗）；单张失败（磁盘满 / iCloud 异常）
     /// 即中断，剩余的留待下次 reconcile 重试。
-    private func migrateInternalPhotos(excluding pendingIDs: Set<UUID>) async {
+    private func migrateInternalPhotos(excluding pendingIDs: Set<UUID>, journal: CaptureJournal) async {
         guard PhotoLibrary.isAuthorized else { return }
         let descriptor = FetchDescriptor<Photo>(predicate: #Predicate { $0.assetLocalIdentifier == nil })
         guard let photos = try? modelContext.fetch(descriptor), !photos.isEmpty else { return }
@@ -67,7 +68,7 @@ actor PhotoLibraryReconciler {
         var migratedIDs: [UUID] = []
         for photo in photos {
             guard !pendingIDs.contains(photo.id),
-                  !FileManager.default.fileExists(atPath: CaptureJournal.application.directory(for: photo.id).path),
+                  !FileManager.default.fileExists(atPath: journal.directory(for: photo.id).path),
                   let data = photo.imageData else { continue }
             do {
                 let assetID = try await PhotoLibrary.save(
@@ -100,25 +101,33 @@ actor PhotoLibraryReconciler {
     /// 30s 宽限：拍摄管线是「先写相册、后写索引」，本方法又会被保存自身触发的相册变更回调唤起
     /// ——不留宽限会在索引写入前抢先回填出重复行。creationDate 是拍摄时刻，30s 远大于整条
     /// 后处理管线的最坏耗时。
-    private func backfillOrphanAssets(excluding pendingIDs: Set<UUID>) {
-        guard let inventory = try? CaptureJournal.application.inventory() else { return }
+    private func backfillOrphanAssets(excluding pendingIDs: Set<UUID>, journal: CaptureJournal) {
+        guard let albums = PhotoLibrary.albumAssetSnapshots(), albums.contains(where: { $0.count > 0 }) else { return }
+        guard let inventory = try? journal.inventory() else { return }
         let protectedIDs = pendingIDs.union(inventory.jobs.map(\.id)).union(inventory.issues.map(\.captureID))
-        guard let albumAssets = PhotoLibrary.albumAssetInfo(), !albumAssets.isEmpty else { return }
+        // Read receipts after the album snapshot: every newly visible asset already
+        // has a receipt, or its index row was committed before its job was removed.
+        guard let receipts = try? journal.assetPlaceholders(for: protectedIDs) else { return }
+        let pendingAssets = Set(receipts.values).union(inventory.jobs.compactMap(\.assetIdentifier))
         let descriptor = FetchDescriptor<Photo>(predicate: #Predicate { $0.assetLocalIdentifier != nil })
         guard let photos = try? modelContext.fetch(descriptor) else { return }
-        let indexed = Set(photos.compactMap(\.assetLocalIdentifier))
+        var seen = pendingAssets.union(photos.compactMap(\.assetLocalIdentifier))
         let cutoff = Date().addingTimeInterval(-30)
 
         var added = 0
-        for asset in albumAssets {
-            if let captureID = asset.captureID, protectedIDs.contains(captureID) { continue }
-            guard !indexed.contains(asset.id) else { continue }
-            if let created = asset.creationDate, created > cutoff { continue }   // 在途拍摄宽限
-            let photo = Photo(assetLocalIdentifier: asset.id, imageData: nil)
-            if let created = asset.creationDate { photo.timestamp = created }
-            photo.isLivePhoto = asset.isLivePhoto
-            modelContext.insert(photo)
-            added += 1
+        for album in albums {
+            for index in 0..<album.count {
+                let asset = album.object(at: index)
+                guard seen.insert(asset.localIdentifier).inserted else { continue }
+                if let date = asset.creationDate, date > cutoff { continue }
+                // Only an unindexed candidate can belong to a legacy job with no asset receipt.
+                if !protectedIDs.isEmpty, let id = PhotoLibrary.captureIdentifier(of: asset), protectedIDs.contains(id) { continue }
+                let photo = Photo(assetLocalIdentifier: asset.localIdentifier, imageData: nil)
+                if let date = asset.creationDate { photo.timestamp = date }
+                photo.isLivePhoto = asset.mediaSubtypes.contains(.photoLive)
+                modelContext.insert(photo)
+                added += 1
+            }
         }
         guard added > 0 else { return }
         try? modelContext.save()

@@ -14,6 +14,7 @@ struct PhotoInfoPanel: View {
     /// 关键：解析（CGImageSource + 元数据 copy）从前述 body 内的 @MainActor 同步路径挪到 .task
     /// 的 detached 子任务，info 面板首次展开不再卡主线程 fault + 解析整张 22MP HEIF。
     @State private var exif: ParsedExifInfo = .empty
+    @State private var filename: String?
 
     var body: some View {
         ScrollView {
@@ -21,8 +22,16 @@ struct PhotoInfoPanel: View {
                 HStack {
                     Image(systemName: "calendar")
                         .foregroundStyle(.tint)
-                    Text(photo.timestamp, format: .dateTime.year().month().day().hour().minute())
-                        .font(.system(size: 14))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(photo.timestamp, format: .dateTime.year().month().day().hour().minute())
+                            .font(.system(size: 14))
+                        if let filename {
+                            Text(verbatim: filename)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
+                    }
                     Spacer()
                 }
 
@@ -87,15 +96,25 @@ struct PhotoInfoPanel: View {
         }
         .appPageBackground(showsGradient: false)
         .tint(colorScheme == .dark ? .yellow : .primary)
-        .task(id: photo.id) {
-            // 资产照片从系统相册异步取原始字节再解析；遗留照片直接读内部 blob。
-            guard let data = await PhotoImage.exifData(for: photo) else { return }
+        .task(id: PhotoFileReference(photo)) {
+            let file = PhotoFileReference(photo)
+            exif = .empty
+            filename = nil
+            if file.assetID != nil {
+                let name = await Task.detached(priority: .userInitiated) { file.filename() }.value
+                guard !Task.isCancelled else { return }
+                filename = name
+            }
+            let data = await PhotoImage.exifData(for: photo)
             guard !Task.isCancelled else { return }
-            let result = await Task.detached(priority: .userInitiated) {
-                ParsedExifInfo.parse(from: data)
+            let (info, localName) = await Task.detached(priority: .userInitiated) {
+                let info = data.map(ParsedExifInfo.parse) ?? .empty
+                let name = file.assetID == nil ? file.filename(localExtension: info.fileFormat) : nil
+                return (info, name)
             }.value
             guard !Task.isCancelled else { return }
-            exif = result
+            exif = info
+            if let localName { filename = localName }
         }
     }
 }

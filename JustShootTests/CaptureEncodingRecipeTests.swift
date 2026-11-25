@@ -18,6 +18,12 @@ final class CaptureEncodingRecipeTests: XCTestCase {
             lut: lut, awaitingCaptureCompletion: true)
         let recovered = try XCTUnwrap(journal.recover().first)
         XCTAssertEqual(recovered.id, original.id)
+        XCTAssertEqual(recovered.recipe.fileNumber, 1)
+        XCTAssertEqual(recovered.recipe.withPhotoDisplayTime(0.5).fileNumber, 1)
+        try journal.finish(original.id)
+        let reopened = CaptureJournal(root: root)
+        let next = try reopened.stage(recipe: recipe(quality: nil), imageData: Data([3]), movieURL: nil, lut: lut)
+        XCTAssertEqual(next.recipe.fileNumber, 2)
         XCTAssertNil(recovered.recipe.outputQuality)
         XCTAssertNil(recovered.recipe.withPhotoDisplayTime(0.5).outputQuality)
     }

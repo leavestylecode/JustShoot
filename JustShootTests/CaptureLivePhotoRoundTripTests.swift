@@ -54,7 +54,14 @@ final class CaptureLivePhotoRoundTripTests: XCTestCase {
         XCTAssertEqual(resources.filter { $0.type == .pairedVideo }.count, 1)
         let live = await AssetImageLoader.shared.livePhoto(id: assetID, targetSize: CGSize(width: 320, height: 240))
         XCTAssertNotNil(live, "The saved pair must load through the detail view's playback path")
-        XCTAssertEqual(PhotoLibrary.findCapture(id: captureID, creationDate: date), assetID)
+        XCTAssertEqual(PhotoLibrary.stillFilename(id: assetID), "OOO_0001.HEIC")
+        let movie = try XCTUnwrap(resources.first { $0.type == .pairedVideo })
+        if #available(iOS 27, *) { XCTAssertEqual(movie.filename, "OOO_0001.MOV") }
+        else { XCTAssertEqual(movie.originalFilename, "OOO_0001.MOV") }
+        let shared = await PhotoShareExporter.export(row)
+        let url = try XCTUnwrap(shared)
+        defer { ShareExportDirectory.application.remove(files: [url]) }
+        XCTAssertEqual(url.lastPathComponent, "OOO_0001.JPG")
         XCTAssertTrue(try journal.jobs().isEmpty)
         await pipeline.retryPending()
         XCTAssertEqual(try container.mainContext.fetchCount(FetchDescriptor<Photo>()), 1)

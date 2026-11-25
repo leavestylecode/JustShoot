@@ -1,6 +1,32 @@
 import UIKit
 import SwiftData
 
+/// Immutable lookup key for gallery work that may outlive a local-to-Photos migration.
+struct PhotoFileReference: Equatable, Sendable {
+    let photoID: UUID
+    let assetID: String?
+
+    @MainActor
+    init(_ photo: Photo) {
+        photoID = photo.id
+        assetID = photo.assetLocalIdentifier
+    }
+
+    func filename(localExtension: String? = nil, journal: CaptureJournal? = nil) -> String? {
+        if let assetID { return PhotoLibrary.stillFilename(id: assetID) }
+        let journal = journal ?? .application
+        let number: Int?
+        do { number = try journal.job(for: photoID).recipe.fileNumber }
+        catch CocoaError.fileReadNoSuchFile {
+            // A legacy internal photo has no journal. Migration uses its UUID-based name.
+            guard !FileManager.default.fileExists(atPath: journal.directory(for: photoID).path) else { return nil }
+            number = nil
+        } catch { return nil }
+        guard let stem = CaptureFilename.stem(id: photoID, number: number) else { return nil }
+        return localExtension.map { stem + "." + CaptureFilename.normalizedExtension($0) } ?? stem
+    }
+}
+
 // MARK: - 统一取图门面
 //
 // 调用点（grid cell / detail pager / scrubber / info 面板）只跟它打交道：有 assetLocalIdentifier

@@ -1,4 +1,5 @@
 import Foundation
+import os
 import CoreLocation
 import ImageIO
 import UniformTypeIdentifiers
@@ -50,7 +51,7 @@ struct CaptureRecipe: Codable, Sendable {
     /// 快门时刻的场景色温快照（设备 AWB 读数，K）。胶片色温响应（未校白）的输入；
     /// optional 兼容旧 journal——缺失时响应中性（增益 1），渲染结果与旧版一致。
     let chromaticSceneCCT: Float?
-    let photoDisplayTime: Double?
+    var photoDisplayTime: Double?
     var raw: RawCaptureRecipe? = nil
     var plan: PhotoCapturePlan? = nil
     /// Absent on legacy jobs. If present, recovery requires the frozen material payload.
@@ -68,17 +69,16 @@ struct CaptureRecipe: Codable, Sendable {
 
     /// Older captures used the full look.
     var lutIntensity: Float? = nil
+    /// Allocated at the first durable still checkpoint. Older manifests have no number.
+    var fileNumber: Int? = nil
     var resolvedLUTIntensity: Float { lutIntensity ?? 1 }
 
     var requiresRawLUT: Bool { raw?.requiresRawLUT == true }
 
     func withPhotoDisplayTime(_ time: Double?) -> Self {
-        Self(id: id, captureDate: captureDate, filterName: filterName, displayLabel: displayLabel,
-            focalLength: focalLength, outputQuality: outputQuality, profile: profile, grainSeed: grainSeed,
-            location: location, lutDimension: lutDimension, chromaticSceneCCT: chromaticSceneCCT,
-            photoDisplayTime: time, raw: raw, plan: plan, materialSHA256: materialSHA256,
-            colorAdjustment: colorAdjustment, frozenChromaticGain: frozenChromaticGain,
-            preservesSourceFocalLength: preservesSourceFocalLength, lutIntensity: lutIntensity)
+        var copy = self
+        copy.photoDisplayTime = time
+        return copy
     }
 }
 
@@ -165,6 +165,23 @@ struct CaptureJournal: Sendable {
         case .importantUsage:
             return try volume.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
                 .volumeAvailableCapacityForImportantUsage
+        }
+    }
+
+    private static let numberLock = OSAllocatedUnfairLock()
+    private static let counterFilename = "last-photo-number.json"
+
+    /// Journal instances share a single writer in the app process. Commit the number
+    /// before publishing its job so a crash can skip a number but cannot reuse it.
+    private func nextFileNumber() throws -> Int {
+        try Self.numberLock.withLock {
+            let url = root.appendingPathComponent(Self.counterFilename)
+            let last: Int
+            do { last = try JSONDecoder().decode(Int.self, from: Data(contentsOf: url)) }
+            catch CocoaError.fileReadNoSuchFile { last = 0 }
+            guard last >= 0, last < Int.max else { throw JournalError.invalidJob }
+            try write(JSONEncoder().encode(last + 1), to: url)
+            return last + 1
         }
     }
 
@@ -312,7 +329,12 @@ struct CaptureJournal: Sendable {
         let suffix = imageSource.map { RawFilmRenderer.isDNG($0) } == true ? "dng"
             : (type.flatMap { UTType($0 as String)?.preferredFilenameExtension } ?? "image")
         let exportDirectory = try ShareExportDirectory.application.create()
-        let destination = exportDirectory.appendingPathComponent("OOO-Recovered-\(current.captureID.uuidString.prefix(8)).\(suffix)")
+        let manifest = source.deletingLastPathComponent().appendingPathComponent("manifest.json")
+        let job = (try? Data(contentsOf: manifest)).flatMap { try? JSONDecoder().decode(CaptureJob.self, from: $0) }
+        let number = job?.formatVersion == 1 && job?.id == current.captureID ? job?.recipe.fileNumber : nil
+        let stem = number.map(CaptureFilename.stem(number:)) ?? "OOO-Recovered-\(current.captureID.uuidString.prefix(8))"
+        let destination = exportDirectory.appendingPathComponent(stem)
+            .appendingPathExtension(CaptureFilename.normalizedExtension(suffix))
         do { try FileManager.default.copyItem(at: source, to: destination) }
         catch {
             try? FileManager.default.removeItem(at: exportDirectory)
@@ -430,6 +452,12 @@ struct CaptureJournal: Sendable {
             if !fm.fileExists(atPath: destination.path) { try fm.copyItem(at: movieURL, to: destination) }
             try fm.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: destination.path)
         }
+        do { frozenRecipe.fileNumber = try nextFileNumber() }
+        catch {
+            // Retain the original even if numbering is unavailable.
+            Log.save.error("capture_file_number_failed id=\(recipe.id) error=\(error.localizedDescription, privacy: .public)")
+            frozenRecipe.fileNumber = nil
+        }
         let job = CaptureJob(recipe: frozenRecipe, hasSourceMovie: movieURL != nil,
             awaitingCaptureCompletion: awaitingCaptureCompletion ? true : nil, pendingMovieURL: pendingMovieURL,
             deferredPhoto: deferredPhoto)
@@ -504,9 +532,9 @@ struct CaptureJournal: Sendable {
         try write(data, to: file("rendered.image", for: id))
     }
 
-    // PhotoKit may rename the proxy resource when it develops the original. Persist
-    // the actual asset identity inside the creation transaction, before adding pixels.
-    func recordProxyPlaceholder(_ identifier: String?, for id: UUID) throws {
+    // Record PhotoKit identity before attaching any resources. Keep the original
+    // receipt path so proxies created by older versions can resume after an update.
+    func recordAssetPlaceholder(_ identifier: String?, for id: UUID) throws {
         let url = file("proxy-asset.json", for: id)
         if let identifier {
             try write(JSONEncoder().encode(identifier), to: url)
@@ -515,10 +543,16 @@ struct CaptureJournal: Sendable {
         }
     }
 
-    func proxyPlaceholder(for id: UUID) throws -> String? {
+    func assetPlaceholder(for id: UUID) throws -> String? {
         let url = file("proxy-asset.json", for: id)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return try JSONDecoder().decode(String.self, from: Data(contentsOf: url))
+        do { return try JSONDecoder().decode(String.self, from: Data(contentsOf: url)) }
+        catch CocoaError.fileReadNoSuchFile { return nil }
+    }
+
+    func assetPlaceholders(for ids: Set<UUID>) throws -> [UUID: String] {
+        var receipts: [UUID: String] = [:]
+        for id in ids { receipts[id] = try assetPlaceholder(for: id) }
+        return receipts
     }
 
     func finalizeDeferredPhoto(_ data: Data, for id: UUID) throws -> CaptureJob {
@@ -555,7 +589,7 @@ struct CaptureJournal: Sendable {
         if FileManager.default.fileExists(atPath: root.path) {
             let children = try FileManager.default.contentsOfDirectory(at: root,
                 includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey])
-            for child in children {
+            for child in children where child.lastPathComponent != Self.counterFilename {
                 directories[child.lastPathComponent] = try Self.bytes(at: child)
             }
         }

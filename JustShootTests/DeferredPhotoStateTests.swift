@@ -44,15 +44,15 @@ final class DeferredPhotoStateTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: journal.root) }
         _ = try journal.stage(recipe: recipe, imageData: Data([1]), movieURL: nil, lut: lut,
             deferredPhoto: DeferredPhotoState(width: 48, height: 36))
-        XCTAssertNil(try journal.proxyPlaceholder(for: recipe.id))
-        try journal.recordProxyPlaceholder("photos-source", for: recipe.id)
+        XCTAssertNil(try journal.assetPlaceholder(for: recipe.id))
+        try journal.recordAssetPlaceholder("photos-source", for: recipe.id)
         let restored = CaptureJournal(root: journal.root)
-        XCTAssertEqual(try restored.proxyPlaceholder(for: recipe.id), "photos-source")
+        XCTAssertEqual(try restored.assetPlaceholder(for: recipe.id), "photos-source")
         XCTAssertNil(try restored.job(for: recipe.id).deferredPhoto?.assetIdentifier)
         try Data([0]).write(to: restored.file("proxy-asset.json", for: recipe.id))
-        XCTAssertThrowsError(try restored.proxyPlaceholder(for: recipe.id))
-        try restored.recordProxyPlaceholder(nil, for: recipe.id)
-        XCTAssertNil(try restored.proxyPlaceholder(for: recipe.id))
+        XCTAssertThrowsError(try restored.assetPlaceholder(for: recipe.id))
+        try restored.recordAssetPlaceholder(nil, for: recipe.id)
+        XCTAssertNil(try restored.assetPlaceholder(for: recipe.id))
     }
 
     func testProxyCannotEnterTheLiveMoviePipeline() throws {

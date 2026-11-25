@@ -53,7 +53,6 @@ enum PhotoDeletionPolicy {
 enum PhotoLibrary {
     private static let albumTitle = "OOO"
     private static let legacyAlbumTitle = "JustShoot"
-    private static let captureFilenamePrefix = "OOO_"
     private static let legacyCaptureFilenamePrefix = "JustShoot_"
 
     // MARK: - 授权（读写）
@@ -77,13 +76,30 @@ enum PhotoLibrary {
         return s == .authorized || s == .limited
     }
 
-    private static func captureFilename(_ id: UUID, imageData: Data) -> String {
-        let source = CGImageSourceCreateWithData(imageData as CFData, nil)
-        let type = source.flatMap { CGImageSourceGetType($0) } as String?
-        return "\(captureFilenamePrefix)\(id.uuidString)." + (type == "public.jpeg" ? "jpg" : "heic")
+    private static func imageOptions(data: Data, stem: String?, isProxy: Bool = false) -> PHAssetResourceCreationOptions {
+        let options = PHAssetResourceCreationOptions()
+        let source = CGImageSourceCreateWithData(data as CFData, nil)
+        let type = source.flatMap { CGImageSourceGetType($0) }.flatMap { UTType($0 as String) }
+        if !isProxy, let type {
+            if #available(iOS 26, *) { options.contentType = type }
+            else { options.uniformTypeIdentifier = type.identifier }
+        }
+        // An opaque deferred proxy develops into the camera's HEIC original.
+        let ext = type?.preferredFilenameExtension ?? (isProxy ? "heic" : nil)
+        if let stem, let ext { options.originalFilename = "\(stem).\(CaptureFilename.normalizedExtension(ext))" }
+        return options
     }
 
-    private static func captureIdentifier(of asset: PHAsset) -> UUID? {
+    static func stillFilename(id: String) -> String? {
+        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject,
+              let resource = PHAssetResource.assetResources(for: asset).first(where: {
+                  $0.type == .photo || $0.type == .photoProxy
+              }) else { return nil }
+        if #available(iOS 27, *) { return resource.filename }
+        return resource.originalFilename
+    }
+
+    static func captureIdentifier(of asset: PHAsset) -> UUID? {
         let filenames = PHAssetResource.assetResources(for: asset).lazy
             .filter { $0.type == .photo || $0.type == .photoProxy }
             .compactMap { resource -> String? in
@@ -95,7 +111,7 @@ enum PhotoLibrary {
 
     static func captureIdentifier(in filenames: some Sequence<String>) -> UUID? {
         for filename in filenames {
-            guard let prefix = [captureFilenamePrefix, legacyCaptureFilenamePrefix].first(where: { filename.hasPrefix($0) }) else {
+            guard let prefix = [CaptureFilename.prefix, legacyCaptureFilenamePrefix].first(where: { filename.hasPrefix($0) }) else {
                 continue
             }
             let stem = (filename as NSString).deletingPathExtension
@@ -139,55 +155,45 @@ enum PhotoLibrary {
         longitude: Double?,
         altitude: Double?,
         locationTimestamp: Date?,
-        captureID: UUID? = nil
+        captureID: UUID? = nil,
+        fileNumber: Int? = nil,
+        journal: CaptureJournal? = nil,
+        pairedVideo: URL? = nil
     ) async throws -> String {
         let trace = DiagnosticTrace(id: captureID?.uuidString ?? "legacy-photo-export")
         try await ensureAuthorized(trace: trace)
-        if let captureID, let existing = findCapture(id: captureID, creationDate: creationDate) { return existing }
-        // 相簿创建已串行化（见 ensureAlbumIdentifier）。创建失败不阻塞照片保存——资产仍正常
-        // 入库（app 内画廊走 SwiftData 索引）。
+        let receipt = try captureID.flatMap { try journal?.assetPlaceholder(for: $0) }
+        if let existing = try existingCapture(receipt: receipt, legacyID: fileNumber == nil ? captureID : nil,
+                                              creationDate: creationDate) { return existing }
         let albumLookup = trace.span("photos_album_lookup")
         let albumID = try? await ensureAlbumIdentifier()
         albumLookup.end(albumID == nil ? "no_album" : "ok")
 
-        let idBox = Box<String?>(nil)
-        let albumMissingBox = Box(false)
         let transaction = trace.span("photos_transaction")
-        var transactionStatus = "error"
-        defer { transaction.end(transactionStatus) }
-        try await PHPhotoLibrary.shared().performChanges {
-            let creation = PHAssetCreationRequest.forAsset()
+        var status = "error"
+        defer { transaction.end(status) }
+        let stem = CaptureFilename.stem(id: captureID, number: fileNumber)
+        let albumMissing = Box(false)
+        let id = try await createAsset(recordPlaceholder: { identifier in
+            if let journal, let captureID { try journal.recordAssetPlaceholder(identifier, for: captureID) }
+        }) { creation, placeholder in
             creation.creationDate = creationDate
-
-            if let lat = latitude, let lon = longitude {
-                creation.location = CLLocation(
-                    coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                    altitude: altitude ?? 0,
-                    horizontalAccuracy: 10,
-                    verticalAccuracy: 10,
-                    timestamp: locationTimestamp ?? creationDate
-                )
+            if let latitude, let longitude {
+                creation.location = CLLocation(coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+                    altitude: altitude ?? 0, horizontalAccuracy: 10, verticalAccuracy: 10,
+                    timestamp: locationTimestamp ?? creationDate)
             }
-
-            let options = PHAssetResourceCreationOptions()
-            // 用 CGImageSource 探测真实 UTI（HEIC/JPEG）。硬编码 "public.jpeg" 会让 HEIC 触发
-            // PHPhotosErrorDomain 3302（data 与声明 UTI 不一致）。
-            if let src = CGImageSourceCreateWithData(imageData as CFData, nil),
-               let uti = CGImageSourceGetType(src) {
-                options.uniformTypeIdentifier = uti as String
+            creation.addResource(with: .photo, data: imageData, options: imageOptions(data: imageData, stem: stem))
+            if let pairedVideo {
+                let options = PHAssetResourceCreationOptions()
+                options.originalFilename = stem.map { $0 + ".MOV" }
+                // The journal retains the movie until the index also commits.
+                creation.addResource(with: .pairedVideo, fileURL: pairedVideo, options: options)
             }
-            if let captureID { options.originalFilename = captureFilename(captureID, imageData: imageData) }
-            creation.addResource(with: .photo, data: imageData, options: options)
-
-            guard let placeholder = creation.placeholderForCreatedAsset else { return }
-            idBox.value = placeholder.localIdentifier
-
-            addToAlbum(placeholder: placeholder, albumID: albumID, albumMissing: albumMissingBox)
+            addToAlbum(placeholder: placeholder, albumID: albumID, albumMissing: albumMissing)
         }
-        if albumMissingBox.value { await invalidateAlbumCache(matching: albumID) }
-
-        guard let id = idBox.value else { throw PhotoLibraryError.saveFailed }
-        transactionStatus = "ok"
+        if albumMissing.value { await invalidateAlbumCache(matching: albumID) }
+        status = "ok"
         return id
     }
 
@@ -196,29 +202,39 @@ enum PhotoLibrary {
     static func saveDeferredProxy(_ data: Data, recipe: CaptureRecipe, reservedAsset: String? = nil,
                                   recordPlaceholder: @escaping @Sendable (String?) throws -> Void = { _ in }) async throws -> String {
         try await ensureAuthorized()
-        if let reservedAsset {
-            if PHAsset.fetchAssets(withLocalIdentifiers: [reservedAsset], options: nil).firstObject != nil { return reservedAsset }
+        if let existing = try existingCapture(receipt: reservedAsset, legacyID: recipe.fileNumber == nil ? recipe.id : nil,
+                                              creationDate: recipe.captureDate) { return existing }
+        let stem = CaptureFilename.stem(id: recipe.id, number: recipe.fileNumber)
+        return try await createAsset(recordPlaceholder: recordPlaceholder) { creation, _ in
+            creation.creationDate = recipe.captureDate
+            creation.location = recipe.location?.location
+            creation.addResource(with: .photoProxy, data: data, options: imageOptions(data: data, stem: stem, isProxy: true))
+        }
+    }
+
+    private static func existingCapture(receipt: String?, legacyID: UUID?, creationDate: Date) throws -> String? {
+        if let receipt {
+            if PHAsset.fetchAssets(withLocalIdentifiers: [receipt], options: nil).firstObject != nil { return receipt }
             if PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited { throw PhotoLibraryError.inaccessibleAssets }
         }
-        if let existing = findCapture(id: recipe.id, creationDate: recipe.captureDate) { return existing }
+        return legacyID.flatMap { findCapture(id: $0, creationDate: creationDate) }
+    }
+
+    /// A receipt survives a process exit between the Photos commit and the SwiftData save.
+    private static func createAsset(recordPlaceholder: @escaping @Sendable (String?) throws -> Void,
+                                    configure: @escaping @Sendable (PHAssetCreationRequest, PHObjectPlaceholder) -> Void) async throws -> String {
         let result = Box<String?>(nil)
         let recordingFailure = Box<(any Error)?>(nil)
         do {
             try await PHPhotoLibrary.shared().performChanges {
                 let creation = PHAssetCreationRequest.forAsset()
-                guard let id = creation.placeholderForCreatedAsset?.localIdentifier else { return }
-                do { try recordPlaceholder(id) }
+                guard let placeholder = creation.placeholderForCreatedAsset else { return }
+                do { try recordPlaceholder(placeholder.localIdentifier) }
                 catch { recordingFailure.value = error; return }
-                creation.creationDate = recipe.captureDate
-                creation.location = recipe.location?.location
-                let options = PHAssetResourceCreationOptions()
-                options.originalFilename = captureFilename(recipe.id, imageData: data)
-                creation.addResource(with: .photoProxy, data: data, options: options)
-                result.value = id
+                result.value = placeholder.localIdentifier
+                configure(creation, placeholder)
             }
         } catch {
-            // PhotoKit rolled back this transaction. Its provisional ID is no longer
-            // an inaccessible asset that a future limited-library retry must preserve.
             if result.value != nil { try recordPlaceholder(nil) }
             throw recordingFailure.value ?? error
         }
@@ -276,73 +292,6 @@ enum PhotoLibrary {
         }
         if albumMissing.value { await invalidateAlbumCache(matching: albumID) }
         guard saved.value else { throw PhotoLibraryError.saveFailed }
-    }
-
-    // MARK: - 保存 Live Photo
-    //
-    // 与 save 同构，但在同一 PHAssetCreationRequest 上挂两个资源：.photo（已套 LUT 的 HEIC 字节）
-    // + .pairedVideo（已套 LUT、写好 content identifier + still-image-time 的 .mov 文件）。Photos
-    // 据两个资源里相同的 content identifier 把它们识别为一张 Live Photo。视频用 shouldMoveFile=true：
-    // 保存即移动临时文件进图库，省一次拷贝，事务结束后临时文件已不在原处（caller 的 cleanup 兜底）。
-    static func saveLivePhoto(
-        imageData: Data,
-        videoURL: URL,
-        creationDate: Date,
-        latitude: Double?,
-        longitude: Double?,
-        altitude: Double?,
-        locationTimestamp: Date?,
-        captureID: UUID? = nil,
-        moveVideo: Bool = true
-    ) async throws -> String {
-        let trace = DiagnosticTrace(id: captureID?.uuidString ?? "legacy-photo-export")
-        try await ensureAuthorized(trace: trace)
-        if let captureID, let existing = findCapture(id: captureID, creationDate: creationDate) { return existing }
-        let albumLookup = trace.span("photos_album_lookup")
-        let albumID = try? await ensureAlbumIdentifier()
-        albumLookup.end(albumID == nil ? "no_album" : "ok")
-
-        let idBox = Box<String?>(nil)
-        let albumMissingBox = Box(false)
-        let transaction = trace.span("photos_transaction")
-        var transactionStatus = "error"
-        defer { transaction.end(transactionStatus) }
-        try await PHPhotoLibrary.shared().performChanges {
-            let creation = PHAssetCreationRequest.forAsset()
-            creation.creationDate = creationDate
-
-            if let lat = latitude, let lon = longitude {
-                creation.location = CLLocation(
-                    coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                    altitude: altitude ?? 0,
-                    horizontalAccuracy: 10,
-                    verticalAccuracy: 10,
-                    timestamp: locationTimestamp ?? creationDate
-                )
-            }
-
-            let photoOptions = PHAssetResourceCreationOptions()
-            if let src = CGImageSourceCreateWithData(imageData as CFData, nil),
-               let uti = CGImageSourceGetType(src) {
-                photoOptions.uniformTypeIdentifier = uti as String
-            }
-            if let captureID { photoOptions.originalFilename = captureFilename(captureID, imageData: imageData) }
-            creation.addResource(with: .photo, data: imageData, options: photoOptions)
-
-            let videoOptions = PHAssetResourceCreationOptions()
-            videoOptions.shouldMoveFile = moveVideo
-            creation.addResource(with: .pairedVideo, fileURL: videoURL, options: videoOptions)
-
-            guard let placeholder = creation.placeholderForCreatedAsset else { return }
-            idBox.value = placeholder.localIdentifier
-
-            addToAlbum(placeholder: placeholder, albumID: albumID, albumMissing: albumMissingBox)
-        }
-        if albumMissingBox.value { await invalidateAlbumCache(matching: albumID) }
-
-        guard let id = idBox.value else { throw PhotoLibraryError.saveFailed }
-        transactionStatus = "ok"
-        return id
     }
 
     /// 在 performChanges 事务内把新资产加入相簿。相簿不可用时只保存照片。
@@ -479,19 +428,12 @@ enum PhotoLibrary {
     // 新旧相簿内资产的轻量信息（identifier / 创建时间 / 是否 Live）。与剪枝同一安全
     // 前提：仅在完整 .authorized 时返回，.limited 下相簿 fetch 可能不完整、不可作为对账输入；
     // 相簿不存在返回空数组。同步 fetch，可在后台 @ModelActor 上直接调。
-    static func albumAssetInfo() -> [(id: String, creationDate: Date?, isLivePhoto: Bool, captureID: UUID?)]? {
+    static func albumAssetSnapshots() -> [PHFetchResult<PHAsset>]? {
         guard PHPhotoLibrary.authorizationStatus(for: .readWrite) == .authorized else { return nil }
-        var seen = Set<String>()
-        var result: [(id: String, creationDate: Date?, isLivePhoto: Bool, captureID: UUID?)] = []
         // 先查旧相簿。若并发更名发生在两次查询之间，同一个相簿仍至少可见一次。
-        for title in [legacyAlbumTitle, albumTitle] {
-            guard let album = findAlbum(titled: title) else { continue }
-            PHAsset.fetchAssets(in: album, options: nil).enumerateObjects { asset, _, _ in
-                let id = asset.localIdentifier
-                guard seen.insert(id).inserted else { return }
-                result.append((id, asset.creationDate, asset.mediaSubtypes.contains(.photoLive), captureIdentifier(of: asset)))
-            }
+        return [legacyAlbumTitle, albumTitle].compactMap { title in
+            guard let album = findAlbum(titled: title) else { return nil }
+            return PHAsset.fetchAssets(in: album, options: nil)
         }
-        return result
     }
 }

@@ -1,5 +1,6 @@
 import XCTest
 import SwiftData
+import UIKit
 @testable import JustShoot
 
 @MainActor
@@ -11,6 +12,28 @@ final class CaptureRecoveryTests: XCTestCase {
             focalLength: 28, outputQuality: 0.8, profile: FilmPreset.fujiC200.renderProfile,
             grainSeed: 1, location: nil, lutDimension: lut.dimension, chromaticSceneCCT: nil, photoDisplayTime: nil)
         return (journal, recipe, lut)
+    }
+
+    func testPendingPhotoUsesTheSameNumberForDetailsAndJPEGSharing() async throws {
+        let (journal, recipe, lut) = try fixture()
+        defer { try? FileManager.default.removeItem(at: journal.root) }
+        let original = try XCTUnwrap(UIImage(systemName: "camera")?.pngData())
+        _ = try journal.stage(recipe: recipe, imageData: original, movieURL: nil, lut: lut)
+        let photo = Photo(assetLocalIdentifier: nil, imageData: original)
+        photo.id = recipe.id
+        let file = PhotoFileReference(photo)
+        XCTAssertEqual(file.filename(localExtension: ParsedExifInfo.parse(from: original).fileFormat, journal: journal), "OOO_0001.PNG")
+        let shared = await PhotoShareExporter.export(photo, journal: journal)
+        let url = try XCTUnwrap(shared)
+        defer { ShareExportDirectory.application.remove(files: [url]) }
+        XCTAssertEqual(url.lastPathComponent, "OOO_0001.JPG")
+
+        try Data([0]).write(to: journal.file("manifest.json", for: recipe.id))
+        XCTAssertNil(file.filename(localExtension: "PNG", journal: journal))
+        try journal.finish(recipe.id)
+        XCTAssertEqual(file.filename(localExtension: "jpeg", journal: journal), "OOO_\(recipe.id.uuidString).JPG")
+        photo.assetLocalIdentifier = "saved"
+        XCTAssertNotEqual(PhotoFileReference(photo), file)
     }
 
     func testUnknownVersionIsVisibleAndItsOriginalCanBeExportedWithoutChangingIt() throws {
@@ -116,6 +139,7 @@ final class CaptureRecoveryTests: XCTestCase {
         XCTAssertEqual(issue.reason, .processingFailed)
         let export = try journal.exportOriginal(for: issue)
         defer { ShareExportDirectory.application.remove(files: [export]) }
+        XCTAssertEqual(export.lastPathComponent, "OOO_0001.PNG")
         XCTAssertEqual(try Data(contentsOf: export), original)
         try journal.discardRecoveryFiles(for: issue)
         XCTAssertTrue(try journal.inventory().jobs.isEmpty)
@@ -147,6 +171,24 @@ final class CaptureRecoveryTests: XCTestCase {
         XCTAssertEqual(removed, ids)
         XCTAssertTrue(try journal.jobs().isEmpty)
         XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<Photo>()).isEmpty)
+    }
+
+    func testNumberedPhotoReceiptProtectsAnIndexAliasWithAnUnreadableManifest() async throws {
+        let (journal, recipe, lut) = try fixture()
+        defer { try? FileManager.default.removeItem(at: journal.root) }
+        _ = try journal.stage(recipe: recipe, imageData: Data([1]), movieURL: nil, lut: lut)
+        let assetID = "numbered-photo"
+        try journal.recordAssetPlaceholder(assetID, for: recipe.id)
+        try Data([0]).write(to: journal.file("manifest.json", for: recipe.id))
+        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let pipeline = CapturePipeline(journal: journal)
+        await pipeline.configure(container: container)
+        let alias = UUID()
+        let selection = await pipeline.beginDeletion(rowIDs: [alias], assetIDs: [assetID])
+        let ids = try XCTUnwrap(selection)
+        defer { pipeline.endDeletion(ids) }
+        XCTAssertEqual(Set(ids), [alias, recipe.id])
     }
 
     func testDeferredSourceAssetProtectsTheCaptureBeforeItsFilmAdjustmentCommits() throws {

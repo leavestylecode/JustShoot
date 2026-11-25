@@ -639,7 +639,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                     Task { await pipeline.retryPending() }
                 }
             let phase = pipeline.$phases.sink { phases in
-                if verifyDeferred, phases[id] == .saving { proxyPlaceholder = try? journal.proxyPlaceholder(for: id) }
+                if verifyDeferred, phases[id] == .saving { proxyPlaceholder = try? journal.assetPlaceholder(for: id) }
                 if verifyDelivery, phases[id] == .saving, checkpointFile == nil {
                     checkpointFile = try? FileHandle(forReadingFrom: journal.file("rendered.image", for: id))
                 }
@@ -707,7 +707,8 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                 job.rendered = true
                 try journal.update(job)
                 let asset = try await PhotoLibrary.save(imageData: bytes, creationDate: second.captureDate,
-                    latitude: nil, longitude: nil, altitude: nil, locationTimestamp: nil, captureID: second.id)
+                    latitude: nil, longitude: nil, altitude: nil, locationTimestamp: nil, captureID: second.id,
+                    fileNumber: job.recipe.fileNumber, journal: journal)
                 let state = RestartState(pid: ProcessInfo.processInfo.processIdentifier, original: id, saved: second.id, asset: asset)
                 try JSONEncoder().encode(state).write(to: Self.restartDirectory.appendingPathComponent("state.json"), options: .atomic)
                 print("physical_restart_staged jobs=2 original_checkpoint=true photos_committed=true")
@@ -841,6 +842,9 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         let state = try JSONDecoder().decode(RestartState.self, from: Data(contentsOf: directory.appendingPathComponent("state.json")))
         XCTAssertNotEqual(state.pid, ProcessInfo.processInfo.processIdentifier)
         let journal = CaptureJournal(root: directory.appendingPathComponent("jobs"))
+        let expectedStems = try Dictionary(uniqueKeysWithValues: journal.jobs().map { job in
+            (job.id, CaptureFilename.stem(number: try XCTUnwrap(job.recipe.fileNumber)))
+        })
         let original = try Data(contentsOf: journal.file("original.image", for: state.original))
         let existing = try Data(contentsOf: journal.file("rendered.image", for: state.saved))
         let container = try ModelContainer(for: Photo.self, CustomLUT.self,
@@ -864,19 +868,22 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         let rows = try ModelContext(container).fetch(FetchDescriptor<Photo>())
         XCTAssertEqual(Set(rows.map(\.id)), [state.original, state.saved])
         XCTAssertEqual(rows.count, 2)
-        var matches: [UUID: Int] = [:]
+        var matches: [String: Int] = [:]
         let date = try XCTUnwrap(rows.first?.timestamp)
         let options = PHFetchOptions()
         options.predicate = NSPredicate(format: "creationDate >= %@ AND creationDate <= %@",
             date.addingTimeInterval(-2) as NSDate, date.addingTimeInterval(2) as NSDate)
         PHAsset.fetchAssets(with: .image, options: options).enumerateObjects { asset, _, _ in
-            let filenames = PHAssetResource.assetResources(for: asset).map(\.originalFilename)
-            if let id = PhotoLibrary.captureIdentifier(in: filenames) { matches[id, default: 0] += 1 }
+            if let filename = PhotoLibrary.stillFilename(id: asset.localIdentifier) {
+                matches[(filename as NSString).deletingPathExtension, default: 0] += 1
+            }
         }
         let rendered = try XCTUnwrap(renderedFile).readToEnd()
         for row in rows {
-            XCTAssertEqual(matches[row.id], 1)
+            let stem = try XCTUnwrap(expectedStems[row.id])
+            XCTAssertEqual(matches[stem], 1)
             let assetID = try XCTUnwrap(row.assetLocalIdentifier)
+            XCTAssertEqual(PhotoLibrary.stillFilename(id: assetID).map { ($0 as NSString).deletingPathExtension }, stem)
             if row.id == state.saved { XCTAssertEqual(assetID, state.asset) }
             let asset = try XCTUnwrap(PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject)
             let photo = try XCTUnwrap(PHAssetResource.assetResources(for: asset).first { $0.type == .photo })
@@ -947,9 +954,13 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         let assets = Set(rows.compactMap(\.assetLocalIdentifier))
         XCTAssertEqual(assets.count, 10)
         XCTAssertEqual(PHAsset.fetchAssets(withLocalIdentifiers: Array(assets), options: nil).count, 10)
-        for row in rows {
-            XCTAssertEqual(PhotoLibrary.findCapture(id: row.id, creationDate: row.timestamp), row.assetLocalIdentifier)
+        let stems = try accepted.map { captureID in
+            let assetID = try XCTUnwrap(rows.first { $0.id == captureID }?.assetLocalIdentifier)
+            let filename = try XCTUnwrap(PhotoLibrary.stillFilename(id: assetID))
+            return (filename as NSString).deletingPathExtension
         }
+        XCTAssertEqual(Set(stems).count, accepted.count)
+        XCTAssertTrue(stems.allSatisfy { $0.hasPrefix(CaptureFilename.prefix) })
         XCTAssertTrue(try journal.jobs().isEmpty)
         print("physical_burst shots=\(rows.count) previews=\(previews.count) peak_pending=\(peakPending) pending_at_exit=\(pendingAtExit ?? 0) issue_seconds=\(issueSeconds) drain_seconds=\(ProcessInfo.processInfo.systemUptime - start)")
     }
