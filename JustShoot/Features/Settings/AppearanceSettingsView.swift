@@ -3,20 +3,18 @@ import SwiftUI
 struct AppearanceSettingsView: View {
     @AppStorage(SettingsIconStyle.key) private var iconStyle = SettingsIconStyle.standard
     @AppStorage(AppAppearance.key) private var appearance = AppAppearance.automatic
+    @AppStorage(AppAppearance.cameraKey) private var cameraAppearance = AppAppearance.automatic
     private var preferences = PageBackgroundPreferences()
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 card("Color Scheme") {
-                    Picker("Color Scheme", selection: $appearance) {
-                        ForEach(AppAppearance.allCases, id: \.self) { option in
-                            Text(option.title).tag(option)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .controlSize(.large)
-                    .labelsHidden()
+                    appearancePicker("Color Scheme", selection: $appearance)
+                }
+
+                card("Camera Appearance") {
+                    appearancePicker("Camera Appearance", selection: $cameraAppearance)
                 }
 
                 card("Settings Icons") {
@@ -45,6 +43,18 @@ struct AppearanceSettingsView: View {
         .navigationTitle("Appearance Management")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
+    }
+
+    private func appearancePicker(_ title: LocalizedStringKey, selection: Binding<AppAppearance>) -> some View {
+        Picker(title, selection: selection) {
+            ForEach(AppAppearance.allCases, id: \.self) { option in
+                Text(option.title).tag(option)
+            }
+        }
+        .pickerStyle(.segmented)
+        .controlSize(.large)
+        .labelsHidden()
+        .accessibilityLabel(Text(title))
     }
 
     private var iconPreview: some View {

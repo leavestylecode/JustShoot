@@ -159,6 +159,7 @@ private struct CameraPickerCard<Content: View>: View {
     @ViewBuilder var content: Content
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: style == .iPadOverlay ? 12 : 10, style: .continuous)
@@ -168,7 +169,7 @@ private struct CameraPickerCard<Content: View>: View {
                 .frame(width: size, height: size)
                 .clipShape(shape)
                 .overlay {
-                    shape.strokeBorder(isSelected ? Color.yellow : .white.opacity(0.10),
+                    shape.strokeBorder(isSelected ? CameraPalette.accent(for: colorScheme) : .primary.opacity(0.10),
                         lineWidth: isSelected ? (style == .iPadOverlay ? 1.5 : 2) : 0.5)
                 }
                 .rotationEffect(contentRotation)
@@ -183,6 +184,7 @@ private struct CameraPickerCard<Content: View>: View {
 }
 
 private struct FilmCurvePickerCell: View {
+    @Environment(\.colorScheme) private var colorScheme
     let curve: FilmCurve
     let isSelected: Bool
     let contentRotation: Angle
@@ -192,18 +194,24 @@ private struct FilmCurvePickerCell: View {
     let onTap: () -> Void
 
     var body: some View {
+        let foreground = CameraPalette.foreground(for: colorScheme)
         CameraPickerCard(size: size, style: style, isSelected: isSelected,
             contentRotation: contentRotation, orientation: orientation, onTap: onTap) {
             VStack(spacing: 3) {
                 Text(curve.displayName)
                     .font(.system(size: size >= 68 ? 11 : 10, weight: isSelected ? .bold : .semibold,
                         design: .rounded))
-                    .foregroundStyle(isSelected ? .yellow : .white.opacity(0.82))
+                    .foregroundStyle(isSelected ? CameraPalette.accent(for: colorScheme) : foreground.opacity(0.82))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
 
                 CurveGraphView(curve: curve, accent: accentColor)
                     .frame(height: size / 2)
+                    .background {
+                        if colorScheme == .light {
+                            RoundedRectangle(cornerRadius: 4).fill(Color(white: 0.08))
+                        }
+                    }
 
                 CurveOutputStrip(curve: curve)
                     .frame(height: 5)
@@ -212,7 +220,7 @@ private struct FilmCurvePickerCell: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background {
                 LinearGradient(
-                    colors: [isSelected ? accentColor.opacity(0.22) : .white.opacity(0.10), .white.opacity(0.035)],
+                    colors: [isSelected ? accentColor.opacity(0.22) : foreground.opacity(0.10), foreground.opacity(0.035)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -234,6 +242,7 @@ private struct FilmCurvePickerCell: View {
 }
 
 private struct CurveManagerPickerCell: View {
+    @Environment(\.colorScheme) private var colorScheme
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
     let style: CameraPickerStyle
@@ -241,6 +250,7 @@ private struct CurveManagerPickerCell: View {
     let onTap: () -> Void
 
     var body: some View {
+        let foreground = CameraPalette.foreground(for: colorScheme)
         CameraPickerCard(size: size, style: style, isSelected: false,
             contentRotation: contentRotation, orientation: orientation, onTap: onTap) {
             VStack(spacing: 5) {
@@ -252,9 +262,9 @@ private struct CurveManagerPickerCell: View {
                         .lineLimit(1)
                 }
             }
-            .foregroundStyle(.white.opacity(0.84))
+            .foregroundStyle(foreground.opacity(0.84))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.white.opacity(style == .iPadOverlay ? 0.035 : 0.07))
+            .background(foreground.opacity(style == .iPadOverlay ? 0.035 : 0.07))
         }
         .accessibilityLabel("Manage film curves")
     }
@@ -301,7 +311,7 @@ private struct FilmSourcePickerCell: View {
         ZStack {
             switch source {
             case .preset:
-                Color.white.opacity(0.05)
+                Color.primary.opacity(0.05)
                 if let image = preparedImage ?? image {
                     Image(uiImage: image)
                         .resizable()

@@ -11,6 +11,7 @@ extension View {
 }
 
 private struct CameraButtonOnlyNavigationModifier: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     let customBackButton: Bool
 
@@ -28,11 +29,13 @@ private struct CameraButtonOnlyNavigationModifier: ViewModifier {
     }
 
     private var backButton: some View {
-        Button { dismiss() } label: {
+        let tint = CameraPalette.foreground(for: colorScheme)
+        return Button { dismiss() } label: {
             Image(systemName: "chevron.left")
                 .fontWeight(.semibold)
+                .foregroundStyle(tint)
         }
-        .tint(.white)
+        .tint(tint)
         .accessibilityIdentifier("camera.back")
         .accessibilityLabel("Back")
     }

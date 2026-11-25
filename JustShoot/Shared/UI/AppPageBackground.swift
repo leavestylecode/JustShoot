@@ -2,6 +2,7 @@ import SwiftUI
 
 enum AppAppearance: String, CaseIterable {
     static let key = "appearance.mode"
+    static let cameraKey = "appearance.camera.mode"
     case automatic, light, dark
 
     var scheme: ColorScheme? {

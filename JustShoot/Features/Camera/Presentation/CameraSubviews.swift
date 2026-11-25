@@ -67,6 +67,7 @@ extension UIDeviceOrientation {
 /// **方向**：`contentRotation` 仅旋转每个选项的数字 Text，整条容器/选中胶囊位置不变,
 ///          与 iPhone Camera 横屏时"数字转向、容器不动"行为一致。
 struct FocalLengthStrip: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.horizontalSizeClass) private var sizeClass
     @ScaledMetric(relativeTo: .subheadline) private var labelScale = 1.0
     let focalInfo: DeviceFocalInfo
@@ -140,19 +141,21 @@ struct FocalLengthStrip: View {
     private func focalButton(for option: FocalLengthOption) -> some View {
         let isSelected = option == current
         let isCrop = focalInfo.isDigitalCrop(option)
+        let foreground = CameraPalette.foreground(for: colorScheme)
+        let accent = CameraPalette.accent(for: colorScheme)
 
         if axis == .vertical {
             Text(option.label)
                 .font(.system(size: 16 * min(labelScale, 1.3), weight: isSelected ? .semibold : .medium))
                 .monospacedDigit()
-                .foregroundStyle(isSelected ? .yellow : .white.opacity(isCrop ? 0.70 : 0.92))
+                .foregroundStyle(isSelected ? accent : foreground.opacity(isCrop ? 0.70 : 0.92))
                 .rotationEffect(contentRotation)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: contentRotation)
                 .frame(width: 44, height: 44)
                 .background {
                     if isSelected {
                         Circle()
-                            .fill(.white.opacity(0.10))
+                            .fill(foreground.opacity(0.10))
                             .padding(4)
                             .matchedGeometryEffect(id: "focal_selection", in: selectionNamespace)
                     }
@@ -160,9 +163,10 @@ struct FocalLengthStrip: View {
                 .contentShape(Circle())
                 .animation(.spring(duration: 0.3, bounce: 0.12), value: isSelected)
         } else {
+            let cropOpacity = colorScheme == .light ? 0.66 : 0.45
             Text(option.label)
                 .font(.system(size: horizontalLabelSize, weight: isSelected ? .bold : .medium, design: .rounded))
-                .foregroundStyle(isSelected ? .yellow : isCrop ? .white.opacity(0.45) : .white.opacity(0.78))
+                .foregroundStyle(isSelected ? accent : foreground.opacity(isCrop ? cropOpacity : 0.78))
                 // 仅旋转数字本身，胶囊背景与容器位置保持不变（横屏时数字立起来给用户看）
                 .rotationEffect(contentRotation)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: contentRotation)
@@ -171,7 +175,7 @@ struct FocalLengthStrip: View {
                     if isSelected {
                         // matchedGeometryEffect 让选中胶囊在选项间平滑滑动，对齐 iPhone Camera 体验。
                         Capsule()
-                            .fill(.yellow.opacity(0.22))
+                            .fill(accent.opacity(0.22))
                             .matchedGeometryEffect(id: "focal_selection", in: selectionNamespace)
                     }
                 }
@@ -182,6 +186,7 @@ struct FocalLengthStrip: View {
 }
 
 private struct FocalStripSurface: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
     let axis: Axis
 
     @ViewBuilder
@@ -190,9 +195,9 @@ private struct FocalStripSurface: ViewModifier {
             content.padding(.horizontal, 6).padding(.vertical, 4).cameraControlSurface()
         } else {
             content.padding(4)
-                .background(.black.opacity(0.30), in: Capsule())
+                .background(colorScheme == .light ? .white.opacity(0.76) : .black.opacity(0.30), in: Capsule())
                 .background(.ultraThinMaterial, in: Capsule())
-                .overlay(Capsule().strokeBorder(.white.opacity(0.12), lineWidth: 0.5))
+                .overlay(Capsule().strokeBorder(.primary.opacity(0.12), lineWidth: 0.5))
         }
     }
 }

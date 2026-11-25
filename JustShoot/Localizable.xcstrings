@@ -1446,6 +1446,17 @@
         }
       }
     },
+    "Camera Appearance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄页外观"
+          }
+        }
+      }
+    },
     "Camera timed out" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Capture/save waits dim the shutter; short look updates retain its brightness.
 struct CameraShutterButton: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
 
     let isCapturing: Bool
@@ -14,7 +15,9 @@ struct CameraShutterButton: View {
     private var isUnavailable: Bool { isCapturing || isPreparingFilm || !canCapture }
     // Color adjustments prepare a new LUT repeatedly. Keep that gate out of visual feedback
     // while still disabling capture until the selected look has reached the preview.
-    private var shutterColor: Color { isEnabled && !isCapturing && canCapture ? .white : .gray }
+    private var shutterColor: Color {
+        isEnabled && !isCapturing && canCapture ? CameraPalette.foreground(for: colorScheme) : .gray
+    }
     private var isWaitingForSave: Bool { !isCapturing && !isPreparingFilm && !canCapture }
     private var status: LocalizedStringKey {
         if isCapturing { return "Capturing" }
@@ -36,8 +39,14 @@ struct CameraShutterButton: View {
                     .animation(.easeInOut(duration: 0.1), value: isPressed)
                 if showsProgress {
                     ProgressView()
-                        .tint(.white)
+                        .tint(CameraPalette.foreground(for: colorScheme))
                         .accessibilityHidden(true)
+                }
+            }
+            .background {
+                if colorScheme == .light {
+                    // Keep the dark ring legible over the iPad viewfinder.
+                    Circle().fill(.white.opacity(0.9)).padding(-4)
                 }
             }
         }

@@ -79,6 +79,7 @@ struct IPadCameraLayoutGeometry {
 }
 
 struct IPadCameraBackButton: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -89,7 +90,7 @@ struct IPadCameraBackButton: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.white)
+        .foregroundStyle(CameraPalette.foreground(for: colorScheme))
         .cameraControlSurface()
         .accessibilityIdentifier("camera.back")
         .accessibilityLabel("Back")
@@ -154,6 +155,7 @@ struct IPadCameraTools<Content: View>: View {
 }
 
 struct IPadCameraLookPanel<Curves: View, Films: View>: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ViewBuilder var curves: Curves
     @ViewBuilder var films: Films
 
@@ -163,14 +165,13 @@ struct IPadCameraLookPanel<Curves: View, Films: View>: View {
             films
         }
         .padding(.vertical, IPadCameraLayoutGeometry.pickerVerticalPadding)
-        .background(.black.opacity(0.24), in: .rect(cornerRadius: 24))
+        .background(colorScheme == .light ? .white.opacity(0.76) : .black.opacity(0.24), in: .rect(cornerRadius: 24))
         .background(.ultraThinMaterial, in: .rect(cornerRadius: 24))
         .overlay {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
+                .strokeBorder(.primary.opacity(0.12), lineWidth: 0.5)
         }
         .shadow(color: .black.opacity(0.25), radius: 20, y: 6)
-        .environment(\.colorScheme, .dark)
     }
 }
 

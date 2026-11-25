@@ -16,11 +16,13 @@ struct CameraView: View {
     @ObservedObject private var filmSettings: FilmPageSettings
     /// Preserve the saved Live Photo preference; the still-photo format is automatic.
     @AppStorage("photoCaptureMode") private var captureModeValue = PhotoCaptureMode.quality.rawValue
+    @AppStorage(AppAppearance.cameraKey) private var cameraAppearance = AppAppearance.automatic
     /// 曲线目录同时提供当前选择、默认曲线显隐及用户自定义曲线。
     @EnvironmentObject private var curveLibrary: FilmCurveLibrary
     /// Picker 候选列表里需要展示用户导入的自定义 LUT；CameraView 自己持有 @Query 直接喂给 strip。
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var appColorScheme
     @Environment(\.displayScale) private var displayScale
     @Environment(\.horizontalSizeClass) private var sizeClass
     @StateObject private var cameraManager: CameraManager
@@ -87,8 +89,8 @@ struct CameraView: View {
             if isIPad { iPadBackButton }
         }
         .ignoresSafeArea(.container, edges: isIPad ? .all : [])
-        .environment(\.colorScheme, .dark)
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        .environment(\.colorScheme, cameraColorScheme)
+        .toolbarColorScheme(cameraColorScheme, for: .navigationBar)
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
         .onAppear {
@@ -256,7 +258,7 @@ struct CameraView: View {
 
     private var cameraContent: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            cameraBackground.ignoresSafeArea()
 
             Group {
                 if isIPad {
@@ -357,6 +359,10 @@ struct CameraView: View {
     }
 
     private var isIPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+    private var cameraColorScheme: ColorScheme { cameraAppearance.scheme ?? appColorScheme }
+    private var cameraBackground: Color { cameraColorScheme == .light ? .white : .black }
+    private var controlForeground: Color { CameraPalette.foreground(for: cameraColorScheme) }
+    private var controlAccent: Color { CameraPalette.accent(for: cameraColorScheme) }
 
     private var iPhoneCameraContent: some View {
         VStack(spacing: 12) {
@@ -611,10 +617,10 @@ struct CameraView: View {
             FilmSourceCoverThumbnail(source: source)
                 .frame(width: size, height: size)
                 .overlay {
-                    // 展开时给封面一个淡黄色描边，提示当前处于"切换中"状态。
+                    // 用描边标记胶片选择面板已展开。
                     if showFilmPicker {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(Color.yellow.opacity(0.85), lineWidth: 1.5)
+                            .stroke(controlAccent.opacity(0.85), lineWidth: 1.5)
                     }
                 }
                 .rotationEffect(controlRotationAngle)
@@ -627,15 +633,16 @@ struct CameraView: View {
     }
 
     private var flashControl: some View {
-        Button {
+        let tint = cameraManager.flashMode == .on ? controlAccent : controlForeground
+        return Button {
             cameraManager.toggleFlashMode()
         } label: {
             Image(systemName: cameraManager.flashMode == .on ? "bolt.fill" : "bolt.slash.fill")
-                .foregroundStyle(cameraManager.flashMode == .on ? Color.yellow : .white)
+                .foregroundStyle(tint)
                 .rotationEffect(controlRotationAngle)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
         }
-        .tint(cameraManager.flashMode == .on ? .yellow : .white)
+        .tint(tint)
         .disabled(cameraManager.readiness != .ready || coordinator.isShutterBusy)
         .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
         .accessibilityLabel(cameraManager.flashMode == .on ? Text("Flash on") : Text("Flash off"))
@@ -643,7 +650,8 @@ struct CameraView: View {
     }
 
     private var colorControl: some View {
-        Button {
+        let tint = colorControls.isVisible ? controlAccent : controlForeground
+        return Button {
             cameraManager.hapticSoft.impactOccurred()
             let visible = !colorControls.isVisible
             colorControls.setVisible(visible)
@@ -651,12 +659,12 @@ struct CameraView: View {
                 "visible=\(visible) \(colorAdjustmentDiagnosticFields)")
         } label: {
             Image(systemName: "drop.halffull")
-                .foregroundStyle(colorControls.isVisible ? Color.yellow : .white)
+                .foregroundStyle(tint)
                 .rotationEffect(controlRotationAngle)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
         }
         .buttonBorderShape(.circle)
-        .tint(colorControls.isVisible ? .yellow : .white)
+        .tint(tint)
         .disabled(coordinator.isShutterBusy)
         .accessibilityLabel("Color controls")
         .accessibilityHint("Show color controls; hiding restores Auto")
@@ -717,7 +725,8 @@ struct CameraView: View {
     }
 
     private var livePhotoControl: some View {
-        Button {
+        let tint = wantsLiveCapture ? controlAccent : controlForeground
+        return Button {
             cameraManager.hapticSoft.impactOccurred()
             let live = !wantsLiveCapture
             // Close capture admission synchronously before publishing the preference.
@@ -726,11 +735,11 @@ struct CameraView: View {
             captureModeValue = live ? PhotoCaptureMode.livePhoto.rawValue : PhotoCaptureMode.quality.rawValue
         } label: {
             Image(systemName: wantsLiveCapture ? "livephoto" : "livephoto.slash")
-                .foregroundStyle(wantsLiveCapture ? Color.yellow : .white)
+                .foregroundStyle(tint)
                 .rotationEffect(controlRotationAngle)
                 .animation(.spring(duration: 0.35, bounce: 0.15), value: cameraManager.controlsOrientation)
         }
-        .tint(wantsLiveCapture ? .yellow : .white)
+        .tint(tint)
         .disabled(cameraManager.readiness != .ready || coordinator.isShutterBusy)
         .opacity(cameraManager.readiness == .ready ? 1 : 0.45)
         .accessibilityIdentifier("camera.live_photo")
@@ -805,7 +814,7 @@ struct CameraView: View {
             )
         } else {
             // Keep unprepared controls covered without adding a loading screen to camera entry.
-            Color.black
+            cameraBackground
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Preparing camera")
                 .accessibilityIdentifier("preparation_screen")

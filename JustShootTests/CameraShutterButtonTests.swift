@@ -34,14 +34,14 @@ final class CameraShutterButtonTests: XCTestCase {
     }
 
     private func render(preparing: Bool = false, capturing: Bool = false,
-                        canCapture: Bool = true, enabled: Bool = true) throws -> UIImage {
+                        canCapture: Bool = true, enabled: Bool = true, scheme: ColorScheme = .dark) throws -> UIImage {
         let renderer = ImageRenderer(content: CameraShutterButton(
             isCapturing: capturing, isPreparingFilm: preparing,
             canCapture: canCapture, isPressed: false, action: {})
             .disabled(!enabled)
             .frame(width: 96, height: 96)
-            .background(.black)
-            .environment(\.colorScheme, .dark))
+            .background(scheme == .light ? Color.white : .black)
+            .environment(\.colorScheme, scheme))
         renderer.scale = 1
         return try XCTUnwrap(renderer.uiImage)
     }
@@ -86,5 +86,13 @@ final class CameraShutterButtonTests: XCTestCase {
             XCTAssertGreaterThan(brightness, 0.3)
             XCTAssertLessThan(brightness, 0.8)
         }
+    }
+
+    func testLightAppearanceKeepsTheShutterVisibleWhilePreparingFilm() throws {
+        let ready = try render(scheme: .light)
+        let preparing = try render(preparing: true, scheme: .light)
+        XCTAssertLessThan(try centerBrightness(ready), 0.05)
+        XCTAssertEqual(ready.pngData(), preparing.pngData())
+        XCTAssertGreaterThan(try centerBrightness(render(capturing: true, scheme: .light)), 0.3)
     }
 }
