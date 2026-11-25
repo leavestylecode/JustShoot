@@ -54,7 +54,8 @@ final class CameraPickerLayoutTests: XCTestCase {
         func page(scheme: ColorScheme) -> some View {
             NavigationStack {
                 PickerTestPage(state: state) { showsPicker in
-                    IPhoneCameraPage(showsPicker: showsPicker, reduceMotion: false) {
+                    // Sample settled control edges. The motion test covers the transition frames.
+                    IPhoneCameraPage(showsPicker: showsPicker, reduceMotion: true) {
                         Image(systemName: "bolt.slash.fill").cameraTool(compact: true)
                         Image(systemName: "drop.halffull").cameraTool(compact: true)
                     } content: {

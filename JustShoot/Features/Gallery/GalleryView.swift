@@ -59,7 +59,7 @@ struct GalleryView: View {
         .onAppear { isVisible = true }
         .onDisappear { isVisible = false }
         .navigationBarTitleDisplayMode(.inline)
-        .softScrollEdges(legacyBars: isSelecting ? [.top, .bottom] : .top)
+        .softScrollEdges()
         // 选择模式隐藏底部 tab 栏，让位给 Download / Delete 操作栏（Photos.app 一致）。
         .mainTabRoot(.photos, isHidden: isSelecting)
         .toolbar {
@@ -96,6 +96,7 @@ struct GalleryView: View {
             }
         }
         .toolbar(isSelecting ? .visible : .hidden, for: .bottomBar)
+        .floatingBottomToolbar()
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 if isSelecting {

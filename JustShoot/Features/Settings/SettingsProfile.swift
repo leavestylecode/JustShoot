@@ -96,7 +96,6 @@ private struct ProfileEditor: View {
             .appPageBackground()
             .navigationTitle("Edit Profile")
             .navigationBarTitleDisplayMode(.inline)
-            .legacySoftToolbarEdges()
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -156,8 +155,6 @@ private struct ProfileEditor: View {
                         .settingsGlassCard(cornerRadius: 24)
                         .padding(.horizontal)
                         .padding(.bottom)
-                        .frame(maxWidth: .infinity)
-                        .legacySoftBarBackground(.bottom)
                 } else {
                     Text("Your profile syncs automatically when iCloud is available.")
                         .font(.caption2)

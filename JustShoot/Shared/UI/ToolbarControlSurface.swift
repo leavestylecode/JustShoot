@@ -13,6 +13,15 @@ extension View {
             self
         }
     }
+
+    @ViewBuilder
+    func floatingBottomToolbar() -> some View {
+        if #available(iOS 26.0, *) {
+            self
+        } else {
+            toolbarBackground(.hidden, for: .bottomBar)
+        }
+    }
 }
 
 enum NavigationBackMetrics {

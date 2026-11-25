@@ -237,12 +237,13 @@ struct PhotoDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .softScrollEdges(legacyBars: chromeVisible ? [.top, .bottom] : [])
+        .softScrollEdges()
         // 详情页始终不显示底部 tab 栏。
         .toolbar(.hidden, for: .tabBar)
         // 下拉退出时把系统导航栏/底部工具栏一起隐藏，只留照片在动（与 iPhone 相册一致）。
         .toolbar(chromeVisible ? .visible : .hidden, for: .navigationBar)
         .toolbar(chromeVisible ? .visible : .hidden, for: .bottomBar)
+        .floatingBottomToolbar()
         .toolbar { navigationToolbar }
         .toolbar { bottomToolbar }
         .onAppear {

@@ -73,7 +73,7 @@ struct FilmCardDetailView: View {
                     .safeAreaBar(edge: .top, spacing: 0) { header }
                     .scrollEdgeEffectStyle(.soft, for: .top)
             } else {
-                scroll.safeAreaInset(edge: .top, spacing: 0) { header.legacySoftBarBackground(.top) }
+                scroll.safeAreaInset(edge: .top, spacing: 0) { header }
             }
         }
         .background {

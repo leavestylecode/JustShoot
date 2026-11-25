@@ -18,7 +18,6 @@ struct AppearanceSettingsView: View {
         .appPageBackground()
         .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
-        .legacySoftToolbarEdges()
         .matchingNavigationBackButton()
         .toolbar(.hidden, for: .tabBar)
     }

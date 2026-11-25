@@ -18,7 +18,6 @@ struct CapturePreferencesView: View {
         .appPageBackground()
         .navigationTitle("Preferences")
         .navigationBarTitleDisplayMode(.inline)
-        .legacySoftToolbarEdges()
         .matchingNavigationBackButton()
         .toolbar(.hidden, for: .tabBar)
     }

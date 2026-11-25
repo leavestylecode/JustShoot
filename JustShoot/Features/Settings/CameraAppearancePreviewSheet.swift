@@ -39,7 +39,6 @@ struct CameraAppearancePreviewSheet: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Camera Preview")
             .navigationBarTitleDisplayMode(.inline)
-            .legacySoftToolbarEdges()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {

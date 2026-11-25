@@ -278,7 +278,6 @@ struct CapturePreviewReview: View {
                         .accessibilityLabel("Photo preview")
                     savingOverlay
                 }
-                .legacySoftToolbarEdges()
                 .onAppear { dismisser.onDismiss = onClose }
                 .task(id: preview.id) {
                     if max(preview.image.size.width, preview.image.size.height) <= CGFloat(CapturePreviewRenderer.badgePixel) {
