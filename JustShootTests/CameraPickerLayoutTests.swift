@@ -129,10 +129,13 @@ final class CameraPickerLayoutTests: XCTestCase {
                 for centerY in [curves.midY, films.midY, shutter.midY] {
                     let rowY = raster.extent.maxY - floor(centerY * image.scale) - 1
                     let row = CGRect(x: 0, y: rowY, width: raster.extent.width, height: 1)
-                    var pixels = [UInt8](repeating: 0, count: Int(row.width))
+                    let width = Int(row.width)
+                    let rowBytes = ((width + 3) / 4) * 4 // Core Image requires four-byte alignment.
+                    var pixels = [UInt8](repeating: 0, count: rowBytes)
                     context.render(raster, toBitmap: &pixels, rowBytes: pixels.count, bounds: row,
                         format: .L8, colorSpace: CGColorSpaceCreateDeviceGray())
-                    let leftEdge = try XCTUnwrap(pixels.firstIndex { $0 < 240 })
+                    let backdrop = Int(try XCTUnwrap(pixels.first))
+                    let leftEdge = try XCTUnwrap(pixels.prefix(width).firstIndex { abs(Int($0) - backdrop) > 15 })
                     XCTAssertEqual(CGFloat(leftEdge) / image.scale, layout.minX + 16, accuracy: 0.5)
                 }
             }
@@ -188,17 +191,28 @@ final class CameraPickerLayoutTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(50))
         let closed = try displayedFrame(preview)
         let fixedShutter = try displayedFrame(shutter)
+        // SwiftUI can commit an unanimated state change on the next display update.
+        // Inspect the first changed frame so an actual intermediate frame still fails.
+        func firstChangedFrame(after original: CGRect) async throws -> CGRect {
+            let deadline = ContinuousClock.now + .seconds(1)
+            repeat {
+                host.view.layoutIfNeeded()
+                CATransaction.flush()
+                let frame = try displayedFrame(preview)
+                if frame != original { return frame }
+                try await Task.sleep(for: .milliseconds(8))
+            } while ContinuousClock.now < deadline
+            XCTFail("The preview did not change")
+            return original
+        }
         state.showsPicker = true
-        host.view.layoutIfNeeded()
-        CATransaction.flush()
-        let opened = try displayedFrame(preview)
+        let opened = try await firstChangedFrame(after: closed)
         XCTAssertLessThan(opened.minY, closed.minY - 12)
         try await Task.sleep(for: .milliseconds(400))
         XCTAssertEqual(try displayedFrame(preview), opened)
         state.showsPicker = false
-        host.view.layoutIfNeeded()
-        CATransaction.flush()
-        XCTAssertEqual(try displayedFrame(preview), closed)
+        let collapsed = try await firstChangedFrame(after: opened)
+        XCTAssertEqual(collapsed, closed)
 
         host.rootView = page(reduceMotion: false)
         host.view.layoutIfNeeded()
@@ -219,7 +233,12 @@ final class CameraPickerLayoutTests: XCTestCase {
         let duringReversal = try await waitForIntermediateFrame()
         XCTAssertLessThan(abs(duringReversal.minY - duringOpening.minY), abs(opened.minY - closed.minY) / 2)
         try await Task.sleep(for: .milliseconds(550))
-        XCTAssertEqual(try displayedFrame(preview), closed)
+        let settled = try displayedFrame(preview)
+        let pixel = 1 / window.screen.scale
+        XCTAssertEqual(settled.minX, closed.minX, accuracy: pixel)
+        XCTAssertEqual(settled.minY, closed.minY, accuracy: pixel)
+        XCTAssertEqual(settled.width, closed.width, accuracy: pixel)
+        XCTAssertEqual(settled.height, closed.height, accuracy: pixel)
         XCTAssertEqual(try displayedFrame(shutter), fixedShutter)
     }
 

@@ -25,6 +25,7 @@ struct IPhoneCameraPage<Controls: View, Content: View>: View {
                 .buttonStyle(.plain)
                 .padding(.horizontal, cameraHorizontalInset)
                 .frame(height: 52)
+                .legacySoftBarBackground(.top)
                 .offset(y: showsTopBar ? 0 : -10)
                 .opacity(showsTopBar ? 1 : 0)
                 .allowsHitTesting(showsTopBar)
@@ -92,5 +93,6 @@ struct IPhoneCameraCaptureBar<RecentPhoto: View, Shutter: View, FilmPicker: View
         .pageContentWidth(PageLayout.cameraControlsWidth)
         .padding(.top, 12)
         .padding(.bottom, 10)
+        .legacySoftBarBackground(.bottom)
     }
 }

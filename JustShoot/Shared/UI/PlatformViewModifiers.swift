@@ -1,13 +1,13 @@
 import SwiftUI
 
 extension View {
-    /// Keep content behind navigation and bottom bars softly feathered on Liquid Glass.
+    /// Soften scroll content at the toolbar edges visible on each platform.
     @ViewBuilder
-    func softScrollEdges() -> some View {
+    func softScrollEdges(legacyBars: VerticalEdge.Set = .top) -> some View {
         if #available(iOS 26.0, *) {
             scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         } else {
-            self
+            legacySoftToolbarEdges(legacyBars)
         }
     }
 

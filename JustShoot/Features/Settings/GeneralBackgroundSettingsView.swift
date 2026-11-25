@@ -50,6 +50,7 @@ struct GeneralBackgroundSettingsView: View {
         .appPageBackground()
         .navigationTitle("Page Background")
         .navigationBarTitleDisplayMode(.inline)
+        .legacySoftToolbarEdges()
         .matchingNavigationBackButton()
         .toolbar(.hidden, for: .tabBar)
     }

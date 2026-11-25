@@ -60,6 +60,8 @@ private struct MainTabRoot: ViewModifier {
                                 .padding(.horizontal, 20)
                                 .padding(.top, 6)
                                 .padding(.bottom, fitsBelowSafeArea ? -10 : 2)
+                                .frame(maxWidth: .infinity)
+                                .legacySoftBarBackground(.bottom)
                         }
                     }
             }

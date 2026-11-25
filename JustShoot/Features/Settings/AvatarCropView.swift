@@ -159,6 +159,7 @@ struct AvatarCropView: View {
                 }
             }
             .background(Color(uiColor: .systemBackground).ignoresSafeArea())
+            .legacySoftToolbarEdges()
         }
         .task(id: pendingCrop) {
             guard let selection = pendingCrop else { return }

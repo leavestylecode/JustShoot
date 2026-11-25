@@ -327,7 +327,7 @@ struct CameraView: View {
         }
         .animation(.easeOut(duration: 0.22), value: cameraManager.readiness)
         .navigationBarTitleDisplayMode(.inline)
-        .softScrollEdges()
+        .softScrollEdges(legacyBars: [])
         // 全屏相机 push 时隐藏底部 tab 栏——否则 tab 栏会压在取景器/快门之上。
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
