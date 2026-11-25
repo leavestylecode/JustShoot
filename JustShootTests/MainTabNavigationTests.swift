@@ -105,9 +105,11 @@ final class MainTabNavigationTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(20))
         }
         nav.navigationBar.layoutIfNeeded()
-        let button = try XCTUnwrap(root.navigationItem.backBarButtonItem)
-        let image = try XCTUnwrap(button.image)
-        XCTAssertEqual(button.landscapeImagePhone?.size, CGSize(width: 32, height: 32))
+        // iOS 17 draws the system indicator alongside an image on backBarButtonItem.
+        // Only the indicator may supply a glyph, even if SwiftUI replaces a bar appearance.
+        XCTAssertNil(root.navigationItem.backBarButtonItem)
+        let image = try XCTUnwrap(destination.navigationItem.standardAppearance?.backIndicatorImage)
+        XCTAssertEqual(destination.navigationItem.compactAppearance?.backIndicatorImage.size, CGSize(width: 32, height: 32))
         // Measure the visible image in the live bar. UIKit can scale a 44 pt asset down
         // to its chevron slot even when the source image reports the expected size.
         let bar = nav.navigationBar

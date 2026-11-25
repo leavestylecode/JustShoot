@@ -31,7 +31,6 @@ private struct LegacyNavigationBackButton: UIViewControllerRepresentable {
         private weak var previousItem: UINavigationItem?
         private weak var destination: UINavigationItem?
         private var originalButton: UIBarButtonItem?
-        private var installedButton: UIBarButtonItem?
         private var originalDisplayMode: UINavigationItem.BackButtonDisplayMode = .default
         private var styledScheme: ColorScheme?
         private var isVisible = false
@@ -51,6 +50,13 @@ private struct LegacyNavigationBackButton: UIViewControllerRepresentable {
             styleBackButton()
         }
 
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            // iOS 17 can finish an animated push using the outgoing indicator.
+            // Refresh the item once UIKit has made the destination current.
+            styleBackButton(refreshAfterTransition: true)
+        }
+
         override func viewDidDisappear(_ animated: Bool) {
             super.viewDidDisappear(animated)
             isVisible = false
@@ -58,26 +64,27 @@ private struct LegacyNavigationBackButton: UIViewControllerRepresentable {
         }
 
         func restore() {
-            if let previousItem, previousItem.backBarButtonItem === installedButton {
-                previousItem.backBarButtonItem = originalButton
-                if previousItem.backButtonDisplayMode == .minimal {
-                    previousItem.backButtonDisplayMode = originalDisplayMode
-                }
+            if let previousItem {
+                if previousItem.backBarButtonItem == nil { previousItem.backBarButtonItem = originalButton }
+                if previousItem.backButtonDisplayMode == .minimal { previousItem.backButtonDisplayMode = originalDisplayMode }
             }
+            restoreAppearances()
+            previousItem = nil
+            destination = nil
+            originalButton = nil
+            styledScheme = nil
+        }
+
+        private func restoreAppearances() {
             if let destination {
                 for entry in appearances where destination[keyPath: entry.key] === entry.installed {
                     destination[keyPath: entry.key] = entry.original
                 }
             }
             appearances.removeAll()
-            previousItem = nil
-            destination = nil
-            originalButton = nil
-            installedButton = nil
-            styledScheme = nil
         }
 
-        func styleBackButton() {
+        func styleBackButton(refreshAfterTransition: Bool = false) {
             guard isVisible, let navigationController else { return }
             var host = parent
             while let current = host, current.parent !== navigationController { host = current.parent }
@@ -92,25 +99,16 @@ private struct LegacyNavigationBackButton: UIViewControllerRepresentable {
                 originalDisplayMode = source.backButtonDisplayMode
                 originalButton = source.backBarButtonItem
                 source.backButtonDisplayMode = .minimal
-                hideSystemChevron(on: item, in: navigationController.navigationBar)
+                source.backBarButtonItem = nil
             }
-            guard styledScheme != colorScheme else { return }
-
-            // UIKit scales backIndicatorImage to its chevron slot. The native Back item's
-            // own image uses the full bar height and follows the item's pressed state.
-            let button = UIBarButtonItem(image: backImage(diameter: NavigationBackMetrics.diameter,
-                                                          glyph: NavigationBackMetrics.glyph),
-                landscapeImagePhone: backImage(diameter: NavigationBackMetrics.compactDiameter,
-                                               glyph: NavigationBackMetrics.compactGlyph),
-                style: .plain, target: nil, action: nil)
-            button.accessibilityLabel = originalButton?.accessibilityLabel ?? originalButton?.title
-                ?? source.backButtonTitle ?? source.title
-            installedButton = button
-            source.backBarButtonItem = button
+            let appearanceReplaced = appearances.contains { item[keyPath: $0.key] !== $0.installed }
+            guard refreshAfterTransition || styledScheme != colorScheme || appearanceReplaced else { return }
+            restoreAppearances()
+            installIndicator(on: item, in: navigationController.navigationBar)
             styledScheme = colorScheme
         }
 
-        private func hideSystemChevron(on item: UINavigationItem, in bar: UINavigationBar) {
+        private func installIndicator(on item: UINavigationItem, in bar: UINavigationBar) {
             let standard = item.standardAppearance ?? bar.standardAppearance
             let scrollEdge = item.scrollEdgeAppearance ?? bar.scrollEdgeAppearance ?? standard.copy()
             if item.scrollEdgeAppearance == nil, bar.scrollEdgeAppearance == nil {
@@ -118,15 +116,16 @@ private struct LegacyNavigationBackButton: UIViewControllerRepresentable {
             }
             let compact = item.compactAppearance ?? bar.compactAppearance ?? standard
             let compactScrollEdge = item.compactScrollEdgeAppearance ?? bar.compactScrollEdgeAppearance ?? scrollEdge
-            let empty = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).image { _ in }
-            let variants: [(AppearanceKey, UINavigationBarAppearance)] = [
-                (\.standardAppearance, standard), (\.scrollEdgeAppearance, scrollEdge),
-                (\.compactAppearance, compact), (\.compactScrollEdgeAppearance, compactScrollEdge)
+            let regularImage = backImage(diameter: NavigationBackMetrics.diameter, glyph: NavigationBackMetrics.glyph)
+            let compactImage = backImage(diameter: NavigationBackMetrics.compactDiameter, glyph: NavigationBackMetrics.compactGlyph)
+            let variants: [(AppearanceKey, UINavigationBarAppearance, UIImage)] = [
+                (\.standardAppearance, standard, regularImage), (\.scrollEdgeAppearance, scrollEdge, regularImage),
+                (\.compactAppearance, compact, compactImage), (\.compactScrollEdgeAppearance, compactScrollEdge, compactImage)
             ]
-            for (key, base) in variants {
+            for (key, base, image) in variants {
                 let original = item[keyPath: key]
                 let copy = base.copy()
-                copy.setBackIndicatorImage(empty, transitionMaskImage: empty)
+                copy.setBackIndicatorImage(image, transitionMaskImage: image)
                 item[keyPath: key] = copy
                 appearances.append((key, original, item[keyPath: key]))
             }
@@ -139,6 +138,9 @@ private struct LegacyNavigationBackButton: UIViewControllerRepresentable {
                 .resolvedColor(with: traits)
             let bounds = CGRect(x: 0, y: 0, width: diameter, height: diameter)
             let symbol = glyph.withTintColor(foreground, renderingMode: .alwaysOriginal)
+            // UIKit sizes a Back indicator by its alignment rect. Keep the full-width
+            // hit target while fitting the visible circle into the bar's chevron slot.
+            let verticalInset = diameter / 4
             return UIGraphicsImageRenderer(size: bounds.size).image { _ in
                 let outline = UIBezierPath(ovalIn: bounds.insetBy(dx: 0.25, dy: 0.25))
                 fill.withAlphaComponent(0.94).setFill()
@@ -150,6 +152,7 @@ private struct LegacyNavigationBackButton: UIViewControllerRepresentable {
                                         y: (diameter - symbol.size.height) / 2))
             }
             .withRenderingMode(.alwaysOriginal)
+            .withAlignmentRectInsets(UIEdgeInsets(top: verticalInset, left: -4, bottom: verticalInset, right: 4))
             .imageFlippedForRightToLeftLayoutDirection()
         }
     }
