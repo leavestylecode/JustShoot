@@ -146,28 +146,15 @@ struct RecentPhotosBadge: View {
             onPresentationChanged(false)
             thumbnailRevision += 1
         }) { review in
-            NavigationStack {
-                Group {
-                    switch review {
-                    case let .saved(payload, image):
-                        PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos,
-                            initialImage: image, onClose: { selectedReview = nil })
-                    case let .pending(preview):
-                        CapturePreviewReview(preview: preview, onClose: { selectedReview = nil })
-                    }
-                }
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button { selectedReview = nil } label: {
-                            Image(systemName: "xmark").fontWeight(.semibold)
-                                .toolbarControlSurface()
-                        }
-                        .accessibilityLabel("Close")
-                    }
+            PhotoReviewNavigation(onClose: { selectedReview = nil }) {
+                switch review {
+                case let .saved(payload, image):
+                    PhotoDetailView(photo: payload.startPhoto, allPhotos: payload.photos,
+                        initialImage: image, onClose: { selectedReview = nil })
+                case let .pending(preview):
+                    CapturePreviewReview(preview: preview, onClose: { selectedReview = nil })
                 }
             }
-            .tint(.white)
-            .preferredColorScheme(.dark)
         }
         .alert("Unable to open photos", isPresented: Binding(
             get: { openError != nil }, set: { if !$0 { openError = nil } }
@@ -273,7 +260,7 @@ struct CapturePreviewReview: View {
                     initialImage: initialImage, onClose: onClose)
             } else {
                 ZStack {
-                    Color.black.ignoresSafeArea()
+                    AppPageBackground()
                     ZoomablePhotoView(image: reviewImage ?? preview.image, isCurrent: true, dismisser: dismisser)
                         .accessibilityLabel("Photo preview")
                     savingOverlay

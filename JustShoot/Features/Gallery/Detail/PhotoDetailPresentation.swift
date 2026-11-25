@@ -149,25 +149,18 @@ struct PhotoDetailPresentation: UIViewControllerRepresentable {
                 // send another representable update just because its binding changed.
                 if let host = self.host { self.dismiss(host) }
             }
-            let content = NavigationStack {
+            let content = PhotoReviewNavigation(onClose: close, onInterfaceStyleChange: { [weak self] style in
+                // UIKit owns the status bar and the backing view during the gallery transition.
+                self?.host?.overrideUserInterfaceStyle = style
+            }) {
                 PhotoDetailView(photo: selection.startPhoto, allPhotos: selection.photos,
                     initialImage: initialImage, usesSystemTransition: usesSystemTransition,
                     onSelectionChanged: { [weak self] photoID in
                         if self?.presentedSelectionID == selection.id { source.currentPhotoID = photoID }
                     }, onClose: close)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(action: close) {
-                                Image(systemName: "xmark").fontWeight(.semibold).toolbarControlSurface()
-                            }
-                            .accessibilityLabel("Close")
-                        }
-                    }
             }
             .modelContainer(parent.container)
             .dynamicTypeSize(.large)
-            .tint(.white)
-            .preferredColorScheme(.dark)
             let controller = PhotoDetailHostingController(rootView: AnyView(content))
             controller.modalPresentationStyle = .fullScreen
             // Older systems use a quiet fade instead of an unrelated vertical sheet motion.
@@ -217,6 +210,33 @@ struct PhotoDetailPresentation: UIViewControllerRepresentable {
     }
 }
 
+/// Photo review is an app page even when it is opened over a separately themed camera.
+struct PhotoReviewNavigation<Content: View>: View {
+    @Environment(\.colorScheme) private var inheritedScheme
+    @AppStorage(AppAppearance.key) private var appearance = AppAppearance.automatic
+    let onClose: () -> Void
+    var onInterfaceStyleChange: (UIUserInterfaceStyle) -> Void = { _ in }
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        NavigationStack {
+            content.toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(action: onClose) {
+                        Image(systemName: "xmark").fontWeight(.semibold).toolbarControlSurface()
+                    }
+                    .accessibilityLabel("Close")
+                }
+            }
+        }
+        .tint(.primary)
+        .environment(\.colorScheme, appearance.scheme ?? inheritedScheme)
+        .onChange(of: appearance, initial: true) { _, appearance in
+            onInterfaceStyleChange(appearance.scheme.map(UIUserInterfaceStyle.init) ?? .unspecified)
+        }
+    }
+}
+
 final class PhotoPresentationAnchor: UIViewController {
     var onAppear: (() -> Void)?
 
@@ -237,7 +257,7 @@ final class PhotoDetailHostingController: UIHostingController<AnyView>, UIAdapti
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        view.backgroundColor = .systemBackground
     }
 
     static func canBeginDismissal(at point: CGPoint, in view: UIView) -> Bool {

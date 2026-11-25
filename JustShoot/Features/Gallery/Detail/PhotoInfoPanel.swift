@@ -8,6 +8,7 @@ import os
 
 // MARK: - 照片信息面板
 struct PhotoInfoPanel: View {
+    @Environment(\.colorScheme) private var colorScheme
     let photo: Photo
     /// 离主线程解析后填入；初始 .empty 让首帧显示占位（"Unknown"），解析完成再刷新。
     /// 关键：解析（CGImageSource + 元数据 copy）从前述 body 内的 @MainActor 同步路径挪到 .task
@@ -19,7 +20,7 @@ struct PhotoInfoPanel: View {
             VStack(spacing: 16) {
                 HStack {
                     Image(systemName: "calendar")
-                        .foregroundColor(.yellow)
+                        .foregroundStyle(.tint)
                     Text(photo.timestamp, format: .dateTime.year().month().day().hour().minute())
                         .font(.system(size: 14))
                     Spacer()
@@ -29,7 +30,7 @@ struct PhotoInfoPanel: View {
 
                 HStack {
                     Image(systemName: "film")
-                        .foregroundColor(.yellow)
+                        .foregroundStyle(.tint)
                     Text(photo.filmDisplayName)
                         .font(.system(size: 14, weight: .medium))
                     Spacer()
@@ -56,7 +57,7 @@ struct PhotoInfoPanel: View {
                     Divider()
                     HStack {
                         Image(systemName: "location.fill")
-                            .foregroundColor(.yellow)
+                            .foregroundStyle(.tint)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(String(format: "%.6f, %.6f", lat, lon))
                                 .font(.system(size: 13, design: .monospaced))
@@ -74,7 +75,7 @@ struct PhotoInfoPanel: View {
                     Divider()
                     HStack {
                         Image(systemName: "iphone")
-                            .foregroundColor(.yellow)
+                            .foregroundStyle(.tint)
                         Text("\(device.make) \(device.model)")
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
@@ -84,6 +85,8 @@ struct PhotoInfoPanel: View {
             }
             .padding()
         }
+        .appPageBackground()
+        .tint(colorScheme == .dark ? .yellow : .primary)
         .task(id: photo.id) {
             // 资产照片从系统相册异步取原始字节再解析；遗留照片直接读内部 blob。
             guard let data = await PhotoImage.exifData(for: photo) else { return }
@@ -107,13 +110,13 @@ private struct ExifInfoCard: View {
         VStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.system(size: 14))
-                .foregroundColor(.yellow.opacity(0.8))
+                .foregroundStyle(.tint)
             Text(title)
                 .font(.system(size: 10))
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundStyle(.secondary)
             Text(value)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.white)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }

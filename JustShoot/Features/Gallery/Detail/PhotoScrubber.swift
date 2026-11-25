@@ -123,7 +123,7 @@ struct PhotoScrubber: View {
 
 // MARK: - 缩略图 cell
 //
-// 选中态用 `scaleEffect` 放大（不影响布局栅格），并加白边、提亮 opacity。
+// 选中态用 `scaleEffect` 放大（不影响布局栅格），并加描边、提亮 opacity。
 // **关键**：旧实现切换 frame size，LazyHStack 重排，跟外层 ScrollPosition 互相干扰，
 // 滑动时整条 strip 抖动；改成 scaleEffect 后布局完全静止，只有渲染层做仿射变换。
 //
@@ -145,14 +145,14 @@ private struct ThumbnailStripCell: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } else {
-                Rectangle().fill(Color.white.opacity(0.1))
+                Rectangle().fill(.primary.opacity(0.1))
             }
         }
         .frame(width: itemSize, height: itemSize)
         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .strokeBorder(isSelected ? .white : .clear, lineWidth: 2)
+                .strokeBorder(isSelected ? Color.primary : .clear, lineWidth: 2)
         )
         .opacity(isSelected ? 1.0 : 0.5)
         .scaleEffect(isSelected ? selectedScale : 1.0)

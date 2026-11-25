@@ -68,7 +68,8 @@ final class ZoomingScrollView: UIScrollView, UIScrollViewDelegate, UIGestureReco
         self.naturalSize = naturalSize
         self.dismissController = dismiss
         super.init(frame: .zero)
-        backgroundColor = .black
+        backgroundColor = .clear
+        isOpaque = false
         delegate = self
         minimumZoomScale = 1.0
         maximumZoomScale = 4.0

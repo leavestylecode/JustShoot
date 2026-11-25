@@ -98,6 +98,50 @@ final class RecentPhotoReviewFlowTests: XCTestCase {
         try await snapshot(window, name: "recent-preview-all-photos")
     }
 
+    func testPendingPreviewUsesAppAppearanceOverAnIndependentlyDarkCamera() async throws {
+        let suite = "capture-preview-appearance-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let container = try container()
+        let sample = try XCTUnwrap(UIImage(systemName: "photo"))
+        let preview = CapturePreview(id: UUID(), filterName: "test", image: sample)
+        let window = UIWindow(windowScene: try await TestWindowScene.foreground())
+        window.overrideUserInterfaceStyle = .light
+        let root = UIHostingController(rootView: Color.black.fullScreenCover(isPresented: .constant(true)) {
+            PhotoReviewNavigation(onClose: {}) {
+                CapturePreviewReview(preview: preview, pipeline: CapturePipeline(), onClose: {})
+            }
+        }
+        .environment(\.colorScheme, .dark)
+        .defaultAppStorage(defaults)
+        .modelContainer(container))
+        window.rootViewController = root
+        window.makeKeyAndVisible()
+        defer { cleanUp(window: window, ids: []) }
+
+        try await waitFor { !self.viewports(in: window).isEmpty && root.presentedViewController?.isBeingPresented == false }
+        let viewport = try XCTUnwrap(viewports(in: window).first)
+        func brightness() throws -> UInt8 {
+            let point = CGPoint(x: window.bounds.midX, y: window.bounds.height * 0.2)
+            XCTAssertFalse(viewport.contentView.convert(viewport.contentView.bounds, to: window).contains(point))
+            let image = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).image { _ in
+                window.drawHierarchy(in: window.bounds.offsetBy(dx: -point.x, dy: -point.y), afterScreenUpdates: true)
+            }
+            var pixel = [UInt8](repeating: 0, count: 4)
+            CIContext().render(CIImage(cgImage: try XCTUnwrap(image.cgImage)), toBitmap: &pixel, rowBytes: 4,
+                               bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8,
+                               colorSpace: CGColorSpaceCreateDeviceRGB())
+            return pixel[0]
+        }
+        XCTAssertGreaterThan(try brightness(), 235)
+        defaults.set(AppAppearance.dark.rawValue, forKey: AppAppearance.key)
+        try await waitFor { viewport.traitCollection.userInterfaceStyle == .dark }
+        XCTAssertLessThan(try brightness(), 20)
+        defaults.set(AppAppearance.automatic.rawValue, forKey: AppAppearance.key)
+        try await waitFor { viewport.traitCollection.userInterfaceStyle == .light }
+        XCTAssertGreaterThan(try brightness(), 235)
+    }
+
     private func container() throws -> ModelContainer {
         try ModelContainer(for: Photo.self, CustomLUT.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))

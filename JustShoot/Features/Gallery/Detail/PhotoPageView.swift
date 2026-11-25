@@ -64,8 +64,8 @@ struct PagerImage: View {
         Group {
             if photo.isDeleted {
                 // 外部/跨视图删除与 reconcile 剪枝之间的窗口：对已删除 @Model 读持久化属性会
-                // "object has been deleted" trap，渲染层先于数组剪枝兜底成黑占位。
-                Color.black
+                // "object has been deleted" trap，渲染层先于数组剪枝兜底为空占位。
+                Color.clear
             } else if photo.isLivePhoto {
                 // Live Photo：当前页用可缩放的 PHLivePhotoView（长按播放含音轨）；displayImage 作为
                 // live 资源加载前的占位静图。
@@ -80,18 +80,11 @@ struct PagerImage: View {
                 )
             } else if let image = displayImage {
                 ZoomablePhotoView(image: image, isCurrent: isCurrent, dismisser: dismisser)
+            } else if loadFailed {
+                PhotoLoadRetry(label: "Unable to load photo") { loadAttempt += 1 }
             } else {
-                ZStack {
-                    Color.black
-                    VStack(spacing: 12) {
-                        if !loadFailed {
-                            ProgressView().controlSize(.small).tint(.white)
-                                .accessibilityLabel("Loading photo…")
-                        } else {
-                            PhotoLoadRetry(label: "Unable to load photo") { loadAttempt += 1 }
-                        }
-                    }
-                }
+                ProgressView().controlSize(.small).tint(.primary)
+                    .accessibilityLabel("Loading photo…")
             }
         }
         .onDisappear { preview = nil; asyncThumb = nil }
@@ -150,7 +143,6 @@ private struct LivePhotoPage: View {
 
     var body: some View {
         ZStack {
-            Color.black
             if let livePhoto {
                 // 可缩放 Live Photo：放进通用 ZoomingScrollView（双指缩放/双击/平移），PHLivePhotoView
                 // 自带的长按播放照常。使用 Live Photo 自身尺寸，不依赖静态占位图加载成功。
@@ -170,7 +162,7 @@ private struct LivePhotoPage: View {
                     if stillLoadFailed {
                         PhotoLoadRetry(label: "Unable to load photo") { loadAttempt += 1 }
                     } else {
-                        ProgressView().controlSize(.small).tint(.white)
+                        ProgressView().controlSize(.small).tint(.primary)
                             .accessibilityLabel("Loading photo…")
                     }
                 }
@@ -267,7 +259,7 @@ struct LiveBadge: View {
         }
         .accessibilityLabel("Live Photo")
         .font(.system(size: 12, weight: .semibold))
-        .foregroundStyle(.white)
+        .foregroundStyle(.primary)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(.ultraThinMaterial, in: Capsule())

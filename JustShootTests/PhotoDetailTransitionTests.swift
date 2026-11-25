@@ -1,3 +1,4 @@
+import CoreImage
 import XCTest
 import SwiftUI
 import SwiftData
@@ -375,6 +376,101 @@ final class PhotoDetailTransitionTests: XCTestCase {
         try container.mainContext.save()
         try await waitFor { self.photoGrid(in: root.view) == nil }
         XCTAssertEqual(root.view.traitCollection.userInterfaceStyle, .light)
+    }
+
+    func testDetailDisplaysConfiguredBackgroundBehindTheFittedPhoto() async throws {
+        let defaults = UserDefaults.standard
+        let preferences: [String: Any] = [
+            "gallery.density": 3, AppAppearance.key: AppAppearance.light.rawValue,
+            "appearance.background.enabled": false,
+            "appearance.background.style": "gradient", "appearance.background.palette": "crimson",
+            "appearance.background.origin": "top", "appearance.background.intensity": 1.0,
+            "appearance.background.range": 1.0
+        ]
+        let previousValues = preferences.keys.map { ($0, defaults.object(forKey: $0)) }
+        defer { for (key, value) in previousValues { defaults.set(value, forKey: key) } }
+        for (key, value) in preferences { defaults.set(value, forKey: key) }
+
+        let container = try ModelContainer(for: Photo.self, CustomLUT.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let sample = await FilmCardImageCache.shared.loadImage(imageName: FilmSampleScene.fuji.filename, maxPixel: 1000)
+        let photo = Photo(assetLocalIdentifier: nil, imageData: try XCTUnwrap(sample?.jpegData(compressionQuality: 0.9)))
+        let id = photo.id
+        container.mainContext.insert(photo)
+        try container.mainContext.save()
+
+        let scene = try await TestWindowScene.foreground()
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene)
+        window.overrideUserInterfaceStyle = .dark
+        func gallery(_ scheme: ColorScheme?) -> some View {
+            NavigationStack { GalleryView() }.modelContainer(container).preferredColorScheme(scheme)
+        }
+        let root = UIHostingController(rootView: gallery(.light))
+        window.rootViewController = root
+        window.makeKeyAndVisible()
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            previous?.makeKey()
+            ImageLoader.shared.removeDiskCache(for: id)
+        }
+
+        try await waitFor { self.photoGrid(in: root.view)?.numberOfItems(inSection: 0) == 1 }
+        let grid = try XCTUnwrap(photoGrid(in: root.view))
+        grid.delegate?.collectionView?(grid, didSelectItemAt: IndexPath(item: 0, section: 0))
+        try await waitFor {
+            guard let detail = root.presentedViewController as? PhotoDetailHostingController else { return false }
+            return !detail.isBeingPresented && detail.transitionCoordinator == nil
+                && PhotoDetailHostingController.photoAlignmentRect(in: detail.view) != nil
+        }
+        let detail = try XCTUnwrap(root.presentedViewController as? PhotoDetailHostingController)
+        let context = CIContext()
+        func backgroundPixel(_ name: String) throws -> [UInt8] {
+            let view = try XCTUnwrap(detail.view)
+            let fitted = try XCTUnwrap(PhotoDetailHostingController.photoAlignmentRect(in: view))
+            let navigation = try XCTUnwrap(viewControllers(in: detail).compactMap { $0 as? UINavigationController }.first)
+            let top = navigation.navigationBar.convert(navigation.navigationBar.bounds, to: view).maxY
+            XCTAssertGreaterThan(fitted.minY, top + 4)
+            let point = CGPoint(x: view.bounds.midX, y: (top + fitted.minY) / 2)
+            let snapshot = UIGraphicsImageRenderer(bounds: view.bounds).image { _ in
+                view.drawHierarchy(in: view.bounds, afterScreenUpdates: true)
+            }
+            let attachment = XCTAttachment(image: snapshot)
+            attachment.name = name
+            attachment.lifetime = .keepAlways
+            add(attachment)
+            let image = CIImage(cgImage: try XCTUnwrap(snapshot.cgImage))
+            let row = CGRect(x: floor(point.x * snapshot.scale),
+                             y: floor(image.extent.height - point.y * snapshot.scale), width: 1, height: 1)
+            var rgba = [UInt8](repeating: 0, count: 4)
+            context.render(image, toBitmap: &rgba, rowBytes: 4, bounds: row, format: .RGBA8,
+                           colorSpace: CGColorSpaceCreateDeviceRGB())
+            return rgba
+        }
+
+        XCTAssertEqual(detail.traitCollection.userInterfaceStyle, .light)
+        let light = try backgroundPixel("detail-light")
+        XCTAssertGreaterThan(Int(light[0]), 235)
+        XCTAssertGreaterThan(Int(light[2]), 235)
+        defaults.set(true, forKey: "appearance.background.enabled")
+        try await Task.sleep(for: .milliseconds(200))
+        let gradient = try backgroundPixel("detail-gradient")
+        XCTAssertGreaterThan(Int(gradient[0]) - Int(gradient[1]), 30)
+
+        defaults.set(false, forKey: "appearance.background.enabled")
+        defaults.set(AppAppearance.dark.rawValue, forKey: AppAppearance.key)
+        root.rootView = gallery(.dark)
+        try await waitFor { detail.view.traitCollection.userInterfaceStyle == .dark }
+        try await Task.sleep(for: .milliseconds(200))
+        let dark = try backgroundPixel("detail-dark")
+        XCTAssertLessThan(Int(dark[0]), 20)
+        XCTAssertLessThan(Int(dark[2]), 20)
+
+        defaults.set(AppAppearance.automatic.rawValue, forKey: AppAppearance.key)
+        window.overrideUserInterfaceStyle = .light
+        root.rootView = gallery(nil)
+        try await waitFor { detail.overrideUserInterfaceStyle == .unspecified && detail.traitCollection.userInterfaceStyle == .light }
     }
 
     func testGalleryCanScrollLastRowAboveCapsuleTabBar() async throws {

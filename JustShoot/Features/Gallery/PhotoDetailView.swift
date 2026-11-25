@@ -142,8 +142,7 @@ struct PhotoDetailView: View {
         let previewRange = PhotoDetailImagePolicy.previewRange(count: photos.count, currentIndex: currentIndex)
         let previewIDs = limitsPreviewsToCurrent ? Set(currentPhotoID.map { [$0] } ?? []) : Set(photos[previewRange].map(\.id))
         ZStack {
-            // 背景随下拉渐暗（关闭时透出底层相册的过渡感）。
-            Color.black.opacity(1 - dismissProgress * 0.6).ignoresSafeArea()
+            AppPageBackground().opacity(1 - dismissProgress * 0.6)
 
             if photos.isEmpty {
                 Text("No photos")
@@ -203,7 +202,7 @@ struct PhotoDetailView: View {
                     // 下拉时隐藏（只留照片在动）。
                     VStack {
                         Spacer()
-                        LinearGradient(colors: [.clear, .black.opacity(0.45)], startPoint: .top, endPoint: .bottom)
+                        LinearGradient(colors: [.clear, Color(uiColor: .systemBackground).opacity(0.45)], startPoint: .top, endPoint: .bottom)
                             .frame(height: 150)
                     }
                     .ignoresSafeArea()
@@ -408,7 +407,6 @@ struct PhotoDetailView: View {
                     .fontWeight(showingInfo ? .bold : .regular)
                     .toolbarControlSurface()
             }
-            .tint(showingInfo ? .yellow : .white)
             .disabled(currentPhoto == nil)
             .accessibilityLabel("Photo information")
             .popover(isPresented: $showingInfo) {
