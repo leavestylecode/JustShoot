@@ -3,10 +3,12 @@ import SwiftUI
 struct CurveGraphView: View {
     let data: CurvePreviewData
     let accent: Color
+    private let showsGrid: Bool
 
-    init(data: CurvePreviewData, accent: Color) {
+    init(data: CurvePreviewData, accent: Color, showsGrid: Bool = false) {
         self.data = data
         self.accent = accent
+        self.showsGrid = showsGrid
     }
 
     init(curve: FilmCurve, accent: Color) {
@@ -21,10 +23,20 @@ struct CurveGraphView: View {
         Canvas { context, size in
             let identity = CurveMath.identityTable
 
-            var midtoneGuide = Path()
-            midtoneGuide.move(to: CGPoint(x: size.width / 2, y: 2))
-            midtoneGuide.addLine(to: CGPoint(x: size.width / 2, y: size.height - 2))
-            context.stroke(midtoneGuide, with: .color(.white.opacity(0.07)), lineWidth: 0.5)
+            var guides = Path()
+            let divisions = showsGrid ? 4 : 2
+            for index in 1..<divisions {
+                let fraction = CGFloat(index) / CGFloat(divisions)
+                let x = 2 + (size.width - 4) * fraction
+                guides.move(to: CGPoint(x: x, y: 2))
+                guides.addLine(to: CGPoint(x: x, y: size.height - 2))
+                if showsGrid {
+                    let y = 2 + (size.height - 4) * fraction
+                    guides.move(to: CGPoint(x: 2, y: y))
+                    guides.addLine(to: CGPoint(x: size.width - 2, y: y))
+                }
+            }
+            context.stroke(guides, with: .color(.white.opacity(showsGrid ? 0.14 : 0.07)), lineWidth: 0.5)
 
             let identityPath = Self.linePath(from: identity, in: size)
             context.stroke(
@@ -127,17 +139,50 @@ struct CurveOutputStrip: View {
     }
 }
 
+extension CurvePreset {
+    var graphAccent: Color {
+        switch self {
+        case .none: Color(white: 0.82)
+        case .filmSoft: Color(red: 0.96, green: 0.70, blue: 0.32)
+        case .punch: Color(red: 1, green: 0.38, blue: 0.30)
+        case .matte: Color(red: 0.78, green: 0.66, blue: 0.52)
+        case .fadedS: Color(red: 0.88, green: 0.65, blue: 0.58)
+        case .crossProcess: Color(red: 0.92, green: 0.34, blue: 0.72)
+        }
+    }
+}
+
 struct CurveResponsePreview: View {
-    let data: CurvePreviewData
+    let preset: CurvePreset
 
     var body: some View {
-        VStack(spacing: 10) {
-            CurveGraphView(data: data, accent: .white)
-                .aspectRatio(1.5, contentMode: .fit)
-            CurveOutputStrip(data: data)
-                .frame(height: 8)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Tone Curve")
+                    .font(.headline)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Label("Read Only", systemImage: "lock")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.72))
+            }
+
+            VStack(spacing: 8) {
+                CurveGraphView(data: preset.previewData, accent: preset.graphAccent, showsGrid: true)
+                    .aspectRatio(2.2, contentMode: .fit)
+                CurveOutputStrip(data: preset.previewData).frame(height: 7)
+                HStack {
+                    Text("Shadows")
+                    Spacer()
+                    Text("Highlights")
+                }
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.72))
+            }
+            .accessibilityHidden(true)
         }
-        .padding(12)
-        .background(Color(white: 0.085), in: .rect(cornerRadius: 14))
+        .foregroundStyle(.white)
+        .padding(18)
+        .background(Color(white: 0.095), in: .rect(cornerRadius: 18))
     }
 }

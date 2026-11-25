@@ -10,22 +10,37 @@ enum FilmInputSpace: String, Codable, Sendable {
 enum PhotoCaptureMode: String, CaseIterable, Sendable {
     case quality
     case livePhoto
+    case hdr
+
+    static let hdrPreferenceKey = "photoCapture.hdrEnabled"
+    static let hdrEnabledByDefault = true
+
+    static var supportsHDR: Bool {
+        if #available(iOS 18.0, *) { return true }
+        return false
+    }
+
+    static func preferred(livePhoto: Bool, hdrEnabled: Bool) -> Self {
+        if livePhoto { return .livePhoto }
+        return hdrEnabled && supportsHDR ? .hdr : .quality
+    }
 }
 
 /// Resolved before exposure and persisted with the job. Hardware changes invalidate
 /// the admission rather than silently delivering a different source format.
 struct PhotoCapturePlan: Codable, Equatable, Sendable {
-    enum Format: String, Codable, Sendable { case appleProRAW, processed, livePhoto }
+    enum Format: String, Codable, Sendable { case appleProRAW, processed, livePhoto, hdrProRAW, processedHDR }
     let version: Int
     let format: Format
     let inputSpace: FilmInputSpace
     let approximateLook: Bool
 
-    var capturesRAW: Bool { format == .appleProRAW }
+    var capturesRAW: Bool { format == .appleProRAW || format == .hdrProRAW }
     var capturesLivePhoto: Bool { format == .livePhoto }
+    var capturesHDR: Bool { format == .hdrProRAW || format == .processedHDR }
     var isValid: Bool {
         (version == 2 && inputSpace == .displaySRGB && !approximateLook)
-            || (version == 1 && (capturesRAW || inputSpace == .displaySRGB)
+            || (version == 1 && !capturesHDR && (capturesRAW || inputSpace == .displaySRGB)
                 && (!approximateLook || inputSpace == .displaySRGB))
     }
 
@@ -35,13 +50,15 @@ struct PhotoCapturePlan: Codable, Equatable, Sendable {
         return rawRecipe.resolvedInputSpace == inputSpace && (version == 1 || rawRecipe.version == 4)
     }
 
-    static func resolve(mode: PhotoCaptureMode) -> Self {
-        // Camera capability and Photos authorization must not silently change the
-        // image development behind the same look. Keep RAW support for frozen jobs
-        // and explicit diagnostic captures; ordinary new captures use processed SDR.
-        let format: Format = mode == .livePhoto ? .livePhoto : .processed
-        // Every new look has one display-referred contract. Version 1 remains
-        // decodable solely for jobs already checkpointed by older releases.
+    static func resolve(mode: PhotoCaptureMode, deferredDelivery: Bool = false, directHDRAvailable: Bool = false) -> Self {
+        let format: Format = switch mode {
+        case .quality: .processed
+        case .livePhoto: .livePhoto
+        case .hdr where deferredDelivery: .processedHDR
+        case .hdr where directHDRAvailable: .hdrProRAW
+        case .hdr: .processed
+        }
+        // HDR also grades an SDR base with the same display-referred look.
         return Self(version: 2, format: format, inputSpace: .displaySRGB, approximateLook: false)
     }
 }

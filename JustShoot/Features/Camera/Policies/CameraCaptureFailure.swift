@@ -11,6 +11,7 @@ enum CameraCaptureFailure: String, Error, Sendable {
     case previewUnavailable = "preview_unavailable"
     case lensUnavailable = "lens_unavailable"
     case livePhotoUnavailable = "live_photo_unavailable"
+    case hdrUnavailable = "hdr_unavailable"
     case imageUnavailable = "image_unavailable"
     case deliveryTimedOut = "delivery_timed_out"
 
@@ -33,6 +34,8 @@ enum CameraCaptureFailure: String, Error, Sendable {
             String(localized: "Could not switch to this focal length. Select it again to retry.")
         case .livePhotoUnavailable:
             String(localized: "Live Photo is unavailable. Turn off Live Photo or reopen the camera to try again.")
+        case .hdrUnavailable:
+            String(localized: "HDR is unavailable at this focal length. Change focal length or turn off HDR in Settings.")
         case .imageUnavailable:
             String(localized: "Capture failed: couldn't get image data, please try again")
         case .deliveryTimedOut:

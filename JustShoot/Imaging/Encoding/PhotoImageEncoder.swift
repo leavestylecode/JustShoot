@@ -15,13 +15,21 @@ enum PhotoImageEncoder {
         colorSpace: CGColorSpace,
         legacyQuality: CGFloat? = nil,
         mode: PhotoEncodingPolicy.Mode = .automatic,
+        hdrImage: CIImage? = nil,
         cancellation: CaptureRenderCancellation? = nil
     ) -> Output? {
         guard !image.extent.isEmpty, !image.extent.isInfinite else { return nil }
+        if let hdrImage {
+            guard #available(iOS 18.0, *), hdrImage.extent == image.extent else { return nil }
+        }
         for codec in PhotoEncodingPolicy.Codec.allCases {
             guard cancellation?.isCancelled != true else { return nil }
             let decision = PhotoEncodingPolicy.decision(for: codec, legacyQuality: legacyQuality, mode: mode)
-            let options = [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: decision.quality]
+            var options: [CIImageRepresentationOption: Any] = [
+                kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: decision.quality
+            ]
+            // Core Image omits the map when the rendered scene has no HDR headroom.
+            if #available(iOS 18.0, *), let hdrImage { options[.hdrImage] = hdrImage }
             let data: Data?
             switch codec {
             case .heif10:

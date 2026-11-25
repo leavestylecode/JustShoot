@@ -77,7 +77,11 @@ final class FilmCurveLibrary: ObservableObject {
         selection = Self.validSelection(selection, curves: curves, hidden: hidden)
         // Fresh installs need an explicit selection too: a new softShoulder selection
         // must not be mistaken for its previous definition on the next launch.
-        _ = commit(curves: curves, hidden: hidden, selection: selection, order: payload?.orderedCurveIDs)
+        var order = payload?.orderedCurveIDs ?? CurvePreset.allCases.map(\.id)
+        if !order.contains(CurvePreset.fadedS.id), let fadedIndex = order.firstIndex(of: CurvePreset.matte.id) {
+            order.insert(CurvePreset.fadedS.id, at: fadedIndex + 1)
+        }
+        _ = commit(curves: curves, hidden: hidden, selection: selection, order: order)
     }
 
     var customCurves: [CustomFilmCurve] { entries.compactMap(\.customCurve) }

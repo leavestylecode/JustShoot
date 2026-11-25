@@ -31,12 +31,14 @@ enum RawFilmRenderer {
     /// tone and gamut rendering. Legacy version 3 recipes retain the DNG exposure reference
     /// and local gain map while replacing Apple's global curve with the film curve.
     static func develop(_ data: Data, recipe: RawCaptureRecipe,
+                        extendedDynamicRangeAmount: Float = 0,
                         cancellation: CaptureRenderCancellation? = nil) -> CIImage? {
         guard cancellation?.isCancelled != true, recipe.isValid,
               let source = CGImageSourceCreateWithData(data as CFData, nil),
               isDNG(source),
               let raw = CIRAWFilter(imageData: data, identifierHint: "com.adobe.raw-image") else { return nil }
         configure(raw, recipe: recipe)
+        if extendedDynamicRangeAmount > 0 { raw.extendedDynamicRangeAmount = extendedDynamicRangeAmount }
         guard cancellation?.isCancelled != true, let image = raw.outputImage else { return nil }
         return image
     }

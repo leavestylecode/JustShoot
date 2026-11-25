@@ -37,7 +37,6 @@ final class CameraManager: NSObject, ObservableObject {
     private let audioDataOutput = AVCaptureAudioDataOutput()
     nonisolated private let livePhotoBuffer = LivePhotoRollingBuffer()
     private var usesPreviewProxyBuffers = true
-    private var photoDeliveryConfiguredForLivePhoto = false
     private let previewQueue = DispatchQueue(label: "preview.lut.queue")
     /// 专用会话队列（AVCaptureSession 操作必须在同一串行队列）
     nonisolated private static let hardwareQueue = DispatchQueue(label: "camera.hardware.queue", qos: .userInitiated)
@@ -102,6 +101,7 @@ final class CameraManager: NSObject, ObservableObject {
         /// 静态图 + 动态视频两个交付物都到齐（或 didFinishCaptureFor 终结兜底）才回调一次。
         let expectsLiveMovie: Bool
         let rawFormat: CameraRAWFormat?
+        let hdr: Bool
         var previewSourceRevision: UInt64? = nil
         // —— 两个异步交付物的累积状态（仅 @MainActor 读写）——
         var stillArrived = false
@@ -131,6 +131,7 @@ final class CameraManager: NSObject, ObservableObject {
         let rotationAngle: CGFloat?
         let expectsLiveMovie: Bool
         let rawFormat: CameraRAWFormat?
+        let hdr: Bool
         let previewSourceRevision: UInt64?
         let enqueuedAt: TimeInterval
     }
@@ -149,7 +150,8 @@ final class CameraManager: NSObject, ObservableObject {
     @Published private(set) var livePhotoCaptureState = LivePhotoCaptureState(supported: false, enabled: false)
     @Published private(set) var rawCaptureFormat: CameraRAWFormat?
     @Published private(set) var usesDeferredPhotoDelivery = false
-    private var livePhotoCaptureDesired = false
+    private var photoCaptureModeDesired: PhotoCaptureMode = .quality
+    private var livePhotoCaptureDesired: Bool { photoCaptureModeDesired == .livePhoto }
     private var photoDeliveryConfigurationPending = false
     private var photoDeliveryReconciliationPending = false
     private var rawFormatsObservation: NSKeyValueObservation?
@@ -889,17 +891,21 @@ final class CameraManager: NSObject, ObservableObject {
     // MARK: - 6b. Live Photo 录音（麦克风输入 + 混音音频会话）
 
     /// Live Photo requests sound by default. Device tests can exercise silent capture explicitly.
-    func setLivePhotoAudio(live: Bool, sound: Bool = true) {
-        diagnostics.event("audio_requested", "live=\(live) sound=\(sound) permission=\(AVCaptureDevice.authorizationStatus(for: .audio).rawValue)")
-        livePhotoCaptureDesired = live && LivePhotoEncoderConfiguration.isSupported
+    func setPhotoCaptureMode(_ mode: PhotoCaptureMode, sound: Bool = true) {
+        diagnostics.event("capture_mode_requested", "mode=\(mode.rawValue) sound=\(sound) permission=\(AVCaptureDevice.authorizationStatus(for: .audio).rawValue)")
+        switch mode {
+        case .livePhoto where LivePhotoEncoderConfiguration.isSupported: photoCaptureModeDesired = .livePhoto
+        case .hdr where PhotoCaptureMode.supportsHDR: photoCaptureModeDesired = .hdr
+        default: photoCaptureModeDesired = .quality
+        }
         livePhotoAudioDesired = livePhotoCaptureDesired && sound
         reconcilePhotoDelivery()
         reconcileAudioInput()
         updateLivePhotoBuffer()
     }
 
-    /// Deferred delivery is an output-wide option. Switch it only between captures;
-    /// Live keeps a native still size while its movie uses the ordinary video buffer.
+    /// Deferred delivery is an output-wide option. Apply changes between captures
+    /// so the output can serve 24 MP stills, direct ProRAW HDR, and Live Photo.
     private func reconcilePhotoDelivery() {
         guard isCameraVisible, sessionConfigured, let device = videoCaptureDevice,
               sessionIntent.withLock({ $0.wantsRunning }) else { return }
@@ -908,14 +914,18 @@ final class CameraManager: NSObject, ObservableObject {
             return
         }
         photoDeliveryReconciliationPending = false
-        let live = livePhotoCaptureDesired
+        let mode = photoCaptureModeDesired
         let authorized = PhotoLibrary.isAuthorized
-        let enabled = CameraCapturePolicy.photoDelivery(from: device.activeFormat.supportedMaxPhotoDimensions,
-            deferredDeliverySupported: photoOutput.isAutoDeferredPhotoDeliverySupported,
-            photosAuthorized: authorized, livePhoto: live).deferred
-        let modeChanged = live != photoDeliveryConfiguredForLivePhoto || enabled != photoOutput.isAutoDeferredPhotoDeliveryEnabled
-        guard modeChanged else {
-            usesDeferredPhotoDelivery = enabled
+        let dimensions = device.activeFormat.supportedMaxPhotoDimensions
+        let deferredSupported = photoOutput.isAutoDeferredPhotoDeliverySupported
+        let (selected, enabled) = CameraCapturePolicy.photoDelivery(from: dimensions,
+            deferredDeliverySupported: deferredSupported,
+            photosAuthorized: authorized, mode: mode)
+        let configured = photoOutput.maxPhotoDimensions
+        let dimensionsChanged = selected.map { $0.width != configured.width || $0.height != configured.height } ?? false
+        // Quality and HDR can use the same processed 24 MP output.
+        guard dimensionsChanged || enabled != photoOutput.isAutoDeferredPhotoDeliveryEnabled else {
+            if usesDeferredPhotoDelivery != enabled { usesDeferredPhotoDelivery = enabled }
             return
         }
         photoDeliveryConfigurationPending = true
@@ -934,9 +944,9 @@ final class CameraManager: NSObject, ObservableObject {
         sessionQueue.async { [weak self] in
             guard let self else { return }
             if self.sessionIntent.withLock({ $0.permitsStart(generation) }) {
-                let switching = trace.span("photo_delivery_apply", "live=\(live) deferred=\(enabled)")
+                let switching = trace.span("photo_delivery_apply", "mode=\(mode.rawValue) deferred=\(enabled)")
                 captureSession.beginConfiguration()
-                self.configurePhotoDelivery(output: output, device: device, live: live, photosAuthorized: authorized)
+                self.configurePhotoDelivery(output: output, device: device, mode: mode, photosAuthorized: authorized)
                 captureSession.commitConfiguration()
                 switching.end("configured", "live_supported=\(output.isLivePhotoCaptureSupported) live_enabled=\(output.isLivePhotoCaptureEnabled) preview_proxy=\(videoOutput.deliversPreviewSizedOutputBuffers)")
             }
@@ -944,7 +954,6 @@ final class CameraManager: NSObject, ObservableObject {
                 guard self.diagnosticGeneration == generation else { return }
                 self.photoDeliveryConfigurationPending = false
                 self.usesDeferredPhotoDelivery = output.isAutoDeferredPhotoDeliveryEnabled
-                self.photoDeliveryConfiguredForLivePhoto = live
                 self.usesPreviewProxyBuffers = videoOutput.deliversPreviewSizedOutputBuffers
                 // In-flight callbacks from the old output cannot authorize the
                 // first capture in the new mode, even at the same focal length.
@@ -1144,7 +1153,7 @@ final class CameraManager: NSObject, ObservableObject {
         let initialFocal = currentFocalLength
         // 建图期挂麦克风的期望状态同样在 MainActor 上快照；快照后的变化由 reconcile 收敛。
         let audioDesired = livePhotoAudioDesired
-        let liveDesired = livePhotoCaptureDesired
+        let modeDesired = photoCaptureModeDesired
         let photosAuthorized = PhotoLibrary.isAuthorized
         let intent = sessionIntent
         let queuedAt = Log.now()
@@ -1194,7 +1203,7 @@ final class CameraManager: NSObject, ObservableObject {
                     }
 
                     trace.measure("session_format") {
-                        self.applyBestFormatAndModes(on: device, allowsDeferredDelivery: photosAuthorized && !liveDesired)
+                        self.applyBestFormatAndModes(on: device, allowsDeferredDelivery: photosAuthorized && modeDesired != .livePhoto)
                     }
                     let info = trace.measure("session_focal_info") { DeviceFocalInfo.from(virtualDevice: device) }
                     preparedFocalInfo = info
@@ -1224,14 +1233,14 @@ final class CameraManager: NSObject, ObservableObject {
                         }
 
                         // Still-photo dimensions remain independent of preview proxy size.
-                        self.configurePhotoDelivery(output: output, device: device, live: liveDesired, photosAuthorized: photosAuthorized)
+                        self.configurePhotoDelivery(output: output, device: device, mode: modeDesired, photosAuthorized: photosAuthorized)
                     }
 
                     photoSetup.end()
                     let previewSetup = trace.span("session_preview_output")
                     CameraPerformancePolicy.configurePreviewOutput(videoOutput,
                         sourceDimensions: CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription))
-                    trace.event("preview_output_policy", "strategy=\(videoOutput.automaticallyConfiguresOutputBufferDimensions ? "automatic_proxy" : "scaled_video") live=\(liveDesired)")
+                    trace.event("preview_output_policy", "strategy=\(videoOutput.automaticallyConfiguresOutputBufferDimensions ? "automatic_proxy" : "scaled_video") mode=\(modeDesired.rawValue)")
                     if captureSession.canAddOutput(videoOutput) {
                         captureSession.addOutput(videoOutput)
                         // connection 在 addOutput 后才存在；必须在 commitConfiguration 前/后任意时机设置。
@@ -1241,7 +1250,7 @@ final class CameraManager: NSObject, ObservableObject {
                     if captureSession.canAddOutput(audioOutput) { captureSession.addOutput(audioOutput) }
                     previewSetup.end()
                     if output.isAppleProRAWSupported { output.isAppleProRAWEnabled = true }
-                    self.configurePhotoDelivery(output: output, device: device, live: liveDesired, photosAuthorized: photosAuthorized)
+                    self.configurePhotoDelivery(output: output, device: device, mode: modeDesired, photosAuthorized: photosAuthorized)
                 } catch {
                     trace.event("session_configuration_error", Diagnostics.errorFields(error))
                     Log.session.error("session_setup_error error=\(error.localizedDescription, privacy: .public)")
@@ -1292,7 +1301,6 @@ final class CameraManager: NSObject, ObservableObject {
         }
         setReadiness(.waitingForFirstFrame)
         usesPreviewProxyBuffers = videoOutput.deliversPreviewSizedOutputBuffers
-        photoDeliveryConfiguredForLivePhoto = liveDesired
 
         // Back on MainActor — set up delegates and properties that need main thread
         let rotationSetup = trace.span("main_rotation_setup")
@@ -1645,11 +1653,11 @@ final class CameraManager: NSObject, ObservableObject {
     }
 
     nonisolated private func configurePhotoDelivery(output: AVCapturePhotoOutput, device: AVCaptureDevice,
-                                                   live: Bool, photosAuthorized: Bool) {
+                                                   mode: PhotoCaptureMode, photosAuthorized: Bool) {
         let supported = device.activeFormat.supportedMaxPhotoDimensions
         let (selected, deferred) = CameraCapturePolicy.photoDelivery(from: supported,
             deferredDeliverySupported: output.isAutoDeferredPhotoDeliverySupported,
-            photosAuthorized: photosAuthorized, livePhoto: live)
+            photosAuthorized: photosAuthorized, mode: mode)
         if output.isAutoDeferredPhotoDeliveryEnabled != deferred { output.isAutoDeferredPhotoDeliveryEnabled = deferred }
         if let selected, selected.width != output.maxPhotoDimensions.width
             || selected.height != output.maxPhotoDimensions.height {
@@ -1658,7 +1666,7 @@ final class CameraManager: NSObject, ObservableObject {
         let supportedText = supported.map { "\($0.width)x\($0.height)" }.joined(separator: ",")
         let selectedText = selected.map { "\($0.width)x\($0.height)" } ?? "none"
         let reason = selected == nil ? "no_supported_4_3_dimensions" : "largest_supported"
-        diagnostics.event("photo_dimensions_selected", "supported=[\(supportedText)] selected=\(selectedText) deferred=\(deferred) live=\(live) reason=\(reason)")
+        diagnostics.event("photo_dimensions_selected", "supported=[\(supportedText)] selected=\(selectedText) deferred=\(deferred) mode=\(mode.rawValue) reason=\(reason)")
     }
 
     /// A preview-only stabilization transform can move/crop the viewfinder without
@@ -2089,6 +2097,14 @@ final class CameraManager: NSObject, ObservableObject {
         if format != rawCaptureFormat { rawCaptureFormat = format }
     }
 
+    var directHDRCaptureFormat: CameraRAWFormat? {
+        guard let format = rawCaptureFormat, format.kind == .appleProRAW,
+              let device = videoCaptureDevice,
+              CameraCapturePolicy.hdrPhotoDimensions(from: device.activeFormat.supportedMaxPhotoDimensions,
+                outputMaximum: photoOutput.maxPhotoDimensions) != nil else { return nil }
+        return format
+    }
+
     /// Hardware state, not localized names or identifiers. Called only at configuration/zoom boundaries.
     nonisolated private static func deviceDiagnosticFields(_ device: AVCaptureDevice) -> String {
         let dimensions = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription)
@@ -2449,6 +2465,7 @@ final class CameraManager: NSObject, ObservableObject {
         live: Bool = false,
         raw: Bool = false,
         expectedRAWFormat: CameraRAWFormat? = nil,
+        hdr: Bool = false,
         previewFrame: CameraPreviewFrame? = nil,
         trace: DiagnosticTrace? = nil,
         onWillCapture: (() -> Void)? = nil,
@@ -2460,12 +2477,13 @@ final class CameraManager: NSObject, ObservableObject {
     ) {
         let captureTrace = trace ?? DiagnosticTrace()
         let rawFormat = raw ? CameraRAWCapturePolicy.format(output: photoOutput, zoom: videoCaptureDevice?.videoZoomFactor ?? 0) : nil
-        guard !raw || (rawFormat != nil && !live && (expectedRAWFormat == nil || expectedRAWFormat == rawFormat)) else {
+        guard (!hdr || (PhotoCaptureMode.supportsHDR && rawFormat?.kind == .appleProRAW)),
+              !raw || (rawFormat != nil && !live && (expectedRAWFormat == nil || expectedRAWFormat == rawFormat)) else {
             if let suppliedAdmission { cancelCaptureAdmission(suppliedAdmission) }
             updateRAWCaptureState()
             captureTrace.event("raw_capture_unavailable")
             onShutterReady()
-            completion(.failure(.unavailable))
+            completion(.failure(hdr ? .hdrUnavailable : .unavailable))
             return
         }
         // A requested Live Photo must not silently turn into a still when capability is lost.
@@ -2512,6 +2530,7 @@ final class CameraManager: NSObject, ObservableObject {
             onExposureComplete: onExposureComplete,
             expectsLiveMovie: wantsLive,
             rawFormat: rawFormat,
+            hdr: hdr,
             previewSourceRevision: previewFrame?.sourceRevision
         )
 
@@ -2590,7 +2609,7 @@ final class CameraManager: NSObject, ObservableObject {
             guard rawFormat == CameraRAWCapturePolicy.format(output: photoOutput, zoom: videoCaptureDevice?.videoZoomFactor ?? 0) else {
                 updateRAWCaptureState()
                 cancelCaptureAdmission(request.admission)
-                request.onShutterReady(); request.onData(.failure(.unavailable))
+                request.onShutterReady(); request.onData(.failure(request.hdr ? .hdrUnavailable : .unavailable))
                 return
             }
             settings = AVCapturePhotoSettings(rawPixelFormatType: rawFormat.pixelFormat, processedFormat: nil)
@@ -2601,7 +2620,16 @@ final class CameraManager: NSObject, ObservableObject {
         }
         // RAW stills cannot use the processed 24 MP fusion size.
         let maximum = photoOutput.maxPhotoDimensions
-        if request.rawFormat != nil, CameraCapturePolicy.requiresDeferredDelivery(maximum) {
+        if request.hdr {
+            guard !photoOutput.isAutoDeferredPhotoDeliveryEnabled, let device = videoCaptureDevice,
+                  let dimensions = CameraCapturePolicy.hdrPhotoDimensions(
+                    from: device.activeFormat.supportedMaxPhotoDimensions, outputMaximum: maximum) else {
+                cancelCaptureAdmission(request.admission)
+                request.onShutterReady(); request.onData(.failure(.hdrUnavailable))
+                return
+            }
+            settings.maxPhotoDimensions = dimensions
+        } else if request.rawFormat != nil, CameraCapturePolicy.requiresDeferredDelivery(maximum) {
             if let device = videoCaptureDevice,
                let directSize = CameraCapturePolicy.automaticPhotoDimensions(
                    from: device.activeFormat.supportedMaxPhotoDimensions, allowsDeferredDelivery: false) {
@@ -2698,7 +2726,7 @@ final class CameraManager: NSObject, ObservableObject {
         let enqueuedAt = ProcessInfo.processInfo.systemUptime
         let invocation = NativeCaptureInvocation(output: output, settings: settings,
             admission: request.admission, trace: request.trace, rotationAngle: rotationAngle,
-            expectsLiveMovie: wantsLive, rawFormat: request.rawFormat,
+            expectsLiveMovie: wantsLive, rawFormat: request.rawFormat, hdr: request.hdr,
             previewSourceRevision: request.previewSourceRevision, enqueuedAt: enqueuedAt)
         sessionQueue.async { delegate.invokeCapturePhoto(invocation) }
     }
@@ -2727,8 +2755,17 @@ final class CameraManager: NSObject, ObservableObject {
             let device = invocation.output.connection(with: .video)?.inputPorts.first?.input as? AVCaptureDeviceInput
             guard rawFormat == CameraRAWCapturePolicy.format(output: invocation.output, zoom: device?.device.videoZoomFactor ?? 0) else {
                 invocation.trace.event("capture_skip", "reason=raw_capability_changed")
-                finish(.unavailable)
+                finish(invocation.hdr ? .hdrUnavailable : .unavailable)
                 return
+            }
+            if invocation.hdr {
+                let dimensions = invocation.settings.maxPhotoDimensions
+                let maximum = invocation.output.maxPhotoDimensions
+                guard !invocation.output.isAutoDeferredPhotoDeliveryEnabled,
+                      dimensions.width <= maximum.width, dimensions.height <= maximum.height,
+                      device?.device.activeFormat.supportedMaxPhotoDimensions.contains(where: {
+                          $0.width == dimensions.width && $0.height == dimensions.height
+                      }) == true else { finish(.hdrUnavailable); return }
             }
         }
         guard !invocation.expectsLiveMovie || livePhotoBuffer.isReady else {

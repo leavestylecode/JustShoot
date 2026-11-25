@@ -18,10 +18,25 @@ enum CameraCapturePolicy {
         dimensions.width == 5712 && dimensions.height == 4284
     }
 
+    /// Bound the two full-resolution RAW developments used to render an HDR still.
+    static func hdrPhotoDimensions(from dimensions: [CMVideoDimensions],
+                                   outputMaximum maximum: CMVideoDimensions? = nil) -> CMVideoDimensions? {
+        let maxWidth = maximum?.width ?? Int32.max
+        let maxHeight = maximum?.height ?? Int32.max
+        return automaticPhotoDimensions(from: dimensions.filter {
+            $0.width <= maxWidth && $0.height <= maxHeight && pixelCount($0) <= 12_600_000
+        }, allowsDeferredDelivery: false)
+    }
+
     static func photoDelivery(from dimensions: [CMVideoDimensions], deferredDeliverySupported: Bool,
-                              photosAuthorized: Bool, livePhoto: Bool) -> (dimensions: CMVideoDimensions?, deferred: Bool) {
+                              photosAuthorized: Bool, mode: PhotoCaptureMode) -> (dimensions: CMVideoDimensions?, deferred: Bool) {
+        let canDefer = deferredDeliverySupported && photosAuthorized
+        if mode == .hdr, canDefer, let fusionSize = dimensions.first(where: requiresDeferredDelivery) {
+            return (fusionSize, true)
+        }
+        // Limit direct ProRAW at the shutter. Keep the full output size available for SDR fallback.
         let selected = automaticPhotoDimensions(from: dimensions,
-            allowsDeferredDelivery: deferredDeliverySupported && photosAuthorized && !livePhoto)
+            allowsDeferredDelivery: canDefer && mode == .quality)
         return (selected, selected.map(requiresDeferredDelivery) ?? false)
     }
 

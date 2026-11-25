@@ -18,21 +18,26 @@ final class BlockingImageWork: @unchecked Sendable {
     init(maximumConcurrentOperations: Int = 2, label: String = "com.justshoot.image-work") {
         queue = OperationQueue()
         queue.name = label
-        queue.qualityOfService = .userInitiated
+        // The queue's QoS is a floor. Give interactive requests their priority on
+        // the operation so background capture thumbnails can run at utility.
+        queue.qualityOfService = .utility
         queue.maxConcurrentOperationCount = max(1, maximumConcurrentOperations)
     }
 
-    func run<Value: Sendable>(_ work: @escaping @Sendable () -> Value?) async -> Value? {
+    func run<Value: Sendable>(_ work: @escaping @Sendable () -> Value?,
+                              qualityOfService: QualityOfService = .userInitiated) async -> Value? {
         let state = PhotoRequestState<Value>()
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 guard state.install(continuation) else { return }
-                queue.addOperation {
+                let operation = BlockOperation {
                     guard !state.isFinished else { return }
                     self.active.withLock { $0 += 1 }
                     defer { self.active.withLock { $0 -= 1 } }
                     state.finish(autoreleasepool(invoking: work))
                 }
+                operation.qualityOfService = qualityOfService
+                queue.addOperation(operation)
             }
         } onCancel: {
             _ = state.cancel()
@@ -246,14 +251,15 @@ final class ImageLoader: ObservableObject, @unchecked Sendable {
     /// 加载缩略图。调用者须在 actor 上预取 imageData/photoId，避免跨 actor 传递 SwiftData `Photo` 模型。
     /// 同 key 并发请求会被 in-flight dedup 合并——常见场景：schedulePreheat 与 ThumbnailStripCell.task
     /// 同时请求同一张 600px thumb，旧实现会双重 decode 抢 CPU。
-    func loadThumbnail(imageData: Data, photoId: UUID, maxPixel: Int) async -> UIImage? {
+    func loadThumbnail(imageData: Data, photoId: UUID, maxPixel: Int,
+                       qualityOfService: QualityOfService = .userInitiated) async -> UIImage? {
         guard !Task.isCancelled else { return nil }
         // 同 loadPreview：钳到解码下限再算 key/URL/解码尺寸，避免 88 与 96 解出同像素存两份。
         let maxPixel = max(maxPixel, 96)
         let key = "thumb_\(photoId.uuidString)_\(maxPixel)"
         if let cached = cache.object(forKey: key as NSString) { return cached }
 
-        return await requests.image(for: key) { [weak self] in
+        return await requests.image(for: key, qualityOfService: qualityOfService) { [weak self] in
             guard let self else { return nil }
             if let cached = self.cache.object(forKey: key as NSString) { return cached }
             if let url = self.thumbnailURL(for: photoId, maxPixel: maxPixel),

@@ -7,6 +7,7 @@ import XCTest
 @MainActor
 private final class CaptureCameraStub: CameraCaptureControlling {
     struct Callbacks {
+        let hdrFormat: CameraRAWFormat?
         let still: @MainActor (CaptureStill) async -> Void
         let exposed: () -> Void
         let finalStill: (Data) -> Void
@@ -63,7 +64,8 @@ private final class CaptureCameraStub: CameraCaptureControlling {
         guard let frame, frame.lutIntensity == lutIntensity else { return nil }
         return frame
     }
-    func capture(admission token: CameraCaptureAdmission.Token, live: Bool, previewFrame: CameraPreviewFrame,
+    func capture(admission token: CameraCaptureAdmission.Token, live: Bool, hdrFormat: CameraRAWFormat?,
+                 previewFrame: CameraPreviewFrame,
                  trace: DiagnosticTrace, onWillCapture: @escaping () -> Void,
                  onExposureComplete: @escaping () -> Void, onShutterReady: @escaping () -> Void,
                  onStillCaptured: @escaping @MainActor (CaptureStill) async -> Void,
@@ -71,7 +73,7 @@ private final class CaptureCameraStub: CameraCaptureControlling {
                  completion: @escaping (Result<CaptureResult, CameraCaptureFailure>) -> Void) {
         XCTAssertTrue(admission.beginPreparation(token, generation: diagnosticGeneration))
         if automaticallyIssuesCapture { XCTAssertTrue(admission.markIssued(token, generation: diagnosticGeneration)) }
-        callbacks.append(Callbacks(still: onStillCaptured, exposed: onExposureComplete, finalStill: onFinalStill, ready: {
+        callbacks.append(Callbacks(hdrFormat: hdrFormat, still: onStillCaptured, exposed: onExposureComplete, finalStill: onFinalStill, ready: {
             self.admission.release(token)
             onShutterReady()
         }, result: completion))
@@ -220,13 +222,61 @@ final class CameraCoordinatorTests: XCTestCase {
         camera.callbacks.removeAll()
     }
 
-    private func selection(live: Bool = false, lutKey: String = "film") throws -> CameraCaptureSelection {
+    func testHDRShutterFreezesProRAWFormatAndRecipeBeforeCheckpoint() async throws {
+        let camera = try CaptureCameraStub()
+        defer { camera.callbacks.removeAll() }
+        let pipeline = CapturePipelineStub()
+        let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
+        let unsupported = try selection(mode: .hdr, directHDRAvailable: true)
+        await coordinator.capture(selection: unsupported, currentLookKey: { "film" },
+            isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
+        XCTAssertEqual(coordinator.error, CameraCaptureFailure.hdrUnavailable.message)
+        XCTAssertTrue(camera.callbacks.isEmpty)
+        XCTAssertTrue(pipeline.reserved.isEmpty)
+
+        let format = CameraRAWFormat(pixelFormat: 1, kind: .appleProRAW)
+        var supported = unsupported
+        supported.hdrFormat = format
+        await coordinator.capture(selection: supported, currentLookKey: { "film" },
+            isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
+        let callbacks = try XCTUnwrap(camera.callbacks.first)
+        XCTAssertEqual(callbacks.hdrFormat, format)
+        await callbacks.still(CaptureStill(imageData: Data([1]), pendingLivePhotoMovieURL: nil))
+        let checkpoint = try XCTUnwrap(pipeline.checkpoints.first)
+        XCTAssertEqual(checkpoint.plan, unsupported.plan)
+        XCTAssertEqual(checkpoint.raw, RawCaptureRecipe(unifiedLUT: supported.lut))
+        callbacks.ready()
+        callbacks.result(.success(CaptureResult(imageData: Data([1]), livePhotoMovieURL: nil, photoDisplayTime: .invalid)))
+        XCTAssertEqual(pipeline.completed.first?.raw, checkpoint.raw)
+    }
+
+    func testDeferredHDRShutterUsesProcessedCaptureWithoutProRAW() async throws {
+        let camera = try CaptureCameraStub()
+        defer { camera.callbacks.removeAll() }
+        let pipeline = CapturePipelineStub()
+        let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
+        let hdr = try selection(mode: .hdr, deferredDelivery: true)
+        await coordinator.capture(selection: hdr, currentLookKey: { "film" },
+            isSceneActive: { true }, onAccepted: {}, onWillCapture: {})
+
+        let callbacks = try XCTUnwrap(camera.callbacks.first)
+        XCTAssertNil(callbacks.hdrFormat)
+        await callbacks.still(CaptureStill(imageData: Data([1]), pendingLivePhotoMovieURL: nil))
+        let checkpoint = try XCTUnwrap(pipeline.checkpoints.first)
+        XCTAssertEqual(checkpoint.plan?.format, .processedHDR)
+        XCTAssertNil(checkpoint.raw)
+    }
+
+    private func selection(live: Bool = false, lutKey: String = "film", mode: PhotoCaptureMode? = nil,
+                           deferredDelivery: Bool = false, directHDRAvailable: Bool = false) throws -> CameraCaptureSelection {
         let text = "LUT_3D_SIZE 2\n" + (0...1).flatMap { b in
             (0...1).flatMap { g in (0...1).map { r in "\(r) \(g) \(b)" } }
         }.joined(separator: "\n")
         let source = FilmSource.preset(.fujiC200)
         return CameraCaptureSelection(source: source, lutKey: lutKey, lut: try CubeLUT.parse(text),
-            profile: source.captureRenderProfile, adjustment: nil, plan: .resolve(mode: live ? .livePhoto : .quality),
+            profile: source.captureRenderProfile, adjustment: nil,
+            plan: .resolve(mode: mode ?? (live ? .livePhoto : .quality),
+                deferredDelivery: deferredDelivery, directHDRAvailable: directHDRAvailable),
             curveFields: "curve=original", colorFields: "temperature=auto")
     }
 

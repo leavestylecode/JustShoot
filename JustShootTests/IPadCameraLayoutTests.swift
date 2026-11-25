@@ -133,7 +133,7 @@ final class IPadCameraLayoutTests: XCTestCase {
 
     @MainActor
     private func assertControlsRemainAccessible(state: LayoutState, host: UIViewController, bounds: CGRect) throws {
-        let names = ["back", "location", "shutter", "recentPhoto", "focalLengths", "exposure"]
+        let names = ["back", "permissions", "shutter", "recentPhoto", "focalLengths", "exposure"]
             + ["bolt.slash.fill", "livephoto", "slider.horizontal.3", "camera.filters"].map { "tool.\($0)" }
         let controls = try names.map { name in (name, try XCTUnwrap(state.frames[name], name)) }
         for (index, control) in controls.enumerated() {
@@ -210,7 +210,7 @@ private struct LayoutFixture: View {
 
     var body: some View {
         IPadCameraLayout(aspect: size.width > size.height ? 4.0 / 3.0 : 3.0 / 4.0,
-            showsPicker: state.showsPicker, zoomCount: focalInfo.options.count) {
+            showsPicker: state.showsPicker, zoomCount: focalInfo.options.count, permissionCount: 2) {
             Color.gray.opacity(0.3)
                 .overlay {
                     Path { path in
@@ -272,9 +272,14 @@ private struct LayoutFixture: View {
                 .measure("exposure")
                 .position(layout.exposurePosition(showsColorControls: true, showsPicker: state.showsPicker))
             IPadCameraBackButton().measure("back").position(layout.back)
-            Image(systemName: "location.slash.fill").foregroundStyle(.orange)
-                .frame(width: 44, height: 44).cameraControlSurface()
-                .measure("location").position(x: 108, y: 38)
+            HStack(spacing: 4) {
+                ForEach(["location.slash.fill", "mic.slash.fill"], id: \.self) { icon in
+                    Image(systemName: icon).foregroundStyle(.orange)
+                        .frame(width: 44, height: 44).cameraControlSurface()
+                }
+            }
+            .measure("permissions")
+            .position(x: layout.permissions.midX, y: layout.permissions.midY)
         }
         .frame(width: size.width, height: size.height)
         .coordinateSpace(name: "cameraLayout")

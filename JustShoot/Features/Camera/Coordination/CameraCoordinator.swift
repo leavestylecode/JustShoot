@@ -22,7 +22,8 @@ protocol CameraCaptureControlling: AnyObject {
     @discardableResult func cancelCaptureAdmission(_ token: CameraCaptureAdmission.Token) -> Bool
     func waitForCapturePreview(lutKey: String, lutIntensity: Float,
                                admission: CameraCaptureAdmission.Token) async -> CameraPreviewFrame?
-    func capture(admission: CameraCaptureAdmission.Token, live: Bool, previewFrame: CameraPreviewFrame,
+    func capture(admission: CameraCaptureAdmission.Token, live: Bool, hdrFormat: CameraRAWFormat?,
+                 previewFrame: CameraPreviewFrame,
                  trace: DiagnosticTrace, onWillCapture: @escaping () -> Void,
                  onExposureComplete: @escaping () -> Void, onShutterReady: @escaping () -> Void,
                  onStillCaptured: @escaping @MainActor (CaptureStill) async -> Void,
@@ -52,6 +53,7 @@ struct CameraCaptureSelection {
     let curveFields: String
     let colorFields: String
     var lutIntensity: Float = 1
+    var hdrFormat: CameraRAWFormat? = nil
 }
 
 /// Owns one shutter admission across suspension points. Accepted native callbacks retain
@@ -102,6 +104,12 @@ final class CameraCoordinator: ObservableObject {
         guard let selection, selection.lutKey == currentLookKey(),
               camera.entryPreparation.isCurrentLookRendered else {
             camera.diagnostics.event("shutter_ignored", "reason=lut_not_ready")
+            return
+        }
+        let needsProRAW = selection.plan.format == .hdrProRAW
+        let hdrFormat = needsProRAW ? selection.hdrFormat : nil
+        if needsProRAW, hdrFormat?.kind != .appleProRAW {
+            error = CameraCaptureFailure.hdrUnavailable.message
             return
         }
         guard let admission = camera.beginCaptureAdmission() else {
@@ -160,6 +168,13 @@ final class CameraCoordinator: ObservableObject {
             releaseShutter(admission.id)
             return
         }
+        let rawRecipe: RawCaptureRecipe?
+        if hdrFormat != nil {
+            let lut = selection.lut
+            rawRecipe = await Task.detached(priority: .userInitiated) { RawCaptureRecipe(unifiedLUT: lut) }.value
+        } else {
+            rawRecipe = nil
+        }
         guard !attempt.expired else { pipeline.cancelReservation(captureID); return }
         guard !Task.isCancelled, camera.isCaptureAdmissionValid(admission),
               camera.readiness == .ready, camera.isCaptureAvailable,
@@ -193,12 +208,13 @@ final class CameraCoordinator: ObservableObject {
             displayLabel: displayLabel, focalLength: admission.focalLength, outputQuality: nil,
             profile: selection.profile, grainSeed: frame.grainSeed, location: location,
             lutDimension: selection.lut.dimension, chromaticSceneCCT: sceneCCT, photoDisplayTime: nil,
+            raw: rawRecipe,
             plan: selection.plan, colorAdjustment: selection.adjustment, frozenChromaticGain: frame.chromaticGain,
             preservesSourceFocalLength: camera.focalInfo.constituent(for: FocalLengthOption(admission.focalLength))?.calibrationSource == .fieldOfView,
             lutIntensity: frame.lutIntensity)
         handedToCamera = true
         let pipeline = self.pipeline
-        camera.capture(admission: admission, live: wantsLive, previewFrame: frame, trace: trace,
+        camera.capture(admission: admission, live: wantsLive, hdrFormat: hdrFormat, previewFrame: frame, trace: trace,
             onWillCapture: {
                 trace.event("shutter_feedback")
                 Log.capture.info("will_capture dt_from_tap=\(Log.ms(since: tapTime))ms")
@@ -269,13 +285,15 @@ final class CameraCoordinator: ObservableObject {
 }
 
 extension CameraManager: CameraCaptureControlling {
-    func capture(admission: CameraCaptureAdmission.Token, live: Bool, previewFrame: CameraPreviewFrame,
+    func capture(admission: CameraCaptureAdmission.Token, live: Bool, hdrFormat: CameraRAWFormat?,
+                 previewFrame: CameraPreviewFrame,
                  trace: DiagnosticTrace, onWillCapture: @escaping () -> Void,
                  onExposureComplete: @escaping () -> Void, onShutterReady: @escaping () -> Void,
                  onStillCaptured: @escaping @MainActor (CaptureStill) async -> Void,
                  onFinalStill: @escaping (Data) -> Void,
                  completion: @escaping (Result<CaptureResult, CameraCaptureFailure>) -> Void) {
-        capturePhoto(admission: admission, live: live, previewFrame: previewFrame, trace: trace,
+        capturePhoto(admission: admission, live: live, raw: hdrFormat != nil, expectedRAWFormat: hdrFormat,
+            hdr: hdrFormat != nil, previewFrame: previewFrame, trace: trace,
             onWillCapture: onWillCapture, onExposureComplete: onExposureComplete,
             onShutterReady: onShutterReady, onStillCaptured: onStillCaptured,
             onFinalStill: onFinalStill, completion: completion)

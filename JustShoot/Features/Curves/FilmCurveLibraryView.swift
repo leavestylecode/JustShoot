@@ -234,31 +234,32 @@ private struct CurveDeletionConfirmation: ViewModifier {
 }
 
 private struct BuiltInCurveDetailView: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let preset: CurvePreset
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Tone Curve")
-                        .font(.headline)
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer(minLength: 8)
-                    Label("Read Only", systemImage: "lock")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+        GeometryReader { geometry in
+            let wide = PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular)
+            ScrollView {
+                Group {
+                    if wide && preset != .none {
+                        HStack(alignment: .top, spacing: 24) {
+                            CurvePhotoComparison(look: .preset(preset))
+                            response.frame(width: min(geometry.size.width * 0.34, PageLayout.curveEditorWidth))
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 18) {
+                            if preset != .none {
+                                CurvePhotoComparison(look: .preset(preset))
+                            }
+                            response
+                        }
+                    }
                 }
-                CurveResponsePreview(data: preset.previewData)
-                    .accessibilityHidden(true)
-                Text(preset == .none
-                    ? String(localized: "Original is always available in the camera to preserve the film’s own tones.")
-                    : preset.summary)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
+                .pageContentWidth(wide && preset != .none ? PageLayout.browseWidth : PageLayout.readingWidth)
             }
-            .frame(maxWidth: PageLayout.curveEditorWidth)
-            .frame(maxWidth: .infinity)
-            .padding(16)
         }
         .appPageBackground()
         .navigationTitle(preset.displayName)
@@ -266,6 +267,19 @@ private struct BuiltInCurveDetailView: View {
         .matchingNavigationBackButton()
         .softScrollEdges()
         .toolbar(.hidden, for: .tabBar)
+    }
+
+    private var response: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            CurveResponsePreview(preset: preset)
+            Text(preset == .none
+                ? String(localized: "Original is always available in the camera to preserve the film’s own tones.")
+                : preset.summary)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 4)
+        }
     }
 }
 
@@ -330,6 +344,7 @@ struct FilmCurveEditorView: View {
                     }
                     .frame(maxWidth: .infinity)
                     Form {
+                        comparisonSection
                         nameSection
                         Section("Tone Curve") { pointControls }
                     }
@@ -340,16 +355,18 @@ struct FilmCurveEditorView: View {
                 .pageContentWidth(PageLayout.browseWidth)
             } else {
                 Form {
+                    comparisonSection
                     nameSection
                     Section {
                         channelPicker
-                        curveActionRow
                         curveEditor
                         pointControls
+                        curveActionRow
                     } header: {
                         Text("Tone Curve")
                     }
                 }
+                .listSectionSpacing(.compact)
                 .scrollContentBackground(.hidden)
                 .pageContentWidth()
             }
@@ -387,6 +404,14 @@ struct FilmCurveEditorView: View {
             }
         }
         .modifier(CurveDeletionConfirmation(pending: $pendingDelete, didDelete: { dismiss() }))
+    }
+
+    private var comparisonSection: some View {
+        Section {
+            CurvePhotoComparison(look: .draft(draft))
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+        }
     }
 
     private var nameSection: some View {

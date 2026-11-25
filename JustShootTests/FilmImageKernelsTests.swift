@@ -14,7 +14,7 @@ final class FilmImageKernelsTests: XCTestCase {
             for await snapshot in group { snapshots.append(snapshot) }
             return snapshots
         }
-        XCTAssertEqual(first.count, 5)
+        XCTAssertEqual(first.count, 6)
         for snapshot in snapshots {
             XCTAssertEqual(snapshot.count, first.count)
             for (kernel, original) in zip(snapshot, first) { XCTAssertTrue(kernel === original) }

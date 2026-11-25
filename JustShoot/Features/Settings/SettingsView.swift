@@ -114,6 +114,13 @@ struct SettingsView: View {
                            chevron: .forward)
             }
             .accessibilityHint("Opens the language options in iOS Settings")
+            if PhotoCaptureMode.supportsHDR {
+                NavigationLink {
+                    CapturePreferencesView()
+                } label: {
+                    SettingRow(icon: .preferences, title: "Preferences", chevron: .forward)
+                }
+            }
             NavigationLink {
                 FilmCurveLibraryView()
             } label: {

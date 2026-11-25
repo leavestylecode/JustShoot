@@ -258,14 +258,7 @@ private struct FilmCurvePickerCell: View {
     }
 
     private var accentColor: Color {
-        switch curve.builtInPreset {
-        case .some(.none): return Color(white: 0.82)
-        case .some(.filmSoft): return Color(red: 0.96, green: 0.70, blue: 0.32)
-        case .some(.punch): return Color(red: 1.00, green: 0.38, blue: 0.30)
-        case .some(.matte): return Color(red: 0.78, green: 0.66, blue: 0.52)
-        case .some(.crossProcess): return Color(red: 0.92, green: 0.34, blue: 0.72)
-        case nil: return Color(red: 0.38, green: 0.82, blue: 0.72)
-        }
+        curve.builtInPreset?.graphAccent ?? Color(red: 0.38, green: 0.82, blue: 0.72)
     }
 }
 

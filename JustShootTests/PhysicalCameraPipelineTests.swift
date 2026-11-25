@@ -14,6 +14,92 @@ import AVFoundation
 /// Ordinary test runs never capture. Use a stationary, textured subject for framing.
 final class PhysicalCameraPipelineTests: XCTestCase {
     @MainActor
+    func testHDRShutterRendersProRAWWithoutSavingToPhotos() async throws {
+        guard ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_HDR_CAPTURE"] == "1" else {
+            throw XCTSkip("Enable HDR capture validation on a physical device")
+        }
+        #if targetEnvironment(simulator)
+        throw XCTSkip("A physical camera is required")
+        #else
+        try XCTSkipUnless(PhotoCaptureMode.supportsHDR, "HDR capture requires iOS 18")
+        try XCTSkipUnless(AVCaptureDevice.authorizationStatus(for: .video) == .authorized,
+            "Camera permission must already be authorized")
+        let camera = CameraManager()
+        defer { camera.stopSession() }
+        let source = FilmSource.preset(.fujiProvia100F)
+        let lut = try await FilmCapturePreparation.shared.displayLUT(source: source, curve: .builtIn(.none))
+        let key = "hdr-capture-validation"
+        try await PreviewMetalResources.warmUpForRenderer()
+        let texture = try await PreviewLUTTextureCache.shared.prepare(key: key, lut: lut)
+        let scene = try await TestWindowScene.foreground()
+        let previousWindow = scene.windows.first { $0.isKeyWindow }
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = UIHostingController(rootView: ValidationViewfinder(camera: camera,
+            key: key, texture: texture, profile: source.captureRenderProfile))
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previousWindow?.makeKey() }
+        camera.setEntrySceneActive(true)
+        camera.updateEntryPipelineReady(true)
+        camera.updateEntryLUT(expectedKey: key, preparedKey: key)
+        camera.requestCameraPermission()
+        let deadline = ContinuousClock.now + .seconds(30)
+        while !(camera.entryPreparation.isRevealed && camera.isReadyToCapture), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertTrue(camera.isReadyToCapture)
+        guard let format = camera.rawCaptureFormat, format.kind == .appleProRAW else {
+            throw XCTSkip("An Apple ProRAW camera is required")
+        }
+        let ordinaryStillUsesDeferredDelivery = camera.usesDeferredPhotoDelivery
+        // Configure an output that supports direct still delivery even on 24 MP devices.
+        camera.setPhotoCaptureMode(.livePhoto, sound: false)
+        let switchDeadline = ContinuousClock.now + .seconds(10)
+        while (!camera.isReadyToCapture || camera.usesDeferredPhotoDelivery), ContinuousClock.now < switchDeadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertFalse(camera.usesDeferredPhotoDelivery)
+        XCTAssertEqual(camera.directHDRCaptureFormat, format)
+        let admission = try XCTUnwrap(camera.beginCaptureAdmission())
+        defer { camera.cancelCaptureAdmission(admission) }
+        let preview = await camera.waitForCapturePreview(lutKey: key, admission: admission)
+        let frame = try XCTUnwrap(preview)
+        let result: Result<CaptureResult, CameraCaptureFailure> = await withCheckedContinuation { continuation in
+            camera.capturePhoto(admission: admission, raw: true, expectedRAWFormat: format,
+                hdr: true, previewFrame: frame) { continuation.resume(returning: $0) }
+        }
+        let capture = try result.get()
+        XCTAssertNil(capture.deferredPhoto)
+        let raw = try XCTUnwrap(CGImageSourceCreateWithData(capture.imageData as CFData, nil))
+        XCTAssertTrue(RawFilmRenderer.isDNG(raw))
+        XCTAssertNil(capture.livePhotoMovieURL)
+        let recipe = CaptureRecipe(id: admission.id, captureDate: .now, filterName: source.photoFilterName,
+            displayLabel: nil, focalLength: admission.focalLength, outputQuality: nil, profile: source.captureRenderProfile,
+            grainSeed: frame.grainSeed, location: nil, lutDimension: lut.dimension, chromaticSceneCCT: nil,
+            photoDisplayTime: nil, raw: RawCaptureRecipe(unifiedLUT: lut), plan: .resolve(mode: .hdr, directHDRAvailable: true),
+            frozenChromaticGain: frame.chromaticGain, lutIntensity: frame.lutIntensity)
+        let rendered = await Task.detached {
+            CapturePhotoRenderer.render(source: capture.imageData, recipe: recipe, lut: lut,
+                rawLUT: nil, grainSeed: recipe.grainSeed)
+        }.value
+        let bytes = try XCTUnwrap(rendered)
+        let image = try XCTUnwrap(CGImageSourceCreateWithData(bytes as CFData, nil))
+        XCTAssertEqual(CGImageSourceGetType(image) as String?, "public.heic")
+        let properties = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(image, 0, nil) as? [String: Any])
+        let width = try XCTUnwrap(properties[kCGImagePropertyPixelWidth as String] as? Int)
+        let height = try XCTUnwrap(properties[kCGImagePropertyPixelHeight as String] as? Int)
+        XCTAssertGreaterThan(width * height, 10_000_000)
+        XCTAssertLessThanOrEqual(width * height, 12_600_000)
+        camera.setPhotoCaptureMode(.quality)
+        let restoreDeadline = ContinuousClock.now + .seconds(10)
+        while !camera.isReadyToCapture, ContinuousClock.now < restoreDeadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertTrue(camera.isReadyToCapture)
+        XCTAssertEqual(camera.usesDeferredPhotoDelivery, ordinaryStillUsesDeferredDelivery)
+        #endif
+    }
+
+    @MainActor
     func testStationaryCameraKeepsAFreshLocationForTheShutter() async throws {
         guard ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_LOCATION"] == "1" else {
             throw XCTSkip("Enable location validation on a stationary, authorized physical device")
@@ -72,7 +158,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         camera.setEntrySceneActive(true)
         camera.updateEntryPipelineReady(true)
         camera.updateEntryLUT(expectedKey: key, preparedKey: key)
-        camera.setLivePhotoAudio(live: false, sound: false)
+        camera.setPhotoCaptureMode(.quality, sound: false)
         camera.requestCameraPermission()
         var deadline = Date().addingTimeInterval(30)
         while camera.capturePreview(lutKey: key) == nil, Date() < deadline {
@@ -115,7 +201,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                 XCTAssertEqual(camera.previewInterfaceOrientation, .portrait)
                 expectedOrientation = orientation
             }
-            camera.setLivePhotoAudio(live: false, sound: false)
+            camera.setPhotoCaptureMode(.quality, sound: false)
             camera.setFocalLength(focal, animated: false)
             deadline = Date().addingTimeInterval(20)
             while camera.capturePreview(lutKey: key) == nil, Date() < deadline {
@@ -124,7 +210,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             camera.setFocusAndExposure(normalizedPoint: CGPoint(x: 0.2, y: 0.5))
             try await Task.sleep(for: .seconds(1))
             let ordinaryFrame = try XCTUnwrap(camera.capturePreview(lutKey: key))
-            camera.setLivePhotoAudio(live: true, sound: ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_AUDIO"] == "1")
+            camera.setPhotoCaptureMode(.livePhoto, sound: ProcessInfo.processInfo.environment["JUSTSHOOT_FRAMING_AUDIO"] == "1")
             deadline = Date().addingTimeInterval(20)
             while (!camera.livePhotoCaptureState.canCapture || camera.capturePreview(lutKey: key) == nil), Date() < deadline {
                 try await Task.sleep(for: .milliseconds(50))
@@ -348,12 +434,13 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         for startsLive in [false, true] {
             let camera = CameraManager()
             defer { camera.stopSession() }
+            let hdrEnabled = PhotoCaptureMode.hdrEnabledByDefault
             camera.setEntrySceneActive(true)
-            camera.setLivePhotoAudio(live: startsLive, sound: false)
+            camera.setPhotoCaptureMode(.preferred(livePhoto: startsLive, hdrEnabled: hdrEnabled), sound: false)
             camera.requestCameraPermission()
             for live in [startsLive, !startsLive, startsLive] {
-                camera.setLivePhotoAudio(live: live, sound: false)
                 let expectsLive = live && LivePhotoEncoderConfiguration.isSupported
+                camera.setPhotoCaptureMode(.preferred(livePhoto: expectsLive, hdrEnabled: hdrEnabled), sound: false)
                 let deadline = Date().addingTimeInterval(20)
                 var configured = false
                 while Date() < deadline {
@@ -389,7 +476,9 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         let producesRestart = ProcessInfo.processInfo.environment["JUSTSHOOT_RESTART_STAGE"] == "write"
         let verifyBurst = ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_BURST"] == "1"
         let verifyDelivery = ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_FILM_DELIVERY"] == "1"
-        let verifyDeferred = ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_DEFERRED"] == "1"
+        let verifyDeferredHDR = ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_DEFERRED_HDR"] == "1"
+        let verifyDeferred = verifyDeferredHDR || ProcessInfo.processInfo.environment["JUSTSHOOT_VALIDATE_DEFERRED"] == "1"
+        if verifyDeferredHDR { try XCTSkipUnless(PhotoCaptureMode.supportsHDR, "HDR requires iOS 18") }
         let switchToPhotos = ProcessInfo.processInfo.environment["JUSTSHOOT_SWITCH_TO_PHOTOS"] == "1"
         let defaults = UserDefaults.standard
         let arguments = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
@@ -407,7 +496,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         defer { if !producesRestart { try? FileManager.default.removeItem(at: journal.root) } }
         let schema = Schema([Photo.self, CustomLUT.self])
         let container = try ModelContainer(for: schema,
-            configurations: ModelConfiguration(schema: schema, isStoredInMemoryOnly: true))
+            configurations: ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         let pipeline = CapturePipeline(journal: journal)
         await pipeline.configure(container: container)
         let camera = CameraManager()
@@ -432,7 +521,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         camera.setEntrySceneActive(true)
         camera.updateEntryPipelineReady(pipeline.isPrepared)
         camera.updateEntryLUT(expectedKey: previewKey, preparedKey: previewKey)
-        camera.setLivePhotoAudio(live: false, sound: false)
+        camera.setPhotoCaptureMode(.quality, sound: false)
         camera.requestCameraPermission()
         let entryDeadline = Date().addingTimeInterval(45)
         while !camera.entryPreparation.isRevealed && Date() < entryDeadline {
@@ -462,7 +551,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
         let captures: [(FocalLengthOption, FilmSource, PhotoCaptureMode)]
         if verifyDeferred {
             let wide = camera.focalInfo.options.first { $0.rawValue == 24 } ?? initialFocal
-            captures = [(wide, .preset(.kodakPortra400), .quality)]
+            captures = [(wide, .preset(.kodakPortra400), verifyDeferredHDR ? .hdr : .quality)]
         } else if switchToPhotos || producesRestart {
             let live = switchToPhotos && ProcessInfo.processInfo.environment["JUSTSHOOT_BACKGROUND_LIVE"] == "1"
             captures = [(initialFocal, .preset(.kodakPortra400), live ? .livePhoto : .quality)]
@@ -486,7 +575,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             camera.updateEntryLUT(expectedKey: key, preparedKey: key)
             host.rootView = ValidationViewfinder(camera: camera, key: key, texture: texture,
                 profile: source.captureRenderProfile, pipeline: pipeline, container: container)
-            camera.setLivePhotoAudio(live: mode == .livePhoto, sound: false)
+            camera.setPhotoCaptureMode(mode, sound: false)
             let modeDeadline = Date().addingTimeInterval(10)
             while !camera.isReadyToCapture && Date() < modeDeadline {
                 try await Task.sleep(for: .milliseconds(100))
@@ -498,7 +587,8 @@ final class PhysicalCameraPipelineTests: XCTestCase {
             if verifyDelivery && !verifyDeferred && usesDeferredDelivery {
                 throw XCTSkip("The direct delivery audit requires a camera configuration that selects direct delivery")
             }
-            let plan = PhotoCapturePlan.resolve(mode: mode)
+            let plan = PhotoCapturePlan.resolve(mode: mode, deferredDelivery: usesDeferredDelivery,
+                directHDRAvailable: camera.directHDRCaptureFormat != nil)
             if plan.capturesLivePhoto {
                 try await Task.sleep(for: .milliseconds(500))
                 XCTAssertTrue(camera.livePhotoCaptureState.canCapture)
@@ -595,7 +685,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                 try await attachUnifiedDiagnostics(captured.imageData)
             }
             let props = CGImageSourceCopyPropertiesAtIndex(original, 0, nil) as? [String: Any]
-            if usesDeferredDelivery, mode == .quality, let deferred = captured.deferredPhoto {
+            if usesDeferredDelivery, let deferred = captured.deferredPhoto {
                 XCTAssertFalse(plan.capturesRAW)
                 XCTAssertGreaterThan(deferred.width * deferred.height, 20_000_000)
             }
@@ -667,6 +757,20 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                 XCTAssertTrue(resources.contains { $0.type == .adjustmentData })
                 let preserved = await AssetImageLoader.shared.imageData(id: assetID, original: true)
                 let original = try XCTUnwrap(preserved)
+                if verifyDeferredHDR, #available(iOS 18.0, *) {
+                    XCTAssertEqual(plan.format, .processedHDR)
+                    XCTAssertNotNil(pipeline.lastCompletion?.thumbnail)
+                    XCTAssertEqual(CGImageSourceGetType(outputSource) as String?, "public.heic")
+                    XCTAssertEqual(outputProps[kCGImagePropertyPixelWidth as String] as? Int, asset.pixelWidth)
+                    XCTAssertEqual(outputProps[kCGImagePropertyPixelHeight as String] as? Int, asset.pixelHeight)
+                    let sourceHDR = try XCTUnwrap(CIImage(data: original, options: [.expandToHDR: true]))
+                    let filmHDR = try XCTUnwrap(CIImage(data: output, options: [.expandToHDR: true]))
+                    XCTAssertGreaterThan(sourceHDR.contentHeadroom, 1, "Aim the camera at a scene with bright highlights")
+                    XCTAssertGreaterThan(filmHDR.contentHeadroom, 1)
+                    XCTAssertTrue(CGImageSourceCopyAuxiliaryDataInfoAtIndex(outputSource, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil
+                        || CGImageSourceCopyAuxiliaryDataInfoAtIndex(outputSource, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil)
+                    print("physical_deferred_hdr source_headroom=\(sourceHDR.contentHeadroom) film_headroom=\(filmHDR.contentHeadroom)")
+                }
                 XCTAssertNotEqual(original, output)
                 XCTAssertEqual(proxyPlaceholder, assetID)
                 // Simulate a restart after PhotoKit developed/renamed the proxy and before its manifest update.

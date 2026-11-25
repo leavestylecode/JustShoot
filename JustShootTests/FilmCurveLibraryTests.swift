@@ -229,6 +229,30 @@ final class FilmCurveLibraryTests: XCTestCase {
         }
     }
 
+    func testUpgradeInsertsFadedSAfterFadedOnceAndPreservesIndependentPreferences() throws {
+        try withDefaults { defaults in
+            let custom = CustomFilmCurve(name: "Saved")
+            let faded = CurvePreset.matte.id
+            let fadedS = CurvePreset.fadedS.id
+            let others = [CurvePreset.none.id, CurvePreset.crossProcess.id, CurvePreset.filmSoft.id, CurvePreset.punch.id]
+            let saved = [custom.filmCurve.id, faded] + others
+            try store(StoredPayload(customCurves: [custom], selectedCurveID: faded, orderedCurveIDs: saved), in: defaults)
+
+            let library = FilmCurveLibrary(defaults: defaults)
+            XCTAssertEqual(library.visibleCurves.map(\.id), [custom.filmCurve.id, faded, fadedS] + others)
+            XCTAssertEqual(library.selectedCurveID, faded)
+            XCTAssertTrue(library.select(.builtIn(.fadedS)))
+            XCTAssertTrue(library.setBuiltIn(.matte, isVisible: false))
+            let reordered = [fadedS] + saved
+            XCTAssertTrue(library.setOrder(reordered))
+
+            let restored = FilmCurveLibrary(defaults: defaults)
+            XCTAssertEqual(restored.entries.map(\.id), reordered)
+            XCTAssertEqual(restored.visibleCurves.map(\.id), reordered.filter { $0 != faded })
+            XCTAssertEqual(restored.selectedCurveID, fadedS)
+        }
+    }
+
     func testAddingAndDeletingKeepOrderAndRejectAStaleReorder() throws {
         try withDefaults { defaults in
             let library = FilmCurveLibrary(defaults: defaults)

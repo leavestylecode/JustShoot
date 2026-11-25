@@ -119,6 +119,26 @@ final class FilmProcessor: Sendable {
         }
     }
 
+    /// Apply the curve's 256 sRGB samples directly to a display-sized reference photo.
+    func gradedPreview(_ original: CGImage, curve: FilmCurve) -> CGImage? {
+        guard !curve.isNeutral else { return original }
+        let table = curve.previewData
+        var rgb = [Float]()
+        rgb.reserveCapacity(table.red.count * 3)
+        for i in table.red.indices {
+            rgb.append(table.red[i])
+            rgb.append(table.green[i])
+            rgb.append(table.blue[i])
+        }
+        let filter = CIFilter.colorCurves()
+        filter.inputImage = CIImage(cgImage: original)
+        filter.colorSpace = srgbColorSpace
+        filter.curvesData = rgb.withUnsafeBufferPointer { Data(buffer: $0) }
+        guard let output = filter.outputImage else { return nil }
+        return renderingContext().createCGImage(output, from: output.extent, format: .RGBA8,
+            colorSpace: srgbColorSpace, deferred: false)
+    }
+
     /// 首屏完成后由启动编排在后台调用。若已准备好则近似零开销。
     func prepareRendering() {
         let timer = Log.perf("film_render_prepare", logger: Log.lut)
@@ -484,6 +504,7 @@ final class FilmProcessor: Sendable {
         lutIntensity: Float = 1,
         rawRecipe: RawCaptureRecipe? = nil,
         rawLUT: RawFilmLUT? = nil,
+        capturesHDR: Bool = false,
         grain: FilmGrainParameters = .disabled,
         grainSeed: UInt32 = 0,
         optics: FilmOpticsParameters = .disabled,
@@ -657,6 +678,21 @@ final class FilmProcessor: Sendable {
         metadata.removeValue(forKey: kCGImagePropertyDepth as String)
         let outputWithMetadata = output.settingProperties(metadata)
 
+        let hdrImage: CIImage?
+        if capturesHDR, let rawRecipe {
+            guard PhotoCaptureMode.supportsHDR, rawRecipe.version == 4,
+                  let hdrSource = RawFilmRenderer.develop(imageData, recipe: rawRecipe,
+                    extendedDynamicRangeAmount: 1, cancellation: cancellation) else { return nil }
+            let aligned = hdrSource.oriented(forExifOrientation: exifOrientation).cropped(to: ciInput.extent)
+            guard let extended = FilmHDRHighlights.applying(to: output, source: aligned) else { return nil }
+            hdrImage = extended
+        } else if capturesHDR, #available(iOS 18.0, *) {
+            hdrImage = FilmHDRHighlights.applyingNativeGainMap(from: imageData, to: output,
+                orientedSourceExtent: inputExtent, exifOrientation: exifOrientation)
+        } else {
+            hdrImage = nil
+        }
+
         let outExtent = output.extent
         let outMP = (outExtent.isInfinite || outExtent.isEmpty) ? 0 : (outExtent.width * outExtent.height) / 1_000_000
 
@@ -672,7 +708,8 @@ final class FilmProcessor: Sendable {
         do {
             defer { encodeSpan?.end() }
             encodedOutput = PhotoImageEncoder.encode(outputWithMetadata, context: ciContext,
-                colorSpace: srgbColorSpace, legacyQuality: outputQuality, mode: encodingMode, cancellation: cancellation)
+                colorSpace: srgbColorSpace, legacyQuality: outputQuality, mode: encodingMode,
+                hdrImage: hdrImage, cancellation: cancellation)
         }
         guard let encoded = encodedOutput else {
             if cancellation?.isCancelled != true { Log.lut.error("lut_apply_failed reason=render_failed") }

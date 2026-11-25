@@ -14,8 +14,8 @@ struct CameraView: View {
     /// 当前胶片源；预览 LUT 与胶片封面随选择更新，最近照片独立于胶片选择。
     @State private var source: FilmSource
     @ObservedObject private var filmSettings: FilmPageSettings
-    /// Preserve the saved Live Photo preference; the still-photo format is automatic.
-    @AppStorage("photoCaptureMode") private var captureModeValue = PhotoCaptureMode.quality.rawValue
+    @AppStorage("photoCaptureMode") private var savedCaptureMode = PhotoCaptureMode.quality
+    @AppStorage(PhotoCaptureMode.hdrPreferenceKey) private var hdrEnabled = PhotoCaptureMode.hdrEnabledByDefault
     @AppStorage(AppAppearance.cameraKey) private var cameraAppearance = AppAppearance.automatic
     /// 曲线目录同时提供当前选择、默认曲线显隐及用户自定义曲线。
     @EnvironmentObject private var curveLibrary: FilmCurveLibrary
@@ -101,12 +101,11 @@ struct CameraView: View {
             cameraManager.setEntrySceneActive(scenePhase == .active)
             cameraManager.updateEntryPipelineReady(capturePipeline.isPrepared)
             cameraManager.updateEntryLUT(expectedKey: previewLUTKey, preparedKey: preparedLUT?.key)
+            cameraManager.setPhotoCaptureMode(captureMode)
             cameraManager.requestCameraPermission()
-            cameraManager.setLivePhotoAudio(live: wantsLiveCapture)
         }
-        .onChange(of: captureModeValue) { _, _ in
-            cameraManager.diagnostics.event("live_photo_preference_changed", "requested=\(wantsLiveCapture) supported=\(cameraManager.livePhotoCaptureState.supported) enabled=\(cameraManager.livePhotoCaptureState.enabled)")
-            cameraManager.setLivePhotoAudio(live: wantsLiveCapture)
+        .onChange(of: captureMode) { _, mode in
+            cameraManager.setPhotoCaptureMode(mode)
         }
         .onChange(of: cameraManager.flashMode) { _, mode in
             cameraManager.diagnostics.event("flash_changed", "mode=\(mode.rawValue)")
@@ -391,7 +390,7 @@ struct CameraView: View {
         GeometryReader { geometry in
             let layout = IPadCameraLayoutGeometry(size: geometry.size, aspect: cameraManager.previewAspectRatio,
                 pickerHeight: IPadCameraLayoutGeometry.pickerHeight(for: sizeClass),
-                toolCount: LivePhotoEncoderConfiguration.isSupported ? 4 : 3,
+                toolCount: iPadToolCount,
                 zoomCount: cameraManager.focalInfo.options.count)
             IPadCameraBackButton().position(layout.back)
         }
@@ -399,8 +398,9 @@ struct CameraView: View {
 
     private var iPadCameraContent: some View {
         IPadCameraLayout(aspect: cameraManager.previewAspectRatio, showsPicker: showFilmPicker,
-            toolCount: LivePhotoEncoderConfiguration.isSupported ? 4 : 3,
-            zoomCount: cameraManager.focalInfo.options.count) {
+            toolCount: iPadToolCount,
+            zoomCount: cameraManager.focalInfo.options.count,
+            permissionCount: permissionControlCount) {
             viewfinder
         } tools: { axis in
             IPadCameraTools(axis: axis) {
@@ -434,11 +434,9 @@ struct CameraView: View {
                 exposureControl.position(layout.exposurePosition(
                     showsColorControls: colorControls.isVisible, showsPicker: showFilmPicker))
             }
-            if showsPermissionControls {
+            if !layout.permissions.isEmpty {
                 permissionControls
-                    .padding(.leading, 86)
-                    .padding(.top, 16)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .position(x: layout.permissions.midX, y: layout.permissions.midY)
             }
         }
     }
@@ -736,8 +734,8 @@ struct CameraView: View {
             let live = !wantsLiveCapture
             // Close capture admission synchronously before publishing the preference.
             // A shutter tap must not resolve a new mode against the previous output.
-            cameraManager.setLivePhotoAudio(live: live)
-            captureModeValue = live ? PhotoCaptureMode.livePhoto.rawValue : PhotoCaptureMode.quality.rawValue
+            cameraManager.setPhotoCaptureMode(.preferred(livePhoto: live, hdrEnabled: hdrEnabled))
+            savedCaptureMode = live ? .livePhoto : .quality
         } label: {
             Image(systemName: wantsLiveCapture ? "livephoto" : "livephoto.slash")
                 .foregroundStyle(tint)
@@ -758,7 +756,11 @@ struct CameraView: View {
     }
 
     private var showsPermissionControls: Bool {
-        cameraManager.locationPermissionDenied || livePhotoSoundUnavailable
+        permissionControlCount > 0
+    }
+
+    private var permissionControlCount: Int {
+        (cameraManager.locationPermissionDenied ? 1 : 0) + (livePhotoSoundUnavailable ? 1 : 0)
     }
 
     private var permissionControls: some View {
@@ -795,12 +797,13 @@ struct CameraView: View {
 
     private var selectedCurve: FilmCurve { curveLibrary.selectedCurve }
     private var captureMode: PhotoCaptureMode {
-        LivePhotoEncoderConfiguration.isSupported
-            ? PhotoCaptureMode(rawValue: captureModeValue) ?? .quality : .quality
+        .preferred(livePhoto: wantsLiveCapture, hdrEnabled: hdrEnabled)
     }
-    private var wantsLiveCapture: Bool { captureMode == .livePhoto }
-    private var capturePlan: PhotoCapturePlan {
-        .resolve(mode: captureMode)
+    private var wantsLiveCapture: Bool {
+        savedCaptureMode == .livePhoto && LivePhotoEncoderConfiguration.isSupported
+    }
+    private var iPadToolCount: Int {
+        LivePhotoEncoderConfiguration.isSupported ? 4 : 3
     }
 
     @ViewBuilder
@@ -844,7 +847,7 @@ struct CameraView: View {
         entryRetryRevision &+= 1
         cameraManager.updateEntryLUT(expectedKey: previewLUTKey, preparedKey: nil)
         cameraManager.retryEntryPreparation()
-        cameraManager.setLivePhotoAudio(live: wantsLiveCapture)
+        cameraManager.setPhotoCaptureMode(captureMode)
     }
     private var previewLUTKey: String {
         let baseKey = FilmProcessor.shared.composedLUTCacheKey(source.lutCacheKey, curve: selectedCurve)
@@ -866,10 +869,15 @@ struct CameraView: View {
     }
 
     private func capturePhoto() async {
-        let selection = preparedLUT.map {
-            CameraCaptureSelection(source: source, lutKey: $0.key, lut: $0.lut, profile: $0.profile,
-                adjustment: $0.adjustment, plan: capturePlan, curveFields: curveDiagnosticFields(selectedCurve),
-                colorFields: colorAdjustmentDiagnosticFields, lutIntensity: CameraCapturePolicy.defaultLUTIntensity)
+        let selection = preparedLUT.map { prepared in
+            let mode = captureMode
+            let deferred = cameraManager.usesDeferredPhotoDelivery
+            let hdrFormat = mode == .hdr && !deferred ? cameraManager.directHDRCaptureFormat : nil
+            let plan = PhotoCapturePlan.resolve(mode: mode, deferredDelivery: deferred, directHDRAvailable: hdrFormat != nil)
+            return CameraCaptureSelection(source: source, lutKey: prepared.key, lut: prepared.lut, profile: prepared.profile,
+                adjustment: prepared.adjustment, plan: plan, curveFields: curveDiagnosticFields(selectedCurve),
+                colorFields: colorAdjustmentDiagnosticFields, lutIntensity: CameraCapturePolicy.defaultLUTIntensity,
+                hdrFormat: hdrFormat)
         }
         await coordinator.capture(selection: selection, currentLookKey: { previewLUTKey },
             isSceneActive: { scenePhase == .active }, onAccepted: {

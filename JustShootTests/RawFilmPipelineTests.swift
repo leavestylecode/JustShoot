@@ -361,6 +361,28 @@ final class RawFilmPipelineTests: XCTestCase {
         XCTAssertThrowsError(try journal.stage(recipe: recipe, imageData: Data("jpeg".utf8), movieURL: nil, lut: cube))
     }
 
+    func testHDRCaptureRendererWritesGainMapAndRotatesBothDevelopments() throws {
+        guard #available(iOS 18.0, *) else { throw XCTSkip("HDR gain-map encoding requires iOS 18") }
+        let lut = try FilmProcessor.shared.loadCubeLUT(resourceName: "FujiC200")
+        let recipe = CaptureRecipe(id: UUID(), captureDate: .now, filterName: "hdr-dng", displayLabel: nil,
+            focalLength: 24, outputQuality: nil, profile: FilmSource.preset(.fujiC200).captureRenderProfile,
+            grainSeed: 1, location: nil, lutDimension: lut.dimension, chromaticSceneCCT: nil,
+            photoDisplayTime: nil, raw: RawCaptureRecipe(unifiedLUT: lut),
+            plan: .resolve(mode: .hdr, directHDRAvailable: true), lutIntensity: 0)
+        let dng = LinearDNGFixture.make(orientation: 6, brightNeutralPatch: true)
+        let encoded = try XCTUnwrap(CapturePhotoRenderer.render(source: dng, recipe: recipe,
+            lut: lut, rawLUT: nil, grainSeed: recipe.grainSeed))
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(encoded as CFData, nil))
+        let base = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        XCTAssertEqual(base.width, 192)
+        XCTAssertEqual(base.height, 256)
+        #if targetEnvironment(simulator)
+        guard #available(iOS 26.0, *) else { throw XCTSkip("The iOS 18 simulator omits HDR gain maps") }
+        #endif
+        XCTAssertNotNil(CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeISOGainMap)
+            ?? CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap))
+    }
+
     func testJournalFreezesRawRecipeAndTablesAndRecoversDNGWithoutThem() throws {
         let raw = try lut()
         let preview = try FilmProcessor().loadCubeLUT(resourceName: FujifilmSimulation.provia.resourceName)
@@ -397,7 +419,7 @@ final class RawFilmPipelineTests: XCTestCase {
 /// Minimal uncompressed, three-channel linear DNG for decoder/metadata regression tests.
 /// It is synthetic, and cannot validate an iPhone sensor profile or ProRAW capture quality.
 enum LinearDNGFixture {
-    static func make(orientation: UInt16 = 1, baselineExposure: Int32 = 0) -> Data {
+    static func make(orientation: UInt16 = 1, baselineExposure: Int32 = 0, brightNeutralPatch: Bool = false) -> Data {
         func shorts(_ values: [UInt16]) -> Data { values.reduce(into: Data()) { data, value in
             var value = value.littleEndian; withUnsafeBytes(of: &value) { data.append(contentsOf: $0) }
         } }
@@ -448,7 +470,10 @@ enum LinearDNGFixture {
         result.append(shorts([UInt16(entries.count)])); result.append(directory); result.append(longs([0])); result.append(extra)
         for y in 0..<height { for x in 0..<width {
             let divisor = powf(2, Float(baselineExposure))
-            result.append(shorts([1_000 + x * 200, 1_000 + y * 270, 20_000].map {
+            let rgb = brightNeutralPatch
+                ? Array(repeating: x < Int(width) / 2 ? 7_500 + y : 61_000 + y, count: 3)
+                : [1_000 + x * 200, 1_000 + y * 270, 20_000]
+            result.append(shorts(rgb.map {
                 UInt16((Float($0) / divisor).rounded())
             }))
         } }

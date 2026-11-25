@@ -10,6 +10,7 @@ struct IPadCameraLayoutGeometry {
     let back: CGPoint
     let tools: CGRect
     let toolsAxis: Axis
+    let permissions: CGRect
     let picker: CGRect
     private let size: CGSize
 
@@ -21,7 +22,7 @@ struct IPadCameraLayoutGeometry {
     }
 
     init(size: CGSize, aspect: CGFloat, pickerHeight: CGFloat = IPadCameraLayoutGeometry.pickerHeight(for: .regular),
-        toolCount: Int = 4, zoomCount: Int = 4) {
+        toolCount: Int = 4, zoomCount: Int = 4, permissionCount: Int = 0) {
         self.size = size
         let bounds = CGRect(origin: .zero, size: size)
         preview = CameraFraming.centeredCrop(in: bounds, aspect: aspect)
@@ -51,12 +52,16 @@ struct IPadCameraLayoutGeometry {
             toolsAxis = .vertical
             tools = CGRect(x: controlX - 28, y: toolsBottom - columnHeight, width: 56, height: columnHeight)
         } else {
-            // Short windows keep every action visible in a top row, rather than
-            // hiding Flash and Live Photo inside a tiny vertical scroll view.
+            // Short windows keep every camera action visible in a top row.
             toolsAxis = .horizontal
             let width = CGFloat(toolCount) * 44 + CGFloat(max(0, toolCount - 1)) * 8
-            tools = CGRect(x: controlX + 22 - width, y: 16, width: width, height: 44)
+            tools = CGRect(x: max(16, controlX + 22 - width), y: 16, width: width, height: 44)
         }
+        let permissionWidth = CGFloat(permissionCount * 44 + max(0, permissionCount - 1) * 4)
+        let permissionLeading: CGFloat = 86
+        let needsSecondRow = toolsAxis == .horizontal && permissionLeading + permissionWidth + 8 > tools.minX
+        permissions = permissionCount == 0 ? .zero : CGRect(x: permissionLeading,
+            y: needsSecondRow ? tools.maxY + 8 : 16, width: permissionWidth, height: 44)
     }
 
     func adjustmentFrame(showsPicker: Bool) -> CGRect {
@@ -66,7 +71,7 @@ struct IPadCameraLayoutGeometry {
         // lower edge and rises above the look picker when it opens.
         // WhiteBalanceControl adds 10 pt internally: both visible rows sit
         // 16 pt inside the image. Short windows reserve the top tools row.
-        let minimumTop: CGFloat = toolsAxis == .horizontal ? 64 : 6
+        let minimumTop: CGFloat = toolsAxis == .horizontal ? max(64, permissions.maxY + 4) : 6
         let top = max(minimumTop, min(preview.minY + 6, bottom - 164))
         return CGRect(x: (size.width - width) / 2, y: top, width: width, height: max(164, bottom - top))
     }
@@ -101,6 +106,7 @@ struct IPadCameraLayout<Preview: View, Tools: View, Shutter: View, RecentPhoto: 
     let showsPicker: Bool
     var toolCount = 4
     var zoomCount = 4
+    var permissionCount = 0
     @ViewBuilder var preview: Preview
     @ViewBuilder var tools: (Axis) -> Tools
     @ViewBuilder var shutter: Shutter
@@ -113,7 +119,7 @@ struct IPadCameraLayout<Preview: View, Tools: View, Shutter: View, RecentPhoto: 
         GeometryReader { geometry in
             let layout = IPadCameraLayoutGeometry(size: geometry.size, aspect: aspect,
                 pickerHeight: IPadCameraLayoutGeometry.pickerHeight(for: sizeClass),
-                toolCount: toolCount, zoomCount: zoomCount)
+                toolCount: toolCount, zoomCount: zoomCount, permissionCount: permissionCount)
             ZStack {
                 preview
                     .frame(width: layout.preview.width, height: layout.preview.height)

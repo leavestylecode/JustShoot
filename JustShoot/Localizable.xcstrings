@@ -1,636 +1,25 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Add to Films" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add to Films"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加到胶片"
-          }
-        }
-      }
-    },
-    "Blue hour" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Blue hour"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "蓝调时刻"
-          }
-        }
-      }
-    },
-    "Café" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Café"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "咖啡馆"
-          }
-        }
-      }
-    },
-    "Coast" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Coast"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "海岸"
-          }
-        }
-      }
-    },
-    "Film Vault" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Film Vault"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "宝藏库"
-          }
-        }
-      }
-    },
-    "Film Vault unavailable" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Film Vault unavailable"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "宝藏库暂不可用"
-          }
-        }
-      }
-    },
-    "Film look" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Film look"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "胶片效果"
-          }
-        }
-      }
-    },
-    "Preview" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "预览"
-          }
-        }
-      }
-    },
-    "Loading films" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在载入胶片"
-          }
-        }
-      }
-    },
-    "Loading sample" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading sample"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在载入样片"
-          }
-        }
-      }
-    },
-    "No films available" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No films available"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "暂无可用胶片"
-          }
-        }
-      }
-    },
-    "Not added" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not added"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未添加"
-          }
-        }
-      }
-    },
-    "OOO Samples" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OOO Samples"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OOO 样片"
-          }
-        }
-      }
-    },
-    "Outdoor portrait" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Outdoor portrait"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "户外人像"
-          }
-        }
-      }
-    },
-    "Recommended scenes" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recommended scenes"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "推荐场景"
-          }
-        }
-      }
-    },
-    "Sample appearance" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sample appearance"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "样片对照"
-          }
-        }
-      }
-    },
-    "Unfiltered" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Original"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "原图"
-          }
-        }
-      },
-      "extractionState" : "manual"
-    },
-    "Window portrait" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Window portrait"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "窗边人像"
-          }
-        }
-      }
-    },
-    "You can add this film again from the Film Vault" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You can add this film again from the Film Vault"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "可从宝藏库重新添加这款胶片"
-          }
-        }
-      }
-    },
-    "Gradient" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "渐变"
-          }
-        }
-      }
-    },
-    "Gradient Direction" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "渐变方向"
-          }
-        }
-      }
-    },
-    "Gradient Origin" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "渐变起点"
-          }
-        }
-      }
-    },
-    "Gradient Range" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "渐变范围"
-          }
-        }
-      }
-    },
-    "This photo could not be shared. Please try again.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This photo could not be shared. Please try again."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无法分享此照片，请重试。"
-          }
-        }
-      }
-    },
-    "Photo action failed": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Photo action failed"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "照片操作失败"
-          }
-        }
-      }
-    },
-    "All Photos": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All Photos"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "全部照片"
-          }
-        }
-      }
-    },
-    "Capture was interrupted. Please try again when the camera is ready." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Capture was interrupted. Please try again when the camera is ready."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拍摄已中断，请在相机就绪后重试。"
-          }
-        }
-      }
-    },
-    "The camera is unavailable. Reopen the camera and try again." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The camera is unavailable. Reopen the camera and try again."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "相机暂不可用，请重新打开相机后重试。"
-          }
-        }
-      }
-    },
-    "The camera took too long to prepare. Please try again." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The camera took too long to prepare. Please try again."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "相机准备超时，请重试。"
-          }
-        }
-      }
-    },
-    "Exposure could not be applied. Press the shutter to retry." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exposure could not be applied. Press the shutter to retry."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "曝光设置未能生效，请再次按下快门重试。"
-          }
-        }
-      }
-    },
-    "Exposure took too long to apply. Press the shutter to retry." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exposure took too long to apply. Press the shutter to retry."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "曝光设置生效超时，请再次按下快门重试。"
-          }
-        }
-      }
-    },
-    "The camera did not deliver a photo in time. Please try again." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The camera did not deliver a photo in time. Please try again."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "相机未能及时返回照片，请重试。"
-          }
-        }
-      }
-    },
-    "Add" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加"
-          }
-        }
-      }
-    },
-    "Add %@ to Films" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add %@ to Films"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加%@到胶片"
-          }
-        }
-      }
-    },
-    "Add Films" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add Films"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加胶片"
-          }
-        }
-      }
-    },
-    "Added" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Added"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已添加"
-          }
-        }
-      }
-    },
-    "Added %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Added %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已添加%@"
-          }
-        }
-      }
-    },
-    "Remove %@ from Films" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove %@ from Films"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "移除%@"
-          }
-        }
-      }
-    },
-    "Remove from Films" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove from Films"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "移除胶片"
-          }
-        }
-      }
-    },
-    "Start Shooting" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start Shooting"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开始拍摄"
-          }
-        }
-      }
-    },
     "" : {
 
+    },
+    "“%@” will be deleted. Existing photos are kept." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” will be deleted. Existing photos are kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将删除“%@”，已拍摄的照片会保留。"
+          }
+        }
+      }
     },
     "“%@” will be permanently deleted." : {
       "localizations" : {
@@ -868,49 +257,53 @@
         }
       }
     },
-    "Buy for %@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "购买 · %@"
-          }
-        }
-      }
-    },
-    "Checking membership…" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在检查会员状态…"
-          }
-        }
-      }
-    },
-    "Page Background" : {
+    "About the Author" : {
       "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "页面背景"
-          }
-        }
-      }
-    },
-    "Gently increase midtone contrast." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gently increase midtone contrast."
+            "value" : "About Author"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "轻微增强中间调反差。"
+            "value" : "关于作者"
+          }
+        }
+      }
+    },
+    "Add" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加"
+          }
+        }
+      }
+    },
+    "Add %@ to Films" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add %@ to Films"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加%@到胶片"
           }
         }
       }
@@ -921,6 +314,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "添加曲线"
+          }
+        }
+      }
+    },
+    "Add Films" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Films"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加胶片"
           }
         }
       }
@@ -948,6 +358,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "添加节点"
+          }
+        }
+      }
+    },
+    "Add to Films" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to Films"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加到胶片"
+          }
+        }
+      }
+    },
+    "Added" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已添加"
+          }
+        }
+      }
+    },
+    "Added %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已添加%@"
           }
         }
       }
@@ -981,6 +442,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "复现问题后，可导出最近的诊断日志。日志不含照片或精确位置。"
+          }
+        }
+      }
+    },
+    "All Photos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Photos"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部照片"
           }
         }
       }
@@ -1064,6 +542,23 @@
         }
       }
     },
+    "App Store Rating Unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store Rating Unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时无法评分"
+          }
+        }
+      }
+    },
     "Appearance" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1116,6 +611,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "约 %lld 毫米等效焦距"
+          }
+        }
+      }
+    },
+    "Architecture" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Architecture"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "建筑"
           }
         }
       }
@@ -1248,6 +761,81 @@
         }
       }
     },
+    "Background Effect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背景效果"
+          }
+        }
+      }
+    },
+    "Background Style" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "背景样式"
+          }
+        }
+      }
+    },
+    "Backlight" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backlight"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "逆光"
+          }
+        }
+      }
+    },
+    "Beach" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beach"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "海滩"
+          }
+        }
+      }
+    },
+    "bilibili" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bilibili"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哔哩哔哩"
+          }
+        }
+      }
+    },
     "Black" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1278,6 +866,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "蓝"
+          }
+        }
+      }
+    },
+    "Blue hour" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blue hour"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "蓝调时刻"
           }
         }
       }
@@ -1433,6 +1038,33 @@
         }
       }
     },
+    "Buy for %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "购买 · %@"
+          }
+        }
+      }
+    },
+    "Café" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Café"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "咖啡馆"
+          }
+        }
+      }
+    },
     "Camera access required" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1466,7 +1098,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "拍摄页预览"
+            "value" : "预览效果"
           }
         }
       }
@@ -1522,6 +1154,7 @@
       }
     },
     "Caption" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1616,6 +1249,23 @@
         }
       }
     },
+    "Capture was interrupted. Please try again when the camera is ready." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capture was interrupted. Please try again when the camera is ready."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄已中断，请在相机就绪后重试。"
+          }
+        }
+      }
+    },
     "Captures a RAW still, develops it with the selected Fujifilm LUT, and saves an sRGB photo. The video preview is approximate. RAW originals are kept for recovery until saving succeeds." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1650,12 +1300,50 @@
         }
       }
     },
+    "Center" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中心"
+          }
+        }
+      }
+    },
+    "Change Profile Photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Profile Photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更换头像"
+          }
+        }
+      }
+    },
     "Channel" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "通道"
+          }
+        }
+      }
+    },
+    "Checking membership…" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在检查会员状态…"
           }
         }
       }
@@ -1677,6 +1365,34 @@
         }
       }
     },
+    "Choose Photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择照片"
+          }
+        }
+      }
+    },
+    "Choose Profile Photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Profile Photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择头像"
+          }
+        }
+      }
+    },
     "Choose which built-in curves appear in the camera. Neutral remains available so you can always remove a curve effect." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1689,6 +1405,7 @@
       }
     },
     "Circle" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1728,6 +1445,51 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "关闭"
+          }
+        }
+      }
+    },
+    "Cloudy" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloudy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "阴天"
+          }
+        }
+      }
+    },
+    "Coast" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coast"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "海岸"
+          }
+        }
+      }
+    },
+    "Collapsed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已收起"
           }
         }
       }
@@ -1776,16 +1538,6 @@
         }
       }
     },
-    "Collapsed" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已收起"
-          }
-        }
-      }
-    },
     "Color Intensity" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1826,6 +1578,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法应用色温调整，已恢复自动。"
+          }
+        }
+      }
+    },
+    "common_hide_keyboard" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide keyboard"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收起键盘"
           }
         }
       }
@@ -1924,6 +1693,23 @@
         }
       }
     },
+    "Couldn’t Load Profile Photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t Load Profile Photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "头像加载失败"
+          }
+        }
+      }
+    },
     "Couldn't parse the .cube file: %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1953,6 +1739,7 @@
       }
     },
     "Cover shape" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1997,6 +1784,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "当前胶片：%@"
+          }
+        }
+      }
+    },
+    "Curve Effect" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲线效果"
           }
         }
       }
@@ -2246,6 +2043,23 @@
         }
       }
     },
+    "Delete %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除%@"
+          }
+        }
+      }
+    },
     "Delete %lld selected photos? This cannot be undone." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2269,6 +2083,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "删除曲线？"
+          }
+        }
+      }
+    },
+    "Delete Film?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Film?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除胶片？"
           }
         }
       }
@@ -2426,6 +2257,51 @@
         }
       }
     },
+    "Edit Profile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Profile"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑资料"
+          }
+        }
+      }
+    },
+    "Ember" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "余晖"
+          }
+        }
+      }
+    },
+    "Enjoying %@?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enjoying %@?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "喜欢%@吗？"
+          }
+        }
+      }
+    },
     "Expanded" : {
       "localizations" : {
         "zh-Hans" : {
@@ -2480,6 +2356,40 @@
         }
       }
     },
+    "Exposure could not be applied. Press the shutter to retry." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposure could not be applied. Press the shutter to retry."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曝光设置未能生效，请再次按下快门重试。"
+          }
+        }
+      }
+    },
+    "Exposure took too long to apply. Press the shutter to retry." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exposure took too long to apply. Press the shutter to retry."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曝光设置生效超时，请再次按下快门重试。"
+          }
+        }
+      }
+    },
     "Exposures" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2529,6 +2439,16 @@
         }
       }
     },
+    "Faded S" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "褪色 S"
+          }
+        }
+      }
+    },
     "Failed to parse LUT or dimensions mismatch" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2542,6 +2462,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "LUT 解析失败或尺寸不匹配"
+          }
+        }
+      }
+    },
+    "Family" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Family"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "家庭"
+          }
+        }
+      }
+    },
+    "Fashion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fashion"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时装"
+          }
+        }
+      }
+    },
+    "Feedback for %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feedback for %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 使用反馈"
           }
         }
       }
@@ -2586,6 +2557,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "胶片曲线"
+          }
+        }
+      }
+    },
+    "Film look" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Film look"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶片效果"
+          }
+        }
+      }
+    },
+    "Film Order" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Film Order"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶片排序"
           }
         }
       }
@@ -2639,6 +2643,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "胶片不可用"
+          }
+        }
+      }
+    },
+    "Film Vault" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Film Vault"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "宝藏库"
+          }
+        }
+      }
+    },
+    "Film Vault unavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Film Vault unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "宝藏库暂不可用"
           }
         }
       }
@@ -2790,6 +2826,24 @@
         }
       }
     },
+    "Flowers" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flowers"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "花卉"
+          }
+        }
+      }
+    },
     "Focal length" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2820,6 +2874,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "焦距选择"
+          }
+        }
+      }
+    },
+    "Food" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Food"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "美食"
+          }
+        }
+      }
+    },
+    "Forest" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forest"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "森林"
           }
         }
       }
@@ -2858,6 +2948,94 @@
         }
       }
     },
+    "Page Background" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "页面背景"
+          }
+        }
+      }
+    },
+    "Gently increase midtone contrast." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gently increase midtone contrast."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻微增强中间调反差。"
+          }
+        }
+      }
+    },
+    "github" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub"
+          }
+        }
+      }
+    },
+    "Gradient" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "渐变"
+          }
+        }
+      }
+    },
+    "Gradient Direction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "渐变方向"
+          }
+        }
+      }
+    },
+    "Gradient Origin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "渐变起点"
+          }
+        }
+      }
+    },
+    "Gradient Range" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "渐变范围"
+          }
+        }
+      }
+    },
     "Gray" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2892,6 +3070,26 @@
         }
       }
     },
+    "HDR Capture" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HDR 拍摄"
+          }
+        }
+      }
+    },
+    "HDR is unavailable at this focal length. Change focal length or turn off HDR in Settings." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前焦段无法进行 HDR 拍摄。请切换焦段，或在设置中关闭 HDR。"
+          }
+        }
+      }
+    },
     "Head to the camera to start shooting" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2909,7 +3107,25 @@
         }
       }
     },
+    "Hidden" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hidden"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已隐藏"
+          }
+        }
+      }
+    },
     "Hide" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -2926,6 +3142,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "高"
+          }
+        }
+      }
+    },
+    "Highlights" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "亮部"
           }
         }
       }
@@ -3007,6 +3233,41 @@
         }
       }
     },
+    "Independent Website" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Independent Website"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "独立网站"
+          }
+        }
+      }
+    },
+    "Indoor" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indoor"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "室内"
+          }
+        }
+      }
+    },
     "Input" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3067,6 +3328,24 @@
         }
       }
     },
+    "Landscape" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Landscape"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "风光"
+          }
+        }
+      }
+    },
     "Large" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3077,6 +3356,29 @@
           }
         }
       }
+    },
+    "Leave the comfortable style, and leap into the imagination." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave the comfortable style, and leap into the imagination."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "离开舒适的风格，跃入想象。"
+          }
+        }
+      }
+    },
+    "LeaveStyle" : {
+
+    },
+    "leavestyle101@gmail.com" : {
+
     },
     "Left" : {
       "extractionState" : "manual",
@@ -3099,6 +3401,38 @@
         }
       }
     },
+    "Lift blacks and soften highlights and midtone contrast." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lift blacks and soften highlights and midtone contrast."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "抬高黑位，缓和高光与中间调反差。"
+          }
+        }
+      }
+    },
+    "Lift blacks, soften highlights, and add a gentle S-curve through the midtones." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lift blacks, soften highlights, and add a gentle S-curve through the midtones."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "抬高黑位，柔化高光，用轻微的 S 曲线拉开中间调层次。"
+          }
+        }
+      }
+    },
     "Lift blacks for a faded print look." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3116,22 +3450,6 @@
         }
       }
     },
-    "Lift blacks and soften highlights and midtone contrast." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lift blacks and soften highlights and midtone contrast."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "抬高黑位，缓和高光与中间调反差。"
-          }
-        }
-      }
-    },
     "Lift blacks with S-curve contrast." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3145,6 +3463,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "抬高黑位，同时保留 S 曲线反差。"
+          }
+        }
+      }
+    },
+    "Light" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浅色"
+          }
+        }
+      }
+    },
+    "linkedin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LinkedIn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "领英"
           }
         }
       }
@@ -3204,6 +3550,23 @@
         }
       }
     },
+    "Live Photo sound off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Photo sound off"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实况照片声音已关闭"
+          }
+        }
+      }
+    },
     "Live Photo unavailable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3211,6 +3574,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Live Photo 暂不可用"
+          }
+        }
+      }
+    },
+    "Preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预览"
+          }
+        }
+      }
+    },
+    "Loading films" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在载入胶片"
           }
         }
       }
@@ -3232,29 +3617,45 @@
         }
       }
     },
-    "Live Photo sound off" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Live Photo sound off"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "实况照片声音已关闭"
-          }
-        }
-      }
-    },
     "Loading price…" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在加载价格…"
+          }
+        }
+      }
+    },
+    "Loading Profile Photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading Profile Photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载头像"
+          }
+        }
+      }
+    },
+    "Loading sample" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading sample"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在载入样片"
           }
         }
       }
@@ -3347,6 +3748,40 @@
         }
       }
     },
+    "mail_error_message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please check your email configuration and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请检查邮件配置后重试。"
+          }
+        }
+      }
+    },
+    "mail_error_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to Send Email"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮件发送失败"
+          }
+        }
+      }
+    },
     "Manage" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3373,6 +3808,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "管理胶片曲线"
+          }
+        }
+      }
+    },
+    "Manage Films" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage Films"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理胶片"
           }
         }
       }
@@ -3538,6 +3990,261 @@
         }
       }
     },
+    "more_contact" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contact"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "联系"
+          }
+        }
+      }
+    },
+    "more_contact_email" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contact"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "联系"
+          }
+        }
+      }
+    },
+    "more_product_deepmusic" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deepmusic"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深度音乐"
+          }
+        }
+      }
+    },
+    "more_product_deepmusic_desc" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Immersive full-screen lyrics music."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沉浸式全屏歌词音乐"
+          }
+        }
+      }
+    },
+    "more_product_demark" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PhotoMark"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "印记"
+          }
+        }
+      }
+    },
+    "more_product_demark_desc" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metadata enriched photo frames"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认照片边框水印"
+          }
+        }
+      }
+    },
+    "more_product_imagefit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ImageFit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "图适"
+          }
+        }
+      }
+    },
+    "more_product_imagefit_desc" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adjust images to the right size"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "调整图片合适尺寸"
+          }
+        }
+      }
+    },
+    "more_product_justnote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JustNote"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一点小记"
+          }
+        }
+      }
+    },
+    "more_product_justnote_desc" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One Thought One Note"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "探索、记录、总结、分享"
+          }
+        }
+      }
+    },
+    "more_product_musicecho" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MusicEcho"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音乐回响"
+          }
+        }
+      }
+    },
+    "more_product_musicecho_desc" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D rhythm-driven music visuals"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3D音乐节奏光影动效"
+          }
+        }
+      }
+    },
+    "more_product_musicpal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MusicPal"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "助乐app"
+          }
+        }
+      }
+    },
+    "more_product_musicpal_desc" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your music assistant."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "苹果音乐专属助手"
+          }
+        }
+      }
+    },
+    "more_products" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Works"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "作品"
+          }
+        }
+      }
+    },
     "Most recent photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3627,6 +4334,35 @@
         }
       }
     },
+    "Nebula" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "星云"
+          }
+        }
+      }
+    },
+    "Neon" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neon"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "霓虹"
+          }
+        }
+      }
+    },
     "Neutral" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3661,6 +4397,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "新建曲线"
+          }
+        }
+      }
+    },
+    "Nickname" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nickname"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昵称"
+          }
+        }
+      }
+    },
+    "Night" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Night"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "夜景"
+          }
+        }
+      }
+    },
+    "No films available" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No films available"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无可用胶片"
+          }
+        }
+      }
+    },
+    "No films shown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No films shown"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无显示的胶片"
           }
         }
       }
@@ -3737,6 +4541,22 @@
         }
       }
     },
+    "Not added" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not added"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未添加"
+          }
+        }
+      }
+    },
     "Notes" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3788,6 +4608,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "一次性购买"
+          }
+        }
+      }
+    },
+    "OOO Samples" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOO Samples"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OOO 样片"
           }
         }
       }
@@ -3859,6 +4696,17 @@
         }
       }
     },
+    "Opening the library timed out." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开图库超时。"
+          }
+        }
+      }
+    },
     "Opening your library…" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3920,6 +4768,16 @@
         }
       }
     },
+    "Original photo coverage" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原图占比"
+          }
+        }
+      }
+    },
     "Original is always available" : {
       "localizations" : {
         "en" : {
@@ -3959,6 +4817,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "其他"
+          }
+        }
+      }
+    },
+    "Outdoor portrait" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outdoor portrait"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "户外人像"
           }
         }
       }
@@ -4008,6 +4883,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "永久删除恢复文件？"
+          }
+        }
+      }
+    },
+    "Photo action failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo action failed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "照片操作失败"
           }
         }
       }
@@ -4184,6 +5076,24 @@
         }
       }
     },
+    "Portrait" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portrait"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "人像"
+          }
+        }
+      }
+    },
     "Preferences" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4246,6 +5156,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在准备主页…"
+          }
+        }
+      }
+    },
+    "Preparing…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "准备中…"
           }
         }
       }
@@ -4313,6 +5240,142 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "处理后照片"
+          }
+        }
+      }
+    },
+    "profile_adjust_photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adjust Photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "调整头像"
+          }
+        }
+      }
+    },
+    "profile_crop_area" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avatar crop area"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "头像裁剪区域"
+          }
+        }
+      }
+    },
+    "profile_crop_hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag to move. Pinch or use the slider to zoom."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拖动可移动，双指或滑杆可缩放。"
+          }
+        }
+      }
+    },
+    "profile_field_motto" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Motto"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "座右铭"
+          }
+        }
+      }
+    },
+    "profile_photo_unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not use this photo."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法使用这张照片。"
+          }
+        }
+      }
+    },
+    "profile_set_motto_prompt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add motto"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加座右铭"
+          }
+        }
+      }
+    },
+    "profile_set_nickname_prompt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set name"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置名字"
+          }
+        }
+      }
+    },
+    "profile_zoom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缩放"
           }
         }
       }
@@ -4422,23 +5485,6 @@
         }
       }
     },
-    "Rate on the App Store" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rate App"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "给个好评"
-          }
-        }
-      }
-    },
     "Quilter on a porch" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4452,6 +5498,41 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "门廊里的拼布艺人"
+          }
+        }
+      }
+    },
+    "Rainy" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rainy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "雨天"
+          }
+        }
+      }
+    },
+    "Rate on the App Store" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rate App"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "给个好评"
           }
         }
       }
@@ -4534,6 +5615,22 @@
         }
       }
     },
+    "Recommended scenes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recommended scenes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推荐场景"
+          }
+        }
+      }
+    },
     "Red" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4551,6 +5648,23 @@
         }
       }
     },
+    "rednote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RedNote"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小红书"
+          }
+        }
+      }
+    },
     "Reduce midtone contrast." : {
       "localizations" : {
         "en" : {
@@ -4563,6 +5677,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "降低中间调反差。"
+          }
+        }
+      }
+    },
+    "Remove %@ from Films" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove %@ from Films"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除%@"
           }
         }
       }
@@ -4591,6 +5722,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "移除此筛选"
+          }
+        }
+      }
+    },
+    "Remove from Films" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Films"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除胶片"
+          }
+        }
+      }
+    },
+    "Remove Profile Photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Profile Photo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除头像"
+          }
+        }
+      }
+    },
+    "Rendering…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rendering…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "渲染中…"
           }
         }
       }
@@ -4681,6 +5863,23 @@
         }
       }
     },
+    "Reset Film Order" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Film Order"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置胶片排序"
+          }
+        }
+      }
+    },
     "Restore on any device with the same Apple Account." : {
       "localizations" : {
         "zh-Hans" : {
@@ -4750,6 +5949,40 @@
         }
       }
     },
+    "review_sheet_button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write a Review"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "好评一下"
+          }
+        }
+      }
+    },
+    "review_sheet_close" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        }
+      }
+    },
     "Right" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4802,6 +6035,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "S 曲线"
+          }
+        }
+      }
+    },
+    "Sample appearance" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sample appearance"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "样片对照"
           }
         }
       }
@@ -5075,13 +6324,41 @@
         }
       }
     },
+    "Shadows" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暗部"
+          }
+        }
+      }
+    },
     "Share" : {
 
+    },
+    "Share App" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share App"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分享应用"
+          }
+        }
+      }
     },
     "Share this photo" : {
 
     },
     "Show" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -5128,6 +6405,23 @@
         }
       }
     },
+    "Show or hide this film" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show or hide this film"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示或隐藏此胶片"
+          }
+        }
+      }
+    },
     "Show RAW capture information" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5141,6 +6435,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "查看 RAW 拍摄说明"
+          }
+        }
+      }
+    },
+    "Show Subtitles" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Subtitles"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示副标题"
+          }
+        }
+      }
+    },
+    "Show Titles" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Titles"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示标题"
+          }
+        }
+      }
+    },
+    "Shown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shown"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已显示"
           }
         }
       }
@@ -5186,6 +6531,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "小"
+          }
+        }
+      }
+    },
+    "Snow" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snow"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "雪景"
           }
         }
       }
@@ -5305,6 +6668,23 @@
         }
       }
     },
+    "Start Shooting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start Shooting"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始拍摄"
+          }
+        }
+      }
+    },
     "Start shooting with this film" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5339,6 +6719,42 @@
         }
       }
     },
+    "Still life" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still life"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "静物"
+          }
+        }
+      }
+    },
+    "Street" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Street"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "街拍"
+          }
+        }
+      }
+    },
     "Subtle" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5369,6 +6785,60 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "规格"
+          }
+        }
+      }
+    },
+    "Sunny" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunny"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "晴天"
+          }
+        }
+      }
+    },
+    "Sunrise" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunrise"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日出"
+          }
+        }
+      }
+    },
+    "Sunset" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunset"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日落"
           }
         }
       }
@@ -5441,6 +6911,23 @@
         }
       }
     },
+    "Text Display" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text Display"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文案显示"
+          }
+        }
+      }
+    },
     "Thank you for supporting OOO Cam." : {
       "localizations" : {
         "zh-Hans" : {
@@ -5468,6 +6955,23 @@
         }
       }
     },
+    "The camera did not deliver a photo in time. Please try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera did not deliver a photo in time. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相机未能及时返回照片，请重试。"
+          }
+        }
+      }
+    },
     "The camera is taking longer than expected. Please try again." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -5485,6 +6989,23 @@
         }
       }
     },
+    "The camera is unavailable. Reopen the camera and try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera is unavailable. Reopen the camera and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相机暂不可用，请重新打开相机后重试。"
+          }
+        }
+      }
+    },
     "The camera preview could not be prepared. Please try again." : {
       "localizations" : {
         "en" : {
@@ -5497,6 +7018,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法准备相机预览，请重试。"
+          }
+        }
+      }
+    },
+    "The camera took too long to prepare. Please try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera took too long to prepare. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相机准备超时，请重试。"
           }
         }
       }
@@ -5656,6 +7194,23 @@
         }
       }
     },
+    "This photo could not be shared. Please try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This photo could not be shared. Please try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法分享此照片，请重试。"
+          }
+        }
+      }
+    },
     "This photo could not finish processing or saving. You can retry or export the original." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5686,6 +7241,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "这张照片尚未完成恢复准备。"
+          }
+        }
+      }
+    },
+    "This photo is taking longer than usual to save. It stays on this device and finishes on its own." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This photo is taking longer than usual to save. It stays on this device and finishes on its own."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这张照片保存得比平常久。它会保留在本设备并自行完成保存。"
           }
         }
       }
@@ -5857,6 +7429,57 @@
         }
       }
     },
+    "Top" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "顶部"
+          }
+        }
+      }
+    },
+    "Top Left" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左上"
+          }
+        }
+      }
+    },
+    "Top Right" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右上"
+          }
+        }
+      }
+    },
+    "Travel" : {
+      "comment" : "Photography scene recommendation shown below a film name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "旅行"
+          }
+        }
+      }
+    },
     "Try adjusting the filters" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5886,6 +7509,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重试"
+          }
+        }
+      }
+    },
+    "Try choosing a different photo." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try choosing a different photo."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择另一张照片。"
           }
         }
       }
@@ -5925,6 +7565,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法打开相册"
+          }
+        }
+      }
+    },
+    "Unfiltered" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "原图"
           }
         }
       }
@@ -6024,6 +7681,23 @@
         }
       }
     },
+    "Visit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "访问"
+          }
+        }
+      }
+    },
     "Warm Print" : {
       "localizations" : {
         "en" : {
@@ -6074,6 +7748,43 @@
         }
       }
     },
+    "Window portrait" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Window portrait"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "窗边人像"
+          }
+        }
+      }
+    },
+    "www.leavestyle.com" : {
+
+    },
+    "x" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "X"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "X"
+          }
+        }
+      }
+    },
     "X-Pro" : {
       "localizations" : {
         "en" : {
@@ -6107,6 +7818,67 @@
         }
       }
     },
+    "You can add this film again from the Film Vault" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can add this film again from the Film Vault"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可从宝藏库重新添加这款胶片"
+          }
+        }
+      }
+    },
+    "You can close this preview while saving." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存期间可以关闭预览。"
+          }
+        }
+      }
+    },
+    "You can rate the app when its App Store page is available." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can rate the app when its App Store page is available."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store 页面开放后即可评分。"
+          }
+        }
+      }
+    },
+    "Your feedback helps us make %@ even better." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your feedback helps us make %@ even better."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的反馈能帮助我们把%@做得更好。"
+          }
+        }
+      }
+    },
     "Your library could not be opened" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6134,18 +7906,8 @@
         }
       }
     },
-    "Opening the library timed out." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "打开图库超时。"
-          }
-        }
-      }
-    },
     "Your library is taking longer than expected. Please try again." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6205,6 +7967,23 @@
         }
       }
     },
+    "Your profile syncs automatically when iCloud is available." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your profile syncs automatically when iCloud is available."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud 可用时，个人资料会自动同步。"
+          }
+        }
+      }
+    },
     "Your purchase could not be verified. Try restoring purchases." : {
       "localizations" : {
         "zh-Hans" : {
@@ -6237,1688 +8016,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法读取已保存的曲线。数据仍保留在此设备上，目前无法编辑。"
-          }
-        }
-      }
-    },
-    "Architecture" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Architecture"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "建筑"
-          }
-        }
-      }
-    },
-    "Background Effect" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "背景效果"
-          }
-        }
-      }
-    },
-    "Background Style" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "背景样式"
-          }
-        }
-      }
-    },
-    "Backlight" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Backlight"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "逆光"
-          }
-        }
-      }
-    },
-    "Beach" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Beach"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "海滩"
-          }
-        }
-      }
-    },
-    "Cloudy" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cloudy"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "阴天"
-          }
-        }
-      }
-    },
-    "Flowers" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Flowers"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "花卉"
-          }
-        }
-      }
-    },
-    "Food" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Food"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "美食"
-          }
-        }
-      }
-    },
-    "Forest" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Forest"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "森林"
-          }
-        }
-      }
-    },
-    "Indoor" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Indoor"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "室内"
-          }
-        }
-      }
-    },
-    "Landscape" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Landscape"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "风光"
-          }
-        }
-      }
-    },
-    "Nebula" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "星云"
-          }
-        }
-      }
-    },
-    "Neon" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neon"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "霓虹"
-          }
-        }
-      }
-    },
-    "Night" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Night"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "夜景"
-          }
-        }
-      }
-    },
-    "Portrait" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Portrait"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "人像"
-          }
-        }
-      }
-    },
-    "Rainy" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rainy"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "雨天"
-          }
-        }
-      }
-    },
-    "Snow" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Snow"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "雪景"
-          }
-        }
-      }
-    },
-    "Still life" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Still life"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "静物"
-          }
-        }
-      }
-    },
-    "Street" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Street"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "街拍"
-          }
-        }
-      }
-    },
-    "Sunny" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sunny"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "晴天"
-          }
-        }
-      }
-    },
-    "Sunrise" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sunrise"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "日出"
-          }
-        }
-      }
-    },
-    "Sunset" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sunset"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "日落"
-          }
-        }
-      }
-    },
-    "Top" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "顶部"
-          }
-        }
-      }
-    },
-    "Top Left" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "左上"
-          }
-        }
-      }
-    },
-    "Top Right" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "右上"
-          }
-        }
-      }
-    },
-    "Travel" : {
-      "comment" : "Photography scene recommendation shown below a film name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Travel"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "旅行"
-          }
-        }
-      }
-    },
-    "Text Display" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Text Display"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "文案显示"
-          }
-        }
-      }
-    },
-    "Show Titles" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Titles"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "显示标题"
-          }
-        }
-      }
-    },
-    "Show Subtitles" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show Subtitles"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "显示副标题"
-          }
-        }
-      }
-    },
-    "Reset Film Order" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset Film Order"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重置胶片排序"
-          }
-        }
-      }
-    },
-    "Film Order" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Film Order"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "胶片排序"
-          }
-        }
-      }
-    },
-    "Manage Films" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Manage Films"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "管理胶片"
-          }
-        }
-      }
-    },
-    "Shown" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shown"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已显示"
-          }
-        }
-      }
-    },
-    "Hidden" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hidden"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已隐藏"
-          }
-        }
-      }
-    },
-    "Show or hide this film" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show or hide this film"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "显示或隐藏此胶片"
-          }
-        }
-      }
-    },
-    "Delete %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "删除%@"
-          }
-        }
-      }
-    },
-    "Delete Film?" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete Film?"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "删除胶片？"
-          }
-        }
-      }
-    },
-    "“%@” will be deleted. Existing photos are kept." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "“%@” will be deleted. Existing photos are kept."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "将删除“%@”，已拍摄的照片会保留。"
-          }
-        }
-      }
-    },
-    "No films shown" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No films shown"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "暂无显示的胶片"
-          }
-        }
-      }
-    },
-    "Preparing…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preparing…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "准备中…"
-          }
-        }
-      }
-    }
-,
-    "Rendering…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rendering…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "渲染中…"
-          }
-        }
-      }
-    }
-,
-    "You can close this preview while saving." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保存期间可以关闭预览。"
-          }
-        }
-      }
-    },
-    "This photo is taking longer than usual to save. It stays on this device and finishes on its own." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This photo is taking longer than usual to save. It stays on this device and finishes on its own."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "这张照片保存得比平常久。它会保留在本设备并自行完成保存。"
-          }
-        }
-      }
-    },
-    "About the Author" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "About Author"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "关于作者"
-          }
-        }
-      }
-    },
-    "App Store Rating Unavailable" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "App Store Rating Unavailable"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "暂时无法评分"
-          }
-        }
-      }
-    },
-    "bilibili" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bilibili"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "哔哩哔哩"
-          }
-        }
-      }
-    },
-    "Center" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "中心"
-          }
-        }
-      }
-    },
-    "Change Profile Photo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Change Profile Photo"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更换头像"
-          }
-        }
-      }
-    },
-    "Choose Photo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择照片"
-          }
-        }
-      }
-    },
-    "Choose Profile Photo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose Profile Photo"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择头像"
-          }
-        }
-      }
-    },
-    "common_hide_keyboard" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide keyboard"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "收起键盘"
-          }
-        }
-      }
-    },
-    "Couldn’t Load Profile Photo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn’t Load Profile Photo"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "头像加载失败"
-          }
-        }
-      }
-    },
-    "Edit Profile" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Edit Profile"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "编辑资料"
-          }
-        }
-      }
-    },
-    "Ember" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "余晖"
-          }
-        }
-      }
-    },
-    "Enjoying %@?" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enjoying %@?"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "喜欢%@吗？"
-          }
-        }
-      }
-    },
-    "Family" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Family"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "家庭"
-          }
-        }
-      }
-    },
-    "Fashion" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fashion"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "时装"
-          }
-        }
-      }
-    },
-    "Feedback for %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Feedback for %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ 使用反馈"
-          }
-        }
-      }
-    },
-    "github" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub"
-          }
-        }
-      }
-    },
-    "Independent Website" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Independent Website"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "独立网站"
-          }
-        }
-      }
-    },
-    "Leave the comfortable style, and leap into the imagination." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leave the comfortable style, and leap into the imagination."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "离开舒适的风格，跃入想象。"
-          }
-        }
-      }
-    },
-    "LeaveStyle" : {
-
-    },
-    "leavestyle101@gmail.com" : {
-
-    },
-    "Light" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "浅色"
-          }
-        }
-      }
-    },
-    "linkedin" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "LinkedIn"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "领英"
-          }
-        }
-      }
-    },
-    "Loading Profile Photo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading Profile Photo"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在加载头像"
-          }
-        }
-      }
-    },
-    "mail_error_message" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Please check your email configuration and try again."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请检查邮件配置后重试。"
-          }
-        }
-      }
-    },
-    "mail_error_title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to Send Email"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "邮件发送失败"
-          }
-        }
-      }
-    },
-    "more_contact" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Contact"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "联系"
-          }
-        }
-      }
-    },
-    "more_contact_email" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Contact"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "联系"
-          }
-        }
-      }
-    },
-    "more_product_deepmusic" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deepmusic"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "深度音乐"
-          }
-        }
-      }
-    },
-    "more_product_deepmusic_desc" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Immersive full-screen lyrics music."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "沉浸式全屏歌词音乐"
-          }
-        }
-      }
-    },
-    "more_product_demark" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PhotoMark"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "印记"
-          }
-        }
-      }
-    },
-    "more_product_demark_desc" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Metadata enriched photo frames"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "默认照片边框水印"
-          }
-        }
-      }
-    },
-    "more_product_imagefit" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ImageFit"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图适"
-          }
-        }
-      }
-    },
-    "more_product_imagefit_desc" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adjust images to the right size"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "调整图片合适尺寸"
-          }
-        }
-      }
-    },
-    "more_product_justnote" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "JustNote"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "一点小记"
-          }
-        }
-      }
-    },
-    "more_product_justnote_desc" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "One Thought One Note"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "探索、记录、总结、分享"
-          }
-        }
-      }
-    },
-    "more_product_musicecho" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MusicEcho"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "音乐回响"
-          }
-        }
-      }
-    },
-    "more_product_musicecho_desc" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "3D rhythm-driven music visuals"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "3D音乐节奏光影动效"
-          }
-        }
-      }
-    },
-    "more_product_musicpal" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MusicPal"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "助乐app"
-          }
-        }
-      }
-    },
-    "more_product_musicpal_desc" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your music assistant."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "苹果音乐专属助手"
-          }
-        }
-      }
-    },
-    "more_products" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Works"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "作品"
-          }
-        }
-      }
-    },
-    "Nickname" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nickname"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "昵称"
-          }
-        }
-      }
-    },
-    "profile_adjust_photo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adjust Photo"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "调整头像"
-          }
-        }
-      }
-    },
-    "profile_crop_area" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Avatar crop area"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "头像裁剪区域"
-          }
-        }
-      }
-    },
-    "profile_crop_hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Drag to move. Pinch or use the slider to zoom."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "拖动可移动，双指或滑杆可缩放。"
-          }
-        }
-      }
-    },
-    "profile_field_motto" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Motto"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "座右铭"
-          }
-        }
-      }
-    },
-    "profile_photo_unavailable" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not use this photo."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法使用这张照片。"
-          }
-        }
-      }
-    },
-    "profile_set_motto_prompt" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add motto"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加座右铭"
-          }
-        }
-      }
-    },
-    "profile_set_nickname_prompt" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Set name"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "设置名字"
-          }
-        }
-      }
-    },
-    "profile_zoom" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zoom"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "缩放"
-          }
-        }
-      }
-    },
-    "rednote" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "RedNote"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "小红书"
-          }
-        }
-      }
-    },
-    "Remove Profile Photo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove Profile Photo"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "移除头像"
-          }
-        }
-      }
-    },
-    "review_sheet_button" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Write a Review"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "好评一下"
-          }
-        }
-      }
-    },
-    "review_sheet_close" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "关闭"
-          }
-        }
-      }
-    },
-    "Share App" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Share App"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "分享应用"
-          }
-        }
-      }
-    },
-    "Try choosing a different photo." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try choosing a different photo."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请选择另一张照片。"
-          }
-        }
-      }
-    },
-    "Visit" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Visit"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "访问"
-          }
-        }
-      }
-    },
-    "www.leavestyle.com" : {
-
-    },
-    "x" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "X"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "X"
-          }
-        }
-      }
-    },
-    "You can rate the app when its App Store page is available." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You can rate the app when its App Store page is available."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "App Store 页面开放后即可评分。"
-          }
-        }
-      }
-    },
-    "Your feedback helps us make %@ even better." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your feedback helps us make %@ even better."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你的反馈能帮助我们把%@做得更好。"
-          }
-        }
-      }
-    },
-    "Your profile syncs automatically when iCloud is available." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your profile syncs automatically when iCloud is available."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "iCloud 可用时，个人资料会自动同步。"
           }
         }
       }
@@ -7960,7 +8057,6 @@
         }
       }
     }
-
   },
   "version" : "1.0"
 }

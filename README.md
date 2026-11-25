@@ -251,17 +251,18 @@ Diagnostics include `app_startup_prepare`, `startup_custom_filters`, `app_home_i
 
 ## Tone curves
 
-The built-in catalog has five distinct roles. Chinese display names use two characters consistently; descriptions state the actual tonal adjustment:
+The built-in curves appear in the following default order.
 
 | Curve | Chinese name | Adjustment |
 | --- | --- | --- |
 | Original | 原调 | Keep the film LUT's original tones. |
 | Soft | 柔和 | Inverse S: reduce midtone contrast while keeping black/white endpoints. |
 | Contrast | 鲜明 | Increase midtone contrast with a controlled shadow toe. |
-| Faded | 褪色 | Lift the black floor, dip shadows and raise highlights with an S-shaped middle. |
+| Faded | 褪色 | Lift blacks, soften highlights and reduce midtone contrast. |
+| Faded S | 褪色 S | Keep the faded black and white points and add gentle midtone contrast. |
 | X-Pro | 负冲 | Cross-processed look with cool shadows and warm highlights. |
 
-Open Shadows, Fade and Warm Print are retired from the catalog. The old Film Soft was another contrast-increasing S; Soft now has the opposite role. Faded (previously labeled Matte S) replaces the former near-linear Matte with a lifted-black S response (black 0.075, shadow 0.32→0.22, middle 0.5→0.5, light 0.72→0.84, white 1). Its shallow toe raises the deepest blacks while its steeper middle keeps shadow/highlight separation. Older active Matte selections are preserved as custom curves, including selections already stored in the atomic payload. On upgrade, an active retired or changed preset is copied into My Curves with its original control points. Unselected retired entries are removed; existing custom curves and already journaled LUT bytes are preserved.
+Open Shadows, Fade and Warm Print are retired from the catalog. The old Film Soft was another contrast-increasing S; Soft now has the opposite role. On upgrade, Faded S is inserted immediately after Faded in the saved order. Both can then be reordered and hidden independently. Older active Matte selections are preserved as custom curves, including selections already stored in the atomic payload. On upgrade, an active retired or changed preset is copied into My Curves with its original control points. Unselected retired entries are removed; existing custom curves and already journaled LUT bytes are preserved.
 
 ```mermaid
 flowchart LR

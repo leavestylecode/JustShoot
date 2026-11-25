@@ -83,6 +83,68 @@ final class PhotoImageEncoderTests: XCTestCase {
             colorSpace: FilmImagePipeline.colorSpace, cancellation: cancellation))
     }
 
+    func testHDRGainMapRoundTripsCapturedHighlightsAndKeepsSDRBase() throws {
+        guard #available(iOS 18.0, *) else { throw XCTSkip("HDR gain-map encoding requires iOS 18") }
+        let linear = RawFilmRenderer.linearSpace
+        let bounds = CGRect(x: 0, y: 0, width: 128, height: 64)
+        let left = CGRect(x: 0, y: 0, width: 64, height: 64)
+        let context = CIContext(options: [.workingColorSpace: linear, .workingFormat: CIFormat.RGBAf])
+        let base = CIImage(color: try XCTUnwrap(CIColor(red: 0.8, green: 0.7, blue: 0.6, colorSpace: linear)))
+            .cropped(to: bounds)
+        let shadows = CIImage(color: try XCTUnwrap(CIColor(red: 0.5, green: 0.5, blue: 0.5, colorSpace: linear)))
+            .cropped(to: left)
+        let highlights = CIImage(color: try XCTUnwrap(CIColor(red: 4, green: 4, blue: 4, colorSpace: linear)))
+            .cropped(to: bounds)
+        func red(_ image: CIImage, x: CGFloat, y: CGFloat = 32) -> Float {
+            var pixel = [Float](repeating: 0, count: 4)
+            context.render(image, toBitmap: &pixel, rowBytes: 16,
+                bounds: CGRect(x: x, y: y, width: 1, height: 1), format: .RGBAf, colorSpace: linear)
+            return pixel[0]
+        }
+        let scene = shadows.composited(over: highlights)
+        let hdr = try XCTUnwrap(FilmHDRHighlights.applying(to: base, source: scene))
+        XCTAssertEqual(red(scene, x: 96), 4, accuracy: 0.02)
+        XCTAssertEqual(red(hdr, x: 96), 2, accuracy: 0.02)
+        let encoded = try XCTUnwrap(PhotoImageEncoder.encode(base, context: context,
+            colorSpace: FilmImagePipeline.colorSpace, mode: .quality, hdrImage: hdr))
+        let sdr = try XCTUnwrap(CIImage(data: encoded.data, options: [.expandToHDR: false]))
+        XCTAssertEqual(red(sdr, x: 32), 0.8, accuracy: 0.03)
+        XCTAssertEqual(red(sdr, x: 96), 0.8, accuracy: 0.03)
+
+        #if targetEnvironment(simulator)
+        guard #available(iOS 26.0, *) else { throw XCTSkip("The iOS 18 simulator omits HDR gain maps") }
+        // The newer simulator exposes ISO gain-map pixels but omits their expansion metadata.
+        let source = try XCTUnwrap(CGImageSourceCreateWithData(encoded.data as CFData, nil))
+        let info = try XCTUnwrap((CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeISOGainMap)
+            ?? CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap)) as? [String: Any])
+        let pixels = try XCTUnwrap(info[kCGImageAuxiliaryDataInfoData as String] as? Data)
+        let description = try XCTUnwrap(info[kCGImageAuxiliaryDataInfoDataDescription as String] as? [String: Int])
+        let width = try XCTUnwrap(description["Width"])
+        let row = try XCTUnwrap(description["BytesPerRow"]) * (try XCTUnwrap(description["Height"]) / 2)
+        XCTAssertGreaterThan(pixels[row + width * 3 / 4], pixels[row + width / 4])
+        #else
+        let expanded = try XCTUnwrap(CIImage(data: encoded.data, options: [.expandToHDR: true]))
+        XCTAssertGreaterThan(expanded.contentHeadroom, 1)
+        XCTAssertEqual(red(expanded, x: 32), 0.8, accuracy: 0.08)
+        XCTAssertGreaterThan(red(expanded, x: 96), 1.5)
+
+        let rotated = base.oriented(forExifOrientation: 6)
+        let grade = rotated.cropped(to: rotated.extent.insetBy(dx: 8, dy: 16))
+        let rotatedHDR = try XCTUnwrap(FilmHDRHighlights.applyingNativeGainMap(from: encoded.data,
+            to: grade, orientedSourceExtent: rotated.extent, exifOrientation: 6))
+        XCTAssertEqual(rotatedHDR.extent, grade.extent)
+        XCTAssertGreaterThan(red(rotatedHDR, x: 32, y: 32), 1.5)
+        XCTAssertEqual(red(rotatedHDR, x: 32, y: 96), 0.8, accuracy: 0.08)
+        #endif
+
+        let noHighlights = try XCTUnwrap(PhotoImageEncoder.encode(base, context: context,
+            colorSpace: FilmImagePipeline.colorSpace, mode: .quality, hdrImage: base))
+        let neutral = try XCTUnwrap(CIImage(data: noHighlights.data, options: [.expandToHDR: true]))
+        XCTAssertEqual(neutral.contentHeadroom, 1, accuracy: 0.01)
+        XCTAssertNil(FilmHDRHighlights.applyingNativeGainMap(from: noHighlights.data, to: base,
+            orientedSourceExtent: bounds, exifOrientation: 1))
+    }
+
     private static func makeContext() -> CIContext {
         let options: [CIContextOption: Any] = [.workingColorSpace: FilmImagePipeline.colorSpace,
             .outputColorSpace: FilmImagePipeline.colorSpace, .cacheIntermediates: false]

@@ -19,6 +19,7 @@ enum CapturePhotoRenderer {
             imageData: source, lutCacheKey: recipe.filterName, capturedLUT: lut,
             lutIntensity: recipe.resolvedLUTIntensity,
             rawRecipe: recipe.raw, rawLUT: rawLUT,
+            capturesHDR: recipe.plan?.capturesHDR == true,
             grain: recipe.profile.grain, grainSeed: grainSeed, optics: recipe.profile.optics,
             chromatic: recipe.profile.effectiveChromatic, chromaticSceneCCT: recipe.chromaticSceneCCT,
             chromaticGainOverride: recipe.frozenChromaticGain,

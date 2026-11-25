@@ -26,7 +26,7 @@ final class CurveLUTComposerTests: XCTestCase {
     func testTwoAndThreePointIdentityCubesRenderSoftVividAndFadedTones() throws {
         for dimension in [2, 3] {
             let original = try cube(dimension: dimension) { [$0, $1, $2, 1] }
-            for preset in [CurvePreset.filmSoft, .punch, .matte] {
+            for preset in [CurvePreset.filmSoft, .punch, .matte, .fadedS] {
                 let curve = FilmCurve.builtIn(preset)
                 let composed = curve.applied(to: original)
                 XCTAssertGreaterThanOrEqual(composed.dimension, 33)
@@ -41,7 +41,7 @@ final class CurveLUTComposerTests: XCTestCase {
                 XCTAssertEqual(shadow[2], selectedShadow.blue, accuracy: 0.000001)
                 XCTAssertEqual(highlight[0], selectedHighlight.red, accuracy: 0.000001)
                 XCTAssertEqual(shadow[3], 1)
-                if preset == .matte {
+                if preset == .matte || preset == .fadedS {
                     let black = node(composed, red: 0, green: 0, blue: 0)
                     let white = node(composed, red: 32, green: 32, blue: 32)
                     for channel in 0..<3 {

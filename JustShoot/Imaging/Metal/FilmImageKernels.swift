@@ -8,6 +8,7 @@ struct FilmImageKernels: Sendable {
         case highlight = "justShootHighlightEnergy"
         case composite = "justShootHaloComposite"
         case chromatic = "justShootChromaticGain"
+        case hdrHighlights = "justShootHDRHighlights"
     }
 
     static let shared = FilmImageKernels()

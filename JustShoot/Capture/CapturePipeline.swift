@@ -852,7 +852,11 @@ private actor CaptureWorker {
         indexing.end()
         try trace.measure("capture_journal_cleanup") { try journal.finish(job.id) }
         let thumbnailLoad = trace.span("capture_thumbnail")
-        let thumbnail = await ImageLoader.shared.loadThumbnail(imageData: image, photoId: photoID, maxPixel: CapturePreviewRenderer.badgePixel)
+        // HDR HEIF downsampling waits on ImageIO's decoder. Keep the post-save
+        // thumbnail at utility priority while sharing the bounded decode queue.
+        let thumbnail = await ImageLoader.shared.loadThumbnail(imageData: image, photoId: photoID,
+            maxPixel: CapturePreviewRenderer.badgePixel,
+            qualityOfService: recipe.plan?.format == .processedHDR ? .utility : .userInitiated)
         thumbnailLoad.end(thumbnail == nil ? "missing" : "ok")
         if FilmProcessor.stageDiagnosticsEnabled, let assetID = job.assetIdentifier,
            let libraryData = await AssetImageLoader.shared.imageData(id: assetID, timeout: 4) {

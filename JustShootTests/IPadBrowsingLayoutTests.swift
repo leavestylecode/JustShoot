@@ -17,6 +17,7 @@ final class IPadBrowsingLayoutTests: XCTestCase {
         let defaultsName = "ipad-browsing-layout-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: defaultsName))
         let library = FilmCurveLibrary(defaults: defaults)
+        let membership = MembershipStore()
         let container = try ModelContainer(for: Photo.self, CustomLUT.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         await FilmCardLibrary.shared.loadIfNeeded()
@@ -44,6 +45,7 @@ final class IPadBrowsingLayoutTests: XCTestCase {
             let host = UIHostingController(rootView: page
                 .modelContainer(container)
                 .environmentObject(library)
+                .environment(membership)
                 .environment(\.horizontalSizeClass, .regular)
                 .dynamicTypeSize(.large)
                 .preferredColorScheme(.dark))

@@ -6,10 +6,10 @@ final class CurvePresetTests: XCTestCase {
         CurveMath.sample(preset.previewData.master, at: input)
     }
 
-    func testCatalogueContainsFiveDistinctPhotographicRoles() {
-        let expected: Set<CurvePreset> = [.none, .filmSoft, .punch, .matte, .crossProcess]
-        XCTAssertEqual(Set(CurvePreset.allCases), expected)
-        XCTAssertEqual(Set(CurvePreset.allCases.map(\.id)).count, 5)
+    func testCatalogueListsFadedSImmediatelyAfterFaded() {
+        let expected: [CurvePreset] = [.none, .filmSoft, .punch, .matte, .fadedS, .crossProcess]
+        XCTAssertEqual(CurvePreset.allCases, expected)
+        XCTAssertEqual(Set(CurvePreset.allCases.map(\.id)).count, expected.count)
         XCTAssertTrue(FilmCurve.builtIn(.none).isNeutral)
         XCTAssertTrue(CurvePreset.allCases.filter { $0 != .none }.allSatisfy { !FilmCurve.builtIn($0).isNeutral })
     }
@@ -61,23 +61,29 @@ final class CurvePresetTests: XCTestCase {
         XCTAssertLessThan(gray(.matte, 1), 0.98)
     }
 
-    func testMatteSoftensMidtonesWithoutCompressingShadowDetailIntoAFlatToe() {
-        XCTAssertGreaterThan(gray(.matte, 0.25), 0.25)
-        XCTAssertLessThan(gray(.matte, 0.75), 0.75)
-        XCTAssertEqual(gray(.matte, 0.5), 0.5, accuracy: 0.001)
-        let middleSlope = (gray(.matte, 0.6) - gray(.matte, 0.4)) / 0.2
-        XCTAssertGreaterThan(middleSlope, 0.75)
-        XCTAssertLessThan(middleSlope, 1)
-        let table = CurvePreset.matte.previewData.master
+    func testFadedKeepsItsOriginalToneResponse() {
+        let original = CurveMath.expand(CurveMath.points([
+            (0, 0.055), (0.25, 0.285), (0.50, 0.50), (0.75, 0.715), (1, 0.95)
+        ]))
+        XCTAssertEqual(CurvePreset.matte.previewData.master, original)
+    }
+
+    func testFadedSSeparatesMidtonesAndPreservesDetailAtBothEnds() {
+        XCTAssertLessThan(gray(.fadedS, 0.25), 0.25)
+        XCTAssertGreaterThan(gray(.fadedS, 0.75), 0.75)
+        XCTAssertEqual(gray(.fadedS, 0.5), 0.5, accuracy: 0.001)
+        let middleSlope = (gray(.fadedS, 0.6) - gray(.fadedS, 0.4)) / 0.2
+        XCTAssertGreaterThan(middleSlope, 1.05)
+        let table = CurvePreset.fadedS.previewData.master
         for (before, after) in zip(table, table.dropFirst()) {
             let slope = (after - before) * Float(table.count - 1)
-            XCTAssertGreaterThan(slope, 0.7, "Fading must preserve local shadow separation")
-            XCTAssertLessThan(slope, 1.05, "Fading must not add a hard midtone S-curve")
+            XCTAssertGreaterThan(slope, 0.6, "Keep texture visible in the faded shadows and highlights")
+            XCTAssertLessThan(slope, 1.2, "Keep contrast gentle on top of the film response")
         }
     }
 
     func testTonePresetsLeaveNeutralGraysNeutralWhileXProSplitsTheirColor() {
-        for preset in [CurvePreset.none, .filmSoft, .punch, .matte] {
+        for preset in [CurvePreset.none, .filmSoft, .punch, .matte, .fadedS] {
             XCTAssertEqual(preset.previewData.red, preset.previewData.green)
             XCTAssertEqual(preset.previewData.green, preset.previewData.blue)
         }

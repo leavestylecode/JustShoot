@@ -16,7 +16,8 @@ actor SharedImageRequests {
         self.worker = worker
     }
 
-    func image(for key: String, decode: @escaping @Sendable () -> UIImage?) async -> UIImage? {
+    func image(for key: String, qualityOfService: QualityOfService = .userInitiated,
+               decode: @escaping @Sendable () -> UIImage?) async -> UIImage? {
         let waiter = UUID()
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
@@ -30,7 +31,7 @@ actor SharedImageRequests {
                 }
                 let token = UUID()
                 let task = Task {
-                    let image = await worker.run(decode)
+                    let image = await worker.run(decode, qualityOfService: qualityOfService)
                     finish(key: key, token: token, image: image)
                 }
                 requests[key] = Request(token: token, task: task, waiters: [waiter: continuation])
