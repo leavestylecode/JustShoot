@@ -13,9 +13,9 @@ enum AppAppearance: String, CaseIterable {
         }
     }
 
-    var title: LocalizedStringKey {
+    func title(automatic: LocalizedStringKey) -> LocalizedStringKey {
         switch self {
-        case .automatic: "Automatic"
+        case .automatic: automatic
         case .light: "Light"
         case .dark: "Dark"
         }

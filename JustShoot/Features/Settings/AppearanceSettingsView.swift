@@ -9,16 +9,11 @@ struct AppearanceSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                card("Color Scheme") {
-                    appearancePicker("Color Scheme", selection: $appearance)
-                }
+                appearanceCard("App Appearance", automatic: "System", selection: $appearance)
+                appearanceCard("Camera Appearance", automatic: "Match App", selection: $cameraAppearance)
 
-                card("Camera Appearance") {
-                    appearancePicker("Camera Appearance", selection: $cameraAppearance)
-                }
-
-                card("Settings Icons") {
-                    AppSegmentedPicker(title: "Settings Icons", selection: $iconStyle,
+                card("Settings Icon Style") {
+                    AppSegmentedPicker(title: "Settings Icon Style", selection: $iconStyle,
                         options: SettingsIconStyle.allCases, size: .large) { style in
                         Text(style.title)
                     }
@@ -36,21 +31,24 @@ struct AppearanceSettingsView: View {
         }
         .scrollIndicators(.hidden)
         .appPageBackground()
-        .navigationTitle("Appearance Management")
+        .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
         .matchingNavigationBackButton()
         .toolbar(.hidden, for: .tabBar)
     }
 
-    private func appearancePicker(_ title: LocalizedStringKey, selection: Binding<AppAppearance>) -> some View {
-        AppSegmentedPicker(title: title, selection: selection, options: AppAppearance.allCases, size: .large) { option in
-            Text(option.title)
+    private func appearanceCard(_ title: LocalizedStringKey, automatic: LocalizedStringKey,
+                                selection: Binding<AppAppearance>) -> some View {
+        card(title) {
+            AppSegmentedPicker(title: title, selection: selection, options: AppAppearance.allCases, size: .large) { option in
+                Text(option.title(automatic: automatic))
+            }
         }
     }
 
     private var iconPreview: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Live Preview")
+            Text("Preview")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -77,7 +75,7 @@ struct AppearanceSettingsView: View {
                     .frame(width: 24)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("General Page Background")
+                    Text("Page Background")
                         .foregroundStyle(.primary)
                     Text(backgroundSummary)
                         .font(.footnote)

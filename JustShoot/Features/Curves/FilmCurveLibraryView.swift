@@ -100,10 +100,10 @@ struct FilmCurveLibraryView: View {
                     NavigationLink {
                         FilmCurveEditorView(curve: nil)
                     } label: {
-                        Label("Add Curve", systemImage: "plus")
-                            .labelStyle(.iconOnly)
+                        Image(systemName: "plus")
                             .toolbarControlSurface()
                     }
+                    .accessibilityLabel("Add Curve")
                     .disabled(!library.canEdit)
                 }
             }
@@ -372,10 +372,10 @@ struct FilmCurveEditorView: View {
                             Label("Delete", systemImage: "trash")
                         }
                     } label: {
-                        Label("More Curve Actions", systemImage: "ellipsis")
-                            .labelStyle(.iconOnly)
+                        Image(systemName: "ellipsis")
                             .toolbarControlSurface()
                     }
+                    .accessibilityLabel("More Curve Actions")
                     .disabled(!library.canEdit)
                 }
             }

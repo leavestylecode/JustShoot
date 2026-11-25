@@ -90,11 +90,7 @@ struct FilmCardDetailView: View {
     private var navigationHeader: some View {
         HStack(spacing: 12) {
             Button { dismiss() } label: {
-                Image(systemName: "chevron.backward")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 44, height: 44)
-                    .cameraControlSurface()
-                    .contentShape(.circle)
+                NavigationBackLabel()
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Back")

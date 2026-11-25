@@ -12,7 +12,7 @@ extension View {
     }
 }
 
-/// Styles UIKit's own Back item so the swipe gesture and press-and-hold history still work.
+/// UIKit owns the Back action, accessibility, edge swipe, and navigation history.
 private struct LegacyNavigationBackButton: UIViewControllerRepresentable {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -24,16 +24,21 @@ private struct LegacyNavigationBackButton: UIViewControllerRepresentable {
     }
 
     static func dismantleUIViewController(_ controller: Controller, coordinator: ()) {
-        controller.restoreBackButtonTitle()
+        controller.restore()
     }
 
     final class Controller: UIViewController {
-        private weak var styledItem: UINavigationItem?
-        private var styledScheme: ColorScheme?
         private weak var previousItem: UINavigationItem?
+        private weak var destination: UINavigationItem?
+        private var originalButton: UIBarButtonItem?
+        private var installedButton: UIBarButtonItem?
         private var originalDisplayMode: UINavigationItem.BackButtonDisplayMode = .default
+        private var styledScheme: ColorScheme?
         private var isVisible = false
         var colorScheme: ColorScheme = .light
+
+        private typealias AppearanceKey = ReferenceWritableKeyPath<UINavigationItem, UINavigationBarAppearance?>
+        private var appearances: [(key: AppearanceKey, original: UINavigationBarAppearance?, installed: UINavigationBarAppearance?)] = []
 
         override func loadView() {
             view = UIView()
@@ -49,84 +54,103 @@ private struct LegacyNavigationBackButton: UIViewControllerRepresentable {
         override func viewDidDisappear(_ animated: Bool) {
             super.viewDidDisappear(animated)
             isVisible = false
-            restoreBackButtonTitle()
+            restore()
         }
 
-        func restoreBackButtonTitle() {
-            if previousItem?.backButtonDisplayMode == .minimal {
-                previousItem?.backButtonDisplayMode = originalDisplayMode
+        func restore() {
+            if let previousItem, previousItem.backBarButtonItem === installedButton {
+                previousItem.backBarButtonItem = originalButton
+                if previousItem.backButtonDisplayMode == .minimal {
+                    previousItem.backButtonDisplayMode = originalDisplayMode
+                }
             }
+            if let destination {
+                for entry in appearances where destination[keyPath: entry.key] === entry.installed {
+                    destination[keyPath: entry.key] = entry.original
+                }
+            }
+            appearances.removeAll()
             previousItem = nil
+            destination = nil
+            originalButton = nil
+            installedButton = nil
+            styledScheme = nil
         }
 
         func styleBackButton() {
             guard isVisible, let navigationController else { return }
-            // SwiftUI embeds this controller inside the hosting controller that owns the item.
             var host = parent
-            while let current = host, current.parent !== navigationController {
-                host = current.parent
-            }
+            while let current = host, current.parent !== navigationController { host = current.parent }
             guard let host, let index = navigationController.viewControllers.firstIndex(of: host), index > 0 else { return }
 
-            let backItem = navigationController.viewControllers[index - 1].navigationItem
-            if previousItem !== backItem {
-                restoreBackButtonTitle()
-                originalDisplayMode = backItem.backButtonDisplayMode
-                previousItem = backItem
-                backItem.backButtonDisplayMode = .minimal
-            }
-
+            let source = navigationController.viewControllers[index - 1].navigationItem
             let item = host.navigationItem
-            guard styledItem !== item || styledScheme != colorScheme else { return }
-            let bar = navigationController.navigationBar
-            let standard = item.standardAppearance ?? bar.standardAppearance
-            let scrollEdge = item.scrollEdgeAppearance ?? bar.scrollEdgeAppearance ?? standard.copy()
-            let compact = item.compactAppearance ?? bar.compactAppearance ?? standard
-            let compactScrollEdge = item.compactScrollEdgeAppearance ?? bar.compactScrollEdgeAppearance ?? scrollEdge
-            if item.scrollEdgeAppearance == nil, bar.scrollEdgeAppearance == nil {
-                scrollEdge.configureWithTransparentBackground()
+            if previousItem !== source || destination !== item {
+                restore()
+                previousItem = source
+                destination = item
+                originalDisplayMode = source.backButtonDisplayMode
+                originalButton = source.backBarButtonItem
+                source.backButtonDisplayMode = .minimal
+                hideSystemChevron(on: item, in: navigationController.navigationBar)
             }
+            guard styledScheme != colorScheme else { return }
 
-            let regularImage = backIndicator(diameter: 44, symbolSize: 17)
-            let compactImage = backIndicator(diameter: 32, symbolSize: 15)
-            item.standardAppearance = Self.appearance(standard, image: regularImage)
-            item.scrollEdgeAppearance = Self.appearance(scrollEdge, image: regularImage)
-            item.compactAppearance = Self.appearance(compact, image: compactImage)
-            item.compactScrollEdgeAppearance = Self.appearance(compactScrollEdge, image: compactImage)
-            styledItem = item
+            // UIKit scales backIndicatorImage to its chevron slot. The native Back item's
+            // own image uses the full bar height and follows the item's pressed state.
+            let button = UIBarButtonItem(image: backImage(diameter: NavigationBackMetrics.diameter,
+                                                          glyph: NavigationBackMetrics.glyph),
+                landscapeImagePhone: backImage(diameter: NavigationBackMetrics.compactDiameter,
+                                               glyph: NavigationBackMetrics.compactGlyph),
+                style: .plain, target: nil, action: nil)
+            button.accessibilityLabel = originalButton?.accessibilityLabel ?? originalButton?.title
+                ?? source.backButtonTitle ?? source.title
+            installedButton = button
+            source.backBarButtonItem = button
             styledScheme = colorScheme
         }
 
-        private func backIndicator(diameter: CGFloat, symbolSize: CGFloat) -> UIImage {
+        private func hideSystemChevron(on item: UINavigationItem, in bar: UINavigationBar) {
+            let standard = item.standardAppearance ?? bar.standardAppearance
+            let scrollEdge = item.scrollEdgeAppearance ?? bar.scrollEdgeAppearance ?? standard.copy()
+            if item.scrollEdgeAppearance == nil, bar.scrollEdgeAppearance == nil {
+                scrollEdge.configureWithTransparentBackground()
+            }
+            let compact = item.compactAppearance ?? bar.compactAppearance ?? standard
+            let compactScrollEdge = item.compactScrollEdgeAppearance ?? bar.compactScrollEdgeAppearance ?? scrollEdge
+            let empty = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).image { _ in }
+            let variants: [(AppearanceKey, UINavigationBarAppearance)] = [
+                (\.standardAppearance, standard), (\.scrollEdgeAppearance, scrollEdge),
+                (\.compactAppearance, compact), (\.compactScrollEdgeAppearance, compactScrollEdge)
+            ]
+            for (key, base) in variants {
+                let original = item[keyPath: key]
+                let copy = base.copy()
+                copy.setBackIndicatorImage(empty, transitionMaskImage: empty)
+                item[keyPath: key] = copy
+                appearances.append((key, original, item[keyPath: key]))
+            }
+        }
+
+        private func backImage(diameter: CGFloat, glyph: UIImage) -> UIImage {
             let traits = UITraitCollection(userInterfaceStyle: colorScheme == .dark ? .dark : .light)
             let foreground = UIColor.label.resolvedColor(with: traits)
-            let fill = UIColor.tertiarySystemFill.resolvedColor(with: traits)
+            let fill = (colorScheme == .dark ? UIColor.secondarySystemBackground : .systemBackground)
+                .resolvedColor(with: traits)
             let bounds = CGRect(x: 0, y: 0, width: diameter, height: diameter)
-            let symbol = UIImage(systemName: "chevron.left",
-                withConfiguration: UIImage.SymbolConfiguration(pointSize: symbolSize, weight: .semibold))?
-                .withTintColor(foreground, renderingMode: .alwaysOriginal)
-
-            // A rendered image retains its dimensions in UIKit's back indicator slot.
+            let symbol = glyph.withTintColor(foreground, renderingMode: .alwaysOriginal)
             return UIGraphicsImageRenderer(size: bounds.size).image { _ in
                 let outline = UIBezierPath(ovalIn: bounds.insetBy(dx: 0.25, dy: 0.25))
-                fill.setFill()
+                fill.withAlphaComponent(0.94).setFill()
                 outline.fill()
-                foreground.withAlphaComponent(0.12).setStroke()
+                foreground.withAlphaComponent(0.14).setStroke()
                 outline.lineWidth = 0.5
                 outline.stroke()
-                if let symbol {
-                    symbol.draw(at: CGPoint(x: (diameter - symbol.size.width) / 2,
-                                            y: (diameter - symbol.size.height) / 2))
-                }
+                symbol.draw(at: CGPoint(x: (diameter - symbol.size.width) / 2,
+                                        y: (diameter - symbol.size.height) / 2))
             }
             .withRenderingMode(.alwaysOriginal)
             .imageFlippedForRightToLeftLayoutDirection()
-        }
-
-        private static func appearance(_ source: UINavigationBarAppearance, image: UIImage) -> UINavigationBarAppearance {
-            let appearance = source.copy()
-            appearance.setBackIndicatorImage(image, transitionMaskImage: image)
-            return appearance
         }
     }
 }

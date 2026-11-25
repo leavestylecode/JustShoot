@@ -48,7 +48,7 @@ struct GeneralBackgroundSettingsView: View {
         }
         .scrollIndicators(.hidden)
         .appPageBackground()
-        .navigationTitle("General Page Background")
+        .navigationTitle("Page Background")
         .navigationBarTitleDisplayMode(.inline)
         .matchingNavigationBackButton()
         .toolbar(.hidden, for: .tabBar)

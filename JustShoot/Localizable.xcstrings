@@ -113,13 +113,13 @@
         }
       }
     },
-    "Live Preview" : {
+    "Preview" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "实时预览"
+            "value" : "预览"
           }
         }
       }
@@ -888,13 +888,13 @@
         }
       }
     },
-    "General Page Background" : {
+    "Page Background" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "通用页面背景"
+            "value" : "页面背景"
           }
         }
       }
@@ -1071,23 +1071,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "外观"
-          }
-        }
-      }
-    },
-    "Appearance Management" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appearance"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "外观管理"
           }
         }
       }
@@ -1473,7 +1456,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "拍摄页外观"
+            "value" : "相机外观"
           }
         }
       }
@@ -1814,13 +1797,13 @@
         }
       }
     },
-    "Color Scheme" : {
+    "App Appearance" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "外观模式"
+            "value" : "App 外观"
           }
         }
       }
@@ -3455,6 +3438,17 @@
         }
       }
     },
+    "Match App" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跟随 App"
+          }
+        }
+      }
+    },
     "Medium" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5053,19 +5047,13 @@
         }
       }
     },
-    "Settings Icons" : {
+    "Settings Icon Style" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Settings Icons"
-          }
-        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "设置页图标"
+            "value" : "设置图标样式"
           }
         }
       }
@@ -5363,7 +5351,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "低调"
+            "value" : "淡色"
           }
         }
       }
@@ -5411,6 +5399,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拍摄一张照片"
+          }
+        }
+      }
+    },
+    "System" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跟随系统"
           }
         }
       }

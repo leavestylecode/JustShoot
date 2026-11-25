@@ -31,10 +31,8 @@ private struct CameraButtonOnlyNavigationModifier: ViewModifier {
     private var backButton: some View {
         let tint = CameraPalette.foreground(for: colorScheme)
         return Button { dismiss() } label: {
-            Image(systemName: "chevron.backward")
-                .fontWeight(.semibold)
+            NavigationBackLabel(inToolbar: true)
                 .foregroundStyle(tint)
-                .toolbarControlSurface()
         }
         .tint(tint)
         .accessibilityIdentifier("camera.back")

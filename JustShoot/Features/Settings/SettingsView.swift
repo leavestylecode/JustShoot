@@ -123,7 +123,7 @@ struct SettingsView: View {
             NavigationLink {
                 AppearanceSettingsView()
             } label: {
-                SettingRow(icon: .appearance, title: "Appearance Management", chevron: .forward)
+                SettingRow(icon: .appearance, title: "Appearance", chevron: .forward)
             }
         }
         .buttonStyle(.plain)

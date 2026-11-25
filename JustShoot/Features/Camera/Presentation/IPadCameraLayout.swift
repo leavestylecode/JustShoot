@@ -84,14 +84,12 @@ struct IPadCameraBackButton: View {
 
     var body: some View {
         Button { dismiss() } label: {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 20, weight: .semibold))
+            NavigationBackLabel()
                 .frame(width: 52, height: 52)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .foregroundStyle(CameraPalette.foreground(for: colorScheme))
-        .cameraControlSurface()
         .accessibilityIdentifier("camera.back")
         .accessibilityLabel("Back")
     }

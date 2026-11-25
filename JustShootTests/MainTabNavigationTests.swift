@@ -11,7 +11,8 @@ final class MainTabNavigationTests: XCTestCase {
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         let host = UIHostingController(rootView: MainTabView(customFilters: [], isRevealed: false)
             .modelContainer(container)
-            .environmentObject(FilmCurveLibrary()))
+            .environmentObject(FilmCurveLibrary())
+            .environment(MembershipStore()))
         let scene = try await TestWindowScene.foreground()
         let previous = scene.windows.first { $0.isKeyWindow }
         let window = UIWindow(windowScene: scene)
@@ -80,6 +81,8 @@ final class MainTabNavigationTests: XCTestCase {
         let root = UIViewController()
         root.title = "Settings"
         root.navigationItem.backButtonDisplayMode = .generic
+        let originalButton = UIBarButtonItem(title: "Previous", style: .plain, target: nil, action: nil)
+        root.navigationItem.backBarButtonItem = originalButton
         let nav = UINavigationController(rootViewController: root)
         let window = UIWindow(windowScene: scene)
         window.rootViewController = nav
@@ -93,16 +96,45 @@ final class MainTabNavigationTests: XCTestCase {
         let nativeIndicator = nav.navigationBar.standardAppearance.backIndicatorImage
         let edgeGestureEnabled = nav.interactivePopGestureRecognizer?.isEnabled
         let destination = UIHostingController(rootView: Color.clear.matchingNavigationBackButton())
+        let trailing = UIView(frame: CGRect(x: 0, y: 0, width: 44, height: 44))
+        destination.navigationItem.rightBarButtonItem = UIBarButtonItem(customView: trailing)
         nav.pushViewController(destination, animated: false)
 
         let deadline = ContinuousClock.now + .seconds(3)
         while destination.navigationItem.standardAppearance == nil, ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }
-        let regular = try XCTUnwrap(destination.navigationItem.standardAppearance)
-        let compact = try XCTUnwrap(destination.navigationItem.compactAppearance)
-        XCTAssertEqual(regular.backIndicatorImage.size, CGSize(width: 44, height: 44))
-        XCTAssertEqual(compact.backIndicatorImage.size, CGSize(width: 32, height: 32))
+        nav.navigationBar.layoutIfNeeded()
+        let button = try XCTUnwrap(root.navigationItem.backBarButtonItem)
+        let image = try XCTUnwrap(button.image)
+        XCTAssertEqual(button.landscapeImagePhone?.size, CGSize(width: 32, height: 32))
+        // Measure the visible image in the live bar. UIKit can scale a 44 pt asset down
+        // to its chevron slot even when the source image reports the expected size.
+        let bar = nav.navigationBar
+        let imageView = try XCTUnwrap(backImageView(in: bar, image: image))
+        let frame = imageView.convert(imageView.bounds, to: bar)
+        XCTAssertEqual(frame.width, 44, accuracy: 1)
+        XCTAssertEqual(frame.height, 44, accuracy: 1)
+        XCTAssertEqual(frame.midY, bar.bounds.midY, accuracy: 1)
+        let trailingFrame = trailing.convert(trailing.bounds, to: bar)
+        let rtl = bar.effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let backInset = rtl ? bar.bounds.maxX - frame.maxX : frame.minX
+        let trailingInset = rtl ? trailingFrame.minX : bar.bounds.maxX - trailingFrame.maxX
+        XCTAssertEqual(backInset, trailingInset, accuracy: 2)
+        func control(at point: CGPoint) -> UIControl? {
+            var view = bar.hitTest(point, with: nil)
+            while let current = view {
+                if let control = current as? UIControl { return control }
+                view = current.superview
+            }
+            return nil
+        }
+        let hitTarget = try XCTUnwrap(control(at: CGPoint(x: frame.midX, y: frame.midY)))
+        for x in [frame.minX + 1, frame.maxX - 1] {
+            for y in [frame.minY + 1, frame.maxY - 1] {
+                XCTAssertTrue(control(at: CGPoint(x: x, y: y)) === hitTarget)
+            }
+        }
         XCTAssertEqual(root.navigationItem.backButtonDisplayMode, .minimal)
         XCTAssertFalse(destination.navigationItem.hidesBackButton)
         XCTAssertNil(destination.navigationItem.leftBarButtonItem)
@@ -116,7 +148,14 @@ final class MainTabNavigationTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(20))
         }
         XCTAssertEqual(root.navigationItem.backButtonDisplayMode, .generic)
+        XCTAssertTrue(root.navigationItem.backBarButtonItem === originalButton)
+        XCTAssertNil(destination.navigationItem.standardAppearance)
         XCTAssertEqual(nav.navigationBar.standardAppearance.backIndicatorImage, nativeIndicator)
+    }
+
+    private func backImageView(in view: UIView, image: UIImage) -> UIImageView? {
+        if let imageView = view as? UIImageView, imageView.image == image { return imageView }
+        return view.subviews.lazy.compactMap { self.backImageView(in: $0, image: image) }.first
     }
 
     private func tabController(in controller: UIViewController) -> UITabBarController? {
