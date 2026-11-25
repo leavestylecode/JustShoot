@@ -131,13 +131,13 @@ struct CurveResponsePreview: View {
     let data: CurvePreviewData
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 10) {
             CurveGraphView(data: data, accent: .white)
-                .aspectRatio(220.0 / 60, contentMode: .fit)
+                .aspectRatio(1.5, contentMode: .fit)
             CurveOutputStrip(data: data)
-                .frame(height: 5)
+                .frame(height: 8)
         }
-        .padding(8)
-        .background(Color(white: 0.085), in: .rect(cornerRadius: 9))
+        .padding(12)
+        .background(Color(white: 0.085), in: .rect(cornerRadius: 14))
     }
 }

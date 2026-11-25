@@ -1,10 +1,34 @@
 import Foundation
 import Combine
 
-/// Selection and catalog commit together; the old selection key is only a compatibility mirror.
+/// Selection, order and catalog commit together; the old selection key is a compatibility mirror.
 @MainActor
 final class FilmCurveLibrary: ObservableObject {
-    @Published private(set) var customCurves: [CustomFilmCurve] = []
+    enum Entry: Identifiable, Hashable {
+        case builtIn(CurvePreset)
+        case custom(CustomFilmCurve)
+
+        var id: String {
+            switch self {
+            case .builtIn(let preset): return preset.id
+            case .custom(let curve): return FilmCurveLibrary.customID(curve.id)
+            }
+        }
+
+        var displayName: String {
+            switch self {
+            case .builtIn(let preset): return preset.displayName
+            case .custom(let curve): return curve.name
+            }
+        }
+
+        var customCurve: CustomFilmCurve? {
+            guard case .custom(let curve) = self else { return nil }
+            return curve
+        }
+    }
+
+    @Published private(set) var entries = CurvePreset.allCases.map(Entry.builtIn)
     @Published private(set) var hiddenBuiltInIDs: Set<String> = []
     @Published private(set) var selectedCurveID = CurvePreset.none.rawValue
     @Published private(set) var storageError: String?
@@ -16,6 +40,7 @@ final class FilmCurveLibrary: ObservableObject {
         var customCurves: [CustomFilmCurve]
         var hiddenBuiltInIDs: [String]
         var selectedCurveID: String?
+        var orderedCurveIDs: [String]?
     }
     private static let payloadKey = "filmCurveLibrary.v1"
     private static let selectionKey = "curvePreset"
@@ -52,20 +77,35 @@ final class FilmCurveLibrary: ObservableObject {
         selection = Self.validSelection(selection, curves: curves, hidden: hidden)
         // Fresh installs need an explicit selection too: a new softShoulder selection
         // must not be mistaken for its previous definition on the next launch.
-        _ = commit(curves: curves, hidden: hidden, selection: selection)
+        _ = commit(curves: curves, hidden: hidden, selection: selection, order: payload?.orderedCurveIDs)
     }
 
+    var customCurves: [CustomFilmCurve] { entries.compactMap(\.customCurve) }
+
     var visibleCurves: [FilmCurve] {
-        CurvePreset.allCases.filter { !hiddenBuiltInIDs.contains($0.rawValue) }.map(FilmCurve.builtIn)
-            + customCurves.filter(\.isVisible).compactMap { customCache[$0.id] }
+        entries.compactMap { entry in
+            switch entry {
+            case .builtIn(let preset) where isBuiltInVisible(preset): return .builtIn(preset)
+            case .custom(let curve) where curve.isVisible: return customCache[curve.id]
+            default: return nil
+            }
+        }
     }
     var selectedCurve: FilmCurve { curve(id: selectedCurveID) ?? .builtIn(.none) }
-    var totalCurveCount: Int { CurvePreset.allCases.count + customCurves.count }
-    var visibleCurveCount: Int { visibleCurves.count }
+
+    func previewData(for entry: Entry) -> CurvePreviewData? {
+        switch entry {
+        case .builtIn(let preset): return preset.previewData
+        case .custom(let curve): return customCache[curve.id]?.previewData
+        }
+    }
 
     func curve(id: String) -> FilmCurve? {
         if let preset = CurvePreset(rawValue: id) { return hiddenBuiltInIDs.contains(id) ? nil : .builtIn(preset) }
-        guard let uuid = Self.customUUID(id), customCurves.contains(where: { $0.id == uuid && $0.isVisible }) else { return nil }
+        guard let uuid = Self.customUUID(id), entries.contains(where: { entry in
+            guard case .custom(let curve) = entry else { return false }
+            return curve.id == uuid && curve.isVisible
+        }) else { return nil }
         return customCache[uuid]
     }
 
@@ -75,6 +115,14 @@ final class FilmCurveLibrary: ObservableObject {
         return commit(curves: customCurves, hidden: hiddenBuiltInIDs, selection: current.id)
     }
     func isBuiltInVisible(_ preset: CurvePreset) -> Bool { !hiddenBuiltInIDs.contains(preset.rawValue) }
+
+    @discardableResult
+    func setOrder(_ ids: [String]) -> Bool {
+        let currentIDs = entries.map(\.id)
+        guard canEdit, ids.count == currentIDs.count, Set(ids) == Set(currentIDs) else { return false }
+        if ids == currentIDs { return true }
+        return commit(curves: customCurves, hidden: hiddenBuiltInIDs, selection: selectedCurveID, order: ids)
+    }
 
     @discardableResult
     func setBuiltIn(_ preset: CurvePreset, isVisible: Bool) -> Bool {
@@ -87,8 +135,8 @@ final class FilmCurveLibrary: ObservableObject {
 
     @discardableResult
     func setCustomVisibility(id: UUID, isVisible: Bool) -> Bool {
-        guard canEdit, let index = customCurves.firstIndex(where: { $0.id == id }) else { return false }
         var curves = customCurves
+        guard canEdit, let index = curves.firstIndex(where: { $0.id == id }) else { return false }
         curves[index].isVisible = isVisible
         curves[index].updatedAt = Date()
         let selection = !isVisible && selectedCurveID == Self.customID(id) ? CurvePreset.none.rawValue : selectedCurveID
@@ -97,37 +145,45 @@ final class FilmCurveLibrary: ObservableObject {
 
     @discardableResult
     func add(_ curve: CustomFilmCurve) -> Bool {
-        guard canEdit, !customCurves.contains(where: { $0.id == curve.id }) else { return false }
+        let curves = customCurves
+        guard canEdit, !curves.contains(where: { $0.id == curve.id }) else { return false }
         var normalized = curve.normalized()
         guard !normalized.name.isEmpty else { return false }
         normalized.updatedAt = Date()
-        return commit(curves: customCurves + [normalized], hidden: hiddenBuiltInIDs, selection: selectedCurveID)
+        return commit(curves: curves + [normalized], hidden: hiddenBuiltInIDs, selection: selectedCurveID)
     }
 
     @discardableResult
     func update(_ curve: CustomFilmCurve) -> Bool {
-        guard canEdit, let index = customCurves.firstIndex(where: { $0.id == curve.id }) else { return false }
+        var curves = customCurves
+        guard canEdit, let index = curves.firstIndex(where: { $0.id == curve.id }) else { return false }
         var normalized = curve.normalized()
         guard !normalized.name.isEmpty else { return false }
         // An editor's stale draft must not undo a catalog visibility change.
-        normalized.isVisible = customCurves[index].isVisible
-        normalized.createdAt = customCurves[index].createdAt
+        normalized.isVisible = curves[index].isVisible
+        normalized.createdAt = curves[index].createdAt
         normalized.updatedAt = Date()
-        var curves = customCurves
         curves[index] = normalized
         return commit(curves: curves, hidden: hiddenBuiltInIDs, selection: selectedCurveID)
     }
 
     @discardableResult
     func delete(id: UUID) -> Bool {
-        guard canEdit, customCurves.contains(where: { $0.id == id }) else { return false }
+        let curves = customCurves
+        guard canEdit, curves.contains(where: { $0.id == id }) else { return false }
         let selection = selectedCurveID == Self.customID(id) ? CurvePreset.none.rawValue : selectedCurveID
-        return commit(curves: customCurves.filter { $0.id != id }, hidden: hiddenBuiltInIDs, selection: selection)
+        return commit(curves: curves.filter { $0.id != id }, hidden: hiddenBuiltInIDs, selection: selection)
     }
 
-    private func commit(curves: [CustomFilmCurve], hidden: Set<String>, selection: String) -> Bool {
+    private func commit(curves: [CustomFilmCurve], hidden: Set<String>, selection: String, order: [String]? = nil) -> Bool {
         guard canEdit else { return false }
-        let payload = Payload(version: 2, customCurves: curves, hiddenBuiltInIDs: hidden.sorted(), selectedCurveID: selection)
+        let catalog = CurvePreset.allCases.map(Entry.builtIn) + curves.map(Entry.custom)
+        var remaining = Dictionary(uniqueKeysWithValues: catalog.map { ($0.id, $0) })
+        let updatedEntries = ((order ?? entries.map(\.id)) + catalog.map(\.id)).compactMap {
+            remaining.removeValue(forKey: $0)
+        }
+        let payload = Payload(version: 2, customCurves: updatedEntries.compactMap(\.customCurve),
+            hiddenBuiltInIDs: hidden.sorted(), selectedCurveID: selection, orderedCurveIDs: updatedEntries.map(\.id))
         let data: Data
         do { data = try JSONEncoder().encode(payload) }
         catch { storageError = Self.readErrorMessage; return false }
@@ -137,7 +193,7 @@ final class FilmCurveLibrary: ObservableObject {
             if old[curve.id] == curve, let cached = customCache[curve.id] { return (curve.id, cached) }
             return (curve.id, curve.filmCurve)
         })
-        customCurves = curves
+        entries = updatedEntries
         hiddenBuiltInIDs = hidden
         selectedCurveID = selection
         defaults.set(selection, forKey: Self.selectionKey)
@@ -153,7 +209,7 @@ final class FilmCurveLibrary: ObservableObject {
         guard id.hasPrefix("custom:") else { return nil }
         return UUID(uuidString: String(id.dropFirst("custom:".count)))
     }
-    private static func customID(_ id: UUID) -> String { "custom:\(id.uuidString.lowercased())" }
+    private nonisolated static func customID(_ id: UUID) -> String { "custom:\(id.uuidString.lowercased())" }
     private static var readErrorMessage: String {
         String(localized: "Your saved curves could not be read. They are preserved on this device; editing is unavailable.")
     }

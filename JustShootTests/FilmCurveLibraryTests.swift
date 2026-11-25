@@ -8,6 +8,7 @@ final class FilmCurveLibraryTests: XCTestCase {
         var customCurves: [CustomFilmCurve] = []
         var hiddenBuiltInIDs: [String] = []
         var selectedCurveID: String?
+        var orderedCurveIDs: [String]?
     }
 
     private func withDefaults(_ body: (UserDefaults) throws -> Void) throws {
@@ -131,6 +132,7 @@ final class FilmCurveLibraryTests: XCTestCase {
                 XCTAssertFalse(library.select(.builtIn(.punch)))
                 XCTAssertFalse(library.setBuiltIn(.punch, isVisible: false))
                 XCTAssertFalse(library.setCustomVisibility(id: custom.id, isVisible: false))
+                XCTAssertFalse(library.setOrder(Array(library.entries.map(\.id).reversed())))
                 XCTAssertEqual(defaults.data(forKey: "filmCurveLibrary.v1"), original)
                 XCTAssertEqual(defaults.string(forKey: "curvePreset"), "warmRetro")
             }
@@ -201,6 +203,59 @@ final class FilmCurveLibraryTests: XCTestCase {
             XCTAssertEqual(restored.selectedCurveID, "none")
             XCTAssertTrue(restored.customCurves.isEmpty)
             XCTAssertFalse(restored.isBuiltInVisible(.punch))
+        }
+    }
+
+    func testBuiltInAndCustomOrderPersistsWithHiddenCurvesAndSelection() throws {
+        try withDefaults { defaults in
+            let custom = CustomFilmCurve(name: "Custom")
+            let customID = custom.filmCurve.id
+            let builtInIDs = CurvePreset.allCases.map(\.id)
+            try store(StoredPayload(customCurves: [custom], hiddenBuiltInIDs: [CurvePreset.matte.id]), in: defaults)
+            let library = FilmCurveLibrary(defaults: defaults)
+            XCTAssertEqual(library.entries.map(\.id), builtInIDs + [customID])
+            XCTAssertTrue(library.select(custom.filmCurve))
+
+            let order = [CurvePreset.crossProcess.id, customID] + builtInIDs.dropLast()
+            XCTAssertTrue(library.setOrder(order))
+            XCTAssertEqual(library.visibleCurves.map(\.id), order.filter { $0 != CurvePreset.matte.id })
+
+            let restored = FilmCurveLibrary(defaults: defaults)
+            XCTAssertEqual(restored.entries.map(\.id), order)
+            XCTAssertEqual(restored.selectedCurveID, customID)
+            XCTAssertEqual(try load(defaults).orderedCurveIDs, order)
+            XCTAssertTrue(restored.setBuiltIn(.matte, isVisible: true))
+            XCTAssertEqual(restored.visibleCurves.map(\.id), order)
+        }
+    }
+
+    func testAddingAndDeletingKeepOrderAndRejectAStaleReorder() throws {
+        try withDefaults { defaults in
+            let library = FilmCurveLibrary(defaults: defaults)
+            let builtInOrder = Array(library.entries.map(\.id).reversed())
+            XCTAssertTrue(library.setOrder(builtInOrder))
+            let custom = CustomFilmCurve(name: "New")
+            let customID = custom.filmCurve.id
+            XCTAssertTrue(library.add(custom))
+            let orderWithCustom = builtInOrder + [customID]
+            XCTAssertEqual(library.entries.map(\.id), orderWithCustom)
+
+            XCTAssertTrue(library.delete(id: custom.id))
+            XCTAssertFalse(library.setOrder(Array(orderWithCustom.reversed())))
+            XCTAssertFalse(library.setOrder(Array(repeating: CurvePreset.none.id, count: builtInOrder.count)))
+            XCTAssertEqual(FilmCurveLibrary(defaults: defaults).entries.map(\.id), builtInOrder)
+        }
+    }
+
+    func testStoredOrderDropsUnknownAndDuplicateIDsAndAppendsMissingCurves() throws {
+        try withDefaults { defaults in
+            let custom = CustomFilmCurve(name: "Saved")
+            let first = CurvePreset.punch.id
+            try store(StoredPayload(customCurves: [custom], orderedCurveIDs: [first, "missing", first]), in: defaults)
+            let library = FilmCurveLibrary(defaults: defaults)
+            let expected = [first] + CurvePreset.allCases.map(\.id).filter { $0 != first } + [custom.filmCurve.id]
+            XCTAssertEqual(library.entries.map(\.id), expected)
+            XCTAssertEqual(try load(defaults).orderedCurveIDs, expected)
         }
     }
 

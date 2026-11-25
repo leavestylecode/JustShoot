@@ -100,15 +100,21 @@ struct FilmSourcePickerStrip: View {
 }
 
 // MARK: - 曲线选择条
-/// 只展示用户启用的内置/自定义曲线；末尾的管理入口可直接调整显隐或创建新效果。
+/// 拍摄页用它选择曲线，曲线管理页用同样的卡片预览已启用的曲线。
 struct FilmCurvePickerStrip: View {
+    enum Presentation: Equatable, Sendable {
+        case camera, preview, sortingPreview
+    }
+
+    @Environment(\.colorScheme) private var colorScheme
     let curves: [FilmCurve]
     let current: FilmCurve
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
     var style: CameraPickerStyle = .standard
-    let onManage: () -> Void
-    let onSelect: (FilmCurve) -> Void
+    var presentation: Presentation = .camera
+    var onManage: (() -> Void)? = nil
+    var onSelect: ((FilmCurve) -> Void)? = nil
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -120,31 +126,45 @@ struct FilmCurvePickerStrip: View {
                         contentRotation: contentRotation,
                         orientation: orientation,
                         style: style,
-                        size: itemSize
-                    ) { onSelect(curve) }
+                        size: itemSize,
+                        isPreview: presentation != .camera,
+                        onTap: onSelect.map { select in { select(curve) } }
+                    )
                     .id(curve.id)
                 }
-                CurveManagerPickerCell(
-                    contentRotation: contentRotation,
-                    orientation: orientation,
-                    style: style,
-                    size: style == .iPadOverlay ? 44 : itemSize,
-                    onTap: onManage
-                )
+                if let onManage {
+                    CurveManagerPickerCell(
+                        contentRotation: contentRotation,
+                        orientation: orientation,
+                        style: style,
+                        size: style == .iPadOverlay ? 44 : itemSize,
+                        onTap: onManage
+                    )
+                }
             }
-            .onAppear {
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 30_000_000)
+            .task(id: presentation) {
+                switch presentation {
+                case .camera:
+                    try? await Task.sleep(for: .milliseconds(30))
+                    guard !Task.isCancelled else { return }
                     proxy.scrollTo(current.id, anchor: .center)
+                case .sortingPreview:
+                    if let first = curves.first {
+                        proxy.scrollTo(first.id, anchor: .center)
+                    }
+                case .preview:
+                    break
                 }
             }
             .onChange(of: current.id) { _, newID in
+                guard presentation == .camera else { return }
                 withAnimation(.easeOut(duration: 0.22)) {
                     proxy.scrollTo(newID, anchor: .center)
                 }
             }
             .accessibilityElement(children: .contain)
-            .accessibilityLabel(Text("Curve picker"))
+            .accessibilityLabel(presentation == .camera ? Text("Curve picker") : Text("Camera Preview"))
+            .environment(\.colorScheme, presentation == .camera ? colorScheme : .dark)
         }
     }
 }
@@ -155,7 +175,7 @@ private struct CameraPickerCard<Content: View>: View {
     let isSelected: Bool
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
-    let onTap: () -> Void
+    let onTap: (() -> Void)?
     @ViewBuilder var content: Content
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -164,21 +184,27 @@ private struct CameraPickerCard<Content: View>: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: style == .iPadOverlay ? 12 : 10, style: .continuous)
         let enlargesSelection = !reduceMotion && style == .standard
-        Button(action: onTap) {
-            content
-                .frame(width: size, height: size)
-                .clipShape(shape)
-                .overlay {
-                    shape.strokeBorder(isSelected ? CameraPalette.accent(for: colorScheme) : .primary.opacity(0.10),
-                        lineWidth: isSelected ? (style == .iPadOverlay ? 1.5 : 2) : 0.5)
-                }
-                .rotationEffect(contentRotation)
-                .animation(.spring(duration: 0.35, bounce: 0.15), value: orientation)
-                .scaleEffect(enlargesSelection && isSelected ? 1.06 : 1)
-                .animation(enlargesSelection ? .spring(duration: 0.28, bounce: 0.25) : nil, value: isSelected)
-                .contentShape(shape)
+        let card = content
+            .frame(width: size, height: size)
+            .clipShape(shape)
+            .overlay {
+                shape.strokeBorder(isSelected ? CameraPalette.accent(for: colorScheme) : .primary.opacity(0.10),
+                    lineWidth: isSelected ? (style == .iPadOverlay ? 1.5 : 2) : 0.5)
+            }
+            .rotationEffect(contentRotation)
+            .animation(.spring(duration: 0.35, bounce: 0.15), value: orientation)
+            .scaleEffect(enlargesSelection && isSelected ? 1.06 : 1)
+            .animation(enlargesSelection ? .spring(duration: 0.28, bounce: 0.25) : nil, value: isSelected)
+            .contentShape(shape)
+
+        Group {
+            if let onTap {
+                Button(action: onTap) { card }
+                    .buttonStyle(.plain)
+            } else {
+                card.accessibilityElement(children: .ignore)
+            }
         }
-        .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
@@ -191,7 +217,8 @@ private struct FilmCurvePickerCell: View {
     let orientation: UIDeviceOrientation
     let style: CameraPickerStyle
     let size: CGFloat
-    let onTap: () -> Void
+    let isPreview: Bool
+    let onTap: (() -> Void)?
 
     var body: some View {
         let foreground = CameraPalette.foreground(for: colorScheme)
@@ -224,6 +251,7 @@ private struct FilmCurvePickerCell: View {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
+                .background(isPreview ? Color(white: 0.08) : .clear)
             }
         }
         .accessibilityLabel(Text(curve.displayName))

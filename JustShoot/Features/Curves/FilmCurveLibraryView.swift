@@ -5,6 +5,8 @@ import SwiftUI
 struct FilmCurveLibraryView: View {
     @EnvironmentObject private var library: FilmCurveLibrary
     @Environment(\.dismiss) private var dismiss
+    @State private var editMode: EditMode = .inactive
+    @State private var selectedEntry: FilmCurveLibrary.Entry?
     @State private var pendingDelete: CustomFilmCurve?
 
     let showsDoneButton: Bool
@@ -14,6 +16,8 @@ struct FilmCurveLibraryView: View {
     }
 
     var body: some View {
+        let entries = library.entries
+
         List {
             if let error = library.storageError {
                 Section {
@@ -23,56 +27,46 @@ struct FilmCurveLibraryView: View {
                 }
             }
             Section {
-                ForEach(CurvePreset.allCases) { preset in
-                    Toggle(isOn: builtInVisibilityBinding(preset)) {
-                        CurveLibraryPreview(curve: .builtIn(preset))
-                    }
-                    .tint(.green)
-                    .disabled(preset == .none)
-                    .accessibilityLabel(Text(preset.displayName))
-                    .accessibilityHint(Text(verbatim: preset.summary + " " + (preset == .none
-                        ? String(localized: "Original is always available")
-                        : String(localized: "Show or hide this curve in the camera"))))
+                FilmCurvePickerStrip(
+                    curves: library.visibleCurves,
+                    current: library.selectedCurve,
+                    contentRotation: .zero,
+                    orientation: .portrait,
+                    style: UIDevice.current.userInterfaceIdiom == .pad ? .iPadOverlay : .standard,
+                    presentation: editMode.isEditing ? .sortingPreview : .preview
+                )
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 0))
+            } header: {
+                Text("Camera Preview")
+                    .font(.headline)
+                    .foregroundStyle(Color.primary)
+                    .textCase(nil)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            Section {
+                ForEach(entries) { entry in
+                    curveRow(entry)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            if library.canEdit, let custom = entry.customCurve {
+                                Button(role: .destructive) {
+                                    pendingDelete = custom
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
+                }
+                .onMove { offsets, destination in
+                    var order = entries.map(\.id)
+                    order.move(fromOffsets: offsets, toOffset: destination)
+                    library.setOrder(order)
                 }
             } header: {
-                Text("Built-in Curves")
+                managementHeader
             }
-            .disabled(!library.canEdit)
-
-            Section("My Curves") {
-                if library.customCurves.isEmpty {
-                    NavigationLink {
-                        FilmCurveEditorView(curve: nil)
-                    } label: {
-                        Label("Add Curve", systemImage: "plus")
-                    }
-                } else {
-                    ForEach(library.customCurves) { custom in
-                        HStack(spacing: 10) {
-                            NavigationLink {
-                                FilmCurveEditorView(curve: custom)
-                            } label: {
-                                CurveLibraryPreview(curve: custom.filmCurve)
-                            }
-                            .buttonStyle(.plain)
-
-                            Toggle("", isOn: customVisibilityBinding(custom.id))
-                                .labelsHidden()
-                                .tint(.green)
-                                .accessibilityLabel("Show \(custom.name) in camera")
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                pendingDelete = custom
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                }
-            }
-            .disabled(!library.canEdit)
         }
+        .listSectionSpacing(.compact)
         .scrollContentBackground(.hidden)
         .pageContentWidth()
         .appPageBackground()
@@ -81,8 +75,16 @@ struct FilmCurveLibraryView: View {
         .matchingNavigationBackButton()
         .softScrollEdges()
         .toolbar(.hidden, for: .tabBar)
+        .navigationDestination(item: $selectedEntry) { entry in
+            switch entry {
+            case .builtIn(let preset):
+                BuiltInCurveDetailView(preset: preset)
+            case .custom(let curve):
+                FilmCurveEditorView(curve: curve)
+            }
+        }
         .toolbar {
-            if showsDoneButton {
+            if showsDoneButton && !editMode.isEditing {
                 ToolbarItem(placement: .cancellationAction) {
                     Button { dismiss() } label: {
                         Text("Done").toolbarControlSurface(text: true)
@@ -90,65 +92,180 @@ struct FilmCurveLibraryView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    FilmCurveEditorView(curve: nil)
-                } label: {
-                    Image(systemName: "plus")
-                        .toolbarControlSurface()
+                if editMode.isEditing {
+                    Button { withAnimation { editMode = .inactive } } label: {
+                        Text("Done").toolbarControlSurface(text: true)
+                    }
+                } else {
+                    NavigationLink {
+                        FilmCurveEditorView(curve: nil)
+                    } label: {
+                        Label("Add Curve", systemImage: "plus")
+                            .labelStyle(.iconOnly)
+                            .toolbarControlSurface()
+                    }
+                    .disabled(!library.canEdit)
                 }
-                .accessibilityLabel("Add Curve")
-                .disabled(!library.canEdit)
             }
         }
-        .alert(
-            "Delete Curve?",
-            isPresented: Binding(
-                get: { pendingDelete != nil },
-                set: { if !$0 { pendingDelete = nil } }
-            ),
-            presenting: pendingDelete
-        ) { curve in
-            Button("Delete", role: .destructive) {
-                library.delete(id: curve.id)
-                pendingDelete = nil
+        .environment(\.editMode, $editMode)
+        .modifier(CurveDeletionConfirmation(pending: $pendingDelete))
+    }
+
+    private var managementHeader: some View {
+        HStack {
+            Text(editMode.isEditing ? LocalizedStringKey("Reorder Curves") : "Manage Curves")
+                .font(.headline)
+                .foregroundStyle(Color.primary)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            if !editMode.isEditing && library.canEdit {
+                Button {
+                    withAnimation { editMode = .active }
+                } label: {
+                    Text("Reorder")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.primary.opacity(0.06), in: .capsule)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Reorder Curves")
             }
-            Button("Cancel", role: .cancel) { pendingDelete = nil }
+        }
+        .frame(minHeight: 44)
+        .textCase(nil)
+    }
+
+    @ViewBuilder
+    private func curveRow(_ entry: FilmCurveLibrary.Entry) -> some View {
+        if editMode.isEditing {
+            curveLabel(entry)
+        } else {
+            HStack(spacing: 12) {
+                Button {
+                    selectedEntry = entry
+                } label: {
+                    curveLabel(entry)
+                }
+                .buttonStyle(CurveDetailButtonStyle())
+                .accessibilityHint(entry.customCurve == nil ? Text("View Curve Details") : Text("Edit Curve"))
+
+                if entry != .builtIn(.none) {
+                    Toggle("Show \(entry.displayName) in camera", isOn: visibilityBinding(for: entry))
+                        .labelsHidden()
+                        .tint(.green)
+                        .disabled(!library.canEdit)
+                }
+            }
+        }
+    }
+
+    private func curveLabel(_ entry: FilmCurveLibrary.Entry) -> some View {
+        HStack(spacing: 10) {
+            if let data = library.previewData(for: entry) {
+                CurveGraphView(data: data, accent: .white)
+                    .frame(width: 36, height: 25)
+                    .padding(5)
+                    .background(Color(white: 0.085), in: .rect(cornerRadius: 7))
+                    .accessibilityHidden(true)
+            }
+            Text(entry.displayName)
+                .font(.body.weight(.medium))
+                .foregroundStyle(.primary)
+            Spacer(minLength: 0)
+            if !editMode.isEditing && entry == .builtIn(.none) {
+                Image(systemName: "checkmark")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.green)
+                    .frame(width: 51)
+                    .accessibilityLabel("Original is always available")
+            }
+        }
+        .frame(minHeight: 44)
+        .contentShape(.rect)
+    }
+
+    private func visibilityBinding(for entry: FilmCurveLibrary.Entry) -> Binding<Bool> {
+        switch entry {
+        case .builtIn(let preset):
+            Binding(
+                get: { library.isBuiltInVisible(preset) },
+                set: { library.setBuiltIn(preset, isVisible: $0) }
+            )
+        case .custom(let curve):
+            Binding(
+                get: { library.curve(id: entry.id) != nil },
+                set: { library.setCustomVisibility(id: curve.id, isVisible: $0) }
+            )
+        }
+    }
+}
+
+private struct CurveDetailButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(Color.primary.opacity(configuration.isPressed ? 0.08 : 0),
+                        in: .rect(cornerRadius: 8))
+    }
+}
+
+private struct CurveDeletionConfirmation: ViewModifier {
+    @EnvironmentObject private var library: FilmCurveLibrary
+    @Binding var pending: CustomFilmCurve?
+    var didDelete: () -> Void = {}
+
+    func body(content: Content) -> some View {
+        content.alert("Delete Curve?", isPresented: Binding(
+            get: { pending != nil },
+            set: { if !$0 { pending = nil } }
+        ), presenting: pending) { curve in
+            Button("Delete", role: .destructive) {
+                if library.delete(id: curve.id) { didDelete() }
+            }
+            Button("Cancel", role: .cancel) {}
         } message: { curve in
             Text("“\(curve.name)” will be permanently deleted.")
         }
     }
-
-    private func builtInVisibilityBinding(_ preset: CurvePreset) -> Binding<Bool> {
-        Binding(
-            get: { library.isBuiltInVisible(preset) },
-            set: { library.setBuiltIn(preset, isVisible: $0) }
-        )
-    }
-
-    private func customVisibilityBinding(_ id: UUID) -> Binding<Bool> {
-        Binding(
-            get: { library.customCurves.first(where: { $0.id == id })?.isVisible ?? false },
-            set: { library.setCustomVisibility(id: id, isVisible: $0) }
-        )
-    }
 }
 
-private struct CurveLibraryPreview: View {
-    let curve: FilmCurve
+private struct BuiltInCurveDetailView: View {
+    let preset: CurvePreset
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(curve.displayName)
-                .font(.body)
-                .foregroundStyle(.primary)
-            CurveResponsePreview(data: curve.previewData)
-                .frame(maxWidth: 220)
-                .frame(height: 83)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Tone Curve")
+                        .font(.headline)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: 8)
+                    Label("Read Only", systemImage: "lock")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                CurveResponsePreview(data: preset.previewData)
+                    .accessibilityHidden(true)
+                Text(preset == .none
+                    ? String(localized: "Original is always available in the camera to preserve the film’s own tones.")
+                    : preset.summary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: PageLayout.curveEditorWidth)
+            .frame(maxWidth: .infinity)
+            .padding(16)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.trailing, 12)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(curve.displayName))
+        .appPageBackground()
+        .navigationTitle(preset.displayName)
+        .navigationBarTitleDisplayMode(.inline)
+        .matchingNavigationBackButton()
+        .softScrollEdges()
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 
@@ -189,11 +306,13 @@ struct FilmCurveEditorView: View {
     @State private var channel: CurveEditingChannel = .master
     @State private var selectedPointIndex: Int?
     @State private var showsEditingHelp = false
+    @State private var pendingDelete: CustomFilmCurve?
 
-    private let isNew: Bool
+    private let original: CustomFilmCurve?
+    private var isNew: Bool { original == nil }
 
     init(curve: CustomFilmCurve?) {
-        isNew = curve == nil
+        original = curve
         _draft = State(initialValue: curve ?? CustomFilmCurve(name: String(localized: "My Curve")))
     }
 
@@ -244,6 +363,22 @@ struct FilmCurveEditorView: View {
         .toolbar(.hidden, for: .tabBar)
         .onChange(of: channel) { _, _ in selectedPointIndex = nil }
         .toolbar {
+            if let original {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button(role: .destructive) {
+                            pendingDelete = original
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    } label: {
+                        Label("More Curve Actions", systemImage: "ellipsis")
+                            .labelStyle(.iconOnly)
+                            .toolbarControlSurface()
+                    }
+                    .disabled(!library.canEdit)
+                }
+            }
             ToolbarItem(placement: .confirmationAction) {
                 Button(action: save) {
                     Text("Save").toolbarControlSurface(text: true)
@@ -251,6 +386,7 @@ struct FilmCurveEditorView: View {
                 .disabled(trimmedName.isEmpty || !library.canEdit)
             }
         }
+        .modifier(CurveDeletionConfirmation(pending: $pendingDelete, didDelete: { dismiss() }))
     }
 
     private var nameSection: some View {

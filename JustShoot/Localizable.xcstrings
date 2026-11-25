@@ -1423,6 +1423,7 @@
       }
     },
     "Built-in Curves" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -1473,6 +1474,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拍摄页外观"
+          }
+        }
+      }
+    },
+    "Camera Preview" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄页预览"
           }
         }
       }
@@ -3363,6 +3374,16 @@
         }
       }
     },
+    "Manage Curves" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理曲线"
+          }
+        }
+      }
+    },
     "Manage film curves" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3514,7 +3535,6 @@
       }
     },
     "More Curve Actions" : {
-      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -3586,6 +3606,7 @@
       }
     },
     "My Curves" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -3917,6 +3938,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "原调始终可用"
+          }
+        }
+      }
+    },
+    "Original is always available in the camera to preserve the film’s own tones." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄时始终可以切回原调，保留胶片原有的影调。"
           }
         }
       }
@@ -4482,6 +4513,16 @@
         }
       }
     },
+    "Read Only" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只读"
+          }
+        }
+      }
+    },
     "Ready" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4556,6 +4597,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "移除此筛选"
+          }
+        }
+      }
+    },
+    "Reorder" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排序"
+          }
+        }
+      }
+    },
+    "Reorder Curves" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "曲线排序"
           }
         }
       }
@@ -5069,6 +5130,7 @@
       }
     },
     "Show or hide this curve in the camera" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -5932,6 +5994,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "版本 %@"
+          }
+        }
+      }
+    },
+    "View Curve Details" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看曲线详情"
           }
         }
       }

@@ -115,9 +115,10 @@ struct SettingsView: View {
             }
             .accessibilityHint("Opens the language options in iOS Settings")
             NavigationLink {
-                CapturePreferencesView()
+                FilmCurveLibraryView()
             } label: {
-                SettingRow(icon: .preferences, title: "Preferences", chevron: .forward)
+                SettingRow(icon: SettingsIcon("chart.line.uptrend.xyaxis.circle.fill", color: .mint),
+                           title: "Film Curves", chevron: .forward)
             }
             NavigationLink {
                 AppearanceSettingsView()
