@@ -1,16 +1,34 @@
 import SwiftUI
 
 struct AppearanceSettingsView: View {
+    @Environment(\.colorScheme) private var appColorScheme
+    @State private var showsCameraPreview = false
     @AppStorage(SettingsIconStyle.key) private var iconStyle = SettingsIconStyle.standard
     @AppStorage(AppAppearance.key) private var appearance = AppAppearance.automatic
     @AppStorage(AppAppearance.cameraKey) private var cameraAppearance = AppAppearance.automatic
     private var preferences = PageBackgroundPreferences()
 
     var body: some View {
+        GeometryReader { page in
+            settingsCards
+                .sheet(isPresented: $showsCameraPreview) {
+                    CameraAppearancePreviewSheet(scheme: cameraAppearance.scheme ?? appColorScheme, canvasSize: page.size)
+                }
+        }
+        .appPageBackground()
+        .navigationTitle("Appearance")
+        .navigationBarTitleDisplayMode(.inline)
+        .matchingNavigationBackButton()
+        .toolbar(.hidden, for: .tabBar)
+    }
+
+    private var settingsCards: some View {
         ScrollView {
             VStack(spacing: 20) {
                 appearanceCard("App Appearance", automatic: "System", selection: $appearance)
-                appearanceCard("Camera Appearance", automatic: "Match App", selection: $cameraAppearance)
+                appearanceCard("Camera Appearance", automatic: "Match App", selection: $cameraAppearance) {
+                    showsCameraPreview = true
+                }
 
                 card("Settings Icon Style") {
                     AppSegmentedPicker(title: "Settings Icon Style", selection: $iconStyle,
@@ -30,16 +48,11 @@ struct AppearanceSettingsView: View {
             .padding(20)
         }
         .scrollIndicators(.hidden)
-        .appPageBackground()
-        .navigationTitle("Appearance")
-        .navigationBarTitleDisplayMode(.inline)
-        .matchingNavigationBackButton()
-        .toolbar(.hidden, for: .tabBar)
     }
 
     private func appearanceCard(_ title: LocalizedStringKey, automatic: LocalizedStringKey,
-                                selection: Binding<AppAppearance>) -> some View {
-        card(title) {
+                                selection: Binding<AppAppearance>, onPreview: (() -> Void)? = nil) -> some View {
+        card(title, onPreview: onPreview) {
             AppSegmentedPicker(title: title, selection: selection, options: AppAppearance.allCases, size: .large) { option in
                 Text(option.title(automatic: automatic))
             }
@@ -100,11 +113,27 @@ struct AppearanceSettingsView: View {
         return preferences.style == .gradient ? preferences.palette.title : "Custom Photo"
     }
 
-    private func card(_ title: LocalizedStringKey, @ViewBuilder content: () -> some View) -> some View {
+    private func card(_ title: LocalizedStringKey, onPreview: (() -> Void)? = nil,
+                      @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(title)
-                .font(.headline)
-                .accessibilityAddTraits(.isHeader)
+            HStack(spacing: 0) {
+                Text(title)
+                    .font(.headline)
+                    .accessibilityAddTraits(.isHeader)
+                if let onPreview {
+                    Button(action: onPreview) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.body)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Camera Preview")
+                    .accessibilityIdentifier("settings.cameraAppearance.preview")
+                    .padding(.vertical, -8)
+                }
+            }
             content()
         }
         .padding(20)
