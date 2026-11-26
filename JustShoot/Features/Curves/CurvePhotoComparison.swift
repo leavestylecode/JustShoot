@@ -23,59 +23,133 @@ struct CurvePhotoComparison: View {
         }
     }
 
-    let look: Look
-    @State private var images: (original: UIImage, graded: UIImage)?
-    @State private var failed = false
-    @State private var attempt = 0
+    enum ReferenceScene: CaseIterable {
+        case street, landscape, portrait
+
+        var photo: FilmSampleScene {
+            switch self {
+            case .street: .rainCyclist
+            case .landscape: .fuji
+            case .portrait: .park
+            }
+        }
+
+        var title: LocalizedStringResource {
+            switch self {
+            case .street: FilmSceneTag.street.title
+            case .landscape: FilmSceneTag.landscape.title
+            case .portrait: FilmSceneTag.portrait.title
+            }
+        }
+    }
+
+    struct Sample {
+        static let film = FilmPreset.kodakPortra400
+
+        let look: Look
+        let filmOnly: UIImage
+        let filmWithCurve: UIImage?
+
+        static func load(scene: ReferenceScene, look: Look) async -> Sample? {
+            guard let filmOnly = await FilmCardImageCache.shared.loadImage(
+                imageName: scene.photo.filename, maxPixel: 1024, gradedWith: film
+            ), !Task.isCancelled else { return nil }
+
+            return await BlockingImageWork.shared.run {
+                let curve = look.curve
+                guard !curve.isNeutral else { return Sample(look: look, filmOnly: filmOnly, filmWithCurve: nil) }
+                guard let input = filmOnly.cgImage,
+                      let output = FilmProcessor.shared.gradedPreview(input, curve: curve) else { return nil }
+                return Sample(look: look, filmOnly: filmOnly, filmWithCurve: UIImage(cgImage: output))
+            }
+        }
+    }
 
     private struct Request: Equatable {
+        let scene: ReferenceScene
         let look: Look
         let attempt: Int
     }
 
+    let look: Look
+    @State private var scene = ReferenceScene.street
+    @State private var samples: [ReferenceScene: Sample] = [:]
+    @State private var failedRequest: Request?
+    @State private var attempt = 0
+
     var body: some View {
-        ZStack {
-            if let images {
-                CurvePhotoWipe(original: images.original, graded: images.graded)
-            } else if failed {
-                PageNotice(title: "Preview unavailable", systemImage: "photo",
-                    action: .init(title: "Retry", icon: "arrow.clockwise") { attempt += 1 })
-            } else {
-                ProgressView().accessibilityLabel("Loading sample")
+        let request = Request(scene: scene, look: look, attempt: attempt)
+        let sample = samples[scene]
+
+        VStack(spacing: 4) {
+            Rectangle()
+                .fill(.primary.opacity(0.05))
+                .aspectRatio(1.5, contentMode: .fit)
+                .overlay {
+                    if failedRequest == request {
+                        PageNotice(title: "Preview unavailable", systemImage: "photo",
+                            action: .init(title: "Retry", icon: "arrow.clockwise") { attempt += 1 })
+                    } else if let sample {
+                        if let filmWithCurve = sample.filmWithCurve {
+                            CurvePhotoWipe(filmOnly: sample.filmOnly, filmWithCurve: filmWithCurve, scene: scene.photo)
+                        } else {
+                            Image(uiImage: sample.filmOnly)
+                                .resizable()
+                                .scaledToFit()
+                                .accessibilityLabel(Text(scene.photo.title))
+                                .accessibilityIdentifier("curves.samplePhoto")
+                        }
+                    } else {
+                        ProgressView().accessibilityLabel("Loading sample")
+                    }
+                }
+                .clipShape(.rect(cornerRadius: 12))
+
+            HStack(spacing: 12) {
+                ForEach(ReferenceScene.allCases, id: \.self) { option in
+                    Button { scene = option } label: {
+                        Text(option.title)
+                            .font(.subheadline.weight(scene == option ? .semibold : .regular))
+                            .foregroundStyle(scene == option ? .primary : .secondary)
+                            .padding(.vertical, 6)
+                            .overlay(alignment: .bottom) {
+                                if scene == option { Capsule().frame(height: 2) }
+                            }
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(.rect)
+                    }
+                    .accessibilityAddTraits(scene == option ? .isSelected : [])
+                }
+                Spacer(minLength: 0)
+                Text(verbatim: Sample.film.displayName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
+            .buttonStyle(.plain)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .aspectRatio(1.5, contentMode: .fit)
-        .background(.primary.opacity(0.05))
-        .clipShape(.rect(cornerRadius: 18))
-        .task(id: Request(look: look, attempt: attempt)) {
-            failed = false
-            if case .draft = look, images != nil {
-                // Coalesce edits while the user moves a control point.
-                guard (try? await Task.sleep(for: .milliseconds(90))) != nil else { return }
-            }
-            let original = await FilmCardImageCache.shared.loadImage(
-                imageName: FilmSampleScene.teaPortrait.filename, maxPixel: 1024)
-            guard !Task.isCancelled else { return }
-            let graded: UIImage? = await BlockingImageWork.shared.run { [look] in
-                guard let cg = original?.cgImage,
-                      let output = FilmProcessor.shared.gradedPreview(cg, curve: look.curve) else { return nil }
-                return UIImage(cgImage: output)
-            }
-            guard !Task.isCancelled else { return }
-            if let original, let graded {
-                images = (original, graded)
-            } else {
-                images = nil
-                failed = true
-            }
+        .task(id: request) { await load(request) }
+    }
+
+    private func load(_ request: Request) async {
+        guard samples[request.scene]?.look != request.look else { return }
+        if case .draft = request.look, samples[request.scene] != nil {
+            guard (try? await Task.sleep(for: .milliseconds(90))) != nil else { return }
+        }
+        let sample = await Sample.load(scene: request.scene, look: request.look)
+        guard !Task.isCancelled else { return }
+        if let sample {
+            samples[request.scene] = sample
+            failedRequest = nil
+        } else {
+            failedRequest = request
         }
     }
 }
 
 private struct CurvePhotoWipe: View {
-    let original: UIImage
-    let graded: UIImage
+    let filmOnly: UIImage
+    let filmWithCurve: UIImage
+    let scene: FilmSampleScene
     @State private var split: CGFloat = 0.5
 
     var body: some View {
@@ -83,8 +157,8 @@ private struct CurvePhotoWipe: View {
             let size = geometry.size
             let divider = size.width * split
             ZStack(alignment: .topLeading) {
-                photo(graded, size: size)
-                photo(original, size: size)
+                photo(filmWithCurve, size: size)
+                photo(filmOnly, size: size)
                     .mask(alignment: .leading) { Rectangle().frame(width: divider) }
 
                 Rectangle()
@@ -94,9 +168,9 @@ private struct CurvePhotoWipe: View {
                     .shadow(color: .black.opacity(0.4), radius: 1)
 
                 HStack {
-                    badge("Unfiltered").opacity(split > 0.22 ? 1 : 0)
+                    badge("LUT").opacity(split > 0.22 ? 1 : 0)
                     Spacer()
-                    badge("Curve Effect").opacity(split < 0.78 ? 1 : 0)
+                    badge("LUT + Curve").opacity(split < 0.78 ? 1 : 0)
                 }
                 .padding(10)
                 .frame(maxHeight: .infinity, alignment: .bottom)
@@ -119,11 +193,13 @@ private struct CurvePhotoWipe: View {
             .environment(\.layoutDirection, .leftToRight)
         }
         .accessibilityRepresentation {
-            Slider(value: $split, in: 0...1, step: 0.1) {
-                Text("Original photo coverage")
+            Slider(value: $split, in: 0...1) {
+                Text("LUT image coverage")
             }
+            .accessibilityValue(Text(split, format: .percent.precision(.fractionLength(0))))
+            .accessibilityHint(Text(scene.title))
+            .accessibilityIdentifier("curves.photoComparison")
         }
-        .accessibilityIdentifier("curves.photoComparison")
     }
 
     private func photo(_ image: UIImage, size: CGSize) -> some View {

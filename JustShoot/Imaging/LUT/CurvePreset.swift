@@ -362,6 +362,18 @@ struct CustomFilmCurve: Codable, Identifiable, Hashable, Sendable {
         bluePoints = CurveMath.identityPoints
     }
 
+    func merging(edit: Self, since original: Self) -> Self {
+        var result = self
+        if original.name != edit.name { result.name = edit.name }
+        if original.isVisible != edit.isVisible { result.isVisible = edit.isVisible }
+        if original.masterPoints != edit.masterPoints { result.masterPoints = edit.masterPoints }
+        if original.redPoints != edit.redPoints { result.redPoints = edit.redPoints }
+        if original.greenPoints != edit.greenPoints { result.greenPoints = edit.greenPoints }
+        if original.bluePoints != edit.bluePoints { result.bluePoints = edit.bluePoints }
+        result.updatedAt = max(edit.updatedAt, updatedAt)
+        return result
+    }
+
     func normalized() -> CustomFilmCurve {
         var copy = self
         copy.name = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))

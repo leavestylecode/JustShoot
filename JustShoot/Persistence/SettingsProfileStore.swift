@@ -199,12 +199,7 @@ private final class CloudKitSettingsProfileStorage: SettingsProfileCloudStorage 
     private lazy var container = CKContainer.default()
 
     func accountID() async throws -> String? {
-        do {
-            return try await container.userRecordID().recordName
-        } catch let error as CKError where error.code == .notAuthenticated {
-            if try await container.accountStatus() == .noAccount { return nil }
-            throw error
-        }
+        try await container.authenticatedRecordName()
     }
 
     func synchronize(accountID: String, merge: (SettingsProfile?) -> SettingsProfile) async throws -> SettingsProfile {

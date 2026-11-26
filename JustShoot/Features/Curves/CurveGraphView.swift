@@ -149,33 +149,13 @@ struct CurveResponsePreview: View {
     let preset: CurvePreset
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Tone Curve")
-                    .font(.headline)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                Label("Read Only", systemImage: "lock")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.72))
-            }
-
-            VStack(spacing: 8) {
-                CurveGraphView(data: preset.previewData, accent: preset.graphAccent, showsGrid: true)
-                    .aspectRatio(2.2, contentMode: .fit)
-                CurveOutputStrip(data: preset.previewData).frame(height: 7)
-                HStack {
-                    Text("Shadows")
-                    Spacer()
-                    Text("Highlights")
-                }
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.72))
-            }
-            .accessibilityHidden(true)
-        }
-        .foregroundStyle(.white)
-        .padding(18)
-        .background(Color(white: 0.095), in: .rect(cornerRadius: 18))
+        CurveGraphView(data: preset.previewData, accent: .primary, showsGrid: true, shadesDifference: true)
+            .padding(10)
+            .background(.primary.opacity(0.045), in: .rect(cornerRadius: 8))
+            .frame(maxWidth: PageLayout.curveEditorWidth)
+            .environment(\.layoutDirection, .leftToRight)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Tone Curve")
+            .accessibilityValue(Text("Input runs left to right and output runs bottom to top, both from 0 to 255. \(preset.summary)"))
     }
 }

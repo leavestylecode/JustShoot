@@ -1,7 +1,39 @@
+import SwiftUI
 import XCTest
 @testable import JustShoot
 
 final class PageLayoutTests: XCTestCase {
+    @MainActor
+    func testLongCurveNameExpandsItsRowInANarrowList() async throws {
+        let suite = "curve-row-layout-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let library = FilmCurveLibrary(defaults: defaults)
+        for preset in CurvePreset.allCases where preset != .none {
+            library.setBuiltIn(preset, isVisible: false)
+        }
+        XCTAssertTrue(library.add(CustomFilmCurve(name: String(repeating: "山间晨光", count: 10))))
+
+        let window = UIWindow(windowScene: try await TestWindowScene.foreground())
+        let host = UIHostingController(rootView: NavigationStack { FilmCurveLibraryView() }
+            .environmentObject(library).appVisualDesign().frame(width: 320))
+        window.rootViewController = host
+        window.isHidden = false
+        defer { window.isHidden = true }
+        host.view.layoutIfNeeded()
+
+        func collection(in view: UIView) -> UICollectionView? {
+            if let list = view as? UICollectionView { return list }
+            return view.subviews.lazy.compactMap { collection(in: $0) }.first
+        }
+        let list = try XCTUnwrap(collection(in: host.view))
+        let section = try XCTUnwrap((0..<list.numberOfSections).first { list.numberOfItems(inSection: $0) == 2 })
+        let short = try XCTUnwrap(list.cellForItem(at: IndexPath(item: 0, section: section)))
+        let long = try XCTUnwrap(list.cellForItem(at: IndexPath(item: 1, section: section)))
+        XCTAssertGreaterThanOrEqual(short.bounds.height, 44)
+        XCTAssertGreaterThan(long.bounds.height, short.bounds.height)
+    }
+
     func testHomeAddsReadableColumnsAsIPadWindowWidens() {
         for (width, expected) in [(CGFloat(744), 3), (768, 3), (834, 4), (1032, 5), (1194, 6), (1376, 6)] {
             let columns = PageLayout.homeColumns(width: width, isRegular: true)

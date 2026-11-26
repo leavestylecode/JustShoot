@@ -262,6 +262,10 @@ The built-in curves appear in the following default order.
 | Faded S | 褪色 S | Keep the faded black and white points and add gentle midtone contrast. |
 | X-Pro | 负冲 | Cross-processed look with cool shadows and warm highlights. |
 
+The curve manager groups curves by camera visibility. Reordering acts on the visible list. Resetting the list restores default order and visibility while retaining custom curves. In the editor, tap the graph to add a point, drag to adjust it, or drag an interior point outside the graph to remove it.
+
+Custom curve definitions, visibility and order sync through the user's private CloudKit database. Each device keeps its own camera selection. Before shipping the feature through TestFlight or the App Store, deploy the development record type `FilmCurveLibrary` with its `catalogV1` asset field to the production environment of `iCloud.leavestylecode.JustShoot`.
+
 Open Shadows, Fade and Warm Print are retired from the catalog. The old Film Soft was another contrast-increasing S; Soft now has the opposite role. On upgrade, Faded S is inserted immediately after Faded in the saved order. Both can then be reordered and hidden independently. Older active Matte selections are preserved as custom curves, including selections already stored in the atomic payload. On upgrade, an active retired or changed preset is copied into My Curves with its original control points. Unselected retired entries are removed; existing custom curves and already journaled LUT bytes are preserved.
 
 ```mermaid

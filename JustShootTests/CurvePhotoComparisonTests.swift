@@ -3,6 +3,47 @@ import XCTest
 @testable import JustShoot
 
 final class CurvePhotoComparisonTests: XCTestCase {
+    func testEverySceneComparesTheFilmLUTWithTheCurveAppliedToThatSameImage() async throws {
+        let scenes = CurvePhotoComparison.ReferenceScene.allCases
+        XCTAssertEqual(scenes, [.street, .landscape, .portrait])
+        XCTAssertEqual(Set(scenes.map { $0.photo.filename }).count, scenes.count)
+        let context = FilmProcessor.shared.renderingContext()
+        func pixels(_ image: CGImage) -> [UInt8] {
+            let size = CGSize(width: 24, height: 16)
+            let thumbnail = CIImage(cgImage: image).transformed(by: CGAffineTransform(
+                scaleX: size.width / CGFloat(image.width), y: size.height / CGFloat(image.height)))
+            var bytes = [UInt8](repeating: 0, count: 24 * 16 * 4)
+            context.render(thumbnail, toBitmap: &bytes, rowBytes: 24 * 4,
+                bounds: CGRect(origin: .zero, size: size), format: .RGBA8, colorSpace: FilmImagePipeline.colorSpace)
+            return bytes
+        }
+
+        for scene in scenes {
+            let image = await FilmCardImageCache.shared.loadImage(imageName: scene.photo.filename, maxPixel: 1024)
+            let original = try XCTUnwrap(image?.cgImage, scene.photo.filename)
+            XCTAssertEqual(Double(original.width) / Double(original.height), 1.5, accuracy: 0.01)
+            let film = try XCTUnwrap(FilmProcessor.shared.gradedPreview(original, preset: .kodakPortra400))
+            let withCurve = try XCTUnwrap(FilmProcessor.shared.gradedPreview(film, curve: .builtIn(.fadedS)))
+            let sample = await CurvePhotoComparison.Sample.load(scene: scene, look: .preset(.fadedS))
+            let baseline = try XCTUnwrap(sample?.filmOnly.cgImage)
+            let adjusted = try XCTUnwrap(sample?.filmWithCurve?.cgImage)
+            XCTAssertEqual(baseline.width, original.width)
+            XCTAssertEqual(baseline.height, original.height)
+            XCTAssertEqual(adjusted.width, original.width)
+            XCTAssertEqual(adjusted.height, original.height)
+            XCTAssertNotEqual(pixels(original), pixels(film))
+            XCTAssertEqual(pixels(baseline), pixels(film))
+            XCTAssertEqual(pixels(adjusted), pixels(withCurve))
+        }
+    }
+
+    func testNeutralDraftShowsJustTheLUTReference() async throws {
+        let loaded = await CurvePhotoComparison.Sample.load(scene: .portrait, look: .draft(CustomFilmCurve(name: "Test")))
+        let sample = try XCTUnwrap(loaded)
+        XCTAssertNotNil(sample.filmOnly.cgImage)
+        XCTAssertNil(sample.filmWithCurve)
+    }
+
     func testSamplePixelsFollowTheSameRGBTablesAsTheCurveGraph() throws {
         let space = FilmImagePipeline.colorSpace
         let context = CIContext(options: [.workingColorSpace: space])

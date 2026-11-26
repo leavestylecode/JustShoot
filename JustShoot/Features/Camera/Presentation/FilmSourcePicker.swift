@@ -29,6 +29,7 @@ enum CameraPickerStyle {
 private struct CameraPickerRow<Content: View>: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     let style: CameraPickerStyle
+    var isPreview = false
     @ViewBuilder var content: (CGFloat) -> Content
 
     var body: some View {
@@ -37,8 +38,8 @@ private struct CameraPickerRow<Content: View>: View {
                 HStack(spacing: style == .iPadOverlay ? 8 : 10) {
                     content(style.itemSize(for: sizeClass))
                 }
-                .padding(.horizontal, style.rowHorizontalInset)
-                .frame(minWidth: style == .iPadOverlay ? geometry.size.width : nil,
+                .padding(.horizontal, isPreview ? 0 : style.rowHorizontalInset)
+                .frame(minWidth: style == .iPadOverlay && !isPreview ? geometry.size.width : nil,
                     minHeight: geometry.size.height)
             }
         }
@@ -123,7 +124,7 @@ struct FilmCurvePickerStrip: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            CameraPickerRow(style: style) { itemSize in
+            CameraPickerRow(style: style, isPreview: presentation != .camera) { itemSize in
                 ForEach(curves) { curve in
                     FilmCurvePickerCell(
                         curve: curve,
@@ -166,7 +167,7 @@ struct FilmCurvePickerStrip: View {
                 }
             }
             .accessibilityElement(children: .contain)
-            .accessibilityLabel(presentation == .camera ? Text("Curve picker") : Text("Camera Preview"))
+            .accessibilityLabel(presentation == .camera ? Text("Curve picker") : Text("Preview"))
             .environment(\.colorScheme, presentation == .camera ? colorScheme : .dark)
         }
     }
@@ -176,6 +177,7 @@ private struct CameraPickerCard<Content: View>: View {
     let size: CGFloat
     let style: CameraPickerStyle
     let isSelected: Bool
+    var showsSelectionBorder = true
     let contentRotation: Angle
     let orientation: UIDeviceOrientation
     let onTap: (() -> Void)?
@@ -186,13 +188,14 @@ private struct CameraPickerCard<Content: View>: View {
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: style == .iPadOverlay ? 12 : 10, style: .continuous)
-        let enlargesSelection = !reduceMotion && style == .standard
+        let highlightsBorder = isSelected && showsSelectionBorder
+        let enlargesSelection = !reduceMotion && style == .standard && onTap != nil
         let card = content
             .frame(width: size, height: size)
             .clipShape(shape)
             .overlay {
-                shape.strokeBorder(isSelected ? CameraPalette.accent(for: colorScheme) : .primary.opacity(0.10),
-                    lineWidth: isSelected ? (style == .iPadOverlay ? 1.5 : 2) : 0.5)
+                shape.strokeBorder(highlightsBorder ? CameraPalette.accent(for: colorScheme) : .primary.opacity(0.10),
+                    lineWidth: highlightsBorder ? (style == .iPadOverlay ? 1.5 : 2) : 0.5)
             }
             .rotationEffect(contentRotation)
             .animation(.spring(duration: 0.35, bounce: 0.15), value: orientation)
@@ -225,7 +228,7 @@ private struct FilmCurvePickerCell: View {
 
     var body: some View {
         let foreground = CameraPalette.foreground(for: colorScheme)
-        CameraPickerCard(size: size, style: style, isSelected: isSelected,
+        CameraPickerCard(size: size, style: style, isSelected: isSelected, showsSelectionBorder: !isPreview,
             contentRotation: contentRotation, orientation: orientation, onTap: onTap) {
             VStack(spacing: 3) {
                 Text(curve.displayName)
@@ -235,7 +238,7 @@ private struct FilmCurvePickerCell: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
 
-                CurveGraphView(curve: curve, accent: accentColor)
+                CurveGraphView(curve: curve, accent: .white)
                     .frame(height: size / 2)
                     .background {
                         if colorScheme == .light {

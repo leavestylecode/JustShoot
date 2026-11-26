@@ -55,14 +55,24 @@ struct OOOApp: App {
                 }
                 .task(id: scenePhase, priority: .utility) {
                     guard !isRunningUnitTests, scenePhase == .active else { return }
+                    curveLibrary.refreshCloud()
                     let profile = SettingsProfileStore.shared
                     profile.refresh()
                     while (try? await Task.sleep(for: .seconds(30))) != nil {
                         profile.retryPendingChanges()
                     }
                 }
+                .task(id: scenePhase, priority: .utility) {
+                    guard !isRunningUnitTests, scenePhase == .active else { return }
+                    while (try? await Task.sleep(for: .seconds(120))) != nil {
+                        curveLibrary.refreshCloud()
+                    }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: .CKAccountChanged)) { _ in
-                    if !isRunningUnitTests { SettingsProfileStore.shared.accountDidChange() }
+                    if !isRunningUnitTests {
+                        curveLibrary.cloudAccountChanged()
+                        SettingsProfileStore.shared.accountDidChange()
+                    }
                 }
         }
     }

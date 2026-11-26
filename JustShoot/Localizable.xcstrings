@@ -1838,16 +1838,6 @@
         }
       }
     },
-    "Curve Effect" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "曲线效果"
-          }
-        }
-      }
-    },
     "Curve Name" : {
       "localizations" : {
         "zh-Hans" : {
@@ -3267,6 +3257,7 @@
       }
     },
     "Highlights" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -3409,11 +3400,32 @@
       }
     },
     "Input" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "输入"
+          }
+        }
+      }
+    },
+    "Input %lld, output %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入 %1$lld，输出 %2$lld"
+          }
+        }
+      }
+    },
+    "Input runs left to right and output runs bottom to top, both from 0 to 255. %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "横轴从左向右表示输入，纵轴从下向上表示输出，范围均为 0 到 255。%@"
           }
         }
       }
@@ -3839,6 +3851,26 @@
         }
       }
     },
+    "LUT" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUT"
+          }
+        }
+      }
+    },
+    "LUT + Curve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUT + 曲线"
+          }
+        }
+      }
+    },
     "LUT color space" : {
       "localizations" : {
         "en" : {
@@ -3867,6 +3899,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "LUT 兼容性"
+          }
+        }
+      }
+    },
+    "LUT image coverage" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUT 画面占比"
           }
         }
       }
@@ -3943,6 +3985,7 @@
       }
     },
     "Manage Curves" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -4446,6 +4489,26 @@
         }
       }
     },
+    "Move Left" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左移"
+          }
+        }
+      }
+    },
+    "Move Right" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右移"
+          }
+        }
+      }
+    },
     "My Curve" : {
       "localizations" : {
         "zh-Hans" : {
@@ -4918,16 +4981,6 @@
         }
       }
     },
-    "Original photo coverage" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "原图占比"
-          }
-        }
-      }
-    },
     "Original is always available" : {
       "localizations" : {
         "en" : {
@@ -4945,6 +4998,7 @@
       }
     },
     "Original is always available in the camera to preserve the film’s own tones." : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -4989,6 +5043,7 @@
       }
     },
     "Output" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -5222,6 +5277,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请等待照片保存完成后再拍摄。"
+          }
+        }
+      }
+    },
+    "Point %lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "控制点 %lld"
           }
         }
       }
@@ -5739,6 +5804,7 @@
       }
     },
     "Read Only" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -5997,6 +6063,16 @@
         }
       }
     },
+    "Reset Curve List?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重置曲线列表？"
+          }
+        }
+      }
+    },
     "Reset exposure compensation" : {
       "localizations" : {
         "en" : {
@@ -6046,6 +6122,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "恢复购买"
+          }
+        }
+      }
+    },
+    "Restore the default order and show all curves. Your custom curves will be kept." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将恢复默认顺序并显示所有曲线。你创建的曲线会保留。"
           }
         }
       }
@@ -6232,6 +6318,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "保存"
+          }
+        }
+      }
+    },
+    "Save a Copy" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存副本"
           }
         }
       }
@@ -6485,6 +6581,7 @@
       }
     },
     "Shadows" : {
+      "extractionState" : "stale",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
@@ -7044,12 +7141,12 @@
         }
       }
     },
-    "Tap to add a point. Drag points in any direction." : {
+    "Tap to add a point. Drag to move it. Drag an interior point outside the graph to delete it." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "轻点添加节点，向任意方向拖动调整。"
+            "value" : "轻点添加控制点，拖动可调整位置。将中间的控制点拖出图表即可删除。"
           }
         }
       }
@@ -7294,6 +7391,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "文件已保留在此设备上。你可以重试恢复，或在删除前导出原片。"
+          }
+        }
+      }
+    },
+    "This curve was deleted" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这条曲线已被删除"
           }
         }
       }

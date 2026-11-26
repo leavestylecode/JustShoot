@@ -312,17 +312,17 @@ final class CameraPickerLayoutTests: XCTestCase {
         XCTAssertEqual(scroll.contentOffset.x, 0, accuracy: 1)
         scroll.setContentOffset(CGPoint(x: end, y: 0), animated: false)
 
-        func waitForOffset(_ offset: CGFloat) async throws {
+        func waitForOffset(_ offset: @autoclosure () -> CGFloat) async throws {
             let deadline = ContinuousClock.now + .seconds(3)
-            while abs(scroll.contentOffset.x - offset) > 1 && ContinuousClock.now < deadline {
+            while abs(scroll.contentOffset.x - offset()) > 1 && ContinuousClock.now < deadline {
                 try await Task.sleep(for: .milliseconds(20))
             }
-            XCTAssertEqual(scroll.contentOffset.x, offset, accuracy: 1)
+            XCTAssertEqual(scroll.contentOffset.x, offset(), accuracy: 1)
         }
         host.rootView = strip(.sortingPreview)
         try await waitForOffset(0)
         host.rootView = strip(.camera)
-        try await waitForOffset(end)
+        try await waitForOffset(scroll.contentSize.width - scroll.bounds.width)
     }
 
     func testStandardPickerRowsHaveMatchingHeights() async throws {

@@ -3,20 +3,27 @@ import SwiftUI
 // MARK: - 曲线管理
 
 struct FilmCurveLibraryView: View {
+    private enum Destination: Hashable {
+        case builtIn(CurvePreset)
+        case editor(CustomFilmCurve?)
+    }
+
     @EnvironmentObject private var library: FilmCurveLibrary
     @Environment(\.dismiss) private var dismiss
     @State private var editMode: EditMode = .inactive
-    @State private var selectedEntry: FilmCurveLibrary.Entry?
+    @State private var destination: Destination?
     @State private var pendingDelete: CustomFilmCurve?
+    @State private var confirmsReset = false
 
     let showsDoneButton: Bool
+    private let curveRowInsets = EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16)
 
     init(showsDoneButton: Bool = false) {
         self.showsDoneButton = showsDoneButton
     }
 
     var body: some View {
-        let entries = library.entries
+        let visibleEntries = library.visibleEntries
 
         List {
             if let error = library.storageError {
@@ -36,37 +43,58 @@ struct FilmCurveLibraryView: View {
                     presentation: editMode.isEditing ? .sortingPreview : .preview
                 )
                 .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 0))
-            } header: {
-                Text("Camera Preview")
-                    .font(.headline)
-                    .foregroundStyle(Color.primary)
-                    .textCase(nil)
-                    .accessibilityAddTraits(.isHeader)
+                .listRowInsets(EdgeInsets())
             }
             Section {
-                ForEach(entries) { entry in
-                    curveRow(entry)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            if library.canEdit, let custom = entry.customCurve {
-                                Button(role: .destructive) {
-                                    pendingDelete = custom
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                        }
-                }
-                .onMove { offsets, destination in
-                    var order = entries.map(\.id)
-                    order.move(fromOffsets: offsets, toOffset: destination)
-                    library.setOrder(order)
-                }
+                ForEach(visibleEntries, content: curveRow)
+                    .onMove(perform: editMode.isEditing ? { offsets, destination in
+                        var order = visibleEntries.map(\.id)
+                        order.move(fromOffsets: offsets, toOffset: destination)
+                        library.setVisibleOrder(order)
+                    } : nil)
+                    .listRowInsets(curveRowInsets)
             } header: {
-                managementHeader
+                sectionHeader(editMode.isEditing ? "Reorder Curves" : "Shown",
+                              showsReorder: !editMode.isEditing && library.canEdit && visibleEntries.count > 1)
+            }
+            if !editMode.isEditing {
+                let hiddenEntries = library.hiddenEntries
+                if !hiddenEntries.isEmpty {
+                    Section {
+                        ForEach(hiddenEntries, content: curveRow)
+                            .listRowInsets(curveRowInsets)
+                    } header: {
+                        sectionHeader("Hidden")
+                    }
+                }
+            }
+            Section {
+                Button(role: .destructive) {
+                    confirmsReset = true
+                } label: {
+                    Text("Reset")
+                        .font(.body.weight(.semibold))
+                        .frame(minWidth: 80)
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.large)
+                .tint(.red)
+                .disabled(!library.canEdit)
+                .frame(maxWidth: .infinity)
+                .listRowInsets(EdgeInsets(top: 72, leading: 0, bottom: 16, trailing: 0))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .alert("Reset Curve List?", isPresented: $confirmsReset) {
+                    Button("Reset", role: .destructive) { library.resetList() }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Restore the default order and show all curves. Your custom curves will be kept.")
+                }
             }
         }
-        .listSectionSpacing(.compact)
+        .listSectionSpacing(4)
+        .contentMargins(.top, 16, for: .scrollContent)
         .scrollContentBackground(.hidden)
         .pageContentWidth()
         .appPageBackground()
@@ -75,11 +103,11 @@ struct FilmCurveLibraryView: View {
         .matchingNavigationBackButton()
         .softScrollEdges()
         .toolbar(.hidden, for: .tabBar)
-        .navigationDestination(item: $selectedEntry) { entry in
-            switch entry {
+        .navigationDestination(item: $destination) { destination in
+            switch destination {
             case .builtIn(let preset):
                 BuiltInCurveDetailView(preset: preset)
-            case .custom(let curve):
+            case .editor(let curve):
                 FilmCurveEditorView(curve: curve)
             }
         }
@@ -97,8 +125,9 @@ struct FilmCurveLibraryView: View {
                         Text("Done").toolbarControlSurface(text: true)
                     }
                 } else {
-                    NavigationLink {
-                        FilmCurveEditorView(curve: nil)
+                    // On iOS 17 a toolbar NavigationLink to a fresh draft loops during a row push.
+                    Button {
+                        destination = .editor(nil)
                     } label: {
                         Image(systemName: "plus")
                             .toolbarControlSurface()
@@ -112,14 +141,14 @@ struct FilmCurveLibraryView: View {
         .modifier(CurveDeletionConfirmation(pending: $pendingDelete))
     }
 
-    private var managementHeader: some View {
-        HStack {
-            Text(editMode.isEditing ? LocalizedStringKey("Reorder Curves") : "Manage Curves")
+    private func sectionHeader(_ title: LocalizedStringKey, showsReorder: Bool = false) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
                 .font(.headline)
                 .foregroundStyle(Color.primary)
                 .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 8)
-            if !editMode.isEditing && library.canEdit {
+            Spacer(minLength: 0)
+            if showsReorder {
                 Button {
                     withAnimation { editMode = .active }
                 } label: {
@@ -129,7 +158,7 @@ struct FilmCurveLibraryView: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(Color.primary.opacity(0.06), in: .capsule)
-                        .frame(minWidth: 44, minHeight: 44)
+                        .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
                         .contentShape(.rect)
                 }
                 .buttonStyle(.borderless)
@@ -137,46 +166,59 @@ struct FilmCurveLibraryView: View {
             }
         }
         .frame(minHeight: 44)
+        .padding(.top, 12)
         .textCase(nil)
+        .listRowInsets(EdgeInsets())
     }
 
     @ViewBuilder
     private func curveRow(_ entry: FilmCurveLibrary.Entry) -> some View {
-        if editMode.isEditing {
+        if editMode.isEditing || entry == .builtIn(.none) {
             curveLabel(entry)
+                .accessibilityElement(children: .combine)
         } else {
             HStack(spacing: 12) {
                 Button {
-                    selectedEntry = entry
+                    switch entry {
+                    case .builtIn(let preset): destination = .builtIn(preset)
+                    case .custom(let curve): destination = .editor(curve)
+                    }
                 } label: {
                     curveLabel(entry)
                 }
                 .buttonStyle(CurveDetailButtonStyle())
                 .accessibilityHint(entry.customCurve == nil ? Text("View Curve Details") : Text("Edit Curve"))
 
-                if entry != .builtIn(.none) {
-                    Toggle("Show \(entry.displayName) in camera", isOn: visibilityBinding(for: entry))
-                        .labelsHidden()
-                        .tint(.green)
-                        .disabled(!library.canEdit)
+                Toggle("Show \(entry.displayName) in camera", isOn: visibilityBinding(for: entry))
+                    .labelsHidden()
+                    .tint(.green)
+                    .disabled(!library.canEdit)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                if library.canEdit, let custom = entry.customCurve {
+                    Button(role: .destructive) { pendingDelete = custom } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
                 }
             }
         }
     }
 
     private func curveLabel(_ entry: FilmCurveLibrary.Entry) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             if let data = library.previewData(for: entry) {
                 CurveGraphView(data: data, accent: .white)
-                    .frame(width: 36, height: 25)
+                    .frame(width: 30, height: 30)
                     .padding(5)
                     .background(Color(white: 0.085), in: .rect(cornerRadius: 7))
                     .accessibilityHidden(true)
             }
             Text(entry.displayName)
-                .font(.body.weight(.medium))
+                .font(.body)
                 .foregroundStyle(.primary)
-            Spacer(minLength: 0)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
             if !editMode.isEditing && entry == .builtIn(.none) {
                 Image(systemName: "checkmark")
                     .font(.body.weight(.semibold))
@@ -240,25 +282,19 @@ private struct BuiltInCurveDetailView: View {
     var body: some View {
         GeometryReader { geometry in
             let wide = PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular)
+            let layout = wide
+                ? AnyLayout(HStackLayout(alignment: .top, spacing: 32))
+                : AnyLayout(VStackLayout(alignment: .center, spacing: 18))
+
             ScrollView {
-                Group {
-                    if wide && preset != .none {
-                        HStack(alignment: .top, spacing: 24) {
-                            CurvePhotoComparison(look: .preset(preset))
-                            response.frame(width: min(geometry.size.width * 0.34, PageLayout.curveEditorWidth))
-                        }
-                    } else {
-                        VStack(alignment: .leading, spacing: 18) {
-                            if preset != .none {
-                                CurvePhotoComparison(look: .preset(preset))
-                            }
-                            response
-                        }
-                    }
+                layout {
+                    CurvePhotoComparison(look: .preset(preset))
+                    CurveResponsePreview(preset: preset)
+                        .frame(width: wide ? min(geometry.size.width * 0.32, PageLayout.curveEditorWidth) : nil)
                 }
                 .padding(.horizontal, 18)
-                .padding(.vertical, 14)
-                .pageContentWidth(wide && preset != .none ? PageLayout.browseWidth : PageLayout.readingWidth)
+                .padding(.vertical, 12)
+                .pageContentWidth(wide ? PageLayout.browseWidth : PageLayout.readingWidth)
             }
         }
         .appPageBackground()
@@ -267,19 +303,6 @@ private struct BuiltInCurveDetailView: View {
         .matchingNavigationBackButton()
         .softScrollEdges()
         .toolbar(.hidden, for: .tabBar)
-    }
-
-    private var response: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            CurveResponsePreview(preset: preset)
-            Text(preset == .none
-                ? String(localized: "Original is always available in the camera to preserve the film’s own tones.")
-                : preset.summary)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 4)
-        }
     }
 }
 
@@ -320,6 +343,7 @@ struct FilmCurveEditorView: View {
     @State private var channel: CurveEditingChannel = .master
     @State private var selectedPointIndex: Int?
     @State private var showsEditingHelp = false
+    @State private var offersCopy = false
     @State private var pendingDelete: CustomFilmCurve?
 
     private let original: CustomFilmCurve?
@@ -332,44 +356,15 @@ struct FilmCurveEditorView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            if PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular) {
-                HStack(alignment: .top, spacing: 24) {
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            channelPicker
-                            curveActionRow
-                            curveEditor
-                        }
-                        .padding(.vertical, 16)
-                    }
-                    .frame(maxWidth: .infinity)
-                    Form {
-                        comparisonSection
-                        nameSection
-                        Section("Tone Curve") { pointControls }
-                    }
-                    .frame(width: 300)
-                    .scrollContentBackground(.hidden)
-                }
-                .padding(.horizontal, 24)
-                .pageContentWidth(PageLayout.browseWidth)
-            } else {
-                Form {
-                    comparisonSection
-                    nameSection
-                    Section {
-                        channelPicker
-                        curveEditor
-                        pointControls
-                        curveActionRow
-                    } header: {
-                        Text("Tone Curve")
-                    }
-                }
-                .listSectionSpacing(.compact)
-                .scrollContentBackground(.hidden)
-                .pageContentWidth()
+            let usesColumns = PageLayout.usesLandscapeColumns(in: geometry.size, isRegular: sizeClass == .regular)
+            Form {
+                nameSection
+                adjustmentSection
+                comparisonSection
             }
+            .listSectionSpacing(.compact)
+            .scrollContentBackground(.hidden)
+            .pageContentWidth(usesColumns ? PageLayout.browseWidth : PageLayout.readingWidth)
         }
         .appPageBackground()
         .tint(.primary)
@@ -403,12 +398,39 @@ struct FilmCurveEditorView: View {
                 .disabled(trimmedName.isEmpty || !library.canEdit)
             }
         }
+        .alert("This curve was deleted", isPresented: $offersCopy) {
+            Button("Save a Copy") {
+                var copy = draft
+                copy.id = UUID()
+                copy.createdAt = Date()
+                if library.add(copy) { dismiss() }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
         .modifier(CurveDeletionConfirmation(pending: $pendingDelete, didDelete: { dismiss() }))
+    }
+
+    private var adjustmentSection: some View {
+        Section("Tone Curve") {
+            VStack(spacing: 8) {
+                channelPicker
+                curveEditor
+                curveActionRow
+            }
+            .frame(maxWidth: PageLayout.curveEditorWidth)
+            .frame(maxWidth: .infinity)
+            .buttonStyle(.borderless)
+            .accessibilityElement(children: .contain)
+            .listRowSeparator(.hidden)
+        }
+        .listSectionSeparator(.hidden)
     }
 
     private var comparisonSection: some View {
         Section {
             CurvePhotoComparison(look: .draft(draft))
+                .frame(maxWidth: PageLayout.readingWidth)
+                .frame(maxWidth: .infinity)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
         }
@@ -433,43 +455,16 @@ struct FilmCurveEditorView: View {
 
     private var curveEditor: some View {
         PhotoshopCurveEditor(points: selectedPoints, selectedIndex: $selectedPointIndex, accent: channel.color)
-            .aspectRatio(1, contentMode: .fit)
             .frame(maxWidth: PageLayout.curveEditorWidth)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
             .accessibilityIdentifier("curves.editor.graph")
     }
 
-    @ViewBuilder
-    private var pointControls: some View {
-        if let index = validSelectedIndex {
-            Stepper(value: selectedInputValue, in: selectedInputRange) {
-                LabeledContent("Input", value: "\(selectedInputValue.wrappedValue)")
-                    .monospacedDigit()
-            }
-            .disabled(index == 0 || index == selectedPoints.wrappedValue.count - 1)
-
-            Stepper(value: selectedOutputValue, in: 0...255) {
-                LabeledContent("Output", value: "\(selectedOutputValue.wrappedValue)")
-                    .monospacedDigit()
-            }
-
-            if index > 0 && index < selectedPoints.wrappedValue.count - 1 {
-                Button(role: .destructive, action: deleteSelectedPoint) {
-                    Label("Delete Point", systemImage: "trash")
-                }
-            }
-        } else {
-            Button(action: addCenterPoint) {
-                Label("Add Point", systemImage: "plus.circle")
-            }
-        }
-    }
-
     private var curveActionRow: some View {
         HStack {
             Menu {
-                ForEach(CurvePreset.allCases) { preset in
+                ForEach(CurvePreset.allCases.filter { $0 != .none }) { preset in
                     Button(preset.displayName) {
                         draft.applyTemplate(preset)
                         channel = preset.usesChannelCurves ? .red : .master
@@ -478,6 +473,7 @@ struct FilmCurveEditorView: View {
                 }
             } label: {
                 Label("Start From", systemImage: "square.stack.3d.up")
+                    .frame(minHeight: 44)
             }
 
             Spacer()
@@ -488,7 +484,7 @@ struct FilmCurveEditorView: View {
             }
             .accessibilityLabel("About curve editing")
             .popover(isPresented: $showsEditingHelp) {
-                Text("Tap to add a point. Drag points in any direction.")
+                Text("Tap to add a point. Drag to move it. Drag an interior point outside the graph to delete it.")
                     .font(.callout)
                     .padding()
                     .presentationCompactAdaptation(.popover)
@@ -499,7 +495,8 @@ struct FilmCurveEditorView: View {
                 channel = .master
                 selectedPointIndex = nil
             } label: {
-                Label("Reset", systemImage: "arrow.counterclockwise")
+                Text("Reset")
+                    .frame(minWidth: 44, minHeight: 44)
             }
         }
     }
@@ -529,106 +526,17 @@ struct FilmCurveEditorView: View {
         )
     }
 
-    private var validSelectedIndex: Int? {
-        guard let selectedPointIndex,
-              selectedPoints.wrappedValue.indices.contains(selectedPointIndex) else { return nil }
-        return selectedPointIndex
-    }
-
-    private var selectedInputValue: Binding<Int> {
-        Binding(
-            get: {
-                guard let index = validSelectedIndex else { return 0 }
-                return byteValue(selectedPoints.wrappedValue[index].input)
-            },
-            set: { value in updateSelectedPoint(input: Float(value) / 255) }
-        )
-    }
-
-    private var selectedOutputValue: Binding<Int> {
-        Binding(
-            get: {
-                guard let index = validSelectedIndex else { return 0 }
-                return byteValue(selectedPoints.wrappedValue[index].output)
-            },
-            set: { value in updateSelectedPoint(output: Float(value) / 255) }
-        )
-    }
-
-    private var selectedInputRange: ClosedRange<Int> {
-        guard let index = validSelectedIndex else { return 0...0 }
-        let points = selectedPoints.wrappedValue
-        guard index > 0, index < points.count - 1 else {
-            let value = Int((points[index].input * 255).rounded())
-            return value...value
-        }
-        let lower = Int((points[index - 1].input * 255).rounded(.up)) + 1
-        let upper = Int((points[index + 1].input * 255).rounded(.down)) - 1
-        guard lower <= upper else {
-            let value = Int((points[index].input * 255).rounded())
-            return value...value
-        }
-        return lower...upper
-    }
-
-    private func updateSelectedPoint(input: Float? = nil, output: Float? = nil) {
-        guard let index = validSelectedIndex else { return }
-        var points = selectedPoints.wrappedValue
-        if let input, index > 0, index < points.count - 1 {
-            let minimum = points[index - 1].input + 1 / 255
-            let maximum = points[index + 1].input - 1 / 255
-            points[index].input = min(max(input, minimum), maximum)
-        }
-        if let output {
-            points[index].output = min(max(output, 0), 1)
-        }
-        selectedPoints.wrappedValue = points
-    }
-
-    private func byteValue(_ value: Float) -> Int {
-        Int((Double(value) * 255 + 0.0001).rounded())
-    }
-
-    private func addCenterPoint() {
-        var points = selectedPoints.wrappedValue
-        guard points.count < 16, points.count >= 2 else { return }
-
-        var insertionIndex = 1
-        var largestGap: Float = -1
-        for index in 1..<points.count {
-            let gap = points[index].input - points[index - 1].input
-            if gap > largestGap {
-                largestGap = gap
-                insertionIndex = index
-            }
-        }
-
-        let input = (points[insertionIndex - 1].input + points[insertionIndex].input) / 2
-        let table = CurveMath.expand(points)
-        let output = CurveMath.sample(table, at: input)
-        points.insert(CurveControlPoint(input: input, output: output), at: insertionIndex)
-        selectedPoints.wrappedValue = points
-        selectedPointIndex = insertionIndex
-    }
-
-    private func deleteSelectedPoint() {
-        guard let index = validSelectedIndex,
-              index > 0,
-              index < selectedPoints.wrappedValue.count - 1 else { return }
-        var points = selectedPoints.wrappedValue
-        points.remove(at: index)
-        selectedPoints.wrappedValue = points
-        selectedPointIndex = nil
-    }
-
     private func save() {
         draft.name = trimmedName
-        if isNew {
-            library.add(draft)
-        } else {
-            library.update(draft)
+        if let original {
+            if library.update(draft, editedFrom: original) {
+                dismiss()
+            } else if library.canEdit {
+                offersCopy = true
+            }
+        } else if library.add(draft) {
+            dismiss()
         }
-        dismiss()
     }
 }
 
@@ -640,6 +548,7 @@ struct PhotoshopCurveEditor: View {
     let accent: Color
 
     @State private var activeIndex: Int?
+    @State private var dragOrigin: CGPoint?
 
     private let inset: CGFloat = 18
     private let hitRadius: CGFloat = 26
@@ -656,24 +565,60 @@ struct PhotoshopCurveEditor: View {
             }
             .contentShape(Rectangle())
             .gesture(curveGesture(size: size))
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Tone curve editor")
-            .accessibilityHint("Tap to add a point. Drag points in any direction.")
+            .accessibilityRepresentation {
+                VStack {
+                    Button("Tone curve editor") { addAccessiblePoint(size: size) }
+                        .disabled(points.count >= maximumPointCount)
+                        .accessibilityHint("Add Point")
+                    ForEach(Array(points.enumerated()), id: \.offset) { index, point in
+                        Text("Point \(index + 1)")
+                            .accessibilityValue(Text("Input \(Int((point.input * 255).rounded())), output \(Int((point.output * 255).rounded()))"))
+                            .accessibilityAdjustableAction { direction in
+                                let delta: Float = direction == .increment ? minimumInputSpacing : -minimumInputSpacing
+                                movePoint(at: index, to: CurveControlPoint(input: point.input, output: point.output + delta))
+                            }
+                            .accessibilityActions {
+                                if index > 0, index < points.count - 1 {
+                                    Button("Move Left") {
+                                        movePoint(at: index, to: CurveControlPoint(input: point.input - minimumInputSpacing, output: point.output))
+                                    }
+                                    Button("Move Right") {
+                                        movePoint(at: index, to: CurveControlPoint(input: point.input + minimumInputSpacing, output: point.output))
+                                    }
+                                    Button("Delete Point") { deletePoint(at: index) }
+                                }
+                            }
+                    }
+                }
+            }
         }
+        .aspectRatio(1, contentMode: .fit)
     }
 
     private func curveGesture(size: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 if activeIndex == nil {
-                    activeIndex = nearestPoint(to: value.startLocation, size: size)
-                        ?? addPoint(at: value.startLocation, size: size)
+                    if let nearby = nearestPoint(to: value.startLocation, size: size) {
+                        activeIndex = nearby
+                        dragOrigin = position(of: points[nearby], size: size)
+                    } else {
+                        activeIndex = addPoint(at: value.startLocation, size: size)
+                        dragOrigin = value.startLocation
+                    }
                     selectedIndex = activeIndex
                 }
-                guard let activeIndex else { return }
-                movePoint(at: activeIndex, to: value.location, size: size)
+                guard let activeIndex, let dragOrigin, value.translation != .zero else { return }
+                let position = CGPoint(x: dragOrigin.x + value.translation.width,
+                                       y: dragOrigin.y + value.translation.height)
+                movePoint(at: activeIndex, to: curvePoint(at: position, size: size))
             }
-            .onEnded { _ in activeIndex = nil }
+            .onEnded { value in
+                let bounds = CGRect(origin: .zero, size: size).insetBy(dx: -8, dy: -8)
+                if let activeIndex, !bounds.contains(value.location) { deletePoint(at: activeIndex) }
+                activeIndex = nil
+                dragOrigin = nil
+            }
     }
 
     private func nearestPoint(to location: CGPoint, size: CGSize) -> Int? {
@@ -717,9 +662,24 @@ struct PhotoshopCurveEditor: View {
         return insertionIndex
     }
 
-    private func movePoint(at index: Int, to location: CGPoint, size: CGSize) {
+    private func addAccessiblePoint(size: CGSize) {
+        guard points.count < maximumPointCount, let index = points.indices.dropFirst().max(by: {
+            points[$0].input - points[$0 - 1].input < points[$1].input - points[$1 - 1].input
+        }) else { return }
+        let input = (points[index - 1].input + points[index].input) / 2
+        let output = CurveMath.sample(CurveMath.expand(points), at: input)
+        selectedIndex = addPoint(at: position(of: CurveControlPoint(input: input, output: output), size: size), size: size)
+    }
+
+    private func deletePoint(at index: Int) {
+        guard index > 0, index < points.count - 1 else { return }
+        points.remove(at: index)
+        selectedIndex = nil
+    }
+
+    private func movePoint(at index: Int, to proposed: CurveControlPoint) {
         guard points.indices.contains(index) else { return }
-        let proposed = curvePoint(at: location, size: size)
+        selectedIndex = index
         var updated = points
         if index == 0 {
             updated[index].input = 0
@@ -730,7 +690,7 @@ struct PhotoshopCurveEditor: View {
             let maximum = points[index + 1].input - minimumInputSpacing
             updated[index].input = min(max(proposed.input, minimum), maximum)
         }
-        updated[index].output = proposed.output
+        updated[index].output = min(max(proposed.output, 0), 1)
         points = updated
     }
 
@@ -750,10 +710,8 @@ struct PhotoshopCurveEditor: View {
     }
 
     private func position(of point: CurveControlPoint, size: CGSize) -> CGPoint {
-        CGPoint(
-            x: inset + (size.width - inset * 2) * CGFloat(point.input),
-            y: inset + (size.height - inset * 2) * CGFloat(1 - point.output)
-        )
+        let bounds = CGRect(origin: .zero, size: size).insetBy(dx: inset, dy: inset)
+        return ToneCurvePlot.position(input: CGFloat(point.input), output: CGFloat(point.output), in: bounds)
     }
 
     private func distance(from lhs: CGPoint, to rhs: CGPoint) -> CGFloat {
@@ -767,23 +725,10 @@ struct PhotoshopCurveEditor: View {
             with: .color(Color(white: 0.065))
         )
 
-        for division in 1..<4 {
-            let fraction = CGFloat(division) / 4
-            var path = Path()
-            let x = inset + (size.width - inset * 2) * fraction
-            let y = inset + (size.height - inset * 2) * fraction
-            path.move(to: CGPoint(x: x, y: inset))
-            path.addLine(to: CGPoint(x: x, y: size.height - inset))
-            path.move(to: CGPoint(x: inset, y: y))
-            path.addLine(to: CGPoint(x: size.width - inset, y: y))
-            context.stroke(path, with: .color(.white.opacity(0.075)), lineWidth: 0.5)
-        }
-
-        var identity = Path()
-        identity.move(to: CGPoint(x: inset, y: size.height - inset))
-        identity.addLine(to: CGPoint(x: size.width - inset, y: inset))
+        let plotBounds = bounds.insetBy(dx: inset, dy: inset)
+        context.stroke(ToneCurvePlot.grid(divisions: 4, in: plotBounds), with: .color(.white.opacity(0.12)), lineWidth: 0.5)
         context.stroke(
-            identity,
+            ToneCurvePlot.path(for: [0, 1], in: plotBounds),
             with: .color(.white.opacity(0.24)),
             style: StrokeStyle(lineWidth: 1, dash: [4, 4])
         )
@@ -797,16 +742,9 @@ struct PhotoshopCurveEditor: View {
 
     private func drawCurve(context: inout GraphicsContext, size: CGSize) {
         let table = CurveMath.expand(points)
-        var path = Path()
-        for (index, output) in table.enumerated() {
-            let point = CGPoint(
-                x: inset + (size.width - inset * 2) * CGFloat(index) / CGFloat(table.count - 1),
-                y: inset + (size.height - inset * 2) * CGFloat(1 - output)
-            )
-            index == 0 ? path.move(to: point) : path.addLine(to: point)
-        }
+        let bounds = CGRect(origin: .zero, size: size).insetBy(dx: inset, dy: inset)
         context.stroke(
-            path,
+            ToneCurvePlot.path(for: table, in: bounds),
             with: .color(accent),
             style: StrokeStyle(lineWidth: 2.25, lineCap: .round, lineJoin: .round)
         )
