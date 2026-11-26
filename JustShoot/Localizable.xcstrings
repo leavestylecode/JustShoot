@@ -31,16 +31,6 @@
         }
       }
     },
-    "%@ %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ %2$@"
-          }
-        }
-      }
-    },
     "%@ point %lld" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -104,6 +94,7 @@
       }
     },
     "%lld / %lld" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -538,6 +529,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "光圈"
+          }
+        }
+      }
+    },
+    "App Appearance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用外观"
           }
         }
       }
@@ -1575,17 +1577,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "色彩强度"
-          }
-        }
-      }
-    },
-    "App Appearance" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "应用外观"
           }
         }
       }
@@ -3038,37 +3029,6 @@
         }
       }
     },
-    "No LUT" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未使用 LUT"
-          }
-        }
-      }
-    },
-    "Not recorded" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未记录"
-          }
-        }
-      }
-    },
-    "Page Background" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "页面背景"
-          }
-        }
-      }
-    },
     "Gently increase midtone contrast." : {
       "localizations" : {
         "en" : {
@@ -3569,22 +3529,6 @@
         }
       }
     },
-    "Lift blacks, soften highlights, and add a gentle S-curve through the midtones." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lift blacks, soften highlights, and add a gentle S-curve through the midtones."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "抬高黑位，柔化高光，用轻微的 S 曲线拉开中间调层次。"
-          }
-        }
-      }
-    },
     "Lift blacks for a faded print look." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3615,6 +3559,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "抬高黑位，同时保留 S 曲线反差。"
+          }
+        }
+      }
+    },
+    "Lift blacks, soften highlights, and add a gentle S-curve through the midtones." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lift blacks, soften highlights, and add a gentle S-curve through the midtones."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "抬高黑位，柔化高光，用轻微的 S 曲线拉开中间调层次。"
           }
         }
       }
@@ -3726,17 +3686,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Live Photo 暂不可用"
-          }
-        }
-      }
-    },
-    "Preview" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "预览"
           }
         }
       }
@@ -4050,6 +3999,17 @@
         }
       }
     },
+    "Match App" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跟随应用"
+          }
+        }
+      }
+    },
     "Matte" : {
       "localizations" : {
         "en" : {
@@ -4079,17 +4039,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "哑光 S"
-          }
-        }
-      }
-    },
-    "Match App" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "跟随应用"
           }
         }
       }
@@ -4692,6 +4641,16 @@
         }
       }
     },
+    "No LUT" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未使用 LUT"
+          }
+        }
+      }
+    },
     "No matches" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4766,6 +4725,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未添加"
+          }
+        }
+      }
+    },
+    "Not recorded" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未记录"
           }
         }
       }
@@ -5060,6 +5029,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "页面外观"
+          }
+        }
+      }
+    },
+    "Page Background" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "页面背景"
           }
         }
       }
@@ -5388,6 +5368,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "准备中…"
+          }
+        }
+      }
+    },
+    "Preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "预览"
           }
         }
       }
@@ -7113,6 +7104,17 @@
     "Switch film" : {
 
     },
+    "System" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跟随系统"
+          }
+        }
+      }
+    },
     "Take a photo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7126,17 +7128,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "拍摄一张照片"
-          }
-        }
-      }
-    },
-    "System" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "跟随系统"
           }
         }
       }
