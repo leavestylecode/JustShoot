@@ -15,7 +15,6 @@ enum SettingsIconStyle: String, CaseIterable {
 
 struct SettingsIcon: View {
     @AppStorage(SettingsIconStyle.key) private var style = SettingsIconStyle.standard
-    @Environment(\.colorSchemeContrast) private var contrast
     private let symbol: String
     private let color: Color
 
@@ -42,7 +41,7 @@ struct SettingsIcon: View {
         switch style {
         case .standard: color
         case .monochrome: .primary
-        case .subtle: .primary.opacity(contrast == .increased ? 0.7 : 0.4)
+        case .subtle: .primary.opacity(0.4)
         }
     }
 

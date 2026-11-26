@@ -237,7 +237,6 @@ final class PhotoGridZoomTests: XCTestCase {
         zoom.pinchChanged(pinch)
         pinch.phase = .ended
         zoom.pinchChanged(pinch)
-        try XCTSkipIf(UIAccessibility.isReduceMotionEnabled, "Reduce Motion finishes the transition immediately")
         let visibleSide = try XCTUnwrap(zoom.presentedSide)
         pinch.phase = .began
         pinch.scale = 1

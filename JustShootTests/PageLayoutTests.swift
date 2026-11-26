@@ -62,14 +62,11 @@ final class PageLayoutTests: XCTestCase {
     }
 
     @MainActor
-    func testPhotoGridDefaultAdaptsToWidthAndAccessibilitySize() {
+    func testPhotoGridDefaultAdaptsToWidth() {
         for (width, columns) in [(CGFloat(600), 3), (834, 5), (1194, 7)] {
-            XCTAssertEqual(SquareGridLayout.defaultColumns(forWidth: width, isRegular: true,
-                accessibilitySize: false), columns)
-            XCTAssertEqual(SquareGridLayout.defaultColumns(forWidth: width, isRegular: true,
-                accessibilitySize: true), 2)
+            XCTAssertEqual(SquareGridLayout.defaultColumns(forWidth: width, isRegular: true), columns)
         }
-        XCTAssertEqual(SquareGridLayout.defaultColumns(forWidth: 393, isRegular: false, accessibilitySize: false), 4)
+        XCTAssertEqual(SquareGridLayout.defaultColumns(forWidth: 393, isRegular: false), 4)
         XCTAssertEqual(PageLayout.gridColumns(width: 0, minimum: 100, spacing: 10, maximum: 4), 1)
         XCTAssertEqual(PageLayout.gridColumns(width: .nan, minimum: 100, spacing: 10, maximum: 4), 1)
     }

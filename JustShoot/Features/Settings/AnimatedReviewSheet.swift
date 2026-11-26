@@ -115,7 +115,6 @@ struct AnimatedReviewSheet: View {
 }
 
 private struct ReviewLightBurst: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private struct Ray {
         let angle: Double
@@ -134,9 +133,9 @@ private struct ReviewLightBurst: View {
     ]
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduceMotion)) { timeline in
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
             GeometryReader { geometry in
-                let time = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
+                let time = timeline.date.timeIntervalSinceReferenceDate
 
                 ZStack {
                     Canvas(
@@ -178,12 +177,9 @@ private struct ReviewLightBurst: View {
             .frame(width: 70, height: 70)
             .frame(width: 104, height: 104)
             .background(.black, in: .rect(cornerRadius: 24))
-            .shadow(color: ReviewSheetPalette.iceBlue.opacity(0.35), radius: 18)
-            .shadow(color: .black.opacity(0.55), radius: 9, y: 5)
     }
 
     private func iconScale(at time: TimeInterval) -> CGFloat {
-        guard !reduceMotion else { return 1 }
         let period = 2.4
         let phase = time.truncatingRemainder(dividingBy: period) / period * 2 * Double.pi
         return 1 + 0.045 * sin(phase)

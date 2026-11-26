@@ -72,6 +72,12 @@ Performance and fluid interaction take priority. Use visual previews and concise
 secondary explanations belong behind help controls. Permission guidance, recovery actions,
 destructive confirmations and VoiceOver descriptions remain explicit.
 
+App pages use the standard Large text size, regular legibility weight and normal contrast in
+both SwiftUI and UIKit. App-authored animations use their designed timing. When Reduce
+Transparency flattens system materials, custom controls use translucent fills so the page
+background remains visible. Selected wallpaper blur is rendered by Core Image. iOS controls
+the appearance of system-owned surfaces, including the share sheet and permission prompts.
+
 Card covers share a filename-based cache across the home grid, camera picker and library.
 Nearby sizes use 128/256/384/640/1024-pixel buckets, with a 50 MiB cache budget. Concurrent
 consumers share one decode; cancelling a consumer releases it immediately and cancels queued
@@ -235,7 +241,7 @@ memory still need measurement under rapid scrolling, paging and camera return.
 
 ## Entry preparation
 
-The launch screen follows the system appearance. If the app has a different appearance selected, the backdrop and ring blend into that palette as the ring begins to draw. Once the ring closes and home is ready, six aperture blades briefly meet and rotate open onto the page. Home preparation runs alongside the animation and offers Retry if preparation fails. Reduce Motion opens home as soon as it is ready.
+The launch screen follows the system appearance. If the app has a different appearance selected, the backdrop and ring blend into that palette as the ring begins to draw. Once the ring closes and home is ready, six aperture blades briefly meet and rotate open onto the page. Home preparation runs alongside the animation and offers Retry if preparation fails.
 
 Home preparation opens the existing store and reads a lightweight custom-filter snapshot. Visible film tiles load covers independently with the shared bounded image decoder. SwiftData Query updates continue to drive later imports, edits and deletions. After the reveal, pending-capture recovery, launch maintenance and renderer warmup start in the background. Photos authorization checks and observer registration use a dedicated worker queue. Opening the gallery or returning to the foreground still reconciles the local photo index.
 
@@ -348,7 +354,7 @@ For device performance regressions, capture `session_queue_wait`, `session_confi
 
 ## Performance diagnostics
 
-Color controls keep temperature and tint side by side in two separate capsules, with each value, gradient track and independent Auto button on one horizontal line. Automatic readings move only the thumb's Core Animation layer over the existing 0.5-second sampling interval; they do not generate interpolated camera values or per-frame SwiftUI updates. Manual dragging takes over from the visible thumb position and keeps its motion continuous while values sent to the LUT remain quantized (100 K / 1 tint). Reduce Motion disables the interpolation. The readouts continue to show the measured Auto values, including readings outside the manual ranges.
+Color controls keep temperature and tint side by side in two separate capsules, with each value, gradient track and independent Auto button on one horizontal line. Automatic readings move only the thumb's Core Animation layer over the existing 0.5-second sampling interval; they do not generate interpolated camera values or per-frame SwiftUI updates. Manual dragging takes over from the visible thumb position and keeps its motion continuous while values sent to the LUT remain quantized (100 K / 1 tint). The readouts continue to show the measured Auto values, including readings outside the manual ranges.
 
 Diagnostics are enabled in Debug and Release. Filter the Xcode console for `diag `; every event carries a process `run`, a camera/capture `id`, and monotonic timing. The logging subsystem follows the app bundle identifier, with category `diagnostics`. Set the scheme environment variable `JUSTSHOOT_DIAGNOSTICS=0` to disable the additional monitoring.
 

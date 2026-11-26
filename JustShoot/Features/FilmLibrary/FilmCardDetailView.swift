@@ -8,6 +8,7 @@ struct FilmCardDetailView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var appScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     init(preset: FilmPreset, settings: FilmPageSettings? = nil) {
         self.preset = preset
@@ -175,11 +176,12 @@ struct FilmCardDetailView: View {
             .padding(.horizontal, 18)
 
         return Group {
-            if #available(iOS 26.0, *) {
+            if #available(iOS 26.0, *), !reduceTransparency {
                 NavigationLink(value: FilmSource.preset(preset)) { label }
                     .buttonStyle(.glass)
                     .buttonBorderShape(.capsule)
                     .controlSize(.large)
+                    .clipShape(.capsule)
             } else {
                 NavigationLink(value: FilmSource.preset(preset)) {
                     label
@@ -187,7 +189,6 @@ struct FilmCardDetailView: View {
                         .frame(minHeight: 50)
                         .cameraControlSurface()
                         .contentShape(.capsule)
-                        .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
                 }
                 .buttonStyle(.plain)
             }

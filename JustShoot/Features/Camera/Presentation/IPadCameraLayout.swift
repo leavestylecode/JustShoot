@@ -153,7 +153,7 @@ struct IPadCameraLookPanel<Curves: View, Films: View>: View {
         }
         .padding(.vertical, IPadCameraLayoutGeometry.pickerVerticalPadding)
         .background(colorScheme == .light ? .white.opacity(0.76) : .black.opacity(0.24), in: .rect(cornerRadius: 24))
-        .background(.ultraThinMaterial, in: .rect(cornerRadius: 24))
+        .background(AppSurfaceMaterial.ultraThin, in: .rect(cornerRadius: 24))
         .overlay {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .strokeBorder(.primary.opacity(0.12), lineWidth: 0.5)

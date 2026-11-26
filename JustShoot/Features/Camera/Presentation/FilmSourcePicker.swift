@@ -53,7 +53,6 @@ private struct CameraPickerRow<Content: View>: View {
 /// 当前选中胶片用黄色描边标识；点击后通过 onSelect 更新预览，面板保持展开以便连续比较。
 /// 展开瞬间 ScrollViewReader 自动滚到当前胶片，便于看到"我现在在哪一张"。
 struct FilmSourcePickerStrip: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let current: FilmSource
     let sources: [FilmSource]
     let contentRotation: Angle
@@ -89,7 +88,7 @@ struct FilmSourcePickerStrip: View {
             }
             .onChange(of: current.id) { _, newId in
                 // 预览区左右滑动切胶片时 picker 条同步把新选中胶片滚到中心。
-                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
+                withAnimation(.easeOut(duration: 0.22)) {
                     proxy.scrollTo(newId, anchor: .center)
                 }
             }
@@ -112,7 +111,6 @@ struct FilmCurvePickerStrip: View {
     }
 
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let curves: [FilmCurve]
     let current: FilmCurve
     let contentRotation: Angle
@@ -162,7 +160,7 @@ struct FilmCurvePickerStrip: View {
             }
             .onChange(of: current.id) { _, newID in
                 guard presentation == .camera else { return }
-                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
+                withAnimation(.easeOut(duration: 0.22)) {
                     proxy.scrollTo(newID, anchor: .center)
                 }
             }
@@ -183,13 +181,12 @@ private struct CameraPickerCard<Content: View>: View {
     let onTap: (() -> Void)?
     @ViewBuilder var content: Content
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: style == .iPadOverlay ? 12 : 10, style: .continuous)
         let highlightsBorder = isSelected && showsSelectionBorder
-        let enlargesSelection = !reduceMotion && style == .standard && onTap != nil
+        let enlargesSelection = style == .standard && onTap != nil
         let card = content
             .frame(width: size, height: size)
             .clipShape(shape)

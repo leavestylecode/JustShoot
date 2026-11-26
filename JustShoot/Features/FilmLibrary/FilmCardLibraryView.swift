@@ -104,7 +104,6 @@ struct FilmCardLibraryView: View {
             .frame(width: 26, height: 26)
             .background(added ? VaultMembershipStyle.green : AppBrand.paper, in: Circle())
             .overlay { Circle().strokeBorder(.white.opacity(0.55), lineWidth: 0.8) }
-            .shadow(color: .black.opacity(0.24), radius: 2, y: 1)
             .padding(8)
     }
 }

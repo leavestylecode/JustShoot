@@ -5,8 +5,7 @@ final class SquareGridLayout: UICollectionViewLayout {
     static let bottomPadding: CGFloat = 20
     static let cornerRadius: CGFloat = 8
 
-    static func defaultColumns(forWidth width: CGFloat, isRegular: Bool, accessibilitySize: Bool) -> Int {
-        if accessibilitySize { return 2 }
+    static func defaultColumns(forWidth width: CGFloat, isRegular: Bool) -> Int {
         if !isRegular { return 4 }
         return PageLayout.gridColumns(width: min(width, PageLayout.browseWidth) - PhotoGridGeometry.margin * 2,
             minimum: 144, spacing: PhotoGridGeometry.spacing, maximum: columnRange.upperBound)

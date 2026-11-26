@@ -77,7 +77,6 @@ private struct MainTabRoot: ViewModifier {
 private struct CapsuleTabBar: View {
     private static let itemInset: CGFloat = 10
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var indicator
     @Binding var selection: MainTab
 
@@ -99,7 +98,7 @@ private struct CapsuleTabBar: View {
                         }
                 }
             }
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.20), value: selection)
+            .animation(.easeInOut(duration: 0.20), value: selection)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
 
@@ -109,7 +108,6 @@ private struct CapsuleTabBar: View {
         .padding(.horizontal, Self.itemInset)
         .frame(height: 60)
         .legacyGlassSurface(Capsule(), material: .bar)
-        .shadow(color: .black.opacity(0.10), radius: 8, y: 2)
     }
 }
 

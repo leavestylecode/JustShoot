@@ -15,6 +15,7 @@ final class FilmTileLayoutTests: XCTestCase {
     func testAllFilmTextFitsOneLineOnCompactPhones() {
         for language in ["en", "zh-Hans"] {
             let locale = Locale(identifier: language)
+            let labels = labelWidths(locale: locale, titleSize: 11, subtitleSize: 11)
             for visibility in visibilityOptions {
                 // Include narrow/zoomed containers and every column-count transition.
                 for pointWidth in 320...480 {
@@ -22,8 +23,7 @@ final class FilmTileLayoutTests: XCTestCase {
                     let columns = PageLayout.homeColumns(width: width, isRegular: false,
                         minimumTileWidth: FilmTileLayout.minimumWidth(locale: locale, textVisibility: visibility))
                     let tileWidth = (width - 28 - CGFloat(columns - 1) * 14) / CGFloat(columns)
-                    assertFilmTextFits(width: tileWidth, locale: locale, titleSize: 11, subtitleSize: 11,
-                        visibility: visibility)
+                    assertFilmTextFits(width: tileWidth, labels: labels, visibility: visibility)
                 }
             }
         }
@@ -32,6 +32,7 @@ final class FilmTileLayoutTests: XCTestCase {
     func testAllFilmTextFitsOneLineInRegularWindows() {
         for language in ["en", "zh-Hans"] {
             let locale = Locale(identifier: language)
+            let labels = labelWidths(locale: locale, titleSize: 13, subtitleSize: 12)
             for visibility in visibilityOptions {
                 // Cover portrait, landscape and narrower iPad windows, including
                 // the transitions where an additional column becomes possible.
@@ -40,8 +41,7 @@ final class FilmTileLayoutTests: XCTestCase {
                     let columns = PageLayout.homeColumns(width: width, isRegular: true,
                         minimumTileWidth: FilmTileLayout.minimumWidth(locale: locale, textVisibility: visibility))
                     let tileWidth = (width - 48 - CGFloat(columns - 1) * 14) / CGFloat(columns)
-                    assertFilmTextFits(width: tileWidth, locale: locale, titleSize: 13, subtitleSize: 12,
-                        visibility: visibility)
+                    assertFilmTextFits(width: tileWidth, labels: labels, visibility: visibility)
                 }
             }
         }
@@ -107,23 +107,42 @@ final class FilmTileLayoutTests: XCTestCase {
         let host = UIHostingController(rootView: view
             .environment(\.horizontalSizeClass, .compact)
             .environment(\.locale, Locale(identifier: "en"))
-            .dynamicTypeSize(.large))
+            .appVisualDesign())
         return host.sizeThatFits(in: CGSize(width: width, height: 2000)).height
     }
 
-    private func assertFilmTextFits(width: CGFloat, locale: Locale, titleSize: CGFloat, subtitleSize: CGFloat,
-        visibility: FilmTileTextVisibility = .init(),
-        file: StaticString = #filePath, line: UInt = #line) {
-        for preset in FilmPreset.allCases {
-            let title = preset.tileTitle
-            let titleWidth = (title as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: titleSize, weight: .semibold)]).width
-            let subtitleWidth = (preset.sceneSubtitles(locale: locale).compact as NSString)
-                .size(withAttributes: [.font: UIFont.systemFont(ofSize: subtitleSize)]).width
+    private struct LabelWidths {
+        let name: String
+        let title: CGFloat
+        let subtitle: CGFloat
+    }
+
+    private func labelWidths(locale: Locale, titleSize: CGFloat, subtitleSize: CGFloat) -> [LabelWidths] {
+        // Use the same SwiftUI font environment as a tile, including when the simulator uses Bold Text.
+        func width(_ text: String, size: CGFloat, weight: Font.Weight = .regular) -> CGFloat {
+            let renderer = ImageRenderer(content: Text(verbatim: text)
+                .font(.system(size: size, weight: weight)).fixedSize()
+                .environment(\.locale, locale).appVisualDesign())
+            var width: CGFloat = 0
+            renderer.render { size, _ in width = size.width }
+            XCTAssertGreaterThan(width, 0)
+            return ceil(width)
+        }
+        return FilmPreset.allCases.map { preset in
+            LabelWidths(name: "\(locale.identifier) \(preset.tileTitle)",
+                title: width(preset.tileTitle, size: titleSize, weight: .semibold),
+                subtitle: width(preset.sceneSubtitles(locale: locale).compact, size: subtitleSize))
+        }
+    }
+
+    private func assertFilmTextFits(width: CGFloat, labels: [LabelWidths], visibility: FilmTileTextVisibility,
+                                    file: StaticString = #filePath, line: UInt = #line) {
+        for label in labels {
             if visibility.showsTitle {
-                XCTAssertLessThanOrEqual(ceil(titleWidth), width, "\(locale.identifier) \(title)", file: file, line: line)
+                XCTAssertLessThanOrEqual(label.title, width, label.name, file: file, line: line)
             }
             if visibility.showsSubtitle {
-                XCTAssertLessThanOrEqual(ceil(subtitleWidth), width, "\(locale.identifier) \(title) scenes", file: file, line: line)
+                XCTAssertLessThanOrEqual(label.subtitle, width, "\(label.name) scenes", file: file, line: line)
             }
         }
     }

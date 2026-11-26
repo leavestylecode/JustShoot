@@ -92,7 +92,7 @@ struct BackgroundGradientOptions: View {
                 .overlay {
                     Circle()
                         .fill(.white)
-                        .shadow(radius: 1)
+                        .overlay { Circle().strokeBorder(.black.opacity(0.35), lineWidth: 0.5) }
                         .frame(width: 3.5, height: 3.5)
                         .offset(x: (origin.point.x - 0.5) * 24, y: (origin.point.y - 0.5) * 24)
                 }
@@ -100,7 +100,6 @@ struct BackgroundGradientOptions: View {
                 .background {
                     RoundedRectangle(cornerRadius: 16)
                         .fill(.black.opacity(0.18))
-                        .shadow(color: .black.opacity(0.2), radius: 3, y: 2)
                         .overlay { RoundedRectangle(cornerRadius: 16).fill(tileFill(selected: highlighted)) }
                 }
                 .overlay {
@@ -153,7 +152,6 @@ private struct GradientSwatch: View {
                 ), startRadius: 2, endRadius: diameter * 0.36))
             }
             .frame(width: diameter, height: diameter)
-            .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
             .accessibilityHidden(true)
     }
 }

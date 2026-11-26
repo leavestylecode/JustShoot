@@ -147,7 +147,7 @@ private struct GalleryFixture: View {
             GeometryReader { geometry in
                 PhotoGridView(photos: [photo],
                     defaultColumns: SquareGridLayout.defaultColumns(forWidth: geometry.size.width,
-                        isRegular: true, accessibilitySize: false),
+                        isRegular: true),
                     zoomColumns: .constant(0),
                     isSelecting: .constant(true), selectedPhotos: $state.selected, onOpen: { _ in })
                     .pageContentWidth(PageLayout.browseWidth)

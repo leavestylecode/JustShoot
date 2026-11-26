@@ -15,7 +15,6 @@ struct GalleryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.capsuleTabSelection) private var capsuleTabSelection
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query(sort: \Photo.timestamp, order: .reverse) private var photos: [Photo]
 
     @State private var selectedDetail: PhotoDetailSelection?
@@ -37,7 +36,7 @@ struct GalleryView: View {
                     PhotoGridView(
                         photos: photos,
                         defaultColumns: SquareGridLayout.defaultColumns(forWidth: geometry.size.width,
-                            isRegular: sizeClass == .regular, accessibilitySize: dynamicTypeSize.isAccessibilitySize),
+                            isRegular: sizeClass == .regular),
                         zoomColumns: $zoomColumns,
                         isSelecting: $isSelecting,
                         selectedPhotos: $selectedPhotos,

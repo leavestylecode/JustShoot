@@ -612,10 +612,6 @@ final class PhotoGridThumbnailView: UIView {
 
         badge.contentMode = .scaleAspectFit
         badge.isHidden = true
-        badge.layer.shadowColor = UIColor.black.cgColor
-        badge.layer.shadowOpacity = 0.35
-        badge.layer.shadowRadius = 2
-        badge.layer.shadowOffset = CGSize(width: 0, height: 1)
         addSubview(badge)
     }
 
@@ -635,6 +631,7 @@ final class PhotoGridThumbnailView: UIView {
         let padding: CGFloat = 5
         let x = effectiveUserInterfaceLayoutDirection == .rightToLeft ? padding : bounds.width - width - padding
         badge.frame = CGRect(x: x, y: padding, width: width, height: height)
+        badge.layer.cornerRadius = min(width, height) / 2
     }
 
     func setSelection(editing: Bool, selected: Bool) {
@@ -642,6 +639,7 @@ final class PhotoGridThumbnailView: UIView {
         dimOverlay.isHidden = !(editing && selected)
         if editing {
             badge.image = selected ? Self.selectedSymbol : Self.unselectedSymbol
+            badge.backgroundColor = selected ? .clear : UIColor.black.withAlphaComponent(0.30)
             setNeedsLayout()
         }
     }

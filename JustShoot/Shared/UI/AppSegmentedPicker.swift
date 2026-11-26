@@ -9,7 +9,6 @@ struct AppSegmentedPicker<Option: Hashable>: View {
 
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if #available(iOS 26.0, *) {
@@ -27,7 +26,7 @@ struct AppSegmentedPicker<Option: Hashable>: View {
                 ForEach(options, id: \.self) { option in
                     let isSelected = selection == option
                     Button {
-                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { selection = option }
+                        withAnimation(.easeInOut(duration: 0.18)) { selection = option }
                     } label: {
                         label(option)
                             .font((size == .small ? Font.caption : .subheadline).weight(isSelected ? .semibold : .regular))

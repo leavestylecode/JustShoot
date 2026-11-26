@@ -13,7 +13,6 @@ enum StartupIntroTiming {
 struct AppStartupIntro: View {
     let homeReady: Bool
     @Binding var isFinished: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var startedAt: CFTimeInterval?
     @State private var showsProgress = false
@@ -21,7 +20,7 @@ struct AppStartupIntro: View {
     var body: some View {
         ZStack {
             Color.clear
-            if !reduceMotion && !isFinished {
+            if !isFinished {
                 StartupMark(startedAt: startedAt, homeReady: homeReady) { isFinished = true }
             }
         }
@@ -36,10 +35,8 @@ struct AppStartupIntro: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Preparing your library…"))
         .accessibilityIdentifier("preparation_screen")
-        .onChange(of: reduceMotion, initial: true) { _, reduced in
-            if reduced {
-                isFinished = true
-            } else if !isFinished && startedAt == nil {
+        .onAppear {
+            if !isFinished && startedAt == nil {
                 startedAt = CACurrentMediaTime()
             }
         }
@@ -48,7 +45,7 @@ struct AppStartupIntro: View {
         }
         .task(id: homeReady) {
             guard !homeReady else { return }
-            do { try await Task.sleep(for: .seconds(reduceMotion ? 0.5 : 1.5)) }
+            do { try await Task.sleep(for: .seconds(1.5)) }
             catch { return }
             showsProgress = true
         }
@@ -172,7 +169,7 @@ final class StartupMarkView: UIView, CAAnimationDelegate {
         CATransaction.setDisableActions(true)
         func apply(_ color: UIColor, to shape: CALayer, key: String) {
             let target = color.resolvedColor(with: traits).cgColor
-            if previous != .unspecified && previous != style && !UIAccessibility.isReduceMotionEnabled {
+            if previous != .unspecified && previous != style {
                 let fade = CABasicAnimation(keyPath: key)
                 let inFlightColor = shape.animation(forKey: key) == nil ? nil : shape.presentation()?.value(forKey: key)
                 fade.fromValue = inFlightColor ?? color.resolvedColor(with: previousTraits).cgColor

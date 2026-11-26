@@ -66,7 +66,6 @@ struct SettingsProfileCard: View {
 
 private struct ProfileEditor: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State var nickname: String
     @State var motto: String
     @State var avatar: Data
@@ -270,7 +269,7 @@ private struct ProfileEditor: View {
         if !text.wrappedValue.isEmpty {
             Button {
                 UISelectionFeedbackGenerator().selectionChanged()
-                withAnimation(reduceMotion ? nil : .default) { text.wrappedValue = "" }
+                withAnimation(.default) { text.wrappedValue = "" }
             } label: {
                 Label(title, systemImage: "xmark")
                     .font(.caption.bold())

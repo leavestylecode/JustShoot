@@ -203,7 +203,7 @@ private struct FocalStripSurface: ViewModifier {
         } else {
             content.padding(4)
                 .background(colorScheme == .light ? .white.opacity(0.76) : .black.opacity(0.30), in: Capsule())
-                .background(.ultraThinMaterial, in: Capsule())
+                .background(AppSurfaceMaterial.ultraThin, in: Capsule())
                 .overlay(Capsule().strokeBorder(.primary.opacity(0.12), lineWidth: 0.5))
         }
     }
@@ -268,11 +268,11 @@ struct ExposureSunRail: View {
                 .fill(Color.yellow.opacity(0.55))
                 .frame(width: 7, height: 1)
 
-            // sun 图标：vertical offset 跟随 bias，深色阴影保证白底场景下也可见
+            // 小块半透明底色让太阳图标在明亮的取景画面上也能看清。
             Image(systemName: "sun.max.fill")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.yellow)
-                .shadow(color: .black.opacity(0.55), radius: 2.5, y: 0.5)
+                .background(.black.opacity(0.35), in: .circle)
                 .scaleEffect(isAdjusting ? 1.18 : 1.0)
                 .offset(y: sunYOffset)
                 .animation(.spring(response: 0.18, dampingFraction: 0.75), value: isAdjusting)
@@ -354,7 +354,6 @@ struct WhiteBalanceControl: View {
             }
             .overlay { Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.5) }
             .frame(height: 34)
-            .shadow(color: .black.opacity(0.16), radius: 6, y: 2)
     }
 
     private func automaticButton(selected: Bool, label: LocalizedStringKey, identifier: String,
@@ -405,7 +404,6 @@ private struct CameraColorSlider: UIViewRepresentable {
     let onChange: (Float) -> Void
     let onEditingEnded: () -> Void
     @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     func makeUIView(context: Context) -> CameraColorSliderView { CameraColorSliderView() }
@@ -414,7 +412,7 @@ private struct CameraColorSlider: UIViewRepresentable {
         view.onChange = onChange
         view.onEditingEnded = onEditingEnded
         view.configure(kind: kind, value: value, automatic: automatic, enabled: isEnabled,
-            reduceMotion: reduceMotion, regularMetrics: horizontalSizeClass == .regular)
+            regularMetrics: horizontalSizeClass == .regular)
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: CameraColorSliderView, context: Context) -> CGSize? {
@@ -435,7 +433,6 @@ final class CameraColorSliderView: UIControl {
     private var kind: CameraColorSliderKind = .temperature
     private var value: Float?
     private var automatic = true
-    private var reduceMotion = false
     private var regularMetrics = false
     private var previousBounds: CGRect = .zero
     private var drag: CameraColorSliderDrag?
@@ -471,10 +468,6 @@ final class CameraColorSliderView: UIControl {
         thumb.backgroundColor = UIColor(white: 0.97, alpha: 1).cgColor
         thumb.borderColor = UIColor.black.withAlphaComponent(0.08).cgColor
         thumb.borderWidth = 0.5
-        thumb.shadowColor = UIColor.black.cgColor
-        thumb.shadowOpacity = 0.3
-        thumb.shadowRadius = 2
-        thumb.shadowOffset = CGSize(width: 0, height: 1)
         let grip = CALayer()
         grip.frame = CGRect(x: 5.5, y: 5, width: 1, height: 6)
         grip.cornerRadius = 0.5
@@ -494,7 +487,7 @@ final class CameraColorSliderView: UIControl {
     }
 
     func configure(kind: CameraColorSliderKind, value: Float?, automatic: Bool, enabled: Bool,
-                   reduceMotion: Bool, regularMetrics: Bool = false) {
+                   regularMetrics: Bool = false) {
         if self.regularMetrics != regularMetrics {
             self.regularMetrics = regularMetrics
             number.font = .monospacedDigitSystemFont(ofSize: regularMetrics ? 12 : 9, weight: .medium)
@@ -505,12 +498,11 @@ final class CameraColorSliderView: UIControl {
         isEnabled = enabled && next != nil
         if !isEnabled, drag != nil { cancelTracking(with: nil) }
         guard drag == nil else { return }
-        let changed = self.kind != kind || self.value != next || self.automatic != automatic || self.reduceMotion != reduceMotion
+        let changed = self.kind != kind || self.value != next || self.automatic != automatic
         let hadValue = self.value != nil
         self.kind = kind
         self.value = next
         self.automatic = automatic
-        self.reduceMotion = reduceMotion
         accessibilityIdentifier = kind == .temperature ? "camera.white_balance.temperature" : "camera.white_balance.tint"
         accessibilityLabel = kind == .temperature ? String(localized: "Color temperature") : String(localized: "Tint")
         accessibilityHint = kind == .temperature ? String(localized: "Adjust color temperature") : String(localized: "Adjust green and magenta tint")
@@ -528,7 +520,7 @@ final class CameraColorSliderView: UIControl {
         thumb.isHidden = next == nil
         thumb.opacity = enabled ? 1 : 0.45
         CATransaction.commit()
-        if changed { placeThumb(at: fraction(for: next), animated: automatic && hadValue && !reduceMotion) }
+        if changed { placeThumb(at: fraction(for: next), animated: automatic && hadValue) }
     }
 
     override func layoutSubviews() {

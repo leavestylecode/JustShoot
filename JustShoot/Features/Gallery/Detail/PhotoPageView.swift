@@ -262,6 +262,6 @@ struct LiveBadge: View {
         .foregroundStyle(.primary)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(.ultraThinMaterial, in: Capsule())
+        .background(AppSurfaceMaterial.ultraThin, in: Capsule())
     }
 }

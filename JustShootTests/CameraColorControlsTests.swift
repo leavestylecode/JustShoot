@@ -7,7 +7,7 @@ import UIKit
 final class CameraColorControlsTests: XCTestCase {
     private func slider() -> CameraColorSliderView {
         let slider = CameraColorSliderView(frame: CGRect(x: 0, y: 0, width: 110, height: 44))
-        slider.configure(kind: .temperature, value: 5_000, automatic: true, enabled: true, reduceMotion: false)
+        slider.configure(kind: .temperature, value: 5_000, automatic: true, enabled: true)
         slider.layoutIfNeeded()
         return slider
     }
@@ -20,24 +20,24 @@ final class CameraColorControlsTests: XCTestCase {
         let slider = slider()
         var edits = 0
         slider.onChange = { _ in edits += 1 }
-        slider.configure(kind: .temperature, value: 6_000, automatic: true, enabled: true, reduceMotion: false)
+        slider.configure(kind: .temperature, value: 6_000, automatic: true, enabled: true)
         let thumb = try thumb(in: slider)
         let animation = try XCTUnwrap(thumb.animation(forKey: "automatic.position") as? CABasicAnimation)
         XCTAssertEqual(animation.duration, WhiteBalanceReadingGate.samplingInterval)
         XCTAssertEqual(animation.keyPath, "position.x")
         XCTAssertEqual(edits, 0)
         // Unrelated parent updates must not restart or remove the running interpolation.
-        slider.configure(kind: .temperature, value: 6_000, automatic: true, enabled: true, reduceMotion: false)
+        slider.configure(kind: .temperature, value: 6_000, automatic: true, enabled: true)
         XCTAssertNotNil(thumb.animation(forKey: "automatic.position"))
         XCTAssertNil(slider.layer.animationKeys())
     }
 
-    func testManualUpdatesAndReducedMotionDoNotAnimate() throws {
+    func testSwitchingFromManualToAutomaticRestartsInterpolation() throws {
         let slider = slider()
-        slider.configure(kind: .temperature, value: 6_000, automatic: false, enabled: true, reduceMotion: false)
+        slider.configure(kind: .temperature, value: 6_000, automatic: false, enabled: true)
         XCTAssertNil(try thumb(in: slider).animation(forKey: "automatic.position"))
-        slider.configure(kind: .temperature, value: 7_000, automatic: true, enabled: true, reduceMotion: true)
-        XCTAssertNil(try thumb(in: slider).animation(forKey: "automatic.position"))
+        slider.configure(kind: .temperature, value: 7_000, automatic: true, enabled: true)
+        XCTAssertNotNil(try thumb(in: slider).animation(forKey: "automatic.position"))
     }
 
     func testDragStartsAtVisibleFractionAndRemainsContinuousBeforeQuantization() {
@@ -60,7 +60,7 @@ final class CameraColorControlsTests: XCTestCase {
         let track = try XCTUnwrap(slider.layer.sublayers?.first { $0.name == "color.track" })
         XCTAssertEqual(label.frame.midY, track.frame.midY, accuracy: 0.01)
         XCTAssertLessThan(label.frame.maxX, track.frame.minX)
-        slider.configure(kind: .temperature, value: 12_200, automatic: true, enabled: true, reduceMotion: true)
+        slider.configure(kind: .temperature, value: 12_200, automatic: true, enabled: true)
         XCTAssertEqual(label.text, "12200 K") // Real auto readings are not clamped to manual limits.
     }
 
@@ -70,17 +70,17 @@ final class CameraColorControlsTests: XCTestCase {
         slider.onChange = { selected = $0 }
         slider.accessibilityIncrement()
         XCTAssertEqual(selected, 5_100)
-        slider.configure(kind: .tint, value: 30, automatic: false, enabled: true, reduceMotion: false)
+        slider.configure(kind: .tint, value: 30, automatic: false, enabled: true)
         slider.accessibilityIncrement()
         XCTAssertEqual(selected, 30)
         slider.accessibilityDecrement()
         XCTAssertEqual(selected, 29)
-        slider.configure(kind: .temperature, value: 2_000, automatic: false, enabled: true, reduceMotion: false)
+        slider.configure(kind: .temperature, value: 2_000, automatic: false, enabled: true)
         slider.accessibilityDecrement()
         XCTAssertEqual(selected, 2_000)
         slider.accessibilityIncrement()
         XCTAssertEqual(selected, 2_100)
-        slider.configure(kind: .temperature, value: 10_000, automatic: false, enabled: true, reduceMotion: false)
+        slider.configure(kind: .temperature, value: 10_000, automatic: false, enabled: true)
         slider.accessibilityIncrement()
         XCTAssertEqual(selected, 10_000)
         slider.accessibilityDecrement()
@@ -89,7 +89,7 @@ final class CameraColorControlsTests: XCTestCase {
 
     func testUnknownReadingHasNoInventedThumbOrInteractiveValue() throws {
         let slider = slider()
-        slider.configure(kind: .temperature, value: nil, automatic: true, enabled: true, reduceMotion: false)
+        slider.configure(kind: .temperature, value: nil, automatic: true, enabled: true)
         XCTAssertTrue(try thumb(in: slider).isHidden)
         XCTAssertFalse(slider.isEnabled)
     }

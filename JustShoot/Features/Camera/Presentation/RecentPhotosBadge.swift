@@ -111,7 +111,7 @@ struct RecentPhotosBadge: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 } else {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(.ultraThinMaterial)
+                        .fill(AppSurfaceMaterial.ultraThin)
                         .frame(width: badgeSize, height: badgeSize)
                         .overlay {
                             Image(systemName: "photo")

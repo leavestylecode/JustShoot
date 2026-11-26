@@ -7,7 +7,7 @@ private let cameraHorizontalInset: CGFloat = 16
 struct IPhoneCameraPage<Controls: View, Content: View>: View {
     @Environment(\.colorScheme) private var colorScheme
     let showsPicker: Bool
-    let reduceMotion: Bool
+    var reduceMotion = false
     var canHideTopBar = true
     @ViewBuilder var controls: Controls
     @ViewBuilder var content: Content

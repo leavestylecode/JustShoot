@@ -3,13 +3,12 @@ import SwiftUI
 
 /// The same two-second StarMan animation used on the author's other membership cards.
 struct StarManArtwork: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     let animate: Bool
 
     var body: some View {
         Group {
-            if animate, !reduceMotion, scenePhase == .active,
+            if animate, scenePhase == .active,
                let url = Bundle.main.url(forResource: "StarMan", withExtension: "mov") {
                 StarManClip(url: url)
             } else {

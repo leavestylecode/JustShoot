@@ -162,7 +162,7 @@ private struct BackgroundPhotoControls: View {
             .disabled(selection != nil || store.isChanging)
             .overlay {
                 if selection != nil || store.isChanging {
-                    ProgressView().padding(12).background(.regularMaterial, in: .circle)
+                    ProgressView().padding(12).background(AppSurfaceMaterial.regular, in: .circle)
                 }
             }
         }

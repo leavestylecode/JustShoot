@@ -16,6 +16,13 @@ extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
 
 // Every iPad page rotates with its window; iPhone retains its portrait interface.
 class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, configurationForConnecting session: UISceneSession,
+                     options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: nil, sessionRole: session.role)
+        configuration.delegateClass = AppVisualSceneDelegate.self
+        return configuration
+    }
+
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         AppInterfaceOrientationPolicy.supportedOrientations(
             for: window?.traitCollection.userInterfaceIdiom ?? UIDevice.current.userInterfaceIdiom)

@@ -71,7 +71,7 @@ private struct LegacyToolbarControlSurface: ViewModifier {
             .padding(.horizontal, text ? 14 : 0)
             .frame(minWidth: text ? 44 : height)
             .frame(height: height)
-            .legacyGlassSurface(Capsule(), material: .regularMaterial)
+            .legacyGlassSurface(Capsule(), material: .regular)
             .frame(minWidth: 44)
             .contentShape(.rect)
     }

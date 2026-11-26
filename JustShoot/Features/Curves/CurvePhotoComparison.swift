@@ -164,8 +164,9 @@ private struct CurvePhotoWipe: View {
                 Rectangle()
                     .fill(.white)
                     .frame(width: 1.5)
+                    .padding(.horizontal, 0.5)
+                    .background(.black.opacity(0.35))
                     .position(x: divider, y: size.height / 2)
-                    .shadow(color: .black.opacity(0.4), radius: 1)
 
                 HStack {
                     badge("LUT").opacity(split > 0.22 ? 1 : 0)
@@ -180,7 +181,7 @@ private struct CurvePhotoWipe: View {
                     .foregroundStyle(.black)
                     .frame(width: 32, height: 32)
                     .background(.white, in: .circle)
-                    .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
+                    .overlay { Circle().strokeBorder(.black.opacity(0.18), lineWidth: 0.5) }
                     .frame(width: 44, height: size.height)
                     .contentShape(.rect)
                     .position(x: min(max(divider, 22), size.width - 22), y: size.height / 2)

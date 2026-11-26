@@ -23,7 +23,6 @@ struct CameraView: View {
     @Query(sort: \CustomLUT.createdAt, order: .reverse) private var customLUTs: [CustomLUT]
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var appColorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.displayScale) private var displayScale
     @Environment(\.horizontalSizeClass) private var sizeClass
     @StateObject private var cameraManager: CameraManager
@@ -77,9 +76,9 @@ struct CameraView: View {
         Group {
             if isIPad {
                 preparedCameraContent.overlay { iPadBackButton }
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: showFilmPicker)
+                    .animation(.easeInOut(duration: 0.22), value: showFilmPicker)
             } else {
-                IPhoneCameraPage(showsPicker: showFilmPicker, reduceMotion: reduceMotion,
+                IPhoneCameraPage(showsPicker: showFilmPicker,
                     canHideTopBar: cameraManager.entryPreparation.isRevealed && cameraManager.readiness == .ready) {
                     if !cameraManager.entryPreparation.coversContent {
                         if showsPermissionControls {

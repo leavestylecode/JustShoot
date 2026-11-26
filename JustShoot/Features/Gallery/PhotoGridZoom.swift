@@ -191,8 +191,7 @@ final class PhotoGridZoom: NSObject, UIGestureRecognizerDelegate {
         aligned.viewportPoint.y = layout.alignedViewportY(for: pose.anchor, columns: columns,
             leadingSlots: leadingSlots[columns, default: 0])
         let target = Pose(side: layout.geometry(for: columns).side, anchor: aligned)
-        if UIAccessibility.isReduceMotionEnabled
-            || (target.side == pose.side && aligned.viewportPoint.y == pose.anchor.viewportPoint.y) {
+        if target.side == pose.side && aligned.viewportPoint.y == pose.anchor.viewportPoint.y {
             finish(columns: columns, around: aligned)
             return
         }
