@@ -89,7 +89,8 @@ final class MembershipStoreKitTests: XCTestCase {
         XCTAssertFalse(store.isLifetimeMember)
         let pending = try XCTUnwrap(session.allTransactions().first)
         try session.approveAskToBuyTransaction(identifier: pending.identifier)
-        try await waitUntil("Approval did not activate the membership") { store.isLifetimeMember }
+        // StoreKit Test may take tens of seconds to deliver Transaction.updates on iOS 18.
+        try await waitUntil("Approval did not activate the membership", timeout: .seconds(120)) { store.isLifetimeMember }
         XCTAssertFalse(store.isPurchasePending)
         guard case .verified(let transaction)? = await Transaction.latest(for: MembershipStore.lifetimeProductID) else {
             return XCTFail("Expected a verified transaction after approval")
@@ -98,7 +99,7 @@ final class MembershipStoreKitTests: XCTestCase {
 
         let approved = try XCTUnwrap(session.allTransactions().first)
         try session.refundTransaction(identifier: approved.identifier)
-        try await waitUntil("Refund did not revoke the membership") { !store.isLifetimeMember }
+        try await waitUntil("Refund did not revoke the membership", timeout: .seconds(120)) { !store.isLifetimeMember }
         XCTAssertEqual(store.entitlement, .inactive)
     }
 
@@ -126,11 +127,13 @@ final class MembershipStoreKitTests: XCTestCase {
         return store
     }
 
-    private func waitUntil(_ message: String, condition: () async -> Bool) async throws {
-        for _ in 0..<100 {
+    private func waitUntil(_ message: String, timeout: Duration = .seconds(5), condition: () async -> Bool) async throws {
+        let clock = ContinuousClock()
+        let deadline = clock.now + timeout
+        repeat {
             if await condition() { return }
             try await Task.sleep(for: .milliseconds(50))
-        }
+        } while clock.now < deadline
         throw NSError(domain: "MembershipStoreKitTests", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
     }
 }
