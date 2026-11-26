@@ -276,13 +276,15 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
 
-            Button {
-                showsReview = true
-            } label: {
-                SettingRow(icon: .rating,
-                           title: "Rate on the App Store", chevron: .forward)
+            if Self.supportLinks.reviewURL != nil {
+                Button {
+                    showsReview = true
+                } label: {
+                    SettingRow(icon: .rating,
+                               title: "Rate on the App Store", chevron: .forward)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
 
             Button {
                 preparingShare = true
