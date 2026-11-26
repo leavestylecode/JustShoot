@@ -1,3 +1,4 @@
+import CoreImage
 import SwiftUI
 import SwiftData
 import UIKit
@@ -57,8 +58,9 @@ final class MainTabNavigationTests: XCTestCase {
         }
 
         // Embedding away from the window edges also exercises the zero inset on home-button phones.
-        let host = UIHostingController(rootView: Color.clear.mainTabRoot(.films)
+        let host = UIHostingController(rootView: Color.black.mainTabRoot(.films)
             .environment(\.capsuleTabSelection, .constant(.films)))
+        host.overrideUserInterfaceStyle = .dark
         root.addChild(host)
         host.view.frame = root.view.bounds.insetBy(dx: 16, dy: 80)
         root.view.addSubview(host.view)
@@ -71,7 +73,41 @@ final class MainTabNavigationTests: XCTestCase {
         }
         let bar = try XCTUnwrap(legacyTabBar(in: host.view))
         XCTAssertEqual(host.view.safeAreaInsets.bottom, 0)
-        XCTAssertTrue(host.view.bounds.contains(bar.convert(bar.bounds, to: host.view)))
+        let frame = bar.convert(bar.bounds, to: host.view)
+        XCTAssertTrue(host.view.bounds.contains(frame))
+
+        // Measure the visible glyphs. The native tab items can have the correct frames
+        // while UIKit draws every symbol above the selection's center.
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let snapshot = UIGraphicsImageRenderer(size: frame.size, format: format).image { _ in
+            host.view.drawHierarchy(in: host.view.bounds.offsetBy(dx: -frame.minX, dy: -frame.minY),
+                                    afterScreenUpdates: true)
+        }
+        let bitmap = CIImage(cgImage: try XCTUnwrap(snapshot.cgImage))
+        let width = Int(bitmap.extent.width), height = Int(bitmap.extent.height)
+        let rowBytes = width * 4
+        var pixels = [UInt8](repeating: 0, count: rowBytes * height)
+        CIContext().render(bitmap, toBitmap: &pixels, rowBytes: rowBytes, bounds: bitmap.extent,
+                           format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
+        let count = MainTab.allCases.count
+        for index in 0..<count {
+            var glyph = CGRect.null
+            let columns = (index * width / count)..<((index + 1) * width / count)
+            for y in 0..<height {
+                for x in columns where pixels[y * rowBytes + x * 4] > 200 {
+                    glyph = glyph.union(CGRect(x: x, y: y, width: 1, height: 1))
+                }
+            }
+            guard !glyph.isNull else {
+                add(XCTAttachment(image: snapshot))
+                return XCTFail("Missing icon in tab slot \(index)")
+            }
+            XCTAssertEqual(glyph.midX, (CGFloat(index) + 0.5) * frame.width / CGFloat(count), accuracy: 1.5)
+            // The 60 pt capsule sits 2 pt above the bottom in this zero-inset window.
+            // SF Symbols can leave asymmetric optical margins around their visible ink.
+            XCTAssertEqual(frame.maxY - glyph.midY, host.view.bounds.maxY - 32, accuracy: 2)
+        }
     }
 
     func testLegacyBackButtonUsesNativeNavigationAndScopedAppearance() async throws {

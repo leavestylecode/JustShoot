@@ -22,6 +22,8 @@ enum MainTab: Int, CaseIterable {
         case .settings: "gearshape"
         }
     }
+
+    var capsuleSymbol: String { self == .films ? symbol : symbol + ".fill" }
 }
 
 extension EnvironmentValues {
@@ -83,28 +85,28 @@ private struct CapsuleTabBar: View {
         ZStack {
             HStack(spacing: 0) {
                 ForEach(MainTab.allCases, id: \.self) { tab in
-                    Color.clear.overlay {
-                        if selection == tab {
-                            Capsule()
-                                .fill(.primary.opacity(colorScheme == .dark ? 0.18 : 0.09))
-                                .padding(.horizontal, -5)
-                                .matchedGeometryEffect(id: "selection", in: indicator)
+                    Image(systemName: tab.capsuleSymbol)
+                        .font(.system(size: 24))
+                        .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background {
+                            if selection == tab {
+                                Capsule()
+                                    .fill(.primary.opacity(colorScheme == .dark ? 0.18 : 0.09))
+                                    .padding(.horizontal, -5)
+                                    .matchedGeometryEffect(id: "selection", in: indicator)
+                            }
                         }
-                    }
                 }
             }
-            .frame(height: 52)
-            .padding(.horizontal, Self.itemInset)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.20), value: selection)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
 
             CapsuleTabItems(selection: $selection)
-                .frame(height: 44)
-                // UITabBar reserves space below the symbols for its usual captions.
-                .padding(.top, 12)
-                .padding(.horizontal, Self.itemInset)
         }
+        .frame(height: 52)
+        .padding(.horizontal, Self.itemInset)
         .frame(height: 60)
         .legacyGlassSurface(Capsule(), material: .bar)
         .shadow(color: .black.opacity(0.10), radius: 8, y: 2)
@@ -118,23 +120,17 @@ private struct CapsuleTabItems: UIViewRepresentable {
         let bar = UITabBar()
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
-        for itemAppearance in [appearance.stackedLayoutAppearance, appearance.inlineLayoutAppearance,
-                               appearance.compactInlineLayoutAppearance] {
-            itemAppearance.normal.iconColor = .label
-            itemAppearance.selected.iconColor = .label
-        }
         bar.standardAppearance = appearance
         bar.scrollEdgeAppearance = appearance
         bar.accessibilityIdentifier = "main.tabs"
         bar.itemPositioning = .fill
-        // The floating bar stays compact even in a regular-width iPad window.
+        // Match the four equal slots even in regular-width iPad windows.
         bar.traitOverrides.horizontalSizeClass = .compact
-        bar.tintColor = .label
-        bar.unselectedItemTintColor = .label
         bar.items = MainTab.allCases.map { tab in
-            let image = UIImage(systemName: tab == .films ? tab.symbol : tab.symbol + ".fill")
-            let item = UITabBarItem(title: nil, image: image, selectedImage: image)
-            item.tag = tab.rawValue
+            // UIKit handles touches and VoiceOver. The capsule centers the visible
+            // symbols itself because UIKit's stacked layout reserves caption space.
+            let item = UITabBarItem(title: nil, image: nil, tag: tab.rawValue)
+            item.largeContentSizeImage = UIImage(systemName: tab.capsuleSymbol)
             item.accessibilityLabel = String(localized: tab.title)
             return item
         }

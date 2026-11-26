@@ -524,7 +524,7 @@ final class PhotoDetailTransitionTests: XCTestCase {
         let bar: UITabBar = try XCTUnwrap(identifiedView("main.tabs", in: root.view))
         let items = try XCTUnwrap(bar.items)
         XCTAssertEqual(items.map(\.accessibilityLabel), MainTab.allCases.map { String(localized: $0.title) })
-        XCTAssertTrue(items.allSatisfy { $0.title == nil && $0.image != nil && $0.selectedImage != nil })
+        XCTAssertTrue(items.allSatisfy { $0.title == nil && $0.largeContentSizeImage != nil })
         XCTAssertEqual(bar.selectedItem?.tag, MainTab.library.rawValue)
         let photos = try XCTUnwrap(items.first { $0.tag == MainTab.photos.rawValue })
         bar.delegate?.tabBar?(bar, didSelect: photos)
