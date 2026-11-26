@@ -411,7 +411,7 @@ final class RawFilmPipelineTests: XCTestCase {
         XCTAssertTrue(issue.hasOriginal)
         let exported = try journal.exportOriginal(for: issue)
         defer { try? FileManager.default.removeItem(at: exported.deletingLastPathComponent()) }
-        XCTAssertEqual(exported.pathExtension, "dng")
+        XCTAssertEqual(exported.pathExtension, "DNG")
         XCTAssertEqual(try Data(contentsOf: exported), original)
     }
 }
