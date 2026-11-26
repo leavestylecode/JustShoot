@@ -50,6 +50,7 @@ struct CameraCaptureSelection {
     let profile: FilmRenderProfile
     let adjustment: ResolvedCameraColorAdjustment?
     let plan: PhotoCapturePlan
+    let curve: PhotoEditCurve
     let curveFields: String
     let colorFields: String
     var lutIntensity: Float = 1
@@ -211,7 +212,7 @@ final class CameraCoordinator: ObservableObject {
             raw: rawRecipe,
             plan: selection.plan, colorAdjustment: selection.adjustment, frozenChromaticGain: frame.chromaticGain,
             preservesSourceFocalLength: camera.focalInfo.constituent(for: FocalLengthOption(admission.focalLength))?.calibrationSource == .fieldOfView,
-            lutIntensity: frame.lutIntensity)
+            curve: selection.curve, lutIntensity: frame.lutIntensity)
         handedToCamera = true
         let pipeline = self.pipeline
         camera.capture(admission: admission, live: wantsLive, hdrFormat: hdrFormat, previewFrame: frame, trace: trace,

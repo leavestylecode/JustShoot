@@ -1,89 +1,17 @@
 import SwiftUI
 
-struct CurveGraphView: View {
-    let data: CurvePreviewData
-    let accent: Color
-    private let showsGrid: Bool
-
-    init(data: CurvePreviewData, accent: Color, showsGrid: Bool = false) {
-        self.data = data
-        self.accent = accent
-        self.showsGrid = showsGrid
+enum ToneCurvePlot {
+    static func position(input: CGFloat, output: CGFloat, in bounds: CGRect) -> CGPoint {
+        CGPoint(x: bounds.minX + input * bounds.width, y: bounds.maxY - output * bounds.height)
     }
 
-    init(curve: FilmCurve, accent: Color) {
-        self.init(data: curve.previewData, accent: accent)
-    }
-
-    private static let red = Color(red: 1.00, green: 0.30, blue: 0.28)
-    private static let green = Color(red: 0.22, green: 0.86, blue: 0.40)
-    private static let blue = Color(red: 0.26, green: 0.52, blue: 1.00)
-
-    var body: some View {
-        Canvas { context, size in
-            let identity = CurveMath.identityTable
-
-            var guides = Path()
-            let divisions = showsGrid ? 4 : 2
-            for index in 1..<divisions {
-                let fraction = CGFloat(index) / CGFloat(divisions)
-                let x = 2 + (size.width - 4) * fraction
-                guides.move(to: CGPoint(x: x, y: 2))
-                guides.addLine(to: CGPoint(x: x, y: size.height - 2))
-                if showsGrid {
-                    let y = 2 + (size.height - 4) * fraction
-                    guides.move(to: CGPoint(x: 2, y: y))
-                    guides.addLine(to: CGPoint(x: size.width - 2, y: y))
-                }
-            }
-            context.stroke(guides, with: .color(.white.opacity(showsGrid ? 0.14 : 0.07)), lineWidth: 0.5)
-
-            let identityPath = Self.linePath(from: identity, in: size)
-            context.stroke(
-                identityPath,
-                with: .color(.white.opacity(0.24)),
-                style: StrokeStyle(lineWidth: 0.8, lineCap: .round, dash: [2, 2])
-            )
-
-            if data.master != identity {
-                context.fill(
-                    Self.deltaPath(curve: data.master, identity: identity, in: size),
-                    with: .color(accent.opacity(0.20))
-                )
-            }
-
-            if data.usesChannelCurves {
-                for (values, color) in [
-                    (data.red, Self.red),
-                    (data.green, Self.green),
-                    (data.blue, Self.blue)
-                ] {
-                    context.stroke(
-                        Self.linePath(from: values, in: size),
-                        with: .color(color),
-                        style: StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round)
-                    )
-                }
-            }
-
-            context.stroke(
-                Self.linePath(from: data.master, in: size),
-                with: .color(data.usesChannelCurves ? .white.opacity(0.88) : accent),
-                style: StrokeStyle(lineWidth: 2.0, lineCap: .round, lineJoin: .round)
-            )
-        }
-    }
-
-    private static func linePath(from values: [Float], in size: CGSize) -> Path {
+    static func path(for samples: [Float], in bounds: CGRect) -> Path {
         var path = Path()
-        let inset: CGFloat = 2
-        let width = size.width - inset * 2
-        let height = size.height - inset * 2
-        for (i, v) in values.enumerated() {
-            let x = inset + width * CGFloat(i) / CGFloat(values.count - 1)
-            let y = inset + height * CGFloat(1.0 - Double(v))
-            let point = CGPoint(x: x, y: y)
-            if i == 0 {
+        guard samples.count > 1 else { return path }
+        for (index, output) in samples.enumerated() {
+            let input = CGFloat(index) / CGFloat(samples.count - 1)
+            let point = position(input: input, output: CGFloat(output), in: bounds)
+            if index == 0 {
                 path.move(to: point)
             } else {
                 path.addLine(to: point)
@@ -92,18 +20,83 @@ struct CurveGraphView: View {
         return path
     }
 
-    private static func deltaPath(curve: [Float], identity: [Float], in size: CGSize) -> Path {
-        var path = linePath(from: curve, in: size)
-        let inset: CGFloat = 2
-        let width = size.width - inset * 2
-        let height = size.height - inset * 2
-        for index in identity.indices.reversed() {
-            let x = inset + width * CGFloat(index) / CGFloat(identity.count - 1)
-            let y = inset + height * CGFloat(1.0 - Double(identity[index]))
-            path.addLine(to: CGPoint(x: x, y: y))
+    static func grid(divisions: Int, in bounds: CGRect) -> Path {
+        var path = Path()
+        for index in 1..<divisions {
+            let fraction = CGFloat(index) / CGFloat(divisions)
+            path.move(to: position(input: fraction, output: 0, in: bounds))
+            path.addLine(to: position(input: fraction, output: 1, in: bounds))
+            path.move(to: position(input: 0, output: fraction, in: bounds))
+            path.addLine(to: position(input: 1, output: fraction, in: bounds))
         }
-        path.closeSubpath()
         return path
+    }
+
+    /// The enclosed lobes show the change from equal input and output.
+    static func differenceArea(for response: Path, in bounds: CGRect) -> Path {
+        guard !response.isEmpty else { return Path() }
+        var area = response
+        area.addLine(to: position(input: 1, output: 1, in: bounds))
+        area.addLine(to: position(input: 0, output: 0, in: bounds))
+        area.closeSubpath()
+        return area
+    }
+}
+
+struct CurveGraphView: View {
+    let data: CurvePreviewData
+    let accent: Color
+    private let showsGrid: Bool
+    private let shadesDifference: Bool
+    private let guideColor: Color
+
+    init(data: CurvePreviewData, accent: Color, showsGrid: Bool = false, guideColor: Color? = nil,
+         shadesDifference: Bool = false) {
+        self.data = data
+        self.accent = accent
+        self.showsGrid = showsGrid
+        self.shadesDifference = shadesDifference
+        self.guideColor = guideColor ?? accent
+    }
+
+    init(curve: FilmCurve, accent: Color) {
+        self.init(data: curve.previewData, accent: accent)
+    }
+
+    private static let red = Color(red: 0.88, green: 0.22, blue: 0.22)
+    private static let green = Color(red: 0.13, green: 0.58, blue: 0.30)
+    private static let blue = Color(red: 0.19, green: 0.43, blue: 0.90)
+
+    var body: some View {
+        Canvas { context, size in
+            let bounds = CGRect(origin: .zero, size: size).insetBy(dx: 2, dy: 2)
+            let traces: [(path: Path, color: Color)]
+            if let shared = data.sharedRGBResponse {
+                traces = [(ToneCurvePlot.path(for: shared, in: bounds), accent)]
+            } else {
+                traces = [(data.red, Self.red), (data.green, Self.green), (data.blue, Self.blue)].map {
+                    (ToneCurvePlot.path(for: $0.0, in: bounds), $0.1)
+                }
+            }
+
+            if shadesDifference {
+                let opacity = data.usesChannelCurves ? 0.08 : 0.20
+                for trace in traces {
+                    context.fill(ToneCurvePlot.differenceArea(for: trace.path, in: bounds),
+                        with: .color(trace.color.opacity(opacity)), style: FillStyle(eoFill: true))
+                }
+            }
+            context.stroke(ToneCurvePlot.grid(divisions: showsGrid ? 4 : 2, in: bounds),
+                with: .color(guideColor.opacity(showsGrid ? 0.18 : 0.10)), lineWidth: 0.5)
+            context.stroke(ToneCurvePlot.path(for: [0, 1], in: bounds), with: .color(guideColor.opacity(0.35)),
+                style: StrokeStyle(lineWidth: 0.8, dash: [3, 3]))
+
+            let style = StrokeStyle(lineWidth: data.usesChannelCurves ? 1.25 : 2, lineCap: .round, lineJoin: .round)
+            for trace in traces {
+                context.stroke(trace.path, with: .color(trace.color), style: style)
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
     }
 }
 

@@ -28,9 +28,9 @@ final class PhotoDisplayRoundTripTests: XCTestCase {
             try FileManager.default.createDirectory(at: journal.directory(for: id), withIntermediateDirectories: true)
         }
         let a = try await save(first, journal: journal)
-        defer { removeFixtureUnlessRetained(a) }
+        deletePhotoFixtureAfterTest(a)
         let b = try await save(second, journal: journal)
-        defer { removeFixtureUnlessRetained(b) }
+        deletePhotoFixtureAfterTest(b)
         XCTAssertNotEqual(a, b)
         XCTAssertEqual(PhotoLibrary.stillFilename(id: a), "OOO_0042.JPG")
         XCTAssertEqual(PhotoLibrary.stillFilename(id: b), "OOO_0042.JPG")
@@ -57,7 +57,7 @@ final class PhotoDisplayRoundTripTests: XCTestCase {
         let date = Date()
         let id = try await PhotoLibrary.save(imageData: source, creationDate: date,
             latitude: nil, longitude: nil, altitude: nil, locationTimestamp: nil, captureID: captureID)
-        defer { removeFixtureUnlessRetained(id) }
+        deletePhotoFixtureAfterTest(id)
         let image = CIImage(color: CIColor(red: 0.2, green: 0.7, blue: 0.3))
             .cropped(to: CGRect(x: 0, y: 0, width: 768, height: 576))
         let edited = try XCTUnwrap(PhotoImageEncoder.encode(image, context: CIContext(),
@@ -133,7 +133,7 @@ final class PhotoDisplayRoundTripTests: XCTestCase {
             latitude: nil, longitude: nil, altitude: nil, locationTimestamp: nil,
             captureID: captureID
         )
-        defer { removeFixtureUnlessRetained(savedID) }
+        deletePhotoFixtureAfterTest(savedID)
         XCTAssertFalse(savedID.isEmpty)
 
         // 4) 显示链第一环:按 localIdentifier fetch PHAsset(viewer 的取图入口)
@@ -153,14 +153,90 @@ final class PhotoDisplayRoundTripTests: XCTestCase {
         XCTAssertNotNil(decodable, "渲染输出的 HEIC 无法解码")
     }
 
-    // MARK: - 辅助
+    func testGalleryEditReopensFromTheSameBaseAndRestoresTheOriginalFraming() async throws {
+        try ensurePhotoLibraryAuthorized()
+        let metadata: [CFString: Any] = [
+            kCGImagePropertyTIFFDictionary: [kCGImagePropertyTIFFMake: "Apple", kCGImagePropertyTIFFModel: "iPhone 16 Pro"],
+            kCGImagePropertyExifDictionary: [
+                kCGImagePropertyExifLensModel: "Wide Camera", kCGImagePropertyExifISOSpeedRatings: [80],
+                kCGImagePropertyExifExposureTime: 0.008, kCGImagePropertyExifFNumber: 1.8,
+                kCGImagePropertyExifFocalLenIn35mmFilm: 24, kCGImagePropertyExifExposureBiasValue: -0.3
+            ]
+        ]
+        let source = try Self.syntheticCapture(width: 768, height: 576, metadata: metadata)
+        let id = try await PhotoLibrary.save(imageData: source, creationDate: Date().addingTimeInterval(-120),
+            latitude: nil, longitude: nil, altitude: nil, locationTimestamp: nil, captureID: UUID())
+        deletePhotoFixtureAfterTest(id)
 
-    /// Unattended device runs can retain their synthetic images for inspection.
-    /// Deleting an asset on a physical iPhone opens a system confirmation over subsequent tests.
-    private func removeFixtureUnlessRetained(_ identifier: String) {
-        guard ProcessInfo.processInfo.environment["JUSTSHOOT_KEEP_PHOTO_FIXTURES"] != "1" else { return }
-        Task { try? await PhotoLibrary.delete(localIdentifiers: [identifier]) }
+        let films: [FilmSource] = [.preset(.fujiC200)]
+        let first = try await PhotoEditSession.open(id: id, films: films)
+        var edit = first.initialRecipe
+        edit.filmID = FilmPreset.fujiC200.id
+        edit.intensity = 0.6
+        edit.curve = .preset(.matte)
+        edit.crop.aspect = .square
+        edit.crop.zoom = 2
+        let preview = try await first.preview(edit)
+        XCTAssertEqual(preview.image.width, 288)
+        XCTAssertEqual(preview.image.height, 288)
+        try await first.save(edit)
+
+        let reopened = try await PhotoEditSession.open(id: id, films: films)
+        XCTAssertEqual(reopened.initialRecipe, edit)
+        XCTAssertEqual(reopened.originalPreview.width, 768)
+        let current = await AssetImageLoader.shared.imageData(id: id)
+        XCTAssertEqual(ParsedExifInfo.parse(from: try XCTUnwrap(current)).pixelWidth, 288)
+        let file = try await PhotoLibrary.currentFileInfo(id: id)
+        let look = try XCTUnwrap(file.adjustment).looks(asShot: PhotoFilmLook(filmID: nil, filmName: nil, curve: nil))
+        XCTAssertEqual(look.edit?.preset, .fujiC200)
+        XCTAssertEqual(look.edit?.curve, .preset(.matte))
+        XCTAssertEqual(look.edit?.intensity, 0.6)
+        let info = file.exif
+        XCTAssertEqual(info.pixelWidth, 288)
+        XCTAssertEqual(info.lensModel, "Wide Camera")
+        XCTAssertEqual(info.iso, "ISO 80")
+        XCTAssertNotNil(info.exposureBias)
+        try await reopened.save(PhotoEditRecipe())
+        let reset = await AssetImageLoader.shared.imageData(id: id)
+        XCTAssertEqual(ParsedExifInfo.parse(from: try XCTUnwrap(reset)).pixelWidth, 768)
     }
+
+    func testDeferredFilmCanBeReplacedFromCameraOriginalAndAsShotBaseSurvivesReopening() async throws {
+        try ensurePhotoLibraryAuthorized()
+        let source = try Self.syntheticCapture(width: 768, height: 576)
+        let captureID = UUID()
+        let date = Date().addingTimeInterval(-120)
+        let id = try await PhotoLibrary.save(imageData: source, creationDate: date,
+            latitude: nil, longitude: nil, altitude: nil, locationTimestamp: nil, captureID: captureID)
+        deletePhotoFixtureAfterTest(id)
+        let asShot = try Self.syntheticCapture(width: 480, height: 320)
+        var capture = CaptureRecipe(id: captureID, captureDate: date, filterName: FilmPreset.fujiC200.rawValue, displayLabel: nil,
+            focalLength: 24, outputQuality: nil, profile: FilmPreset.fujiC200.renderProfile,
+            grainSeed: 1, location: nil, lutDimension: 2, chromaticSceneCCT: nil, photoDisplayTime: nil)
+        capture.curve = .preset(.crossProcess)
+        try await PhotoLibrary.saveDeferredAdjustment(imageData: asShot, id: id, recipe: capture)
+        let captured = try await PhotoLibrary.currentFileInfo(id: id)
+        let record = try XCTUnwrap(captured.adjustment).looks(asShot: .init(filmID: nil, filmName: nil, curve: nil))
+        XCTAssertEqual(record.capture?.preset, .fujiC200)
+        XCTAssertEqual(record.capture?.curve, .preset(.crossProcess))
+        let films: [FilmSource] = [.preset(.ilfordHP5Plus400)]
+        let first = try await PhotoEditSession.open(id: id, films: films)
+        XCTAssertTrue(first.hasCameraOriginal)
+        XCTAssertEqual(first.originalPreview.width, 480)
+        var edit = PhotoEditRecipe()
+        edit.useCameraOriginal = true
+        edit.filmID = FilmPreset.ilfordHP5Plus400.id
+        edit.curve = .preset(.crossProcess)
+        let preview = try await first.preview(edit)
+        XCTAssertEqual(preview.image.width, 768)
+        try await first.save(edit)
+        let reopened = try await PhotoEditSession.open(id: id, films: films)
+        XCTAssertEqual(reopened.initialRecipe, edit)
+        let reset = try await reopened.preview(PhotoEditRecipe())
+        XCTAssertEqual(reset.image.width, 480, "Returning to As Shot must retain the captured film rendering")
+    }
+
+    // MARK: - 辅助
 
     /// 测试进程照片库授权。注意**不主动 requestAuthorization**——弹窗在测试宿主里无人应答会挂死。
     /// 需先 `xcrun simctl privacy <udid> grant photos leavestylecode.JustShoot`(在 app 安装后执行)。
@@ -174,7 +250,7 @@ final class PhotoDisplayRoundTripTests: XCTestCase {
     }
 
     /// 生成一张带结构的合成"原片":水平亮度渐变 + 高光点 + 色块,编码为 JPEG。
-    private static func syntheticCapture(width: Int, height: Int) throws -> Data {
+    private static func syntheticCapture(width: Int, height: Int, metadata: [CFString: Any] = [:]) throws -> Data {
         let cs = CGColorSpace(name: CGColorSpace.sRGB)!
         let ctx = try XCTUnwrap(CGContext(
             data: nil, width: width, height: height,
@@ -199,8 +275,18 @@ final class PhotoDisplayRoundTripTests: XCTestCase {
         let image = try XCTUnwrap(ctx.makeImage())
         let out = NSMutableData()
         let dest = try XCTUnwrap(CGImageDestinationCreateWithData(out, "public.jpeg" as CFString, 1, nil))
-        CGImageDestinationAddImage(dest, image, nil)
+        CGImageDestinationAddImage(dest, image, metadata as CFDictionary)
         XCTAssertTrue(CGImageDestinationFinalize(dest))
         return out as Data
+    }
+}
+
+extension XCTestCase {
+    /// Wait for PhotoKit's deletion confirmation before the next hosted UI test starts.
+    func deletePhotoFixtureAfterTest(_ identifier: String) {
+        guard ProcessInfo.processInfo.environment["JUSTSHOOT_KEEP_PHOTO_FIXTURES"] != "1" else { return }
+        addTeardownBlock {
+            try await PhotoLibrary.delete(localIdentifiers: [identifier])
+        }
     }
 }

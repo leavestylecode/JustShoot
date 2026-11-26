@@ -633,6 +633,26 @@
         }
       }
     },
+    "As Shot" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍摄效果"
+          }
+        }
+      }
+    },
+    "Aspect ratio" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "宽高比"
+          }
+        }
+      }
+    },
     "Aurora" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1089,6 +1109,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "相机外观"
+          }
+        }
+      }
+    },
+    "Camera original" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相机原片"
           }
         }
       }
@@ -1771,6 +1801,26 @@
         }
       }
     },
+    "Crop" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裁剪"
+          }
+        }
+      }
+    },
+    "Crop zoom" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裁剪缩放"
+          }
+        }
+      }
+    },
     "Current film: %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1903,6 +1953,16 @@
         }
       }
     },
+    "Custom curve" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义曲线"
+          }
+        }
+      }
+    },
     "Custom curves can adjust overall contrast and individual red, green, and blue channels." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1961,6 +2021,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自定义滤镜"
+          }
+        }
+      }
+    },
+    "Custom LUT" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义 LUT"
           }
         }
       }
@@ -2253,6 +2323,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "编辑曲线"
+          }
+        }
+      }
+    },
+    "Edit photo" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑照片"
           }
         }
       }
@@ -2577,6 +2657,16 @@
         }
       }
     },
+    "Film LUT" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胶片 LUT"
+          }
+        }
+      }
+    },
     "Film Order" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2775,6 +2865,16 @@
         }
       }
     },
+    "Find in Photos" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在“照片”中查找"
+          }
+        }
+      }
+    },
     "Flash" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2944,6 +3044,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "相册"
+          }
+        }
+      }
+    },
+    "No LUT" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未使用 LUT"
+          }
+        }
+      }
+    },
+    "Not recorded" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未记录"
           }
         }
       }
@@ -3747,6 +3867,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "LUT 兼容性"
+          }
+        }
+      }
+    },
+    "LUT intensity" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LUT 强度"
           }
         }
       }
@@ -6042,6 +6172,16 @@
         }
       }
     },
+    "Rotate left" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "向左旋转"
+          }
+        }
+      }
+    },
     "S-Curve" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -7214,6 +7354,36 @@
         }
       }
     },
+    "This photo changed in Photos. Reopen the editor to use the latest version." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这张照片已在系统图库中更改。请重新打开编辑器以载入最新版本。"
+          }
+        }
+      }
+    },
+    "This photo could not be opened in Photos." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法在“照片”中打开这张照片。"
+          }
+        }
+      }
+    },
+    "This photo could not be processed." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法处理这张照片。"
+          }
+        }
+      }
+    },
     "This photo could not be shared. Please try again." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7278,6 +7448,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "这张照片保存得比平常久。它会保留在本设备并自行完成保存。"
+          }
+        }
+      }
+    },
+    "This photo must finish saving to Photos before it can be edited." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请等待照片存入系统图库后再编辑。"
           }
         }
       }

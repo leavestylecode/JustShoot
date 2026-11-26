@@ -17,7 +17,8 @@ final class DeferredPhotoEditingRequest: Sendable {
     }
     private let state = OSAllocatedUnfairLock(initialState: State())
 
-    static func input(for asset: PHAsset) async throws -> PHContentEditingInput {
+    static func input(for asset: PHAsset,
+                      canHandle: @escaping @Sendable (PHAdjustmentData) -> Bool = { _ in false }) async throws -> PHContentEditingInput {
         let request = Self()
         let result = await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
@@ -29,7 +30,7 @@ final class DeferredPhotoEditingRequest: Sendable {
                 guard installed else { continuation.resume(returning: nil); return }
                 let options = PHContentEditingInputRequestOptions()
                 options.isNetworkAccessAllowed = true
-                options.canHandleAdjustmentData = { _ in false }
+                options.canHandleAdjustmentData = canHandle
                 let id = asset.requestContentEditingInput(with: options) { input, _ in
                     request.finish(input.map(DeferredEditingInput.init))
                 }

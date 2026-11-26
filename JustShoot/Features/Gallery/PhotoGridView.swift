@@ -4,6 +4,7 @@ import UIKit
 struct PhotoGridItemRevision: Equatable {
     let assetID: String?
     let isLive: Bool
+    var editRevision: Int = 0
 
     static func changedIDs(from previous: [UUID: Self], to current: [UUID: Self]) -> [UUID] {
         current.keys.filter { previous[$0] != nil && previous[$0] != current[$0] }
@@ -152,7 +153,7 @@ struct PhotoGridView: UIViewRepresentable {
             let current = photos.filter { !$0.isDeleted }
             let ids = current.map { $0.id }
             photoByID = Dictionary(current.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            let revisions = photoByID.mapValues { PhotoGridItemRevision(assetID: $0.assetLocalIdentifier, isLive: $0.isLivePhoto) }
+            let revisions = photoByID.mapValues { PhotoGridItemRevision(assetID: $0.assetLocalIdentifier, isLive: $0.isLivePhoto, editRevision: PhotoEditChanges.shared[$0]) }
             let changedIDs = PhotoGridItemRevision.changedIDs(from: lastRevisions, to: revisions)
             // A retry/migration can change content without changing identity. Selection-only
             // updates still avoid a snapshot, but a newly saved asset must refresh its cell.

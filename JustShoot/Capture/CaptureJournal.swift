@@ -68,6 +68,7 @@ struct CaptureRecipe: Codable, Sendable {
     var metadataFocalLength: Int? { preservesSourceFocalLength == true ? nil : focalLength }
 
     /// Older captures used the full look.
+    var curve: PhotoEditCurve? = nil
     var lutIntensity: Float? = nil
     /// Allocated at the first durable still checkpoint. Older manifests have no number.
     var fileNumber: Int? = nil

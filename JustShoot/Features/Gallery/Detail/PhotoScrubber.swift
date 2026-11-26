@@ -66,6 +66,7 @@ struct PhotoScrubber: View {
                                 selectedScale: Self.selectedScale,
                                 itemSize: itemSize
                             )
+                            .id(PhotoEditChanges.shared[photo])
                             .id(photo.id)
                             .onTapGesture { handleTap(photo: photo) }
                         }

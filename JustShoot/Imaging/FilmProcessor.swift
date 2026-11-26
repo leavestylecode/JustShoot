@@ -76,7 +76,7 @@ final class FilmProcessor: Sendable {
 
     /// 唯一的静态照片 CIContext。创建过程在锁内执行：后台预热与极快首拍撞车时，后者等待同一实例，
     /// 不会各自创建一份昂贵的 Metal context。
-    private func renderingContext(raw: Bool = false) -> CIContext {
+    func renderingContext(raw: Bool = false) -> CIContext {
         let contextLock = raw ? rawRenderContextLock : renderContextLock
         return contextLock.withLock { context in
             if let context { return context }
@@ -122,18 +122,10 @@ final class FilmProcessor: Sendable {
     /// Apply the curve's 256 sRGB samples directly to a display-sized reference photo.
     func gradedPreview(_ original: CGImage, curve: FilmCurve) -> CGImage? {
         guard !curve.isNeutral else { return original }
-        let table = curve.previewData
-        var rgb = [Float]()
-        rgb.reserveCapacity(table.red.count * 3)
-        for i in table.red.indices {
-            rgb.append(table.red[i])
-            rgb.append(table.green[i])
-            rgb.append(table.blue[i])
-        }
         let filter = CIFilter.colorCurves()
         filter.inputImage = CIImage(cgImage: original)
         filter.colorSpace = srgbColorSpace
-        filter.curvesData = rgb.withUnsafeBufferPointer { Data(buffer: $0) }
+        filter.curvesData = curve.previewData.interleavedRGBData
         guard let output = filter.outputImage else { return nil }
         return renderingContext().createCGImage(output, from: output.extent, format: .RGBA8,
             colorSpace: srgbColorSpace, deferred: false)

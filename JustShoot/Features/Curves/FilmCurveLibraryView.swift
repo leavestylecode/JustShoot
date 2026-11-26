@@ -634,7 +634,7 @@ struct FilmCurveEditorView: View {
 
 // MARK: - Photoshop 式自由控制点曲线
 
-private struct PhotoshopCurveEditor: View {
+struct PhotoshopCurveEditor: View {
     @Binding var points: [CurveControlPoint]
     @Binding var selectedIndex: Int?
     let accent: Color

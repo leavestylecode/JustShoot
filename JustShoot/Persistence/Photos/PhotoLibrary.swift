@@ -90,6 +90,61 @@ enum PhotoLibrary {
         return options
     }
 
+    static func navigationURL(for assetID: String) -> URL? {
+        // Older Photos versions can show an empty filename search even for a local asset.
+        if #unavailable(iOS 18), let asset = AssetImageLoader.shared.asset(id: assetID) {
+            let collections = PHAssetCollection.fetchAssetCollectionsContaining(asset, with: .album, options: nil)
+            for index in 0..<collections.count {
+                let album = collections.object(at: index)
+                if album.localizedTitle == albumTitle || album.localizedTitle == legacyAlbumTitle,
+                   let url = albumURL(albumID: album.localIdentifier, assetID: assetID) {
+                    return url
+                }
+            }
+        }
+        return stillFilename(id: assetID).flatMap(searchURL(filename:))
+    }
+
+    static func albumURL(albumID: String, assetID: String) -> URL? {
+        // PhotoKit identifiers currently start with a UUID. Fall back to a filename
+        // search if Photos supplies an identifier in a different format.
+        guard let album = albumID.split(separator: "/").first.flatMap({ UUID(uuidString: String($0)) }),
+              let asset = assetID.split(separator: "/").first.flatMap({ UUID(uuidString: String($0)) }) else { return nil }
+        var url = URLComponents()
+        url.scheme = "photos-navigation"
+        url.host = "album"
+        url.queryItems = [URLQueryItem(name: "uuid", value: album.uuidString),
+                          URLQueryItem(name: "revealassetuuid", value: asset.uuidString)]
+        return url.url
+    }
+
+    static func searchURL(filename: String) -> URL? {
+        let stem = (filename as NSString).deletingPathExtension
+        guard !stem.isEmpty else { return nil }
+        var url = URLComponents()
+        url.scheme = "photos-navigation"
+        url.host = "search"
+        url.queryItems = [URLQueryItem(name: "searchTerm", value: stem)]
+        return url.url
+    }
+
+    /// Read the actual current file. PHImageManager can supply a resized/re-encoded
+    /// display derivative that has the right pixels but fewer EXIF fields after an edit.
+    static func currentFileInfo(id: String) async throws -> (exif: ParsedExifInfo, bytes: Int64?, adjustment: PhotoLookAdjustment?) {
+        guard let asset = AssetImageLoader.shared.asset(id: id) else { throw PhotoEditError.unavailable }
+        let adjustment = OSAllocatedUnfairLock(initialState: Optional<PhotoLookAdjustment>.none)
+        let input = try await DeferredPhotoEditingRequest.input(for: asset) { data in
+            let look = PhotoEditSession.lookAdjustment(data)
+            adjustment.withLock { $0 = look }
+            return false // Ask for current rendered EXIF even when we recognize the recipe.
+        }
+        guard let url = input.fullSizeImageURL, let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            throw PhotoEditError.render
+        }
+        let bytes = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize
+        return (ParsedExifInfo.parse(from: source), bytes.map(Int64.init), adjustment.withLock { $0 })
+    }
+
     static func stillFilename(id: String) -> String? {
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject,
               let resource = PHAssetResource.assetResources(for: asset).first(where: {

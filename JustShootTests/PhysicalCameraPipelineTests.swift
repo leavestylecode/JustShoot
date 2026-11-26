@@ -902,7 +902,7 @@ final class PhysicalCameraPipelineTests: XCTestCase {
                                     container: ModelContainer, source: FilmSource, key: String, lut: CubeLUT) async throws {
         let coordinator = CameraCoordinator(camera: camera, pipeline: pipeline)
         let selection = CameraCaptureSelection(source: source, lutKey: key, lut: lut, profile: source.captureRenderProfile,
-            adjustment: nil, plan: .resolve(mode: .quality), curveFields: "", colorFields: "")
+            adjustment: nil, plan: .resolve(mode: .quality), curve: .preset(.none), curveFields: "", colorFields: "")
         var accepted: [UUID] = []
         var previews: [UUID] = []
         let switchToPhotos = ProcessInfo.processInfo.environment["JUSTSHOOT_SWITCH_TO_PHOTOS"] == "1"

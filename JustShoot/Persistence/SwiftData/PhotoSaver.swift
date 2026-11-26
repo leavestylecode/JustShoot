@@ -22,6 +22,7 @@ actor PhotoSaver {
         imageData: Data?,
         filmPresetName: String,
         filmDisplayLabel: String?,
+        captureCurve: PhotoEditCurve? = nil,
         isLivePhoto: Bool = false,
         latitude: Double?,
         longitude: Double?,
@@ -37,6 +38,7 @@ actor PhotoSaver {
             descriptor = FetchDescriptor(predicate: #Predicate<Photo> { $0.id == id })
         }
         descriptor.fetchLimit = 1
+        let curveData = try captureCurve.map { try JSONEncoder().encode($0) }
         let existing = try modelContext.fetch(descriptor).first
         let photo = existing ?? Photo(assetLocalIdentifier: assetLocalIdentifier, imageData: imageData, filmPresetName: filmPresetName)
         if existing == nil { photo.id = id; modelContext.insert(photo) }
@@ -45,6 +47,7 @@ actor PhotoSaver {
         photo.imageData = imageData
         photo.filmPresetName = filmPresetName
         if let label = filmDisplayLabel { photo.filmDisplayLabel = label }
+        if let curveData { photo.captureCurveData = curveData }
         photo.isLivePhoto = isLivePhoto
         photo.latitude = latitude
         photo.longitude = longitude

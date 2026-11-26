@@ -13,6 +13,7 @@ final class Photo: Identifiable {
     @Attribute(.externalStorage) var imageData: Data?
     var filmPresetName: String?
     var filmDisplayLabel: String?
+    var captureCurveData: Data?
     /// 是否为 Live Photo（拍摄时套了 LUT 的静态图 + 配对视频）。拍摄写入，画廊角标 / 详情页是否启用
     /// PHLivePhotoView 播放都读它——避免每个 cell 异步查 PHAsset.mediaSubtypes。旧照片默认 false。
     var isLivePhoto: Bool = false

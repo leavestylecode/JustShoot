@@ -7,17 +7,28 @@ struct CurvePreviewData: Hashable, Sendable {
     let red: [Float]
     let green: [Float]
     let blue: [Float]
-    let master: [Float]
 
     init(red: [Float], green: [Float], blue: [Float]) {
         self.red = red
         self.green = green
         self.blue = blue
         usesChannelCurves = red != green || green != blue
-        master = usesChannelCurves ? red.indices.map { (red[$0] + green[$0] + blue[$0]) / 3 } : red
     }
 
     let usesChannelCurves: Bool
+
+    var sharedRGBResponse: [Float]? { usesChannelCurves ? nil : red }
+
+    var interleavedRGBData: Data {
+        var samples = [Float]()
+        samples.reserveCapacity(red.count * 3)
+        for index in red.indices {
+            samples.append(red[index])
+            samples.append(green[index])
+            samples.append(blue[index])
+        }
+        return samples.withUnsafeBufferPointer { Data(buffer: $0) }
+    }
 
     func sampleGray(_ input: Float) -> CurveRGBSample {
         CurveRGBSample(red: CurveMath.sample(red, at: input),

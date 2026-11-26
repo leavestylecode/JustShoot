@@ -827,7 +827,7 @@ private actor CaptureWorker {
                 // The journal retains BOTH original and rendered Live Photo resources for a later retry.
                 _ = try await saver.save(id: job.id, captureDate: recipe.captureDate,
                     assetLocalIdentifier: nil, imageData: image, filmPresetName: recipe.filterName,
-                    filmDisplayLabel: recipe.displayLabel, isLivePhoto: false,
+                    filmDisplayLabel: recipe.displayLabel, captureCurve: recipe.curve, isLivePhoto: false,
                     latitude: recipe.location?.latitude, longitude: recipe.location?.longitude,
                     altitude: recipe.location?.altitude, locationTimestamp: recipe.location?.timestamp)
                 throw error
@@ -837,7 +837,7 @@ private actor CaptureWorker {
         let indexing = trace.span("capture_index_save")
         let photoID = try await saver.save(id: job.id, captureDate: recipe.captureDate,
             assetLocalIdentifier: job.assetIdentifier, imageData: nil, filmPresetName: recipe.filterName,
-            filmDisplayLabel: recipe.displayLabel, isLivePhoto: job.hasRenderedMovie,
+            filmDisplayLabel: recipe.displayLabel, captureCurve: recipe.curve, isLivePhoto: job.hasRenderedMovie,
             latitude: recipe.location?.latitude, longitude: recipe.location?.longitude,
             altitude: recipe.location?.altitude, locationTimestamp: recipe.location?.timestamp)
         indexing.end()
@@ -935,7 +935,7 @@ private actor CaptureWorker {
                     let fallback = try await renderStill(job, lut: lut, contentID: nil, seed: recipe.grainSeed)
                     _ = try await PhotoSaver(modelContainer: container).save(id: job.id, captureDate: recipe.captureDate,
                         assetLocalIdentifier: nil, imageData: fallback, filmPresetName: recipe.filterName,
-                        filmDisplayLabel: recipe.displayLabel, latitude: recipe.location?.latitude,
+                        filmDisplayLabel: recipe.displayLabel, captureCurve: recipe.curve, latitude: recipe.location?.latitude,
                         longitude: recipe.location?.longitude, altitude: recipe.location?.altitude,
                         locationTimestamp: recipe.location?.timestamp)
                     throw error

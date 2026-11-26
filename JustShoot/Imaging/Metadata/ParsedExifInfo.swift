@@ -17,6 +17,8 @@ struct ParsedExifInfo: Sendable {
     let pixelHeight: Int?
 
     var fileFormat: String?
+    var exposureBias: String?
+    var lensModel: String?
 
     private static var unknownString: String { String(localized: "Unknown") }
     private static var unknownLensString: String { String(localized: "Unknown lens") }
@@ -38,8 +40,12 @@ struct ParsedExifInfo: Sendable {
 
     /// 从 imageData 一次性解析所有 EXIF 字段
     static func parse(from imageData: Data) -> ParsedExifInfo {
-        guard let imageSource = CGImageSourceCreateWithData(imageData as CFData, nil),
-              let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [String: Any] else {
+        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil) else { return .empty }
+        return parse(from: source)
+    }
+
+    static func parse(from imageSource: CGImageSource) -> ParsedExifInfo {
+        guard let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [String: Any] else {
             return .empty
         }
 
@@ -129,6 +135,7 @@ struct ParsedExifInfo: Sendable {
             let make = tiffDict?[kCGImagePropertyTIFFMake as String] as? String ?? unknownString
             let model = tiffDict?[kCGImagePropertyTIFFModel as String] as? String ?? unknownString
             let software = tiffDict?[kCGImagePropertyTIFFSoftware as String] as? String ?? unknownString
+            guard model != unknownString || make != unknownString else { return nil }
             return (make: make, model: model, software: software)
         }()
 
@@ -152,7 +159,11 @@ struct ParsedExifInfo: Sendable {
             focalLength: focalLength, exposureMode: exposureMode, flashMode: flashMode,
             gpsInfo: gpsInfo, deviceInfo: deviceInfo, lensInfo: lensInfo,
             pixelWidth: pixelWidth, pixelHeight: pixelHeight,
-            fileFormat: CGImageSourceGetType(imageSource).flatMap { UTType($0 as String)?.preferredFilenameExtension?.uppercased() }
+            fileFormat: CGImageSourceGetType(imageSource).flatMap { UTType($0 as String)?.preferredFilenameExtension?.uppercased() },
+            exposureBias: (exif?[kCGImagePropertyExifExposureBiasValue as String] as? NSNumber).map {
+                $0.doubleValue.formatted(.number.precision(.fractionLength(0...2))) + " EV"
+            },
+            lensModel: exif?[kCGImagePropertyExifLensModel as String] as? String
         )
     }
 }

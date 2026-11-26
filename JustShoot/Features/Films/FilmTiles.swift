@@ -100,8 +100,6 @@ struct CustomLUTTile: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @ScaledMetric(relativeTo: .caption) private var captionScale = 1.0
 
-    private static let accent = Color(red: 0.6, green: 0.5, blue: 0.8)
-
     init(lut: HomeCustomFilter, textVisibility: FilmTileTextVisibility = .init()) {
         self.lut = lut
         self.textVisibility = textVisibility
@@ -128,13 +126,21 @@ struct CustomLUTTile: View {
     }
 
     private var coverArt: some View {
-        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-        return ZStack {
+        CustomLUTCover(symbolSize: 26)
+            .clipShape(.rect(cornerRadius: 10))
+    }
+}
+
+struct CustomLUTCover: View {
+    var symbolSize: CGFloat = 20
+    private static let accent = Color(red: 0.6, green: 0.5, blue: 0.8)
+
+    var body: some View {
+        ZStack {
             Self.accent.opacity(0.18)
             Image(systemName: "slider.horizontal.3")
-                .font(.system(size: 26, weight: .medium))
-                .foregroundColor(Self.accent)
+                .font(.system(size: symbolSize, weight: .medium))
+                .foregroundStyle(Self.accent)
         }
-        .clipShape(shape)
     }
 }

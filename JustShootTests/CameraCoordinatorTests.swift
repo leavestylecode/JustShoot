@@ -277,7 +277,7 @@ final class CameraCoordinatorTests: XCTestCase {
             profile: source.captureRenderProfile, adjustment: nil,
             plan: .resolve(mode: mode ?? (live ? .livePhoto : .quality),
                 deferredDelivery: deferredDelivery, directHDRAvailable: directHDRAvailable),
-            curveFields: "curve=original", colorFields: "temperature=auto")
+            curve: .preset(.punch), curveFields: "curve=highContrast", colorFields: "temperature=auto")
     }
 
     func testColorAdjustmentWaitsForTheSelectedLUTAndItsRenderedFrameBeforeCapture() async throws {
@@ -340,6 +340,7 @@ final class CameraCoordinatorTests: XCTestCase {
         let callbacks = try XCTUnwrap(camera.callbacks.first)
         callbacks.exposed()
         XCTAssertEqual(pipeline.preview?.lutIntensity, 0.88)
+        XCTAssertEqual(pipeline.preview?.withPhotoDisplayTime(1).curve, .preset(.punch))
         callbacks.ready()
     }
 

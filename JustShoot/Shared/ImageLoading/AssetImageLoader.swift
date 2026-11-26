@@ -1,3 +1,4 @@
+import os
 import Photos
 import UIKit
 
@@ -6,6 +7,7 @@ import UIKit
 final class AssetImageLoader: @unchecked Sendable {
     static let shared = AssetImageLoader()
     private let manager = PHCachingImageManager()
+    private let versions = OSAllocatedUnfairLock(initialState: [String: UInt64]())
     private let cache = NSCache<NSString, UIImage>()
 
     private init() {
@@ -24,19 +26,29 @@ final class AssetImageLoader: @unchecked Sendable {
         PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject
     }
 
+    private func thumbnailKey(id: String, maxPixel: Int) -> NSString {
+        let version = versions.withLock { $0[id, default: 0] }
+        return "\(id)_\(version)_\(maxPixel)" as NSString
+    }
+
+    func invalidate(id: String) {
+        versions.withLock { $0[id, default: 0] += 1 }
+    }
+
     /// 同步查内存缓存（不发起请求）。命中即零延迟。
     func cachedThumbnail(id: String, maxPixel: Int) -> UIImage? {
-        cache.object(forKey: "\(id)_\(maxPixel)" as NSString)
+        cache.object(forKey: thumbnailKey(id: id, maxPixel: maxPixel))
     }
 
     /// Grid cells can display an opportunistic preview while waiting for the cacheable image.
     func thumbnail(id: String, maxPixel: Int, trace: DiagnosticTrace? = nil,
                    onDegraded: (@Sendable (UIImage) -> Void)? = nil) async -> UIImage? {
-        if let cached = cachedThumbnail(id: id, maxPixel: maxPixel) { return cached }
+        let key = thumbnailKey(id: id, maxPixel: maxPixel)
+        if let cached = cache.object(forKey: key) { return cached }
         let img = await requestImage(id: id, targetSize: CGSize(width: maxPixel, height: maxPixel),
                                      contentMode: .aspectFill, resize: .fast, trace: trace, kind: "thumbnail",
                                      onDegraded: onDegraded)
-        if let img { cache.setObject(img, forKey: "\(id)_\(maxPixel)" as NSString, cost: cost(img)) }
+        if let img { cache.setObject(img, forKey: key, cost: cost(img)) }
         return img
     }
 

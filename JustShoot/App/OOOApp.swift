@@ -26,7 +26,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 struct OOOApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @AppStorage(AppAppearance.key) private var appearance = AppAppearance.automatic
-    @StateObject private var curveLibrary = FilmCurveLibrary()
+    @StateObject private var curveLibrary = FilmCurveLibrary.shared
     @StateObject private var startup = AppStartupPreparation()
     @State private var membership = MembershipStore()
     @State private var introFinished = false

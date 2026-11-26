@@ -57,6 +57,7 @@ final class DragDismissController: ObservableObject {
 
 struct PhotoDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
     @StateObject private var dismisser: DragDismissController
     private let initialPhotoID: UUID
@@ -80,6 +81,10 @@ struct PhotoDetailView: View {
     /// `walk(connectedScenes)`（量小但能省就省，且确保 PagerImage 在所有 body 评估里看到稳定值）。
     @State private var previewMaxPixel: Int
     @State private var showingInfo = false
+    @State private var editingAsset: PhotoEditorSelection?
+    @State private var preparingEditor = false
+    @State private var findingPhoto = false
+    @Environment(\.openURL) private var openURL
     @State private var isPreparingShare = false
     @State private var shareTask: Task<Void, Never>?
     @State private var isDeleting = false
@@ -168,8 +173,9 @@ struct PhotoDetailView: View {
                                             loadsPreview: isVisible && previewIDs.contains(photoItem.id),
                                             previewMaxPixel: previewMaxPixel,
                                             dismisser: dismisser,
-                                            initialImage: photoItem.id == initialPhotoID ? initialImage : nil
+                                            initialImage: photoItem.id == initialPhotoID && PhotoEditChanges.shared[photoItem] == 0 ? initialImage : nil
                                         )
+                                        .id(PhotoEditChanges.shared[photoItem])
                                         .frame(width: viewport.size.width, height: viewport.size.height)
                                         .id(photoItem.id)
                                     }
@@ -245,6 +251,18 @@ struct PhotoDetailView: View {
         .floatingBottomToolbar()
         .toolbar { navigationToolbar }
         .toolbar { bottomToolbar }
+        .sheet(isPresented: $showingInfo) {
+            if let photo = currentPhoto {
+                PhotoInfoPanel(photo: photo)
+                    .preferredColorScheme(colorScheme)
+            }
+        }
+        .fullScreenCover(item: $editingAsset) { selection in
+            PhotoEditorView(assetID: selection.id) {
+                PhotoEditChanges.shared.didSave(assetID: selection.id)
+            }
+            .modelContainer(modelContext.container)
+        }
         .onAppear {
             isVisible = true
             Diagnostics.emit("photo_detail_open", id: currentPhotoID?.uuidString ?? "photo-detail",
@@ -367,60 +385,50 @@ struct PhotoDetailView: View {
     private var navigationToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
             if let photo = currentPhoto {
-                VStack(spacing: 1) {
-                    Text(photo.timestamp, format: .dateTime.month().day().hour().minute())
+                VStack(spacing: 0) {
+                    Text(photo.timestamp, format: .dateTime.month().day().year())
                         .font(.subheadline.weight(.semibold))
-                    Text("\(currentIndex + 1) / \(photos.count)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    Text(photo.timestamp, style: .time).font(.caption2).foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .combine)
             }
         }
-
         ToolbarItem(placement: .topBarTrailing) {
-            // 一键分享当前照片到其他 app：导出全分辨率原图临时文件 → 系统分享面板。
-            // 导出期间（异步取原始字节）显示 spinner 并禁用，防连点。
-            Button {
-                shareCurrentPhoto()
-            } label: {
-                Group {
-                    if isPreparingShare {
-                        ProgressView()
-                    } else {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                }
-                .toolbarControlSurface()
+            if let id = currentPhoto?.assetLocalIdentifier {
+                Button {
+                    findInPhotos(id: id)
+                } label: { Image(systemName: "photo.on.rectangle").toolbarControlSurface() }
+                .disabled(findingPhoto)
+                .accessibilityLabel("Find in Photos")
             }
-            .disabled(isPreparingShare || isDeleting || currentPhoto == nil)
-            .accessibilityLabel("Share this photo")
         }
     }
 
     @ToolbarContentBuilder
     private var bottomToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
-            Button {
-                showingInfo.toggle()
-            } label: {
-                Image(systemName: "info")
-                    .fontWeight(showingInfo ? .bold : .regular)
-                    .toolbarControlSurface()
+            Button(action: shareCurrentPhoto) {
+                Group {
+                    if isPreparingShare { ProgressView() } else { Image(systemName: "square.and.arrow.up") }
+                }.toolbarControlSurface()
+            }
+            .disabled(isPreparingShare || isDeleting || currentPhoto == nil)
+            .accessibilityLabel("Share this photo")
+            Spacer()
+            Button { showingInfo = true } label: {
+                Image(systemName: "info.circle").toolbarControlSurface()
             }
             .disabled(currentPhoto == nil)
             .accessibilityLabel("Photo information")
-            .popover(isPresented: $showingInfo) {
-                if let photo = currentPhoto {
-                    PhotoInfoPanel(photo: photo)
-                        .frame(idealWidth: 420, idealHeight: 560)
-                        .presentationCompactAdaptation(.sheet)
-                        .presentationDetents([.medium, .large])
-                }
-            }
             Spacer()
-
-            // 照片已在系统相册（JustShoot 相簿），无需「保存到相册」。删除走 PhotoKit，系统弹原生
-            // 确认 + 「最近删除」可恢复。
+            Button(action: openEditor) {
+                Group {
+                    if preparingEditor { ProgressView() } else { Image(systemName: "slider.horizontal.3") }
+                }.toolbarControlSurface()
+            }
+            .disabled(isDeleting || preparingEditor || currentPhoto == nil)
+            .accessibilityLabel("Edit photo")
+            Spacer()
             Button(role: .destructive) {
                 if let photo = currentPhoto, photo.assetLocalIdentifier == nil {
                     localDeletionID = photo.id
@@ -436,6 +444,47 @@ struct PhotoDetailView: View {
             }
             .disabled(isDeleting || isPreparingShare || currentPhoto == nil)
             .accessibilityLabel("Delete this photo")
+        }
+    }
+
+    private func findInPhotos(id: String) {
+        findingPhoto = true
+        Task {
+            defer { findingPhoto = false }
+            let url = await Task.detached { PhotoLibrary.navigationURL(for: id) }.value
+            guard isVisible, currentPhoto?.assetLocalIdentifier == id else { return }
+            guard let url else {
+                actionError = String(localized: "This photo could not be opened in Photos.")
+                return
+            }
+            openURL(url) { opened in
+                if !opened { actionError = String(localized: "This photo could not be opened in Photos.") }
+            }
+        }
+    }
+
+    private func openEditor() {
+        guard let photo = currentPhoto else { return }
+        if let id = photo.assetLocalIdentifier {
+            editingAsset = PhotoEditorSelection(id: id)
+            return
+        }
+        // Legacy and recovery rows become editable once the existing migration has committed.
+        let selectedID = photo.id
+        preparingEditor = true
+        Task {
+            defer { preparingEditor = false }
+            do {
+                try await PhotoLibrary.ensureAuthorized()
+                await PhotoLibrarySync.shared.reconcile(container: modelContext.container)
+                guard isVisible, currentPhotoID == selectedID else { return }
+                let descriptor = FetchDescriptor<Photo>(predicate: #Predicate { $0.id == selectedID })
+                guard let id = try ModelContext(modelContext.container).fetch(descriptor).first?.assetLocalIdentifier
+                else { throw PhotoEditError.unavailable }
+                editingAsset = PhotoEditorSelection(id: id)
+            } catch {
+                if isVisible, currentPhotoID == selectedID { actionError = error.localizedDescription }
+            }
         }
     }
 

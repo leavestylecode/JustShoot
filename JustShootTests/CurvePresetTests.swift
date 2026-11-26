@@ -3,7 +3,7 @@ import XCTest
 
 final class CurvePresetTests: XCTestCase {
     private func gray(_ preset: CurvePreset, _ input: Float) -> Float {
-        CurveMath.sample(preset.previewData.master, at: input)
+        preset.previewData.sampleGray(input).green
     }
 
     func testCatalogueListsFadedSImmediatelyAfterFaded() {
@@ -65,16 +65,16 @@ final class CurvePresetTests: XCTestCase {
         let original = CurveMath.expand(CurveMath.points([
             (0, 0.055), (0.25, 0.285), (0.50, 0.50), (0.75, 0.715), (1, 0.95)
         ]))
-        XCTAssertEqual(CurvePreset.matte.previewData.master, original)
+        XCTAssertEqual(CurvePreset.matte.previewData.sharedRGBResponse, original)
     }
 
-    func testFadedSSeparatesMidtonesAndPreservesDetailAtBothEnds() {
+    func testFadedSSeparatesMidtonesAndPreservesDetailAtBothEnds() throws {
         XCTAssertLessThan(gray(.fadedS, 0.25), 0.25)
         XCTAssertGreaterThan(gray(.fadedS, 0.75), 0.75)
         XCTAssertEqual(gray(.fadedS, 0.5), 0.5, accuracy: 0.001)
         let middleSlope = (gray(.fadedS, 0.6) - gray(.fadedS, 0.4)) / 0.2
         XCTAssertGreaterThan(middleSlope, 1.05)
-        let table = CurvePreset.fadedS.previewData.master
+        let table = try XCTUnwrap(CurvePreset.fadedS.previewData.sharedRGBResponse)
         for (before, after) in zip(table, table.dropFirst()) {
             let slope = (after - before) * Float(table.count - 1)
             XCTAssertGreaterThan(slope, 0.6, "Keep texture visible in the faded shadows and highlights")

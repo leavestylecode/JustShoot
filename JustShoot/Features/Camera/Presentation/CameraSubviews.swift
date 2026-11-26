@@ -647,7 +647,6 @@ struct FilmSourceCoverThumbnail: View {
     @State private var image: UIImage?
     @Environment(\.displayScale) private var displayScale
 
-    private static let customAccent = Color(red: 0.6, green: 0.5, blue: 0.8)
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 8, style: .continuous) }
 
     var body: some View {
@@ -663,10 +662,7 @@ struct FilmSourceCoverThumbnail: View {
                     Image(systemName: "film").foregroundStyle(.secondary)
                 }
             case .custom:
-                Self.customAccent.opacity(0.18)
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(Self.customAccent)
+                CustomLUTCover()
             }
         }
         .clipShape(shape)

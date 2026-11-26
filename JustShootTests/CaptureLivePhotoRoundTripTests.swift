@@ -46,7 +46,7 @@ final class CaptureLivePhotoRoundTripTests: XCTestCase {
         let row = try XCTUnwrap(rows.first)
         XCTAssertTrue(row.isLivePhoto)
         let assetID = try XCTUnwrap(row.assetLocalIdentifier)
-        defer { Task { try? await PhotoLibrary.delete(localIdentifiers: [assetID]) } }
+        deletePhotoFixtureAfterTest(assetID)
         let asset = try XCTUnwrap(PHAsset.fetchAssets(withLocalIdentifiers: [assetID], options: nil).firstObject)
         XCTAssertTrue(asset.mediaSubtypes.contains(.photoLive))
         let resources = PHAssetResource.assetResources(for: asset)
@@ -62,6 +62,16 @@ final class CaptureLivePhotoRoundTripTests: XCTestCase {
         let url = try XCTUnwrap(shared)
         defer { ShareExportDirectory.application.remove(files: [url]) }
         XCTAssertEqual(url.lastPathComponent, "OOO_0001.JPG")
+        let session = try await PhotoEditSession.open(id: assetID, films: [])
+        var edit = PhotoEditRecipe()
+        edit.curve = .preset(.matte)
+        edit.crop.aspect = .square
+        try await session.save(edit)
+        let updated = try XCTUnwrap(AssetImageLoader.shared.asset(id: assetID))
+        XCTAssertTrue(updated.mediaSubtypes.contains(.photoLive))
+        let edited = await AssetImageLoader.shared.livePhoto(id: assetID, targetSize: CGSize(width: 240, height: 240))
+        let size = try XCTUnwrap(edited).size
+        XCTAssertEqual(size.width, size.height, accuracy: 1)
         XCTAssertTrue(try journal.jobs().isEmpty)
         await pipeline.retryPending()
         XCTAssertEqual(try container.mainContext.fetchCount(FetchDescriptor<Photo>()), 1)

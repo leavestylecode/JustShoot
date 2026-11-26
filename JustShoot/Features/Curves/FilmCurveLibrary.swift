@@ -4,6 +4,8 @@ import Combine
 /// Selection, order and catalog commit together; the old selection key is a compatibility mirror.
 @MainActor
 final class FilmCurveLibrary: ObservableObject {
+    static let shared = FilmCurveLibrary()
+
     enum Entry: Identifiable, Hashable {
         case builtIn(CurvePreset)
         case custom(CustomFilmCurve)
@@ -96,6 +98,14 @@ final class FilmCurveLibrary: ObservableObject {
         }
     }
     var selectedCurve: FilmCurve { curve(id: selectedCurveID) ?? .builtIn(.none) }
+
+    var selectedCurveDefinition: PhotoEditCurve {
+        guard let entry = entries.first(where: { $0.id == selectedCurveID }) else { return .preset(.none) }
+        switch entry {
+        case .builtIn(let preset): return .preset(preset)
+        case .custom(let definition): return .custom(definition)
+        }
+    }
 
     func previewData(for entry: Entry) -> CurvePreviewData? {
         switch entry {

@@ -851,7 +851,7 @@ struct CameraView: View {
             let hdrFormat = mode == .hdr && !deferred ? cameraManager.directHDRCaptureFormat : nil
             let plan = PhotoCapturePlan.resolve(mode: mode, deferredDelivery: deferred, directHDRAvailable: hdrFormat != nil)
             return CameraCaptureSelection(source: source, lutKey: prepared.key, lut: prepared.lut, profile: prepared.profile,
-                adjustment: prepared.adjustment, plan: plan, curveFields: curveDiagnosticFields(selectedCurve),
+                adjustment: prepared.adjustment, plan: plan, curve: curveLibrary.selectedCurveDefinition, curveFields: curveDiagnosticFields(selectedCurve),
                 colorFields: colorAdjustmentDiagnosticFields, lutIntensity: CameraCapturePolicy.defaultLUTIntensity,
                 hdrFormat: hdrFormat)
         }
