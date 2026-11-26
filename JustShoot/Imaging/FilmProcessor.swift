@@ -161,7 +161,7 @@ final class FilmProcessor: Sendable {
 
     // MARK: - 逐阶段诊断对照图
     //
-    // 设置页开启「保留处理阶段对照图」（默认关）后，每次静态成片在
+    // 设置页开启「阶段对照」（默认关）后，每次静态成片在
     // Documents/ProcessingDiagnostics/<拍摄ID>/ 下保留原片、SDR 输入、LUT、光学、颗粒阶段，
     // 并在可用时附带快门预览帧及相册回读的亮度/色彩统计，用于定位差异首次出现的阶段。
     // 每张 48MP 10-bit HEIC 约 2–4 MB，只保留最近 6 次拍摄，其余自动清理；
@@ -483,7 +483,7 @@ final class FilmProcessor: Sendable {
     ///   与配对视频关联的 content identifier。静态图被 LUT 重编码后 AVCapture 原写入的 MakerApple
     ///   可能不可靠存活，所以由调用方显式传入同一个 UUID，两端（这里 + LivePhotoProcessor 写视频）
     ///   各自显式写入，配对不依赖原始字节往返。
-    /// - diagnosticCaptureID: 开启「保留处理阶段对照图」设置时（见 stageDiagnosticsEnabled），
+    /// - diagnosticCaptureID: 开启「阶段对照」设置时（见 stageDiagnosticsEnabled），
     ///   逐阶段写出原片 / LUT 后 / 光学后 / 成片四张对照图，用于定位细节在哪一步丢失。
     /// - outputQuality: nil selects automatic encoding. A non-nil value preserves only an
     ///   older journal's frozen compression recipe; new captures leave this unset.

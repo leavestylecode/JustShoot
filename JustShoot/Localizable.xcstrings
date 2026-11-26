@@ -263,7 +263,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "About Author"
+            "value" : "About the Author"
           }
         },
         "zh-Hans" : {
@@ -565,7 +565,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "外观"
+            "value" : "外观管理"
           }
         }
       }
@@ -1585,7 +1585,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "App 外观"
+            "value" : "应用外观"
           }
         }
       }
@@ -2254,7 +2254,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "诊断"
+            "value" : "诊断工具"
           }
         }
       }
@@ -2388,7 +2388,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "导出诊断日志"
+            "value" : "导出日志"
           }
         }
       }
@@ -3459,7 +3459,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保留处理阶段对照图"
+            "value" : "阶段对照"
           }
         }
       }
@@ -4089,7 +4089,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "跟随 App"
+            "value" : "跟随应用"
           }
         }
       }
@@ -6558,7 +6558,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "设置图标样式"
+            "value" : "图标样式"
           }
         }
       }
