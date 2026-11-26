@@ -43,7 +43,6 @@ struct SettingsView: View {
                     .frame(minHeight: geometry.size.height)
                     .pageContentWidth()
                 }
-                .scrollIndicators(.hidden)
             }
             .appPageBackground()
             .navigationTitle("Settings")

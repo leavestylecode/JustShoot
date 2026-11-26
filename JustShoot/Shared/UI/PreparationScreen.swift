@@ -16,7 +16,6 @@ struct PreparationErrorScreen: View {
                     .frame(maxWidth: .infinity, minHeight: geometry.size.height)
             }
             .scrollBounceBehavior(.basedOnSize)
-            .scrollIndicators(.hidden)
         }
         .background(Color(uiColor: .systemBackground).ignoresSafeArea())
         .foregroundStyle(.primary)

@@ -5,6 +5,41 @@ import XCTest
 
 @MainActor
 final class AppAppearanceTests: XCTestCase {
+    func testPageContainersScrollWithTheirIndicatorsHidden() async throws {
+        let window = UIWindow(windowScene: try await TestWindowScene.foreground())
+        let rows = ForEach(0..<50) { index in Text(verbatim: String(index)) }
+        let page = VStack {
+            List { rows }.frame(height: 120)
+            Form { rows }.frame(height: 120)
+            ScrollView { Color.clear.frame(height: 900) }.frame(height: 80)
+            ScrollView(.horizontal) { Color.clear.frame(width: 900, height: 50) }
+                .frame(width: 140, height: 50)
+        }
+        let host = UIHostingController(rootView: page.appVisualDesign())
+        window.rootViewController = host
+        window.isHidden = false
+        defer { window.isHidden = true }
+        host.view.layoutIfNeeded()
+
+        func scrollViews(in view: UIView) -> [UIScrollView] {
+            let subviews = view.subviews.flatMap { scrollViews(in: $0) }
+            return (view as? UIScrollView).map { [$0] + subviews } ?? subviews
+        }
+        let containers = scrollViews(in: host.view)
+        let vertical = containers.filter { $0.contentSize.height > $0.bounds.height }
+        let horizontal = containers.filter { $0.contentSize.width > $0.bounds.width }
+        XCTAssertEqual(vertical.count, 3)
+        XCTAssertEqual(horizontal.count, 1)
+        for scroll in vertical {
+            XCTAssertTrue(scroll.isScrollEnabled)
+            XCTAssertFalse(scroll.showsVerticalScrollIndicator)
+        }
+        for scroll in horizontal {
+            XCTAssertTrue(scroll.isScrollEnabled)
+            XCTAssertFalse(scroll.showsHorizontalScrollIndicator)
+        }
+    }
+
     func testSettingsIconKeepsItsRoundShapeInEverySavedStyle() throws {
         let suite = "settings-icon-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

@@ -92,7 +92,6 @@ private struct ProfileEditor: View {
                 fieldSection("profile_field_motto", text: $motto, limit: 100, focused: $mottoFocused)
             }
             .scrollContentBackground(.hidden)
-            .scrollIndicators(.hidden)
             .appPageBackground()
             .navigationTitle("Edit Profile")
             .navigationBarTitleDisplayMode(.inline)

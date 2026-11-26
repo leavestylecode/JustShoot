@@ -46,7 +46,6 @@ struct GeneralBackgroundSettingsView: View {
             .padding(16)
             .padding(.bottom, 20)
         }
-        .scrollIndicators(.hidden)
         .appPageBackground()
         .navigationTitle("Page Background")
         .navigationBarTitleDisplayMode(.inline)

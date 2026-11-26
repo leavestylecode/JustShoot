@@ -33,6 +33,8 @@ struct PhotoGridView: UIViewRepresentable {
         let cv = PhotoGridCollectionView(frame: .zero, collectionViewLayout: layout)
         cv.accessibilityIdentifier = "gallery.grid"
         cv.backgroundColor = .clear
+        cv.showsVerticalScrollIndicator = false
+        cv.showsHorizontalScrollIndicator = false
         cv.alwaysBounceVertical = true
         cv.allowsSelection = true
         cv.allowsSelectionDuringEditing = true

@@ -160,7 +160,7 @@ struct PhotoDetailPresentation: UIViewControllerRepresentable {
                     }, onClose: close)
             }
             .modelContainer(parent.container)
-            .dynamicTypeSize(.large)
+            .appVisualDesign()
             let controller = PhotoDetailHostingController(rootView: AnyView(content))
             controller.modalPresentationStyle = .fullScreen
             // Older systems use a quiet fade instead of an unrelated vertical sheet motion.

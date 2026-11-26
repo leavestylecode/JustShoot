@@ -321,6 +321,8 @@ final class PhotoGridZoomTests: XCTestCase {
             (self.grid(in: host.view)?.visibleCells as? [PhotoCell])?.contains { $0.transitionImage != nil } == true
         }
         let grid = try XCTUnwrap(grid(in: host.view))
+        XCTAssertFalse(grid.showsVerticalScrollIndicator)
+        XCTAssertFalse(grid.showsHorizontalScrollIndicator)
         let layout = try XCTUnwrap(grid.collectionViewLayout as? SquareGridLayout)
         let path = IndexPath(item: 29, section: 0)
         grid.scrollToItem(at: path, at: .centeredVertically, animated: false)

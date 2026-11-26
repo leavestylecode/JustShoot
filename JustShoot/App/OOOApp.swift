@@ -45,8 +45,7 @@ struct OOOApp: App {
             AppStartupContent(startup: startup, curveLibrary: curveLibrary, isRunningUnitTests: isRunningUnitTests,
                               introFinished: $introFinished)
                 .environment(membership)
-                // Keep typography and scaled layout metrics at the design's default size.
-                .dynamicTypeSize(.large)
+                .appVisualDesign()
                 .preferredColorScheme(appearance.scheme)
                 .onChange(of: scenePhase, initial: true) { _, phase in startup.setActive(phase == .active) }
                 .task(id: scenePhase, priority: .utility) {

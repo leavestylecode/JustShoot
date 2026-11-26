@@ -54,7 +54,7 @@ struct FilmHomeView: View {
 
         return NavigationStack {
             GeometryReader { geometry in
-                ScrollView(.vertical, showsIndicators: false) {
+                ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 14) {
                         if visibleFilms.isEmpty {
                             PageNotice(title: "No films shown", systemImage: "camera.filters",

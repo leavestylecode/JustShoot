@@ -47,7 +47,6 @@ struct AppearanceSettingsView: View {
             .frame(maxWidth: .infinity)
             .padding(20)
         }
-        .scrollIndicators(.hidden)
     }
 
     private func appearanceCard(_ title: LocalizedStringKey, automatic: LocalizedStringKey,

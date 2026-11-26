@@ -57,7 +57,7 @@ struct PhotoScrubber: View {
             // 边缘对齐 viewport 边缘，再加上 scrollPosition 的 binding 写回，最终 cell 被 re-snap
             // 到 viewport trailing edge（**用户感知就是"选中的图片一直在最右边"**）。
             ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
+                ScrollView(.horizontal) {
                     LazyHStack(alignment: .center, spacing: Self.spacing) {
                         ForEach(photos) { photo in
                             ThumbnailStripCell(

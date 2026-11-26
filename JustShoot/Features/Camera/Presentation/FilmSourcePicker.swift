@@ -33,7 +33,7 @@ private struct CameraPickerRow<Content: View>: View {
 
     var body: some View {
         GeometryReader { geometry in
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal) {
                 HStack(spacing: style == .iPadOverlay ? 8 : 10) {
                     content(style.itemSize(for: sizeClass))
                 }

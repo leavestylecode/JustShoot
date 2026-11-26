@@ -53,7 +53,6 @@ struct FilmCardDetailView: View {
                 .frame(maxWidth: pageWidth)
                 .frame(maxWidth: .infinity)
             }
-            .scrollIndicators(.hidden)
 
             let header = navigationHeader
                 .padding(.horizontal, Self.pageInset)

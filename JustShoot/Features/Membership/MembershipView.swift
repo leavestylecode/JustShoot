@@ -70,7 +70,6 @@ struct MembershipView: View {
                 }
             }
         }
-        .scrollIndicators(.hidden)
         .appPageBackground()
         .navigationTitle("Membership")
         .navigationBarTitleDisplayMode(.inline)

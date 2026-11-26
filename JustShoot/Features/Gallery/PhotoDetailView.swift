@@ -188,7 +188,6 @@ struct PhotoDetailView: View {
                                 // selection so actions and deletion reconciliation stay anchored.
                                 if let id = $0 { currentPhotoID = id }
                             }))
-                            .scrollIndicators(.hidden)
                             // Toolbars must not add content insets and shift the fitted image.
                             .contentMargins(.all, 0, for: .scrollContent)
                             .task(id: viewport.size.width) {

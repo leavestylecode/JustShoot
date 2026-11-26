@@ -25,7 +25,6 @@ struct PhotoEditFilmStrip: View {
                 }
                 .padding(.horizontal, 4)
             }
-            .scrollIndicators(.hidden)
             .onAppear { reader.scrollTo(selected, anchor: .center) }
         }
         .frame(height: 76)
