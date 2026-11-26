@@ -82,7 +82,7 @@ struct FilmCurveLibraryView: View {
                 .tint(.red)
                 .disabled(!library.canEdit)
                 .frame(maxWidth: .infinity)
-                .listRowInsets(EdgeInsets(top: 72, leading: 0, bottom: 16, trailing: 0))
+                .listRowInsets(EdgeInsets(top: 84, leading: 0, bottom: 16, trailing: 0))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 .alert("Reset Curve List?", isPresented: $confirmsReset) {
@@ -166,7 +166,7 @@ struct FilmCurveLibraryView: View {
             }
         }
         .frame(minHeight: 44)
-        .padding(.top, 12)
+        .padding(.top, 24)
         .textCase(nil)
         .listRowInsets(EdgeInsets())
     }
